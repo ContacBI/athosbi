@@ -8,6 +8,7 @@ import {
   writePersistent,
 } from "./persistence.js";
 import { DEFAULT_NATURE_RULES } from "./accountNature.js";
+import { supabase, MONTHLY_REPORTS_BUCKET } from "./supabaseClient.js";
 
 function writeStoredCompanies(companies) {
   return writePersistent(COMPANIES_KEY, companies);
@@ -306,9 +307,10 @@ export function exportBackupPayload() {
     exportedAt: new Date().toISOString(),
     activeCompanyId: state.activeCompanyId,
     activeGroupId: state.activeGroupId,
-    // Monthly report files are real Blobs (fine for IndexedDB, but JSON.stringify
-    // can't carry them) — the portable backup excludes the file content itself;
-    // it always lives only in this browser's storage.
+    // Monthly report attachments live in Supabase Storage, not in this jsonb
+    // (see attachMonthlyReport) — a portable backup restored into a
+    // different project wouldn't have those files anyway, so their metadata
+    // is left out here rather than pointing at storage paths that don't exist.
     companies: state.companies.map(({ monthlyReports, ...company }) => company),
     groups: state.groups,
   };
@@ -319,23 +321,43 @@ export function exportBackupPayload() {
 // which raw file produced today's data) vs "outro" (just a document parked
 // for safekeeping, never parsed). Defaults to "outro" for the general-purpose
 // archive use this already had.
-export function attachMonthlyReport(monthKey, file, kind = "outro") {
+export async function attachMonthlyReport(monthKey, file, kind = "outro") {
   const company = state.companies.find((item) => item.id === state.activeCompanyId);
   if (!company) return;
+  const reportId = `rep_${Date.now()}`;
+  // The only real binary file this app handles — everything else is JSON
+  // that rides along in the app_storage blob, but a Blob can't survive
+  // JSON.stringify, so this one goes to Supabase Storage instead and only
+  // its storage path gets remembered here.
+  const storagePath = `${company.id}/${monthKey}/${reportId}-${file.name}`;
+  const { error: uploadError } = await supabase.storage.from(MONTHLY_REPORTS_BUCKET).upload(storagePath, file, {
+    contentType: file.type || "application/octet-stream",
+  });
+  if (uploadError) throw uploadError;
+
   const report = {
-    id: `rep_${Date.now()}`,
+    id: reportId,
     name: file.name,
     size: file.size,
     type: file.type,
     kind,
     uploadedAt: new Date().toISOString(),
-    blob: file,
+    storagePath,
   };
   const monthlyReports = { ...(company.monthlyReports || {}) };
   monthlyReports[monthKey] = [...(monthlyReports[monthKey] || []), report];
   const companies = state.companies.map((item) => (item.id === company.id ? { ...item, monthlyReports } : item));
   writeStoredCompanies(companies);
   setData({ companies });
+}
+
+// Fetches the actual file back from Storage for the "abrir"/"baixar" action
+// in Relatórios mensais — report.blob doesn't exist anymore (see above), so
+// this is now async instead of a plain URL.createObjectURL(report.blob).
+export async function fetchMonthlyReportBlob(report) {
+  const { data, error } = await supabase.storage.from(MONTHLY_REPORTS_BUCKET).download(report.storagePath);
+  if (error) throw error;
+  return data;
 }
 
 // A balancete replaces the whole chart of accounts wholesale (it's a single
@@ -387,9 +409,14 @@ export function restorePreviousBalancete() {
 export function removeMonthlyReport(monthKey, reportId) {
   const company = state.companies.find((item) => item.id === state.activeCompanyId);
   if (!company) return;
+  const existing = company.monthlyReports?.[monthKey] || [];
+  const target = existing.find((report) => report.id === reportId);
   const monthlyReports = { ...(company.monthlyReports || {}) };
-  monthlyReports[monthKey] = (monthlyReports[monthKey] || []).filter((report) => report.id !== reportId);
+  monthlyReports[monthKey] = existing.filter((report) => report.id !== reportId);
   const companies = state.companies.map((item) => (item.id === company.id ? { ...item, monthlyReports } : item));
   writeStoredCompanies(companies);
   setData({ companies });
+  // Best-effort — the metadata is already gone from the company record
+  // either way, so a failed/slow storage delete never blocks the UI.
+  if (target?.storagePath) supabase.storage.from(MONTHLY_REPORTS_BUCKET).remove([target.storagePath]);
 }

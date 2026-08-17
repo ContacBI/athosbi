@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Download, FileCheck2, FilePlus2, RotateCcw, Trash2, Upload } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
-import { attachMonthlyReport, removeMonthlyReport, replaceAccounts, restorePreviousBalancete } from "../lib/companies.js";
+import { attachMonthlyReport, fetchMonthlyReportBlob, removeMonthlyReport, replaceAccounts, restorePreviousBalancete } from "../lib/companies.js";
 import { importBalancete, importDiario } from "../importers/dominio.js";
 import { attachJournalMonths, journalCountForMonth, journalMonthsPresent, removeJournalMonth } from "../lib/journalMonths.js";
 
@@ -104,11 +104,19 @@ export default function RelatoriosMensais() {
     fileInputRef.current?.click();
   }
 
-  function handleFileChange(event) {
+  async function handleFileChange(event) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file || !pendingMonthRef.current) return;
-    attachMonthlyReport(pendingMonthRef.current, file, "outro");
+    setBusy("Enviando arquivo…");
+    try {
+      await attachMonthlyReport(pendingMonthRef.current, file, "outro");
+      setBusy("");
+    } catch (error) {
+      console.error("Falha ao enviar anexo:", error);
+      setBusy("Não consegui enviar o arquivo — tenta de novo.");
+      setTimeout(() => setBusy(""), 3500);
+    }
   }
 
   function handleRemoveMonthJournal(index) {
@@ -119,9 +127,18 @@ export default function RelatoriosMensais() {
     removeJournalMonth(key);
   }
 
-  function openFile(report) {
-    const url = URL.createObjectURL(report.blob);
-    window.open(url, "_blank", "noopener");
+  async function openFile(report) {
+    setBusy("Abrindo arquivo…");
+    try {
+      const blob = await fetchMonthlyReportBlob(report);
+      setBusy("");
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener");
+    } catch (error) {
+      console.error("Falha ao baixar anexo:", error);
+      setBusy("Não consegui abrir o arquivo.");
+      setTimeout(() => setBusy(""), 3500);
+    }
   }
 
   const openKey = openMonth !== null ? monthKey(openMonth) : null;

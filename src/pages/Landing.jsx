@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Settings, LayoutDashboard, FileText, BarChart3 } from "lucide-react";
+import { ArrowRight, Settings, LayoutDashboard, FileText, BarChart3, LogOut } from "lucide-react";
+import { supabase } from "../lib/supabaseClient.js";
 
 const FEATURES = [
   { icon: LayoutDashboard, label: "Dashboards por empresa" },
@@ -20,15 +21,26 @@ export default function Landing() {
         }}
       />
 
-      <button
-        type="button"
-        onClick={() => navigate("/parametros")}
-        aria-label="Configurações"
-        title="Configurações"
-        className="absolute right-6 top-6 flex h-10 w-10 items-center justify-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white"
-      >
-        <Settings size={20} />
-      </button>
+      <div className="absolute right-6 top-6 flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => navigate("/parametros")}
+          aria-label="Configurações"
+          title="Configurações"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          <Settings size={20} />
+        </button>
+        <button
+          type="button"
+          onClick={() => supabase.auth.signOut()}
+          aria-label="Sair"
+          title="Sair"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          <LogOut size={18} />
+        </button>
+      </div>
 
       <div className="relative flex flex-col items-center">
         <span className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-500 text-2xl font-medium shadow-lg shadow-accent-600/30">

@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { Building2, Network, Repeat, Users, SlidersHorizontal, ChevronLeft, BarChart3 } from "lucide-react";
+import { Building2, Network, Repeat, Users, SlidersHorizontal, ChevronLeft, BarChart3, LogOut } from "lucide-react";
+import { supabase } from "../lib/supabaseClient.js";
 
 const ITEMS = [
   { to: "/parametros/empresas", label: "Empresas", icon: Building2 },
@@ -48,7 +49,16 @@ export default function ParametrosSidebar() {
         ))}
       </nav>
 
-      <div className="border-t border-white/10 px-5 py-4 text-[11px] text-white/35">Parâmetros</div>
+      <div className="border-t border-white/10 px-3 py-3">
+        <button
+          type="button"
+          onClick={() => supabase.auth.signOut()}
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[12.5px] text-white/50 transition-colors hover:bg-white/5 hover:text-white"
+        >
+          <LogOut size={15} strokeWidth={1.8} />
+          Sair
+        </button>
+      </div>
     </aside>
   );
 }

@@ -3,6 +3,8 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import CompanyLayout from "./components/CompanyLayout.jsx";
 import ParametrosLayout from "./components/ParametrosLayout.jsx";
 import Landing from "./pages/Landing.jsx";
+import Login from "./pages/Login.jsx";
+import { supabase } from "./lib/supabaseClient.js";
 import Empresas from "./pages/Empresas.jsx";
 import CompanyHome from "./pages/CompanyHome.jsx";
 import PainelTab from "./pages/PainelTab.jsx";
@@ -24,10 +26,31 @@ import { loadRepresentantes } from "./lib/representantes.js";
 import { loadIndicatorOverrides } from "./lib/indicators.js";
 
 export default function App() {
+  const [session, setSession] = useState(undefined); // undefined = ainda não checou, null = deslogado
   const [ready, setReady] = useState(false);
   const [bootError, setBootError] = useState("");
 
+  // Auth primeiro: só faz sentido ir buscar dados no Supabase (empresas,
+  // plano gerencial etc.) depois de saber que existe uma sessão — as
+  // políticas de RLS do banco exigem usuário autenticado pra tudo (ver
+  // supabase/schema.sql), então sem isso as leituras só voltariam vazias.
   useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null));
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      if (!nextSession) {
+        // Sessão encerrada (logout, token expirado) — volta pra tela de
+        // carregar de novo da próxima vez que logar, em vez de continuar
+        // mostrando dados de uma sessão que não existe mais.
+        setReady(false);
+        setBootError("");
+      }
+    });
+    return () => subscription.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!session) return;
     Promise.all([loadPlan(), loadCompanies(), loadRepresentantes(), loadIndicatorOverrides()])
       .then(([, companiesResult]) => {
         if (companiesResult?.groupId) selectGroup(companiesResult.groupId, { skipPersist: true });
@@ -37,7 +60,19 @@ export default function App() {
         setBootError(String(error?.message || error));
       })
       .finally(() => setReady(true));
-  }, []);
+  }, [session]);
+
+  if (session === undefined) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-surface-page text-[13px] text-ink-400">
+        Carregando portal…
+      </div>
+    );
+  }
+
+  if (session === null) {
+    return <Login />;
+  }
 
   if (!ready) {
     return (

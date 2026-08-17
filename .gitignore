@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Credenciais do Supabase — nunca versionar, só .env.example fica no git.
+.env
+.env.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
