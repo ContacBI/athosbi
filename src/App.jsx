@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import CompanyLayout from "./components/CompanyLayout.jsx";
 import ParametrosLayout from "./components/ParametrosLayout.jsx";
@@ -29,6 +29,16 @@ export default function App() {
   const [session, setSession] = useState(undefined); // undefined = ainda não checou, null = deslogado
   const [ready, setReady] = useState(false);
   const [bootError, setBootError] = useState("");
+  // Supabase dispara onAuthStateChange pra bem mais coisa que login/logout —
+  // renovação silenciosa de token, revalidação ao voltar o foco na aba —
+  // cada uma entregando um objeto de sessão NOVO (referência diferente)
+  // mesmo sendo o mesmo usuário logado continuando. Sem essa trava, o efeito
+  // de baixo re-rodava loadCompanies() a cada uma dessas, que zera
+  // activeCompanyId por uma fração de segundo antes de restaurar — tempo
+  // suficiente pro CompanyLayout achar que não tem empresa ativa e chutar
+  // de volta pra /empresas no meio de qualquer edição. Só recarrega quando
+  // o usuário logado de fato muda (login novo, troca de conta, logout).
+  const bootedForUserRef = useRef(null);
 
   // Auth primeiro: só faz sentido ir buscar dados no Supabase (empresas,
   // plano gerencial etc.) depois de saber que existe uma sessão — as
@@ -42,6 +52,7 @@ export default function App() {
         // Sessão encerrada (logout, token expirado) — volta pra tela de
         // carregar de novo da próxima vez que logar, em vez de continuar
         // mostrando dados de uma sessão que não existe mais.
+        bootedForUserRef.current = null;
         setReady(false);
         setBootError("");
       }
@@ -51,6 +62,8 @@ export default function App() {
 
   useEffect(() => {
     if (!session) return;
+    if (bootedForUserRef.current === session.user.id) return; // já carregado pra esse usuário — token só renovou
+    bootedForUserRef.current = session.user.id;
     Promise.all([loadPlan(), loadCompanies(), loadRepresentantes(), loadIndicatorOverrides()])
       .then(([, companiesResult]) => {
         if (companiesResult?.groupId) selectGroup(companiesResult.groupId, { skipPersist: true });
@@ -58,6 +71,7 @@ export default function App() {
       .catch((error) => {
         console.error("Falha ao iniciar o portal:", error);
         setBootError(String(error?.message || error));
+        bootedForUserRef.current = null; // permite tentar de novo
       })
       .finally(() => setReady(true));
   }, [session]);
