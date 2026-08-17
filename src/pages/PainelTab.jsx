@@ -70,7 +70,9 @@ export default function PainelTab() {
   }, [hasData, state.mappings, state.accounts, state.journal, state.periodStart, state.periodEnd]);
 
   const activeSub = subTabs.find((sub) => sub.id === activeSubId) || null;
-  const widgets = subTabs.length > 0 ? activeSub?.widgets || [] : tab?.widgets || [];
+  const editTarget = subTabs.length > 0 ? activeSub : tab;
+  const widgets = editTarget?.widgets || [];
+  const spacing = editTarget?.spacing;
   const personalizarState = subTabs.length > 0 ? { tabId: tab?.id, subId: activeSub?.id } : { tabId: tab?.id };
 
   // A tab/subtab that's just a single "DRE completo" / "Balanço completo"
@@ -148,7 +150,7 @@ export default function PainelTab() {
         </div>
       ) : (
         <>
-          <WidgetGrid widgets={widgets} ctx={ctx} />
+          <WidgetGrid widgets={widgets} ctx={ctx} spacing={spacing} />
           {/* Invisible but still laid out at full size — html2canvas needs
               real dimensions to capture when "Relatório atual" fires, and
               Recharts' ResponsiveContainer needs a real, unclipped-from-its-
@@ -164,7 +166,7 @@ export default function PainelTab() {
               html2canvas captures `printRef`'s own — zero-width — box). */}
           <div style={{ position: "fixed", top: 0, left: 0, width: 0, height: 0, overflow: "hidden" }} aria-hidden="true">
             <div ref={printRef} style={{ width: 1100 }}>
-              <PrintableWidgetGrid widgets={widgets} ctx={ctx} />
+              <PrintableWidgetGrid widgets={widgets} ctx={ctx} spacing={spacing} />
             </div>
           </div>
         </>

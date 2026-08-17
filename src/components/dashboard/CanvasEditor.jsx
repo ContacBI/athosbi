@@ -5,17 +5,18 @@ import { GripVertical, Plus, X } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { WIDGET_CATALOG, formatWidgetValue } from "../../lib/dashboardWidgets.js";
 import { WidgetBody, DetailModal } from "./WidgetGrid.jsx";
-import { GRID_COLS, ROW_HEIGHT, layoutFor } from "./gridLayout.js";
+import { GRID_COLS, ROW_HEIGHT, layoutFor, marginPxFor, DEFAULT_SPACING } from "./gridLayout.js";
 
 const GridLayout = WidthProvider(RGL);
 
 // The tab's canvas in edit mode: the real widgets, rendered live, free to
 // drag anywhere and resize from any corner — react-grid-layout handles the
 // collision/compaction math, we just persist whatever layout it settles on.
-export default function CanvasEditor({ widgets, ctx, onLayoutChange, onRemove, onAddClick }) {
+export default function CanvasEditor({ widgets, ctx, spacing = DEFAULT_SPACING, onLayoutChange, onRemove, onAddClick }) {
   const [detailFor, setDetailFor] = useState(null);
   const navigate = useNavigate();
   const appState = useAppState();
+  const marginPx = marginPxFor(spacing);
   // See the matching comment in WidgetGrid.jsx — WIDGET_CATALOG gets
   // patched in place by lib/indicators.js, so this map needs to rebuild
   // whenever indicatorOverrides changes, not just once per mount.
@@ -40,7 +41,7 @@ export default function CanvasEditor({ widgets, ctx, onLayoutChange, onRemove, o
         layout={layout}
         cols={GRID_COLS}
         rowHeight={ROW_HEIGHT}
-        margin={[12, 12]}
+        margin={[marginPx, marginPx]}
         containerPadding={[0, 0]}
         draggableHandle=".widget-drag-handle"
         onLayoutChange={onLayoutChange}

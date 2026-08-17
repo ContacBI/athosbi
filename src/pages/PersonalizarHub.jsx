@@ -1,15 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Copy, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, Copy, MoveHorizontal, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { createTab, updateTab, deleteTab, createSubTab, updateSubTab, deleteSubTab } from "../lib/dashboardTabs.js";
 import { replicateDashboardTabs } from "../lib/companies.js";
 import { buildDashboardContext } from "../lib/dashboardData.js";
 import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
+import { DEFAULT_SPACING } from "../components/dashboard/gridLayout.js";
 import Avatar from "../components/Avatar.jsx";
 import CanvasEditor from "../components/dashboard/CanvasEditor.jsx";
 import CatalogPicker from "../components/dashboard/CatalogPicker.jsx";
 import Demonstrativos from "./Demonstrativos.jsx";
+
+const SPACING_OPTIONS = [
+  { value: "compacto", label: "Compacto" },
+  { value: "normal", label: "Normal" },
+  { value: "amplo", label: "Amplo" },
+];
 
 function ReplicateWorkspaceModal({ sourceCompany, otherCompanies, onClose, onApplied }) {
   const [selected, setSelected] = useState(new Set());
@@ -381,23 +388,49 @@ export default function PersonalizarHub() {
         </div>
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => saveEditTarget({ widgets: SUGGESTED_DEFAULT })}
-              className="flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-[12px] text-ink-600 hover:bg-surface-muted"
-            >
-              <Sparkles size={13} strokeWidth={1.8} />
-              Usar sugestão
-            </button>
-            <button
-              type="button"
-              onClick={() => saveEditTarget({ widgets: [] })}
-              className="flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-[12px] text-ink-600 hover:bg-surface-muted"
-            >
-              <Trash2 size={13} strokeWidth={1.8} />
-              Esvaziar
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {!isSoleLink ? (
+              <div className="flex items-center gap-1.5 rounded-md bg-surface-muted p-1">
+                <span className="flex items-center gap-1 pl-1.5 text-[11px] text-ink-400">
+                  <MoveHorizontal size={12} strokeWidth={1.8} />
+                  Espaçamento
+                </span>
+                {SPACING_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => saveEditTarget({ spacing: option.value })}
+                    className={`rounded px-2.5 py-1 text-[12px] transition-colors ${
+                      (editTarget.spacing || DEFAULT_SPACING) === option.value
+                        ? "bg-white font-medium text-ink-900 shadow-sm"
+                        : "text-ink-500 hover:text-ink-800"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div />
+            )}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => saveEditTarget({ widgets: SUGGESTED_DEFAULT })}
+                className="flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-[12px] text-ink-600 hover:bg-surface-muted"
+              >
+                <Sparkles size={13} strokeWidth={1.8} />
+                Usar sugestão
+              </button>
+              <button
+                type="button"
+                onClick={() => saveEditTarget({ widgets: [] })}
+                className="flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-[12px] text-ink-600 hover:bg-surface-muted"
+              >
+                <Trash2 size={13} strokeWidth={1.8} />
+                Esvaziar
+              </button>
+            </div>
           </div>
 
           {editWidgets.length === 0 && (
@@ -412,6 +445,7 @@ export default function PersonalizarHub() {
             <CanvasEditor
               widgets={editWidgets}
               ctx={ctx}
+              spacing={editTarget.spacing}
               onLayoutChange={handleLayoutChange}
               onRemove={removeWidget}
               onAddClick={() => setCatalogOpen(true)}

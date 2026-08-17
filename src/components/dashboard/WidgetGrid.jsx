@@ -19,7 +19,7 @@ import { ArrowLeft, ArrowUpRight, ChevronRight, X, CheckCircle2, Circle, Triangl
 import { WIDGET_CATALOG, formatWidgetValue } from "../../lib/dashboardWidgets.js";
 import { directChildren } from "../../lib/reportTree.js";
 import { money } from "../../lib/format.js";
-import { GRID_COLS, ROW_HEIGHT, layoutFor } from "./gridLayout.js";
+import { GRID_COLS, ROW_HEIGHT, layoutFor, marginPxFor, DEFAULT_SPACING } from "./gridLayout.js";
 
 const GridLayout = WidthProvider(RGL);
 
@@ -506,10 +506,11 @@ export { DetailModal };
 // The real, read-only view — same layout math as the editor (gridLayout.js),
 // just with dragging and resizing turned off, so a tab looks exactly like
 // however it was last arranged in Personalizar.
-export default function WidgetGrid({ widgets, ctx }) {
+export default function WidgetGrid({ widgets, ctx, spacing = DEFAULT_SPACING }) {
   const [detailFor, setDetailFor] = useState(null);
   const navigate = useNavigate();
   const appState = useAppState();
+  const marginPx = marginPxFor(spacing);
 
   // WIDGET_CATALOG is a shared module-level array that lib/indicators.js
   // patches in place on every indicator create/edit/reset — this map must
@@ -536,7 +537,7 @@ export default function WidgetGrid({ widgets, ctx }) {
         layout={layout}
         cols={GRID_COLS}
         rowHeight={ROW_HEIGHT}
-        margin={[12, 12]}
+        margin={[marginPx, marginPx]}
         containerPadding={[0, 0]}
         isDraggable={false}
         isResizable={false}
@@ -601,17 +602,18 @@ function printRowCap(heightPx) {
 // produced corrupted, overlapping text at the clip boundary, so the safer
 // fix is to never hand html2canvas more content than the box needs in the
 // first place.
-export function PrintableWidgetGrid({ widgets, ctx }) {
+export function PrintableWidgetGrid({ widgets, ctx, spacing = DEFAULT_SPACING }) {
   const appState = useAppState();
+  const marginPx = marginPxFor(spacing);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const catalogById = useMemo(() => new Map(WIDGET_CATALOG.map((definition) => [definition.id, definition])), [appState.indicatorOverrides]);
   return (
-    <div style={{ width: 1100, background: "#ffffff", padding: 16 }} className="grid grid-cols-3 gap-4">
+    <div style={{ width: 1100, background: "#ffffff", padding: 16, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: marginPx }}>
       {widgets.map((entry) => {
         const definition = catalogById.get(entry.id);
         if (!definition) return null;
         const { h } = layoutFor(entry, definition);
-        const heightPx = h * ROW_HEIGHT + (h - 1) * 12;
+        const heightPx = h * ROW_HEIGHT + (h - 1) * marginPx;
         const isRowBased = definition.type === "table" || definition.type === "list";
         return (
           <div

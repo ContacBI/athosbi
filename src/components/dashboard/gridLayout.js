@@ -5,6 +5,19 @@
 export const GRID_COLS = 4;
 export const ROW_HEIGHT = 24;
 
+// How much air sits between cards — a per-tab/subtab choice (stored as
+// `spacing` on the tab object, see dashboardTabs.js) rather than a fixed
+// constant, since a dense KPI wall and a loose "just the highlights" tab
+// want different amounts of breathing room. Same value drives the editor,
+// the live view, and the PDF export, so what you set is what you get
+// everywhere.
+export const SPACING_PRESETS = { compacto: 10, normal: 18, amplo: 28 };
+export const DEFAULT_SPACING = "normal";
+
+export function marginPxFor(spacing) {
+  return SPACING_PRESETS[spacing] ?? SPACING_PRESETS[DEFAULT_SPACING];
+}
+
 const SIZE_PRESET = {
   sm: { w: 1, h: 6 },
   md: { w: 2, h: 8 },
