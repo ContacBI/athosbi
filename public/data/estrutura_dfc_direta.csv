@@ -1,0 +1,29 @@
+﻿numero;codigo;descricao;grupo;nivel;natureza
+1;DFC.OP;ATIVIDADES OPERACIONAIS;Operacional;1;heading
+2;DFC.OP.CLIENTES;Valores recebidos de clientes;Operacional;2;analytic
+3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;Operacional;2;analytic
+4;DFC.OP.EMPREGADOS;Valores pagos a empregados;Operacional;2;analytic
+5;DFC.OP.CAIXA_OPERACOES;CAIXA GERADO PELAS OPERACOES;Operacional;2;subtotal
+6;DFC.OP.REC_FIN;Receitas financeiras;Operacional;2;analytic
+7;DFC.OP.DESP_FIN;Despesas financeiras;Operacional;2;analytic
+8;DFC.OP.TRIBUTOS;Tributos pagos;Operacional;2;analytic
+9;DFC.OP.CAIXA_ANTES_EXTRA;FLUXO DE CAIXA ANTES DE ITENS EXTRAORDINARIOS;Operacional;2;subtotal
+10;DFC.OP.SEGUROS;Recebimento por indenizacao de seguros;Operacional;2;analytic
+11;DFC.OP.LUCROS_DIV_RECEBIDOS;Recebimentos de lucros e dividendos;Operacional;2;analytic
+12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;Operacional;2;analytic
+13;DFC.OP.CAIXA_LIQUIDO;CAIXA LIQUIDO PROVENIENTE DAS ATIVIDADES OPERACIONAIS;Operacional;2;subtotal
+14;DFC.INV;ATIVIDADES DE INVESTIMENTO;Investimento;1;heading
+15;DFC.INV.IMOBILIZADO;Compras de imobilizado;Investimento;2;analytic
+16;DFC.INV.ACOES_COTAS;Aquisicao de acoes/cotas;Investimento;2;analytic
+17;DFC.INV.VENDA_ATIVOS;Recebimentos por vendas de ativos permanentes;Investimento;2;analytic
+18;DFC.INV.JUROS_EMPRESTIMOS;Juros recebidos de emprestimos;Investimento;2;analytic
+19;DFC.INV.CAIXA_LIQUIDO;CAIXA LIQUIDO USADO NAS ATIVIDADES DE INVESTIMENTOS;Investimento;2;subtotal
+20;DFC.FIN;ATIVIDADES DE FINANCIAMENTO;Financiamento;1;heading
+21;DFC.FIN.CAPITAL;Integralizacao de capital;Financiamento;2;analytic
+22;DFC.FIN.LUCROS_DIV_PAGOS;Pagamentos de lucros e dividendos;Financiamento;2;analytic
+23;DFC.FIN.EMPRESTIMOS_TOMADOS;Emprestimos tomados;Financiamento;2;analytic
+24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures;Financiamento;2;analytic
+25;DFC.FIN.CAIXA_LIQUIDO;CAIXA LIQUIDO GERADO PELAS ATIVIDADES DE FINANCIAMENTOS;Financiamento;2;subtotal
+26;DFC.CASH.VARIACAO;AUMENTO/REDUCAO NAS DISPONIBILIDADES;Disponibilidades;1;subtotal
+27;DFC.CASH.INICIO;DISPONIBILIDADES - NO INICIO DO PERIODO;Disponibilidades;1;subtotal
+28;DFC.CASH.FIM;DISPONIBILIDADES - NO FINAL DO PERIODO;Disponibilidades;1;subtotal

@@ -1,0 +1,656 @@
+codigo_gerencial;demonstrativo;nome;grupo_macro;nivel;natureza;dfc_numero;destino_dfc;descricao_dfc;observacao
+DRE;DRE;DRE Gerencial;Resultado;1;Sintetica;;;;
+DRE.01;DRE;Receita bruta;Receita;2;Sintetica;;;;
+DRE.01.01;DRE;Venda de mercadorias;Receita;3;Sintetica;;;;
+DRE.01.01.01;DRE;Vendas no mercado interno;Receita;4;Sintetica;;;;
+DRE.01.01.01.01;DRE;Mercadorias a vista;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.01.01.02;DRE;Mercadorias a prazo;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.01.02;DRE;Canais digitais e marketplaces;Receita;4;Sintetica;;;;
+DRE.01.01.02.01;DRE;E-commerce e marketplaces;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.01.03;DRE;Mercado externo;Receita;4;Sintetica;;;;
+DRE.01.01.03.01;DRE;Exportacao de mercadorias;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.01.04;DRE;Outras vendas de mercadorias;Receita;4;Sintetica;;;;
+DRE.01.01.04.01;DRE;Outras vendas de mercadorias;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.02;DRE;Venda de produtos;Receita;3;Sintetica;;;;
+DRE.01.02.01;DRE;Produtos e industrializacao;Receita;4;Sintetica;;;;
+DRE.01.02.01.01;DRE;Produtos proprios;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.02.01.02;DRE;Produtos industrializados por terceiros;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.02.02;DRE;Mercado externo;Receita;4;Sintetica;;;;
+DRE.01.02.02.01;DRE;Exportacao de produtos;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.02.03;DRE;Outras vendas de produtos;Receita;4;Sintetica;;;;
+DRE.01.02.03.01;DRE;Outras vendas de produtos;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.03;DRE;Prestacao de servicos;Receita;3;Sintetica;;;;
+DRE.01.03.01;DRE;Servicos recorrentes;Receita;4;Sintetica;;;;
+DRE.01.03.01.01;DRE;Servicos recorrentes;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.03.01.02;DRE;Servicos recorrentes mensais;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.03.02;DRE;Projetos, avulsos e consultorias;Receita;4;Sintetica;;;;
+DRE.01.03.02.01;DRE;Servicos avulsos e projetos;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.03.02.02;DRE;Consultorias e honorarios;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.03.03;DRE;Servicos digitais, eventos e treinamentos;Receita;4;Sintetica;;;;
+DRE.01.03.03.01;DRE;Servicos digitais;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.03.03.02;DRE;Receitas de eventos, cursos e treinamentos;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.03.04;DRE;Outras receitas de servicos;Receita;4;Sintetica;;;;
+DRE.01.03.04.01;DRE;Outras receitas de servicos;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.03.04.02;DRE;Servicos prestados a prazo;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.04;DRE;Receitas recorrentes e acessorias;Receita;3;Sintetica;;;;
+DRE.01.04.01;DRE;Receitas recorrentes;Receita;4;Sintetica;;;;
+DRE.01.04.01.01;DRE;Locacoes;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.04.01.02;DRE;Assinaturas e mensalidades;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.04.02;DRE;Licencas e partes relacionadas;Receita;4;Sintetica;;;;
+DRE.01.04.02.01;DRE;Royalties e licencas;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.04.02.02;DRE;Receitas intercompany;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.01.04.03;DRE;Outras receitas brutas;Receita;4;Sintetica;;;;
+DRE.01.04.03.01;DRE;Outras receitas brutas;Receita;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.02;DRE;Deducoes da receita;Deducoes;2;Sintetica;;;;
+DRE.02.01;DRE;Impostos sobre receita;Deducoes;3;Sintetica;;;;
+DRE.02.01.01;DRE;Tributos federais sobre receita;Deducoes;4;Sintetica;;;;
+DRE.02.01.01.01;DRE;PIS sobre receita;Deducoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.02.01.01.02;DRE;COFINS sobre receita;Deducoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.02.01.01.03;DRE;IPI sobre vendas;Deducoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.02.01.01.04;DRE;Simples Nacional DAS;Deducoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.02.01.01.05;DRE;INSS sobre faturamento;Deducoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.02.01.01.06;DRE;Retencoes sobre servicos prestados;Deducoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.02.01.02;DRE;Tributos estaduais sobre receita;Deducoes;4;Sintetica;;;;
+DRE.02.01.02.01;DRE;ICMS sobre vendas;Deducoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.02.01.03;DRE;Tributos municipais sobre receita;Deducoes;4;Sintetica;;;;
+DRE.02.01.03.01;DRE;ISS sobre servicos;Deducoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.02.01.04;DRE;Outras deducoes tributarias;Deducoes;4;Sintetica;;;;
+DRE.02.01.04.01;DRE;Outros impostos sobre receita;Deducoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.02.02;DRE;Cancelamentos e descontos;Deducoes;3;Sintetica;;;;
+DRE.02.02.01;DRE;Devolucoes e cancelamentos;Deducoes;4;Sintetica;;;;
+DRE.02.02.01.01;DRE;Devolucoes de vendas;Deducoes;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.02.02.01.02;DRE;Vendas canceladas;Deducoes;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.02.02.02;DRE;Abatimentos e descontos;Deducoes;4;Sintetica;;;;
+DRE.02.02.02.01;DRE;Abatimentos comerciais;Deducoes;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.02.02.02.02;DRE;Descontos incondicionais;Deducoes;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.02.02.03;DRE;Bonificacoes e outras deducoes;Deducoes;4;Sintetica;;;;
+DRE.02.02.03.01;DRE;Bonificacoes como deducao;Deducoes;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+DRE.03;DRE;Receita liquida;Receita Liquida;2;Subtotal;;;;
+DRE.04;DRE;Custos diretos;Custos;2;Sintetica;;;;
+DRE.04.01;DRE;CMV - Comercio;Custos das mercadorias;3;Sintetica;;;;
+DRE.04.01.01;DRE;Estoques de mercadorias;Custos das mercadorias;4;Sintetica;;;;
+DRE.04.01.01.01;DRE;Estoque inicial de mercadorias;Custos das mercadorias;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.01.01.02;DRE;Estoque final de mercadorias;Custos das mercadorias;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.01.02;DRE;Compras, fretes e aquisicoes;Custos das mercadorias;4;Sintetica;;;;
+DRE.04.01.02.01;DRE;Compras de mercadorias;Custos das mercadorias;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.01.02.02;DRE;Fretes sobre compras;Custos das mercadorias;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.01.03;DRE;Tributos sobre compras;Custos das mercadorias;4;Sintetica;;;;
+DRE.04.01.03.01;DRE;Impostos nao recuperaveis nas compras;Custos das mercadorias;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.04.01.03.02;DRE;Impostos recuperaveis sobre compras;Custos das mercadorias;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.04.01.04;DRE;Ajustes, transferencias e perdas;Custos das mercadorias;4;Sintetica;;;;
+DRE.04.01.04.01;DRE;Bonificacoes recebidas;Custos das mercadorias;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.01.04.02;DRE;Bonificacoes concedidas;Custos das mercadorias;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.01.04.03;DRE;Transferencias entre filiais;Custos das mercadorias;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.01.04.04;DRE;Baixas e perdas de estoque;Custos das mercadorias;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.01.05;DRE;Outros custos de mercadorias;Custos das mercadorias;4;Sintetica;;;;
+DRE.04.01.05.01;DRE;Outros custos de mercadorias;Custos das mercadorias;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.02;DRE;CPV - Industria;Custos dos produtos;3;Sintetica;;;;
+DRE.04.02.01;DRE;Materiais e insumos industriais;Custos dos produtos;4;Sintetica;;;;
+DRE.04.02.01.01;DRE;Materia prima e insumos;Custos dos produtos;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.02.02;DRE;Mao de obra industrial;Custos dos produtos;4;Sintetica;;;;
+DRE.04.02.02.01;DRE;Mao de obra direta industrial;Custos dos produtos;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.02.03;DRE;Custos indiretos de fabricacao;Custos dos produtos;4;Sintetica;;;;
+DRE.04.02.03.01;DRE;Custos indiretos de fabricacao;Custos dos produtos;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.02.03.02;DRE;Energia e utilidades da producao;Custos dos produtos;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.02.03.03;DRE;Manutencao industrial;Custos dos produtos;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.02.04;DRE;Terceirizacao industrial;Custos dos produtos;4;Sintetica;;;;
+DRE.04.02.04.01;DRE;Terceirizacao industrial;Custos dos produtos;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.02.05;DRE;Depreciacao fabril;Custos dos produtos;4;Sintetica;;;;
+DRE.04.02.05.01;DRE;Depreciacao fabril;Custos dos produtos;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.02.06;DRE;Perdas industriais;Custos dos produtos;4;Sintetica;;;;
+DRE.04.02.06.01;DRE;Perdas industriais;Custos dos produtos;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.03;DRE;CSP - Servicos;Custos dos serviços;3;Sintetica;;;;
+DRE.04.03.01;DRE;Mao de obra e encargos de servicos;Custos dos serviços;4;Sintetica;;;;
+DRE.04.03.01.01;DRE;Mao de obra direta de servicos;Custos dos serviços;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.04.03.01.02;DRE;Salarios da operacao;Custos dos serviços;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.04.03.01.03;DRE;Férias da operacao;Custos dos serviços;5;;;;;
+DRE.04.03.01.04;DRE;13º salario da operacao;Custos dos serviços;5;;;;;
+DRE.04.03.01.05;DRE;INSS da equipe da operacao;Custos dos serviços;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.04.03.01.06;DRE;FGTS da equipe da operacao;Custos dos serviços;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.04.03.01.07;DRE;Vale transporte da operacao;Custos dos serviços;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.04.03.01.08;DRE;Vale refeicao e alimentacao da operacao;Custos dos serviços;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.04.03.01.09;DRE;Assistencia medica da operacao;Custos dos serviços;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.04.03.01.10;DRE;Convenios da operacao;Custos dos serviços;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.04.03.01.11;DRE;Treinamento de pessoal da operacao;Custos dos serviços;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.04.03.02;DRE;Terceiros diretos de servicos;Custos dos serviços;4;Sintetica;;;;
+DRE.04.03.02.01;DRE;Terceiros diretos de servicos;Custos dos serviços;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.03.02.02;DRE;Servicos de terceiros operacionais;Custos dos serviços;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.03.02.03;DRE;Estagiarios;Custos dos serviços;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.03.03;DRE;Materiais aplicados em servicos;Custos dos serviços;4;Sintetica;;;;
+DRE.04.03.03.01;DRE;Materiais aplicados em servicos;Custos dos serviços;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.03.03.02;DRE;Outros custos de servicos;Custos dos serviços;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.03.04;DRE;Deslocamentos diretos de servicos;Custos dos serviços;4;Sintetica;;;;
+DRE.04.03.04.01;DRE;Deslocamentos diretos de servicos;Custos dos serviços;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.03.05;DRE;Ferramentas, licencas e software de entrega;Custos dos serviços;4;Sintetica;;;;
+DRE.04.03.05.01;DRE;Ferramentas e licencas de entrega;Custos dos serviços;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.03.05.02;DRE;Manutencao de software operacional;Custos dos serviços;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.03.06;DRE;Seguros e protecoes operacionais;Custos dos serviços;4;Sintetica;;;;
+DRE.04.03.06.01;DRE;Seguros e protecoes operacionais;Custos dos serviços;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.04.03.07;DRE;Outros custos dos serviços prestados;Custos dos serviços;4;Sintetica;;;;
+DRE.04.03.07.01;DRE;Outros custos dos serviços prestados;Custos dos serviços;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.05;DRE;Lucro bruto;Lucro Bruto;2;Subtotal;;;;
+DRE.06;DRE;Despesas comerciais;Despesas Comerciais;2;Sintetica;;;;
+DRE.06.01;DRE;Pessoal comercial;Despesas Comerciais;3;Sintetica;;;;
+DRE.06.01.01;DRE;Remuneracao comercial;Despesas Comerciais;4;Sintetica;;;;
+DRE.06.01.01.01;DRE;Salarios comerciais;Despesas Comerciais;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.06.01.01.02;DRE;Férias comerciais;Despesas Comerciais;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.06.01.01.03;DRE;Decimo terceiro comerciais;Despesas Comerciais;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.06.01.02;DRE;Encargos e beneficios comerciais;Despesas Comerciais;4;Sintetica;;;;
+DRE.06.01.02.01;DRE;Encargos comerciais;Despesas Comerciais;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.06.01.02.02;DRE;Beneficios comerciais;Despesas Comerciais;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.06.01.03;DRE;Comissoes e premios comerciais;Despesas Comerciais;4;Sintetica;;;;
+DRE.06.01.03.01;DRE;Comissoes e premios;Despesas Comerciais;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.06.02;DRE;Marketing e vendas;Despesas Comerciais;3;Sintetica;;;;
+DRE.06.02.01;DRE;Midia, trafego e agencias;Despesas Comerciais;4;Sintetica;;;;
+DRE.06.02.01.01;DRE;Publicidade e propaganda;Despesas Comerciais;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.06.02.01.02;DRE;Trafego pago e midia digital;Despesas Comerciais;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.06.02.01.03;DRE;Agencias e producao de conteudo;Despesas Comerciais;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.06.02.02;DRE;Eventos, feiras e materiais promocionais;Despesas Comerciais;4;Sintetica;;;;
+DRE.06.02.02.01;DRE;Eventos, feiras e patrocinio;Despesas Comerciais;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.06.02.02.02;DRE;Brindes, amostras e material promocional;Despesas Comerciais;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.06.03;DRE;Logistica de venda;Despesas Comerciais;3;Sintetica;;;;
+DRE.06.03.01;DRE;Fretes e transporte de venda;Despesas Comerciais;4;Sintetica;;;;
+DRE.06.03.01.01;DRE;Fretes e entregas a clientes;Despesas Comerciais;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.06.03.01.02;DRE;Pedagios e transporte comercial;Despesas Comerciais;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.06.03.02;DRE;Embalagens de venda;Despesas Comerciais;4;Sintetica;;;;
+DRE.06.03.02.01;DRE;Embalagens de venda;Despesas Comerciais;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.06.03.03;DRE;Estrutura logistica comercial;Despesas Comerciais;4;Sintetica;;;;
+DRE.06.03.03.01;DRE;Manutencao de veiculos comerciais;Despesas Comerciais;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.06.03.03.02;DRE;Armazenagem comercial;Despesas Comerciais;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.06.04;DRE;Canais e adquirencia;Despesas Comerciais;3;Sintetica;;;;
+DRE.06.04.01;DRE;Taxas de canais e adquirencia;Despesas Comerciais;4;Sintetica;;;;
+DRE.06.04.01.01;DRE;Taxas de cartao e adquirentes;Despesas Comerciais;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.06.04.01.02;DRE;Taxas de marketplace;Despesas Comerciais;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.06.04.02;DRE;Plataformas comerciais;Despesas Comerciais;4;Sintetica;;;;
+DRE.06.04.02.01;DRE;Plataformas comerciais;Despesas Comerciais;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.06.04.03;DRE;Descontos comerciais;Despesas Comerciais;4;Sintetica;;;;
+DRE.06.04.03.01;DRE;Descontos comerciais concedidos;Despesas Comerciais;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.06.04.04;DRE;Outras despesas de canais;Despesas Comerciais;4;Sintetica;;;;
+DRE.06.04.04.01;DRE;Bonificacao e amostra gratis;Despesas Comerciais;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07;DRE;Despesas administrativas;Despesas Administrativas;2;Sintetica;;;;
+DRE.07.01;DRE;Pessoal - administrativo;Despesas Administrativas;3;Sintetica;;;;
+DRE.07.01.01;DRE;Remuneracao administrativa;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.01.01.01;DRE;Salarios - administrativo;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.01.01.02;DRE;Férias - administrativo;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.01.01.03;DRE;Decimo terceiro - administrativo;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.01.01.04;DRE;Gratificacoes e premios - administrativo;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.01.01.05;DRE;Pro labore;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.01.01.06;DRE;Terceiros e estagiarios - administrativo;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.01.02;DRE;Encargos - administrativo;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.01.02.01;DRE;Encargos - administrativo;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.01.02.02;DRE;INSS - administrativo;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.01.02.03;DRE;FGTS - administrativo;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.01.03;DRE;Beneficios - administrativo;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.01.03.01;DRE;Beneficios - administrativo;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.01.03.02;DRE;Vale transporte - administrativo;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.01.03.03;DRE;Vale refeicao e alimentacao - administrativo;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.01.03.04;DRE;Assistencia medica administrativa;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.01.03.05;DRE;Convenios e beneficios - administrativo;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.01.03.06;DRE;Seguro de vida e beneficios segurados - administrativo;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.01.04;DRE;Recrutamento e medicina ocupacional;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.01.04.01;DRE;Recrutamento e treinamento  - administrativo;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.01.04.02;DRE;Exames admissionais e demissionais  - administrativo;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.01.05;DRE;Acordos e contingencias trabalhistas;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.01.05.01;DRE;Acordos trabalhistas e judiciais;Despesas Administrativas;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+DRE.07.02;DRE;Ocupacao e infraestrutura;Despesas Administrativas;3;Sintetica;;;;
+DRE.07.02.01;DRE;Locacao e ocupacao;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.02.01.01;DRE;Aluguel predial;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.02.01.02;DRE;Condominio;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.02.01.03;DRE;Aluguel de equipamentos;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.02.02;DRE;Utilidades e comunicacao;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.02.02.01;DRE;Energia eletrica;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.02.02.02;DRE;Agua e saneamento;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.02.02.03;DRE;Telefone e internet;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.02.03;DRE;Manutencao, limpeza e seguranca;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.02.03.01;DRE;Limpeza, conservacao e manutencao;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.02.03.02;DRE;Seguranca e monitoramento;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.02.03.03;DRE;Manutencao predial e reparos gerais;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.03;DRE;Tecnologia e sistemas;Despesas Administrativas;3;Sintetica;;;;
+DRE.07.03.01;DRE;Softwares e assinaturas digitais;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.03.01.01;DRE;Softwares e licencas;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.03.01.02;DRE;Assinaturas digitais;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.03.02;DRE;Nuvem e infraestrutura digital;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.03.02.01;DRE;Hospedagem, nuvem e infraestrutura digital;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.03.03;DRE;Suporte e servicos de TI;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.03.03.01;DRE;Suporte e servicos de TI;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.03.04;DRE;Equipamentos e perifericos de TI;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.03.04.01;DRE;Equipamentos de pequeno valor de TI;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.04;DRE;Servicos tomados;Despesas Administrativas;3;Sintetica;;;;
+DRE.07.04.01;DRE;Honorarios, consultorias e auditoria;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.04.01.01;DRE;Honorarios contabeis;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.04.01.02;DRE;Honorarios juridicos;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.04.01.03;DRE;Honorarios de consultorias;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.04.01.04;DRE;Auditoria e certificacoes;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.04.02;DRE;Servicos - administrativo e tecnicos;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.04.02.01;DRE;Servicos adminsitrativos;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.04.02.02;DRE;Despachante, comercio exterior e alfandega;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.04.02.03;DRE;Servicos - administrativo contratados;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.04.02.04;DRE;Servicos medicos e ocupacionais;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.04.03;DRE;Servicos de manutencao e apoio;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.04.03.01;DRE;Dedetizacao e controle de pragas;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.04.03.02;DRE;Assistencia, manutencao e reparos em geral;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.04.03.99;DRE;Outros servicos tomados;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.05;DRE;Consumo interno;Despesas Administrativas;3;Sintetica;;;;
+DRE.07.05.01;DRE;Materiais - administrativo;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.05.01.01;DRE;Material de escritorio;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.05.01.02;DRE;Correios e postais;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.05.01.03;DRE;Bens de pequeno valor;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.05.01.04;DRE;Materiais diversos;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.05.01.05;DRE;Material de consumo geral;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.05.02;DRE;Copa e refeicoes internas;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.05.02.01;DRE;Copa, refeicoes e lanches;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.05.03;DRE;Materiais de limpeza e apoio operacional;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.05.03.01;DRE;Materiais de limpeza;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.05.03.02;DRE;Materiais operacionais e de apoio;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.06;DRE;Mobilidade administrativa;Despesas Administrativas;3;Sintetica;;;;
+DRE.07.06.01;DRE;Viagens, conducoes e pedagios;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.06.01.01;DRE;Viagens e hospedagens administrativas;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.06.01.02;DRE;Estacionamento, pedagios e conducoes;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.06.02;DRE;Veiculos e combustiveis;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.06.02.01;DRE;Combustiveis e lubrificantes;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.06.02.02;DRE;Aluguel de veiculos;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.06.02.03;DRE;Manutencao de veiculos;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.07;DRE;Taxas e despesas gerais;Despesas Administrativas;3;Sintetica;;;;
+DRE.07.07.01;DRE;Taxas legais e entidades;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.07.01.01;DRE;Cartorios e taxas legais;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.07.01.02;DRE;Associacoes, conselhos e sindicatos;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.07.01.03;DRE;Mensalidades associativas e sindicatos;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.07.02;DRE;Multas e penalidades;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.07.02.01;DRE;Multas administrativas e nao dedutiveis;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.07.03;DRE;Depreciacao e amortizacao administrativa;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.07.03.01;DRE;Depreciacao e amortizacao administrativa;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.07.04;DRE;Despesas corporativas diversas;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.07.04.01;DRE;Gastos com cartao corporativo;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.07.04.02;DRE;Brindes institucionais;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.07.04.03;DRE;Eventos corporativos;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.07.04.04;DRE;Publicidade e propaganda;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.07.04.05;DRE;Reembolso de despesas;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.07.04.06;DRE;Premios de seguros;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.07.04.07;DRE;Plano de saude;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.07.04.08;DRE;Associacoes e classes;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.07.04.09;DRE;Transportes, fretes e deslocamentos - administrativo;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.07.04.10;DRE;Marcas e patentes;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.07.04.11;DRE;Acoes internas;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.07.07.05;DRE;Outras despesas administrativas;Despesas Administrativas;4;Sintetica;;;;
+DRE.07.07.05.01;DRE;Outras despesas administrativas;Despesas Administrativas;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+DRE.08;DRE;Tributos e provisoes operacionais;Tributos e Provisoes;2;Sintetica;;;;
+DRE.08.01;DRE;Tributos operacionais;Tributos e Provisoes;3;Sintetica;;;;
+DRE.08.01.01;DRE;Tributos financeiros e operacionais;Tributos e Provisoes;4;Sintetica;;;;
+DRE.08.01.01.01;DRE;IOF operacional;Tributos e Provisoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.08.01.02;DRE;Taxas patrimoniais e reguladoras;Tributos e Provisoes;4;Sintetica;;;;
+DRE.08.01.02.01;DRE;Taxas de conselhos e orgaos reguladores;Tributos e Provisoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.08.01.02.02;DRE;IPTU, IPVA e taxas patrimoniais;Tributos e Provisoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.08.01.03;DRE;Outros tributos operacionais;Tributos e Provisoes;4;Sintetica;;;;
+DRE.08.01.03.01;DRE;Outros tributos operacionais;Tributos e Provisoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.08.02;DRE;Provisoes e perdas;Tributos e Provisoes;3;Sintetica;;;;
+DRE.08.02.01;DRE;Provisoes e contingencias;Tributos e Provisoes;4;Sintetica;;;;
+DRE.08.02.01.01;DRE;Provisoes operacionais;Tributos e Provisoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.08.02.01.02;DRE;Contingencias operacionais;Tributos e Provisoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.08.02.02;DRE;Perdas estimadas e diversas;Tributos e Provisoes;4;Sintetica;;;;
+DRE.08.02.02.01;DRE;Perdas estimadas com clientes;Tributos e Provisoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.08.02.02.02;DRE;Perdas diversas;Tributos e Provisoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.09;DRE;Outros resultados operacionais;Outros Resultados Operacionais;2;Sintetica;;;;
+DRE.09.01;DRE;Outras receitas operacionais;Outros Resultados Operacionais;3;Sintetica;;;;
+DRE.09.01.01;DRE;Recuperacoes e bonificacoes;Outros Resultados Operacionais;4;Sintetica;;;;
+DRE.09.01.01.01;DRE;Bonificacoes recebidas;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.09.01.01.02;DRE;Recuperacoes operacionais;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.09.01.02;DRE;Alienacao de ativos;Outros Resultados Operacionais;4;Sintetica;;;;
+DRE.09.01.02.01;DRE;Receita na alienacao de ativos;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.09.01.03;DRE;Demais receitas operacionais;Outros Resultados Operacionais;4;Sintetica;;;;
+DRE.09.01.03.01;DRE;Demais receitas operacionais;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.09.02;DRE;Outras despesas operacionais;Outros Resultados Operacionais;3;Sintetica;;;;
+DRE.09.02.01;DRE;Baixas e alienacao de ativos;Outros Resultados Operacionais;4;Sintetica;;;;
+DRE.09.02.01.01;DRE;Custo na alienacao de ativos;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.09.02.01.02;DRE;Baixas operacionais;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.09.02.02;DRE;Perdas e demais despesas operacionais;Outros Resultados Operacionais;4;Sintetica;;;;
+DRE.09.02.02.01;DRE;Perdas operacionais nao recorrentes;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.09.02.02.02;DRE;Demais despesas operacionais;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.09.02.02.03;DRE;Outros resultados operacionais identificados;Outros Resultados;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.10;DRE;Resultado operacional;Resultado Operacional;2;Subtotal;;;;
+DRE.11;DRE;Depreciacao e amortizacao destacada;Depreciacao e Amortizacao;2;Sintetica;;;;
+DRE.11.01;DRE;Depreciacao e amortizacao;Depreciacao e Amortizacao;3;Sintetica;;;;
+DRE.11.01.01;DRE;Depreciacao;Depreciacao e Amortizacao;4;Sintetica;;;;
+DRE.11.01.01.01;DRE;Depreciacao destacada;Depreciacao e Amortizacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.11.01.02;DRE;Amortizacao;Depreciacao e Amortizacao;4;Sintetica;;;;
+DRE.11.01.02.01;DRE;Amortizacao destacada;Depreciacao e Amortizacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.11.01.03;DRE;Exaustao;Depreciacao e Amortizacao;4;Sintetica;;;;
+DRE.11.01.03.01;DRE;Exaustao destacada;Depreciacao e Amortizacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.12;DRE;Resultado operacional;Resultado Operacional;2;Subtotal;;;;
+DRE.13;DRE;Resultado financeiro;Resultado Financeiro;2;Sintetica;;;;
+DRE.13.01;DRE;Receitas financeiras;Resultado Financeiro;3;Sintetica;;;;
+DRE.13.01.01;DRE;Rendimentos de aplicacoes;Resultado Financeiro;4;Sintetica;;;;
+DRE.13.01.01.01;DRE;Rendimentos de aplicacoes financeiras;Resultado Financeiro;5;Analitica;6;DFC.OP.REC_FIN;Receitas financeiras;preenchido pelo plano gerencial editavel
+DRE.13.01.02;DRE;Juros, descontos e recuperacoes financeiras;Resultado Financeiro;4;Sintetica;;;;
+DRE.13.01.02.01;DRE;Juros ativos;Resultado Financeiro;5;Analitica;6;DFC.OP.REC_FIN;Receitas financeiras;preenchido pelo plano gerencial editavel
+DRE.13.01.02.02;DRE;Descontos obtidos;Resultado Financeiro;5;Analitica;6;DFC.OP.REC_FIN;Receitas financeiras;preenchido pelo plano gerencial editavel
+DRE.13.01.02.03;DRE;Recuperacoes e atualizacoes financeiras;Resultado Financeiro;5;Analitica;6;DFC.OP.REC_FIN;Receitas financeiras;preenchido pelo plano gerencial editavel
+DRE.13.02;DRE;Despesas financeiras;Resultado Financeiro;3;Sintetica;;;;
+DRE.13.02.01;DRE;Tarifas e despesas bancarias;Resultado Financeiro;4;Sintetica;;;;
+DRE.13.02.01.01;DRE;Despesas bancarias;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
+DRE.13.02.01.02;DRE;Tarifas de cartao debito/credito;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
+DRE.13.02.01.03;DRE;IOF e impostos financeiros;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
+DRE.13.02.02;DRE;Juros, multas e descontos financeiros;Resultado Financeiro;4;Sintetica;;;;
+DRE.13.02.02.01;DRE;Juros e multas passivos;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
+DRE.13.02.02.02;DRE;Descontos concedidos financeiros;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
+DRE.13.02.03;DRE;Outras despesas financeiras;Resultado Financeiro;4;Sintetica;;;;
+DRE.13.02.03.01;DRE;Outras despesas financeiras;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
+DRE.13.03;DRE;Variacao cambial;Resultado Financeiro;3;Sintetica;;;;
+DRE.13.03.01;DRE;Variacao cambial ativa;Resultado Financeiro;4;Sintetica;;;;
+DRE.13.03.01.01;DRE;Variacao cambial ativa;Resultado Financeiro;5;Analitica;6;DFC.OP.REC_FIN;Receitas financeiras;preenchido pelo plano gerencial editavel
+DRE.13.03.02;DRE;Variacao cambial passiva;Resultado Financeiro;4;Sintetica;;;;
+DRE.13.03.02.01;DRE;Variacao cambial passiva;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
+DRE.14;DRE;Resultados nao operacionais;Resultados Nao Operacionais;2;Sintetica;;;;
+DRE.14.01;DRE;Receitas nao operacionais;Resultados Nao Operacionais;3;Sintetica;;;;
+DRE.14.01.01;DRE;Receitas nao operacionais recorrentes;Resultados Nao Operacionais;4;Sintetica;;;;
+DRE.14.01.01.01;DRE;Outras receitas nao operacionais;Resultados Nao Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.14.01.02;DRE;Ganhos nao operacionais;Resultados Nao Operacionais;4;Sintetica;;;;
+DRE.14.01.02.01;DRE;Ganhos na venda de ativos nao operacionais;Resultados Nao Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.14.02;DRE;Despesas nao operacionais;Resultados Nao Operacionais;3;Sintetica;;;;
+DRE.14.02.01;DRE;Despesas nao operacionais recorrentes;Resultados Nao Operacionais;4;Sintetica;;;;
+DRE.14.02.01.01;DRE;Outras despesas nao operacionais;Resultados Nao Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.14.02.02;DRE;Perdas nao operacionais;Resultados Nao Operacionais;4;Sintetica;;;;
+DRE.14.02.02.01;DRE;Perdas na baixa de ativos nao operacionais;Resultados Nao Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.15;DRE;Resultado antes de IRPJ e CSLL;Resultado Antes dos Impostos;2;Subtotal;;;;
+DRE.16;DRE;IRPJ e CSLL;IRPJ e CSLL;2;Sintetica;;;;
+DRE.16.01;DRE;IRPJ;IRPJ e CSLL;3;Sintetica;;;;
+DRE.16.01.01;DRE;IRPJ corrente;IRPJ e CSLL;4;Sintetica;;;;
+DRE.16.01.01.01;DRE;IRPJ corrente;IRPJ e CSLL;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.16.01.02;DRE;IRPJ diferido;IRPJ e CSLL;4;Sintetica;;;;
+DRE.16.01.02.01;DRE;IRPJ diferido;IRPJ e CSLL;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.16.02;DRE;CSLL;IRPJ e CSLL;3;Sintetica;;;;
+DRE.16.02.01;DRE;CSLL corrente;IRPJ e CSLL;4;Sintetica;;;;
+DRE.16.02.01.01;DRE;CSLL corrente;IRPJ e CSLL;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.16.02.02;DRE;CSLL diferida;IRPJ e CSLL;4;Sintetica;;;;
+DRE.16.02.02.01;DRE;CSLL diferida;IRPJ e CSLL;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.17;DRE;Resultado liquido;Resultado Liquido;2;Subtotal;;;;
+01;BP;Ativo;Ativo;1;Sintetica;;;;
+01.01;BP;Ativo circulante;Ativo Circulante;2;Sintetica;;;;
+01.01.01;BP;Caixa e equivalentes de caixa;Ativo Circulante;3;Sintetica;;;;
+01.01.01.01;BP;Caixa e fundos fixos;Ativo Circulante;4;Sintetica;;;;
+01.01.01.01.01;BP;Caixa fisico;Ativo Circulante;5;Analitica;;;;
+01.01.01.01.02;BP;Fundos fixos e caixinhas;Ativo Circulante;5;Analitica;;;;
+01.01.01.01.03;BP;Valores em transito;Ativo Circulante;5;Analitica;;;;
+01.01.01.02;BP;Bancos conta movimento;Ativo Circulante;4;Sintetica;;;;
+01.01.01.02.01;BP;Bancos nacionais;Ativo Circulante;5;Analitica;;;;
+01.01.01.02.02;BP;Bancos no exterior;Ativo Circulante;5;Analitica;;;;
+01.01.01.02.03;BP;Contas digitais;Ativo Circulante;5;Analitica;;;;
+01.01.01.02.04;BP;Cooperativas de credito;Ativo Circulante;5;Analitica;;;;
+01.01.01.02.05;BP;Instituicoes de pagamento;Ativo Circulante;5;Analitica;;;;
+01.01.01.02.06;BP;Contas bancarias com restricao;Ativo Circulante;5;Analitica;;;;
+01.01.01.02.07;BP;Transitorias bancarias;Ativo Circulante;5;Analitica;;;;
+01.01.01.02.99;BP;Outras contas bancarias;Ativo Circulante;5;Analitica;;;;
+01.01.01.03;BP;Aplicacoes de liquidez imediata;Ativo Circulante;4;Sintetica;;;;
+01.01.01.03.01;BP;CDB, fundos e renda fixa;Ativo Circulante;5;Analitica;;;;
+01.01.01.03.02;BP;Poupanca;Ativo Circulante;5;Analitica;;;;
+01.01.01.03.03;BP;Aplicacoes automaticas;Ativo Circulante;5;Analitica;;;;
+01.01.01.03.04;BP;Aplicacoes com resgate imediato;Ativo Circulante;5;Analitica;;;;
+01.01.01.03.99;BP;Outras aplicacoes de curto prazo;Ativo Circulante;5;Analitica;;;;
+01.01.02;BP;Creditos;Ativo Circulante;3;Sintetica;;;;
+01.01.02.01;BP;Clientes;Ativo Circulante;4;Sintetica;;;;
+01.01.02.01.01;BP;Clientes a receber;Ativo Circulante;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+01.01.02.01.02;BP;Clientes nacionais;Ativo Circulante;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+01.01.02.01.03;BP;Clientes no exterior;Ativo Circulante;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+01.01.02.01.04;BP;Clientes partes relacionadas;Ativo Circulante;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+01.01.02.01.05;BP;Convenios e operadoras a receber;Ativo Circulante;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+01.01.02.01.06;BP;Cartoes e adquirentes a receber;Ativo Circulante;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+01.01.02.01.07;BP;Marketplaces e intermediadores a receber;Ativo Circulante;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+01.01.02.01.08;BP;Duplicatas e titulos a receber;Ativo Circulante;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+01.01.02.01.09;BP;Cheques e boletos a receber;Ativo Circulante;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+01.01.02.01.10;BP;Clientes em cobranca;Ativo Circulante;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+01.01.02.01.11;BP;Perdas estimadas com clientes;Ativo Circulante;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+01.01.02.01.99;BP;Outros recebiveis de clientes;Ativo Circulante;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+01.01.02.02;BP;Creditos de funcionarios;Ativo Circulante;4;Sintetica;;;;
+01.01.02.02.01;BP;Adiantamentos salariais;Ativo Circulante;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+01.01.02.02.02;BP;Adiantamento de ferias;Ativo Circulante;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+01.01.02.02.03;BP;Emprestimos a funcionarios;Ativo Circulante;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+01.01.02.02.04;BP;Beneficios a recuperar;Ativo Circulante;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+01.01.02.02.05;BP;Despesas de funcionarios a reembolsar;Ativo Circulante;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+01.01.02.02.99;BP;Outros creditos de funcionarios;Ativo Circulante;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+01.01.02.03;BP;Creditos de fornecedores;Ativo Circulante;4;Sintetica;;;;
+01.01.02.03.01;BP;Adiantamentos a fornecedores;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.02.03.02;BP;Fornecedores a devolver;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.02.03.03;BP;Bonificacoes e verbas a receber;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.02.03.04;BP;Pedidos e compras antecipadas;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.02.03.99;BP;Outros creditos de fornecedores;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.02.04;BP;Impostos a recuperar;Ativo Circulante;4;Sintetica;;;;
+01.01.02.04.01;BP;ICMS a recuperar;Ativo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+01.01.02.04.02;BP;IPI a recuperar;Ativo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+01.01.02.04.03;BP;PIS a recuperar;Ativo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+01.01.02.04.04;BP;COFINS a recuperar;Ativo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+01.01.02.04.05;BP;INSS a recuperar;Ativo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+01.01.02.04.06;BP;IRRF a recuperar;Ativo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+01.01.02.04.07;BP;ISS a recuperar;Ativo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+01.01.02.04.08;BP;CSLL a recuperar;Ativo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+01.01.02.04.09;BP;IRPJ a recuperar;Ativo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+01.01.02.04.99;BP;Outros impostos a recuperar;Ativo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+01.01.02.05;BP;Impostos a compensar;Ativo Circulante;4;Sintetica;;;;
+01.01.02.05.01;BP;Simples Nacional a compensar;Ativo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+01.01.02.05.02;BP;IRPJ a compensar;Ativo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+01.01.02.05.03;BP;CSLL a compensar;Ativo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+01.01.02.05.04;BP;PERDCOMP a compensar;Ativo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+01.01.02.05.05;BP;Saldos negativos de tributos;Ativo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+01.01.02.05.99;BP;Outros impostos a compensar;Ativo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+01.01.02.06;BP;Outros creditos;Ativo Circulante;4;Sintetica;;;;
+01.01.02.06.01;BP;Alugueis a receber;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.02.06.02;BP;Seguros a receber;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.02.06.03;BP;Depositos e caucoes de curto prazo;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.02.06.04;BP;Partes relacionadas curto prazo;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.02.06.05;BP;Conta corrente de socios ativo CP;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.02.06.99;BP;Demais creditos de curto prazo;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.03;BP;Estoques;Ativo Circulante;3;Sintetica;;;;
+01.01.03.01;BP;Estoques comerciais;Ativo Circulante;4;Sintetica;;;;
+01.01.03.01.01;BP;Mercadorias para revenda;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.03.01.02;BP;Estoque em terceiros ou consignado;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.03.01.03;BP;Importacoes em andamento;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.03.02;BP;Estoques industriais;Ativo Circulante;4;Sintetica;;;;
+01.01.03.02.01;BP;Materia-prima e insumos;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.03.02.02;BP;Produtos em elaboracao;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.03.02.03;BP;Produtos acabados;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.03.02.04;BP;Materiais de embalagem;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.03.03;BP;Materiais e almoxarifado;Ativo Circulante;4;Sintetica;;;;
+01.01.03.03.01;BP;Materiais de consumo;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.03.03.02;BP;Materiais de manutencao;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.03.03.03;BP;Uniformes, EPIs e apoio operacional;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.03.04;BP;Ajustes de estoque;Ativo Circulante;4;Sintetica;;;;
+01.01.03.04.01;BP;Provisao para perdas em estoque;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.03.04.02;BP;Adiantamentos relacionados a estoque;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.03.04.99;BP;Outros estoques;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.04;BP;Despesas antecipadas;Ativo Circulante;3;Sintetica;;;;
+01.01.04.01;BP;Contratos e servicos antecipados;Ativo Circulante;4;Sintetica;;;;
+01.01.04.01.01;BP;Seguros a apropriar;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.04.01.02;BP;Assinaturas e licencas a apropriar;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.04.01.03;BP;Alugueis antecipados;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.04.01.04;BP;Manutencoes e contratos antecipados;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.04.01.05;BP;Publicidade e campanhas antecipadas;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.01.04.01.99;BP;Outras despesas antecipadas;Ativo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+01.02;BP;Ativo nao circulante;Ativo Nao Circulante;2;Sintetica;;;;
+01.02.01;BP;Realizavel a longo prazo;Ativo Nao Circulante;3;Sintetica;;;;
+01.02.01.01;BP;Creditos de longo prazo;Ativo Nao Circulante;4;Sintetica;;;;
+01.02.01.01.01;BP;Clientes e recebiveis de longo prazo;Ativo Nao Circulante;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+01.02.01.01.02;BP;Depositos judiciais;Ativo Nao Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+01.02.01.01.03;BP;Tributos a recuperar longo prazo;Ativo Nao Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+01.02.01.01.04;BP;Partes relacionadas longo prazo;Ativo Nao Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+01.02.01.01.05;BP;Outros creditos de longo prazo;Ativo Nao Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+01.02.01.01.06;BP;Conta corrente de socios ativo;Ativo Nao Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+01.02.01.01.07;BP;Mutuos com socios e administradores LP;Ativo Nao Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+01.02.02;BP;Investimentos;Ativo Nao Circulante;3;Sintetica;;;;
+01.02.02.01;BP;Investimentos permanentes;Ativo Nao Circulante;4;Sintetica;;;;
+01.02.02.01.01;BP;Participacoes societarias;Ativo Nao Circulante;5;Analitica;16;DFC.INV.ACOES_COTAS;Aquisicao de acoes/cotas;preenchido pelo plano gerencial editavel
+01.02.02.01.02;BP;Imoveis para renda;Ativo Nao Circulante;5;Analitica;16;DFC.INV.ACOES_COTAS;Aquisicao de acoes/cotas;preenchido pelo plano gerencial editavel
+01.02.02.01.03;BP;Aplicacoes financeiras de longo prazo;Ativo Nao Circulante;5;Analitica;16;DFC.INV.ACOES_COTAS;Aquisicao de acoes/cotas;preenchido pelo plano gerencial editavel
+01.02.02.01.04;BP;Titulo de capitalização;Ativo Nao Circulante;5;Analitica;16;DFC.INV.ACOES_COTAS;Aquisicao de acoes/cotas;preenchido pelo plano gerencial editavel
+01.02.02.01.99;BP;Outros investimentos permanentes;Ativo Nao Circulante;5;Analitica;16;DFC.INV.ACOES_COTAS;Aquisicao de acoes/cotas;preenchido pelo plano gerencial editavel
+01.02.03;BP;Imobilizado;Ativo Nao Circulante;3;Sintetica;;;;
+01.02.03.01;BP;Bens operacionais;Ativo Nao Circulante;4;Sintetica;;;;
+01.02.03.01.01;BP;Maquinas e equipamentos;Ativo Nao Circulante;5;Analitica;15;DFC.INV.IMOBILIZADO;Compras de imobilizado;preenchido pelo plano gerencial editavel
+01.02.03.01.02;BP;Moveis e utensilios;Ativo Nao Circulante;5;Analitica;15;DFC.INV.IMOBILIZADO;Compras de imobilizado;preenchido pelo plano gerencial editavel
+01.02.03.01.03;BP;Instalacoes;Ativo Nao Circulante;5;Analitica;15;DFC.INV.IMOBILIZADO;Compras de imobilizado;preenchido pelo plano gerencial editavel
+01.02.03.01.04;BP;Veiculos;Ativo Nao Circulante;5;Analitica;15;DFC.INV.IMOBILIZADO;Compras de imobilizado;preenchido pelo plano gerencial editavel
+01.02.03.01.05;BP;Computadores e equipamentos de TI;Ativo Nao Circulante;5;Analitica;15;DFC.INV.IMOBILIZADO;Compras de imobilizado;preenchido pelo plano gerencial editavel
+01.02.03.01.06;BP;Ferramentas, moldes e equipamentos diversos;Ativo Nao Circulante;5;Analitica;15;DFC.INV.IMOBILIZADO;Compras de imobilizado;preenchido pelo plano gerencial editavel
+01.02.03.01.99;BP;Outros bens operacionais;Ativo Nao Circulante;5;Analitica;15;DFC.INV.IMOBILIZADO;Compras de imobilizado;preenchido pelo plano gerencial editavel
+01.02.03.02;BP;Imobilizado em andamento e redutoras;Ativo Nao Circulante;4;Sintetica;;;;
+01.02.03.02.01;BP;Consorcios e imobilizado em andamento;Ativo Nao Circulante;5;Analitica;15;DFC.INV.IMOBILIZADO;Compras de imobilizado;preenchido pelo plano gerencial editavel
+01.02.03.02.02;BP;Depreciacao acumulada;Ativo Nao Circulante;5;Analitica;15;DFC.INV.IMOBILIZADO;Compras de imobilizado;preenchido pelo plano gerencial editavel
+01.02.03.02.03;BP;Perdas por impairment imobilizado;Ativo Nao Circulante;5;Analitica;15;DFC.INV.IMOBILIZADO;Compras de imobilizado;preenchido pelo plano gerencial editavel
+01.02.04;BP;Intangivel;Ativo Nao Circulante;3;Sintetica;;;;
+01.02.04.01;BP;Intangiveis;Ativo Nao Circulante;4;Sintetica;;;;
+01.02.04.01.01;BP;Softwares e sistemas;Ativo Nao Circulante;5;Analitica;15;DFC.INV.IMOBILIZADO;Compras de imobilizado;preenchido pelo plano gerencial editavel
+01.02.04.01.02;BP;Marcas, patentes e direitos;Ativo Nao Circulante;5;Analitica;15;DFC.INV.IMOBILIZADO;Compras de imobilizado;preenchido pelo plano gerencial editavel
+01.02.04.01.03;BP;Goodwill e fundo de comercio;Ativo Nao Circulante;5;Analitica;15;DFC.INV.IMOBILIZADO;Compras de imobilizado;preenchido pelo plano gerencial editavel
+01.02.04.01.04;BP;Intangivel em desenvolvimento;Ativo Nao Circulante;5;Analitica;15;DFC.INV.IMOBILIZADO;Compras de imobilizado;preenchido pelo plano gerencial editavel
+01.02.04.02;BP;Redutoras do intangivel;Ativo Nao Circulante;4;Sintetica;;;;
+01.02.04.02.01;BP;Amortizacao acumulada;Ativo Nao Circulante;5;Analitica;15;DFC.INV.IMOBILIZADO;Compras de imobilizado;preenchido pelo plano gerencial editavel
+01.02.04.02.02;BP;Perdas por impairment intangivel;Ativo Nao Circulante;5;Analitica;15;DFC.INV.IMOBILIZADO;Compras de imobilizado;preenchido pelo plano gerencial editavel
+01.03;BP;Contas de compensacao ativo;Ativo Compensacao;2;Sintetica;;;;
+01.03.01;BP;Garantias e contratos ativos;Ativo Compensacao;3;Sintetica;;;;
+01.03.01.01;BP;Garantias recebidas;Ativo Compensacao;4;Sintetica;;;;
+01.03.01.01.01;BP;Garantias recebidas de terceiros;Ativo Compensacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+01.03.01.01.02;BP;Caucoes e avais recebidos;Ativo Compensacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+01.03.02;BP;Bens e valores de terceiros;Ativo Compensacao;3;Sintetica;;;;
+01.03.02.01;BP;Bens de terceiros sob guarda;Ativo Compensacao;4;Sintetica;;;;
+01.03.02.01.01;BP;Bens de terceiros em poder da empresa;Ativo Compensacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+01.03.02.01.02;BP;Mercadorias de terceiros em consignacao;Ativo Compensacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+01.03.03;BP;Contratos e responsabilidades ativas;Ativo Compensacao;3;Sintetica;;;;
+01.03.03.01;BP;Direitos contratuais de compensacao;Ativo Compensacao;4;Sintetica;;;;
+01.03.03.01.01;BP;Contratos a executar ativos;Ativo Compensacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+01.03.03.01.02;BP;Ativos contingentes controlados;Ativo Compensacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02;BP;Passivo;Passivo;1;Sintetica;;;;
+02.01;BP;Passivo circulante;Passivo Circulante;2;Sintetica;;;;
+02.01.01;BP;Fornecedores;Passivo Circulante;3;Sintetica;;;;
+02.01.01.01;BP;Fornecedores operacionais;Passivo Circulante;4;Sintetica;;;;
+02.01.01.01.01;BP;Fornecedores nacionais;Passivo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+02.01.01.01.02;BP;Fornecedores de servicos;Passivo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+02.01.01.01.03;BP;Fornecedores de mercadorias;Passivo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+02.01.01.02;BP;Fornecedores especiais;Passivo Circulante;4;Sintetica;;;;
+02.01.01.02.01;BP;Fornecedores no exterior;Passivo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+02.01.01.02.02;BP;Fornecedores partes relacionadas;Passivo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+02.01.01.02.99;BP;Outros fornecedores;Passivo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+02.01.02;BP;Obrigacoes financeiras;Passivo Circulante;3;Sintetica;;;;
+02.01.02.01;BP;Emprestimos e financiamentos CP;Passivo Circulante;4;Sintetica;;;;
+02.01.02.01.01;BP;Capital de giro CP;Passivo Circulante;5;Analitica;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures;preenchido pelo plano gerencial editavel
+02.01.02.01.02;BP;Financiamentos bancarios CP;Passivo Circulante;5;Analitica;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures;preenchido pelo plano gerencial editavel
+02.01.02.01.03;BP;Emprestimos bancarios CP;Passivo Circulante;5;Analitica;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures;preenchido pelo plano gerencial editavel
+02.01.02.01.04;BP;Arrendamentos e leasing CP;Passivo Circulante;5;Analitica;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures;preenchido pelo plano gerencial editavel
+02.01.02.01.05;BP;Juros a apropriar sobre dividas CP;Passivo Circulante;5;Analitica;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures;preenchido pelo plano gerencial editavel
+02.01.02.01.99;BP;Outras dividas financeiras CP;Passivo Circulante;5;Analitica;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures;preenchido pelo plano gerencial editavel
+02.01.02.02;BP;Instrumentos financeiros e cartoes;Passivo Circulante;4;Sintetica;;;;
+02.01.02.02.01;BP;Operacoes com adquirentes a liquidar;Passivo Circulante;5;Analitica;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures;preenchido pelo plano gerencial editavel
+02.01.02.02.02;BP;Titulos descontados a pagar;Passivo Circulante;5;Analitica;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures;preenchido pelo plano gerencial editavel
+02.01.03;BP;Obrigacoes tributarias;Passivo Circulante;3;Sintetica;;;;
+02.01.03.01;BP;Tributos federais;Passivo Circulante;4;Sintetica;;;;
+02.01.03.01.01;BP;PIS a recolher;Passivo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+02.01.03.01.02;BP;COFINS a recolher;Passivo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+02.01.03.01.03;BP;IRPJ a recolher;Passivo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+02.01.03.01.04;BP;CSLL a recolher;Passivo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+02.01.03.01.05;BP;IPI a recolher;Passivo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+02.01.03.01.06;BP;IRRF e retencoes federais;Passivo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+02.01.03.01.07;BP;Simples Nacional a recolher;Passivo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+02.01.03.01.99;BP;Outros tributos federais;Passivo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+02.01.03.02;BP;Tributos estaduais;Passivo Circulante;4;Sintetica;;;;
+02.01.03.02.01;BP;ICMS a recolher;Passivo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+02.01.03.02.02;BP;ICMS diferencial e antecipacao;Passivo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+02.01.03.02.99;BP;Outros tributos estaduais;Passivo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+02.01.03.03;BP;Tributos municipais;Passivo Circulante;4;Sintetica;;;;
+02.01.03.03.01;BP;ISS a recolher;Passivo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+02.01.03.03.99;BP;Outros tributos municipais;Passivo Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+02.01.04;BP;Obrigacoes sociais;Passivo Circulante;3;Sintetica;;;;
+02.01.04.01;BP;Folha a pagar;Passivo Circulante;4;Sintetica;;;;
+02.01.04.01.01;BP;Salarios a pagar;Passivo Circulante;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+02.01.04.01.02;BP;Rescisoes a pagar;Passivo Circulante;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+02.01.04.01.03;BP;Estagiarios a pagar;Passivo Circulante;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+02.01.04.01.04;BP;13o salario a pagar;Passivo Circulante;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+02.01.04.01.05;BP;Ferias a pagar;Passivo Circulante;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+02.01.04.01.06;BP;Pro labore a pagar;Passivo Circulante;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+02.01.04.02;BP;Encargos sociais;Passivo Circulante;4;Sintetica;;;;
+02.01.04.02.01;BP;INSS a recolher;Passivo Circulante;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+02.01.04.02.02;BP;FGTS a recolher;Passivo Circulante;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+02.01.04.02.03;BP;IRRF folha a recolher;Passivo Circulante;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+02.01.04.02.99;BP;Outros encargos trabalhistas;Passivo Circulante;5;Analitica;4;DFC.OP.EMPREGADOS;Valores pagos a empregados;preenchido pelo plano gerencial editavel
+02.01.05;BP;Adiantamentos e debitos diversos;Passivo Circulante;3;Sintetica;;;;
+02.01.05.01;BP;Clientes e receitas diferidas;Passivo Circulante;4;Sintetica;;;;
+02.01.05.01.01;BP;Adiantamentos de clientes;Passivo Circulante;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+02.01.05.01.02;BP;Receitas diferidas curto prazo;Passivo Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.01.05.01.03;BP;Obrigacoes com clientes;Passivo Circulante;5;Analitica;2;DFC.OP.CLIENTES;Valores recebidos de clientes;preenchido pelo plano gerencial editavel
+02.01.05.02;BP;Debitos diversos;Passivo Circulante;4;Sintetica;;;;
+02.01.05.02.01;BP;Depositos e caucoes recebidos;Passivo Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.01.05.02.99;BP;Outros debitos diversos;Passivo Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.01.06;BP;Outras contas a pagar;Passivo Circulante;3;Sintetica;;;;
+02.01.06.01;BP;Contas administrativas;Passivo Circulante;4;Sintetica;;;;
+02.01.06.01.01;BP;Contas a pagar administrativas;Passivo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+02.01.06.01.02;BP;Alugueis e ocupacao a pagar;Passivo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+02.01.06.01.03;BP;Importacoes e despesas aduaneiras a pagar;Passivo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+02.01.06.02;BP;Partes relacionadas e utilidades;Passivo Circulante;4;Sintetica;;;;
+02.01.06.02.01;BP;Obrigacoes com socios e partes relacionadas CP;Passivo Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.01.06.02.02;BP;Lancamentos a identificar;Passivo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+02.01.06.02.03;BP;Agua e esgoto a pagar;Passivo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+02.01.06.02.04;BP;Energia eletrica a pagar;Passivo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+02.01.06.02.05;BP;Telefone, internet e TV a pagar;Passivo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+02.01.06.02.06;BP;Cartoes de credito a pagar';Passivo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+02.01.06.02.99;BP;Outras obrigacoes curto prazo;Passivo Circulante;5;Analitica;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;preenchido pelo plano gerencial editavel
+02.01.07;BP;Distribuicoes;Passivo Circulante;3;Sintetica;;;;
+02.01.07.01;BP;Distribuicoes a socios;Passivo Circulante;4;Sintetica;;;;
+02.01.07.01.01;BP;Dividendos a pagar;Passivo Circulante;5;Analitica;22;DFC.FIN.LUCROS_DIV_PAGOS;Pagamentos de lucros e dividendos;preenchido pelo plano gerencial editavel
+02.01.07.01.02;BP;Lucros a pagar;Passivo Circulante;5;Analitica;22;DFC.FIN.LUCROS_DIV_PAGOS;Pagamentos de lucros e dividendos;preenchido pelo plano gerencial editavel
+02.01.07.01.03;BP;Juros sobre capital proprio a pagar;Passivo Circulante;5;Analitica;22;DFC.FIN.LUCROS_DIV_PAGOS;Pagamentos de lucros e dividendos;preenchido pelo plano gerencial editavel
+02.01.07.01.04;BP;DISTRIBUICOES DE LUCRO;Passivo Circulante;5;Analitica;22;DFC.FIN.LUCROS_DIV_PAGOS;Pagamentos de lucros e dividendos;preenchido pelo plano gerencial editavel
+02.01.08;BP;Provisoes;Passivo Circulante;3;Sintetica;;;;
+02.01.08.01;BP;Provisoes trabalhistas;Passivo Circulante;4;Sintetica;;;;
+02.01.08.01.01;BP;Provisao de ferias e encargos;Passivo Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.01.08.01.02;BP;Provisao de decimo terceiro e encargos;Passivo Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.01.08.01.99;BP;Outras provisoes trabalhistas CP;Passivo Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.01.08.02;BP;Provisoes operacionais;Passivo Circulante;4;Sintetica;;;;
+02.01.08.02.01;BP;Provisoes operacionais curto prazo;Passivo Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.01.08.02.99;BP;Outras provisoes CP;Passivo Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.02;BP;Passivo nao circulante;Passivo Nao Circulante;2;Sintetica;;;;
+02.02.01;BP;Obrigacoes financeiras LP;Passivo Nao Circulante;3;Sintetica;;;;
+02.02.01.01;BP;Emprestimos e financiamentos LP;Passivo Nao Circulante;4;Sintetica;;;;
+02.02.01.01.01;BP;Capital de giro LP;Passivo Nao Circulante;5;Analitica;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures;preenchido pelo plano gerencial editavel
+02.02.01.01.02;BP;Financiamentos bancarios LP;Passivo Nao Circulante;5;Analitica;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures;preenchido pelo plano gerencial editavel
+02.02.01.01.03;BP;Emprestimos bancarios LP;Passivo Nao Circulante;5;Analitica;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures;preenchido pelo plano gerencial editavel
+02.02.01.01.04;BP;Arrendamentos e leasing LP;Passivo Nao Circulante;5;Analitica;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures;preenchido pelo plano gerencial editavel
+02.02.01.01.05;BP;Juros a apropriar sobre dividas LP;Passivo Nao Circulante;5;Analitica;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures;preenchido pelo plano gerencial editavel
+02.02.01.01.99;BP;Outras dividas financeiras LP;Passivo Nao Circulante;5;Analitica;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures;preenchido pelo plano gerencial editavel
+02.02.02;BP;Obrigacoes tributarias LP;Passivo Nao Circulante;3;Sintetica;;;;
+02.02.02.01;BP;Parcelamentos e tributos LP;Passivo Nao Circulante;4;Sintetica;;;;
+02.02.02.01.01;BP;Parcelamentos tributarios LP;Passivo Nao Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+02.02.02.01.99;BP;Outras obrigacoes tributarias LP;Passivo Nao Circulante;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+02.02.03;BP;Provisoes e contingencias LP;Passivo Nao Circulante;3;Sintetica;;;;
+02.02.03.01;BP;Contingencias LP;Passivo Nao Circulante;4;Sintetica;;;;
+02.02.03.01.01;BP;Provisoes trabalhistas LP;Passivo Nao Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.02.03.01.02;BP;Provisoes fiscais LP;Passivo Nao Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.02.03.01.03;BP;Provisoes civeis LP;Passivo Nao Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.02.03.01.99;BP;Outras contingencias LP;Passivo Nao Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.02.04;BP;Outras obrigacoes LP;Passivo Nao Circulante;3;Sintetica;;;;
+02.02.04.01;BP;Partes relacionadas e receitas diferidas LP;Passivo Nao Circulante;4;Sintetica;;;;
+02.02.04.01.01;BP;Obrigacoes com partes relacionadas LP;Passivo Nao Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.02.04.01.02;BP;Receitas diferidas longo prazo;Passivo Nao Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.02.04.01.99;BP;Outras obrigacoes longo prazo;Passivo Nao Circulante;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.03;BP;Contas de compensacao passivo;Passivo Compensacao;2;Sintetica;;;;
+02.03.01;BP;Garantias e contratos passivos;Passivo Compensacao;3;Sintetica;;;;
+02.03.01.01;BP;Garantias prestadas;Passivo Compensacao;4;Sintetica;;;;
+02.03.01.01.01;BP;Garantias prestadas a terceiros;Passivo Compensacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.03.01.01.02;BP;Caucoes e avais prestados;Passivo Compensacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.03.02;BP;Responsabilidades por bens de terceiros;Passivo Compensacao;3;Sintetica;;;;
+02.03.02.01;BP;Bens de terceiros sob responsabilidade;Passivo Compensacao;4;Sintetica;;;;
+02.03.02.01.01;BP;Responsabilidade por bens de terceiros;Passivo Compensacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.03.02.01.02;BP;Mercadorias de terceiros em consignacao;Passivo Compensacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.03.03;BP;Contratos e responsabilidades passivas;Passivo Compensacao;3;Sintetica;;;;
+02.03.03.01;BP;Obrigacoes contratuais de compensacao;Passivo Compensacao;4;Sintetica;;;;
+02.03.03.01.01;BP;Contratos a executar passivos;Passivo Compensacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+02.03.03.01.02;BP;Passivos contingentes controlados;Passivo Compensacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+03;BP;Patrimonio liquido;Patrimonio Liquido;1;Sintetica;;;;
+03.01;BP;Capital e reservas;Patrimonio Liquido;2;Sintetica;;;;
+03.01.01;BP;Capital social integralizado;Patrimonio Liquido;3;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+03.01.02;BP;Capital social a integralizar;Patrimonio Liquido;3;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+03.01.03;BP;Reservas de capital;Patrimonio Liquido;3;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+03.01.04;BP;Reservas de lucros;Patrimonio Liquido;3;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+03.01.05;BP;Reserva legal;Patrimonio Liquido;3;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+03.01.06;BP;Ajustes de avaliacao patrimonial;Patrimonio Liquido;3;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+03.02;BP;Resultados acumulados;Patrimonio Liquido;2;Sintetica;;;;
+03.02.01;BP;Resultados;Patrimonio Liquido;3;Sintetica;;;;
+03.02.01.01;BP;Lucros ou prejuizos acumulados;Patrimonio Liquido;4;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+03.02.01.02;BP;Resultado do exercicio;Patrimonio Liquido;4;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+03.02.01.03;BP;Ajustes de exercicios anteriores;Patrimonio Liquido;4;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+03.02.01.04;BP;DISTRIBUICOES DE LUCRO;Patrimonio Liquido;4;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+03.02.01.05;BP;Resultado do periodo gerencial;Patrimonio Liquido;4;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel

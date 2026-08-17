@@ -1,0 +1,9 @@
+﻿tipo;codigo;destino_dfc;descricao
+codigo_gerencial;DRE.01;DFC.OP.CLIENTES;Clientes
+codigo_gerencial;DRE.02;DFC.OP.TRIBUTOS;Tributos sobre receita
+codigo_gerencial;DRE.04;DFC.OP.FORNECEDORES;Fornecedores e custos
+codigo_gerencial;DRE.06;DFC.OP.FORNECEDORES;Despesas comerciais
+codigo_gerencial;DRE.07;DFC.OP.FORNECEDORES;Despesas administrativas
+codigo_gerencial;DRE.13.01;DFC.OP.REC_FIN;Receitas financeiras
+codigo_gerencial;DRE.13.02;DFC.OP.DESP_FIN;Despesas financeiras
+codigo_gerencial;DRE.16;DFC.OP.TRIBUTOS;IR e CSLL

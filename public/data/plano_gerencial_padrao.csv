@@ -1,0 +1,656 @@
+codigo_gerencial;demonstrativo;grupo_macro;nome;nivel;natureza;sinal_padrao;aceita_depara;observacao;dfc_numero;dfc_codigo;dfc_descricao
+DRE;DRE;Resultado;DRE Gerencial;1;Sintetica;Neutro;nao;;;;
+DRE.01;DRE;Receita;Receita bruta;2;Sintetica;Neutro;nao;;;;
+DRE.01.01;DRE;Receita;Venda de mercadorias;3;Sintetica;Neutro;nao;;;;
+DRE.01.01.01;DRE;Receita;Vendas no mercado interno;4;Sintetica;Neutro;nao;;;;
+DRE.01.01.01.01;DRE;Receita;Mercadorias a vista;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.01.01.02;DRE;Receita;Mercadorias a prazo;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.01.02;DRE;Receita;Canais digitais e marketplaces;4;Sintetica;Neutro;nao;;;;
+DRE.01.01.02.01;DRE;Receita;E-commerce e marketplaces;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.01.03;DRE;Receita;Mercado externo;4;Sintetica;Neutro;nao;;;;
+DRE.01.01.03.01;DRE;Receita;Exportacao de mercadorias;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.01.04;DRE;Receita;Outras vendas de mercadorias;4;Sintetica;Neutro;nao;;;;
+DRE.01.01.04.01;DRE;Receita;Outras vendas de mercadorias;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.02;DRE;Receita;Venda de produtos;3;Sintetica;Neutro;nao;;;;
+DRE.01.02.01;DRE;Receita;Produtos e industrializacao;4;Sintetica;Neutro;nao;;;;
+DRE.01.02.01.01;DRE;Receita;Produtos proprios;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.02.01.02;DRE;Receita;Produtos industrializados por terceiros;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.02.02;DRE;Receita;Mercado externo;4;Sintetica;Neutro;nao;;;;
+DRE.01.02.02.01;DRE;Receita;Exportacao de produtos;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.02.03;DRE;Receita;Outras vendas de produtos;4;Sintetica;Neutro;nao;;;;
+DRE.01.02.03.01;DRE;Receita;Outras vendas de produtos;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.03;DRE;Receita;Prestacao de servicos;3;Sintetica;Neutro;nao;;;;
+DRE.01.03.01;DRE;Receita;Servicos recorrentes;4;Sintetica;Neutro;nao;;;;
+DRE.01.03.01.01;DRE;Receita;Servicos recorrentes;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.03.01.02;DRE;Receita;Servicos recorrentes mensais;5;Analitica;Credito;sim;Detalhamento inspirado no plano Hubcount.;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.03.02;DRE;Receita;Projetos, avulsos e consultorias;4;Sintetica;Neutro;nao;;;;
+DRE.01.03.02.01;DRE;Receita;Servicos avulsos e projetos;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.03.02.02;DRE;Receita;Consultorias e honorarios;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.03.03;DRE;Receita;Servicos digitais, eventos e treinamentos;4;Sintetica;Neutro;nao;;;;
+DRE.01.03.03.01;DRE;Receita;Servicos digitais;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.03.03.02;DRE;Receita;Receitas de eventos, cursos e treinamentos;5;Analitica;Credito;sim;Referencias presentes no plano Hubcount.;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.03.04;DRE;Receita;Outras receitas de servicos;4;Sintetica;Neutro;nao;;;;
+DRE.01.03.04.01;DRE;Receita;Outras receitas de servicos;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.03.04.02;DRE;Receita;Servicos prestados a prazo;5;Analitica;Credito;sim;Conta do balancete atual.;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.04;DRE;Receita;Receitas recorrentes e acessorias;3;Sintetica;Neutro;nao;;;;
+DRE.01.04.01;DRE;Receita;Receitas recorrentes;4;Sintetica;Neutro;nao;;;;
+DRE.01.04.01.01;DRE;Receita;Locacoes;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.04.01.02;DRE;Receita;Assinaturas e mensalidades;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.04.02;DRE;Receita;Licencas e partes relacionadas;4;Sintetica;Neutro;nao;;;;
+DRE.01.04.02.01;DRE;Receita;Royalties e licencas;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.04.02.02;DRE;Receita;Receitas intercompany;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.01.04.03;DRE;Receita;Outras receitas brutas;4;Sintetica;Neutro;nao;;;;
+DRE.01.04.03.01;DRE;Receita;Outras receitas brutas;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.02;DRE;Deducoes;Deducoes da receita;2;Sintetica;Neutro;nao;;;;
+DRE.02.01;DRE;Deducoes;Impostos sobre receita;3;Sintetica;Neutro;nao;;;;
+DRE.02.01.01;DRE;Deducoes;Tributos federais sobre receita;4;Sintetica;Neutro;nao;;;;
+DRE.02.01.01.01;DRE;Deducoes;PIS sobre receita;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.02.01.01.02;DRE;Deducoes;COFINS sobre receita;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.02.01.01.03;DRE;Deducoes;IPI sobre vendas;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.02.01.01.04;DRE;Deducoes;Simples Nacional DAS;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.02.01.01.05;DRE;Deducoes;INSS sobre faturamento;5;Analitica;Debito;sim;Referencia presente no plano Hubcount.;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.02.01.01.06;DRE;Deducoes;Retencoes sobre servicos prestados;5;Analitica;Debito;sim;Complemento para prestadoras de servico.;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.02.01.02;DRE;Deducoes;Tributos estaduais sobre receita;4;Sintetica;Neutro;nao;;;;
+DRE.02.01.02.01;DRE;Deducoes;ICMS sobre vendas;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.02.01.03;DRE;Deducoes;Tributos municipais sobre receita;4;Sintetica;Neutro;nao;;;;
+DRE.02.01.03.01;DRE;Deducoes;ISS sobre servicos;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.02.01.04;DRE;Deducoes;Outras deducoes tributarias;4;Sintetica;Neutro;nao;;;;
+DRE.02.01.04.01;DRE;Deducoes;Outros impostos sobre receita;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.02.02;DRE;Deducoes;Cancelamentos e descontos;3;Sintetica;Neutro;nao;;;;
+DRE.02.02.01;DRE;Deducoes;Devolucoes e cancelamentos;4;Sintetica;Neutro;nao;;;;
+DRE.02.02.01.01;DRE;Deducoes;Devolucoes de vendas;5;Analitica;Debito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.02.02.01.02;DRE;Deducoes;Vendas canceladas;5;Analitica;Debito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.02.02.02;DRE;Deducoes;Abatimentos e descontos;4;Sintetica;Neutro;nao;;;;
+DRE.02.02.02.01;DRE;Deducoes;Abatimentos comerciais;5;Analitica;Debito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.02.02.02.02;DRE;Deducoes;Descontos incondicionais;5;Analitica;Debito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.02.02.03;DRE;Deducoes;Bonificacoes e outras deducoes;4;Sintetica;Neutro;nao;;;;
+DRE.02.02.03.01;DRE;Deducoes;Bonificacoes como deducao;5;Analitica;Debito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+DRE.03;DRE;Receita Liquida;Receita liquida;2;Subtotal;Credito;nao;;;;
+DRE.04;DRE;Custos;Custos diretos;2;Sintetica;Neutro;nao;;;;
+DRE.04.01;DRE;Custos das mercadorias;CMV - Comercio;3;Sintetica;Neutro;nao;;;;
+DRE.04.01.01;DRE;Custos das mercadorias;Estoques de mercadorias;4;Sintetica;Neutro;nao;;;;
+DRE.04.01.01.01;DRE;Custos das mercadorias;Estoque inicial de mercadorias;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.01.01.02;DRE;Custos das mercadorias;Estoque final de mercadorias;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.01.02;DRE;Custos das mercadorias;Compras, fretes e aquisicoes;4;Sintetica;Neutro;nao;;;;
+DRE.04.01.02.01;DRE;Custos das mercadorias;Compras de mercadorias;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.01.02.02;DRE;Custos das mercadorias;Fretes sobre compras;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.01.03;DRE;Custos das mercadorias;Tributos sobre compras;4;Sintetica;Neutro;nao;;;;
+DRE.04.01.03.01;DRE;Custos das mercadorias;Impostos nao recuperaveis nas compras;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.04.01.03.02;DRE;Custos das mercadorias;Impostos recuperaveis sobre compras;5;Analitica;Credito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.04.01.04;DRE;Custos das mercadorias;Ajustes, transferencias e perdas;4;Sintetica;Neutro;nao;;;;
+DRE.04.01.04.01;DRE;Custos das mercadorias;Bonificacoes recebidas;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.01.04.02;DRE;Custos das mercadorias;Bonificacoes concedidas;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.01.04.03;DRE;Custos das mercadorias;Transferencias entre filiais;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.01.04.04;DRE;Custos das mercadorias;Baixas e perdas de estoque;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.01.05;DRE;Custos das mercadorias;Outros custos de mercadorias;4;Sintetica;Neutro;nao;;;;
+DRE.04.01.05.01;DRE;Custos das mercadorias;Outros custos de mercadorias;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.02;DRE;Custos dos produtos;CPV - Industria;3;Sintetica;Neutro;nao;;;;
+DRE.04.02.01;DRE;Custos dos produtos;Materiais e insumos industriais;4;Sintetica;Neutro;nao;;;;
+DRE.04.02.01.01;DRE;Custos dos produtos;Materia prima e insumos;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.02.02;DRE;Custos dos produtos;Mao de obra industrial;4;Sintetica;Neutro;nao;;;;
+DRE.04.02.02.01;DRE;Custos dos produtos;Mao de obra direta industrial;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.02.03;DRE;Custos dos produtos;Custos indiretos de fabricacao;4;Sintetica;Neutro;nao;;;;
+DRE.04.02.03.01;DRE;Custos dos produtos;Custos indiretos de fabricacao;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.02.03.02;DRE;Custos dos produtos;Energia e utilidades da producao;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.02.03.03;DRE;Custos dos produtos;Manutencao industrial;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.02.04;DRE;Custos dos produtos;Terceirizacao industrial;4;Sintetica;Neutro;nao;;;;
+DRE.04.02.04.01;DRE;Custos dos produtos;Terceirizacao industrial;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.02.05;DRE;Custos dos produtos;Depreciacao fabril;4;Sintetica;Neutro;nao;;;;
+DRE.04.02.05.01;DRE;Custos dos produtos;Depreciacao fabril;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.02.06;DRE;Custos dos produtos;Perdas industriais;4;Sintetica;Neutro;nao;;;;
+DRE.04.02.06.01;DRE;Custos dos produtos;Perdas industriais;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.03;DRE;Custos dos serviços;CSP - Servicos;3;Sintetica;Neutro;nao;;;;
+DRE.04.03.01;DRE;Custos dos serviços;Mao de obra e encargos de servicos;4;Sintetica;Neutro;nao;;;;
+DRE.04.03.01.01;DRE;Custos dos serviços;Mao de obra direta de servicos;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.04.03.01.02;DRE;Custos dos serviços;Salarios da operacao;5;Analitica;Debito;sim;Conta do balancete atual.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.04.03.01.03;DRE;Custos dos serviços;Férias da operacao;5;;;;;;;
+DRE.04.03.01.04;DRE;Custos dos serviços;13º salario da operacao;5;;;;;;;
+DRE.04.03.01.05;DRE;Custos dos serviços;INSS da equipe da operacao;5;Analitica;Debito;sim;Inspirado no detalhamento Hubcount.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.04.03.01.06;DRE;Custos dos serviços;FGTS da equipe da operacao;5;Analitica;Debito;sim;Conta do balancete atual.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.04.03.01.07;DRE;Custos dos serviços;Vale transporte da operacao;5;Analitica;Debito;sim;Conta do balancete atual.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.04.03.01.08;DRE;Custos dos serviços;Vale refeicao e alimentacao da operacao;5;Analitica;Debito;sim;Conta do balancete atual.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.04.03.01.09;DRE;Custos dos serviços;Assistencia medica da operacao;5;Analitica;Debito;sim;Detalhamento inspirado no plano Hubcount.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.04.03.01.10;DRE;Custos dos serviços;Convenios da operacao;5;Analitica;Debito;sim;Conta do balancete atual.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.04.03.01.11;DRE;Custos dos serviços;Treinamento de pessoal da operacao;5;Analitica;Debito;sim;Detalhamento inspirado no plano Hubcount.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.04.03.02;DRE;Custos dos serviços;Terceiros diretos de servicos;4;Sintetica;Neutro;nao;;;;
+DRE.04.03.02.01;DRE;Custos dos serviços;Terceiros diretos de servicos;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.03.02.02;DRE;Custos dos serviços;Servicos de terceiros operacionais;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.03.02.03;DRE;Custos dos serviços;Estagiarios;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.03.03;DRE;Custos dos serviços;Materiais aplicados em servicos;4;Sintetica;Neutro;nao;;;;
+DRE.04.03.03.01;DRE;Custos dos serviços;Materiais aplicados em servicos;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.03.03.02;DRE;Custos dos serviços;Outros custos de servicos;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.03.04;DRE;Custos dos serviços;Deslocamentos diretos de servicos;4;Sintetica;Neutro;nao;;;;
+DRE.04.03.04.01;DRE;Custos dos serviços;Deslocamentos diretos de servicos;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.03.05;DRE;Custos dos serviços;Ferramentas, licencas e software de entrega;4;Sintetica;Neutro;nao;;;;
+DRE.04.03.05.01;DRE;Custos dos serviços;Ferramentas e licencas de entrega;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.03.05.02;DRE;Custos dos serviços;Manutencao de software operacional;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.03.06;DRE;Custos dos serviços;Seguros e protecoes operacionais;4;Sintetica;Neutro;nao;;;;
+DRE.04.03.06.01;DRE;Custos dos serviços;Seguros e protecoes operacionais;5;Analitica;Debito;sim;Referencia presente no plano Hubcount.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.04.03.07;DRE;Custos dos serviços;Outros custos dos serviços prestados;4;Sintetica;Neutro;nao;;;;
+DRE.04.03.07.01;DRE;Custos dos serviços;Outros custos dos serviços prestados;5;Analitica;Debito;sim;Referencia presente no plano Hubcount.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.05;DRE;Lucro Bruto;Lucro bruto;2;Subtotal;Credito;nao;;;;
+DRE.06;DRE;Despesas Comerciais;Despesas comerciais;2;Sintetica;Neutro;nao;;;;
+DRE.06.01;DRE;Despesas Comerciais;Pessoal comercial;3;Sintetica;Neutro;nao;;;;
+DRE.06.01.01;DRE;Despesas Comerciais;Remuneracao comercial;4;Sintetica;Neutro;nao;;;;
+DRE.06.01.01.01;DRE;Despesas Comerciais;Salarios comerciais;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.06.01.01.02;DRE;Despesas Comerciais;Férias comerciais;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.06.01.01.03;DRE;Despesas Comerciais;Decimo terceiro comerciais;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.06.01.02;DRE;Despesas Comerciais;Encargos e beneficios comerciais;4;Sintetica;Neutro;nao;;;;
+DRE.06.01.02.01;DRE;Despesas Comerciais;Encargos comerciais;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.06.01.02.02;DRE;Despesas Comerciais;Beneficios comerciais;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.06.01.03;DRE;Despesas Comerciais;Comissoes e premios comerciais;4;Sintetica;Neutro;nao;;;;
+DRE.06.01.03.01;DRE;Despesas Comerciais;Comissoes e premios;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.06.02;DRE;Despesas Comerciais;Marketing e vendas;3;Sintetica;Neutro;nao;;;;
+DRE.06.02.01;DRE;Despesas Comerciais;Midia, trafego e agencias;4;Sintetica;Neutro;nao;;;;
+DRE.06.02.01.01;DRE;Despesas Comerciais;Publicidade e propaganda;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.06.02.01.02;DRE;Despesas Comerciais;Trafego pago e midia digital;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.06.02.01.03;DRE;Despesas Comerciais;Agencias e producao de conteudo;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.06.02.02;DRE;Despesas Comerciais;Eventos, feiras e materiais promocionais;4;Sintetica;Neutro;nao;;;;
+DRE.06.02.02.01;DRE;Despesas Comerciais;Eventos, feiras e patrocinio;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.06.02.02.02;DRE;Despesas Comerciais;Brindes, amostras e material promocional;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.06.03;DRE;Despesas Comerciais;Logistica de venda;3;Sintetica;Neutro;nao;;;;
+DRE.06.03.01;DRE;Despesas Comerciais;Fretes e transporte de venda;4;Sintetica;Neutro;nao;;;;
+DRE.06.03.01.01;DRE;Despesas Comerciais;Fretes e entregas a clientes;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.06.03.01.02;DRE;Despesas Comerciais;Pedagios e transporte comercial;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.06.03.02;DRE;Despesas Comerciais;Embalagens de venda;4;Sintetica;Neutro;nao;;;;
+DRE.06.03.02.01;DRE;Despesas Comerciais;Embalagens de venda;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.06.03.03;DRE;Despesas Comerciais;Estrutura logistica comercial;4;Sintetica;Neutro;nao;;;;
+DRE.06.03.03.01;DRE;Despesas Comerciais;Manutencao de veiculos comerciais;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.06.03.03.02;DRE;Despesas Comerciais;Armazenagem comercial;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.06.04;DRE;Despesas Comerciais;Canais e adquirencia;3;Sintetica;Neutro;nao;;;;
+DRE.06.04.01;DRE;Despesas Comerciais;Taxas de canais e adquirencia;4;Sintetica;Neutro;nao;;;;
+DRE.06.04.01.01;DRE;Despesas Comerciais;Taxas de cartao e adquirentes;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.06.04.01.02;DRE;Despesas Comerciais;Taxas de marketplace;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.06.04.02;DRE;Despesas Comerciais;Plataformas comerciais;4;Sintetica;Neutro;nao;;;;
+DRE.06.04.02.01;DRE;Despesas Comerciais;Plataformas comerciais;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.06.04.03;DRE;Despesas Comerciais;Descontos comerciais;4;Sintetica;Neutro;nao;;;;
+DRE.06.04.03.01;DRE;Despesas Comerciais;Descontos comerciais concedidos;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.06.04.04;DRE;Despesas Comerciais;Outras despesas de canais;4;Sintetica;Neutro;nao;;;;
+DRE.06.04.04.01;DRE;Despesas Comerciais;Bonificacao e amostra gratis;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07;DRE;Despesas Administrativas;Despesas administrativas;2;Sintetica;Neutro;nao;;;;
+DRE.07.01;DRE;Despesas Administrativas;Pessoal - administrativo;3;Sintetica;Neutro;nao;;;;
+DRE.07.01.01;DRE;Despesas Administrativas;Remuneracao administrativa;4;Sintetica;Neutro;nao;;;;
+DRE.07.01.01.01;DRE;Despesas Administrativas;Salarios - administrativo;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.01.01.02;DRE;Despesas Administrativas;Férias - administrativo;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.01.01.03;DRE;Despesas Administrativas;Decimo terceiro - administrativo;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.01.01.04;DRE;Despesas Administrativas;Gratificacoes e premios - administrativo;5;Analitica;Debito;sim;Conta do balancete atual.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.01.01.05;DRE;Despesas Administrativas;Pro labore;5;Analitica;Debito;sim;Conta do balancete atual.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.01.01.06;DRE;Despesas Administrativas;Terceiros e estagiarios - administrativo;5;Analitica;Debito;sim;Conta do balancete atual.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.01.02;DRE;Despesas Administrativas;Encargos - administrativo;4;Sintetica;Neutro;nao;;;;
+DRE.07.01.02.01;DRE;Despesas Administrativas;Encargos - administrativo;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.01.02.02;DRE;Despesas Administrativas;INSS - administrativo;5;Analitica;Debito;sim;Conta do balancete atual.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.01.02.03;DRE;Despesas Administrativas;FGTS - administrativo;5;Analitica;Debito;sim;Conta do balancete atual.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.01.03;DRE;Despesas Administrativas;Beneficios - administrativo;4;Sintetica;Neutro;nao;;;;
+DRE.07.01.03.01;DRE;Despesas Administrativas;Beneficios - administrativo;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.01.03.02;DRE;Despesas Administrativas;Vale transporte - administrativo;5;Analitica;Debito;sim;Conta do balancete atual.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.01.03.03;DRE;Despesas Administrativas;Vale refeicao e alimentacao - administrativo;5;Analitica;Debito;sim;Conta do balancete atual.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.01.03.04;DRE;Despesas Administrativas;Assistencia medica administrativa;5;Analitica;Debito;sim;Conta do balancete atual.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.01.03.05;DRE;Despesas Administrativas;Convenios e beneficios - administrativo;5;Analitica;Debito;sim;Conta do balancete atual.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.01.03.06;DRE;Despesas Administrativas;Seguro de vida e beneficios segurados - administrativo;5;Analitica;Debito;sim;Referencia presente no plano Hubcount.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.01.04;DRE;Despesas Administrativas;Recrutamento e medicina ocupacional;4;Sintetica;Neutro;nao;;;;
+DRE.07.01.04.01;DRE;Despesas Administrativas;Recrutamento e treinamento  - administrativo;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.01.04.02;DRE;Despesas Administrativas;Exames admissionais e demissionais  - administrativo;5;Analitica;Debito;sim;Conta do balancete atual.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.01.05;DRE;Despesas Administrativas;Acordos e contingencias trabalhistas;4;Sintetica;Neutro;nao;;;;
+DRE.07.01.05.01;DRE;Despesas Administrativas;Acordos trabalhistas e judiciais;5;Analitica;Debito;sim;Conta do balancete atual.;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+DRE.07.02;DRE;Despesas Administrativas;Ocupacao e infraestrutura;3;Sintetica;Neutro;nao;;;;
+DRE.07.02.01;DRE;Despesas Administrativas;Locacao e ocupacao;4;Sintetica;Neutro;nao;;;;
+DRE.07.02.01.01;DRE;Despesas Administrativas;Aluguel predial;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.02.01.02;DRE;Despesas Administrativas;Condominio;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.02.01.03;DRE;Despesas Administrativas;Aluguel de equipamentos;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.02.02;DRE;Despesas Administrativas;Utilidades e comunicacao;4;Sintetica;Neutro;nao;;;;
+DRE.07.02.02.01;DRE;Despesas Administrativas;Energia eletrica;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.02.02.02;DRE;Despesas Administrativas;Agua e saneamento;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.02.02.03;DRE;Despesas Administrativas;Telefone e internet;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.02.03;DRE;Despesas Administrativas;Manutencao, limpeza e seguranca;4;Sintetica;Neutro;nao;;;;
+DRE.07.02.03.01;DRE;Despesas Administrativas;Limpeza, conservacao e manutencao;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.02.03.02;DRE;Despesas Administrativas;Seguranca e monitoramento;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.02.03.03;DRE;Despesas Administrativas;Manutencao predial e reparos gerais;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.03;DRE;Despesas Administrativas;Tecnologia e sistemas;3;Sintetica;Neutro;nao;;;;
+DRE.07.03.01;DRE;Despesas Administrativas;Softwares e assinaturas digitais;4;Sintetica;Neutro;nao;;;;
+DRE.07.03.01.01;DRE;Despesas Administrativas;Softwares e licencas;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.03.01.02;DRE;Despesas Administrativas;Assinaturas digitais;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.03.02;DRE;Despesas Administrativas;Nuvem e infraestrutura digital;4;Sintetica;Neutro;nao;;;;
+DRE.07.03.02.01;DRE;Despesas Administrativas;Hospedagem, nuvem e infraestrutura digital;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.03.03;DRE;Despesas Administrativas;Suporte e servicos de TI;4;Sintetica;Neutro;nao;;;;
+DRE.07.03.03.01;DRE;Despesas Administrativas;Suporte e servicos de TI;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.03.04;DRE;Despesas Administrativas;Equipamentos e perifericos de TI;4;Sintetica;Neutro;nao;;;;
+DRE.07.03.04.01;DRE;Despesas Administrativas;Equipamentos de pequeno valor de TI;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.04;DRE;Despesas Administrativas;Servicos tomados;3;Sintetica;Neutro;nao;;;;
+DRE.07.04.01;DRE;Despesas Administrativas;Honorarios, consultorias e auditoria;4;Sintetica;Neutro;nao;;;;
+DRE.07.04.01.01;DRE;Despesas Administrativas;Honorarios contabeis;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.04.01.02;DRE;Despesas Administrativas;Honorarios juridicos;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.04.01.03;DRE;Despesas Administrativas;Honorarios de consultorias;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.04.01.04;DRE;Despesas Administrativas;Auditoria e certificacoes;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.04.02;DRE;Despesas Administrativas;Servicos - administrativo e tecnicos;4;Sintetica;Neutro;nao;;;;
+DRE.07.04.02.01;DRE;Despesas Administrativas;Servicos adminsitrativos;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.04.02.02;DRE;Despesas Administrativas;Despachante, comercio exterior e alfandega;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.04.02.03;DRE;Despesas Administrativas;Servicos - administrativo contratados;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.04.02.04;DRE;Despesas Administrativas;Servicos medicos e ocupacionais;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.04.03;DRE;Despesas Administrativas;Servicos de manutencao e apoio;4;Sintetica;Neutro;nao;;;;
+DRE.07.04.03.01;DRE;Despesas Administrativas;Dedetizacao e controle de pragas;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.04.03.02;DRE;Despesas Administrativas;Assistencia, manutencao e reparos em geral;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.04.03.99;DRE;Despesas Administrativas;Outros servicos tomados;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.05;DRE;Despesas Administrativas;Consumo interno;3;Sintetica;Neutro;nao;;;;
+DRE.07.05.01;DRE;Despesas Administrativas;Materiais - administrativo;4;Sintetica;Neutro;nao;;;;
+DRE.07.05.01.01;DRE;Despesas Administrativas;Material de escritorio;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.05.01.02;DRE;Despesas Administrativas;Correios e postais;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.05.01.03;DRE;Despesas Administrativas;Bens de pequeno valor;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.05.01.04;DRE;Despesas Administrativas;Materiais diversos;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.05.01.05;DRE;Despesas Administrativas;Material de consumo geral;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.05.02;DRE;Despesas Administrativas;Copa e refeicoes internas;4;Sintetica;Neutro;nao;;;;
+DRE.07.05.02.01;DRE;Despesas Administrativas;Copa, refeicoes e lanches;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.05.03;DRE;Despesas Administrativas;Materiais de limpeza e apoio operacional;4;Sintetica;Neutro;nao;;;;
+DRE.07.05.03.01;DRE;Despesas Administrativas;Materiais de limpeza;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.05.03.02;DRE;Despesas Administrativas;Materiais operacionais e de apoio;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.06;DRE;Despesas Administrativas;Mobilidade administrativa;3;Sintetica;Neutro;nao;;;;
+DRE.07.06.01;DRE;Despesas Administrativas;Viagens, conducoes e pedagios;4;Sintetica;Neutro;nao;;;;
+DRE.07.06.01.01;DRE;Despesas Administrativas;Viagens e hospedagens administrativas;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.06.01.02;DRE;Despesas Administrativas;Estacionamento, pedagios e conducoes;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.06.02;DRE;Despesas Administrativas;Veiculos e combustiveis;4;Sintetica;Neutro;nao;;;;
+DRE.07.06.02.01;DRE;Despesas Administrativas;Combustiveis e lubrificantes;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.06.02.02;DRE;Despesas Administrativas;Aluguel de veiculos;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.06.02.03;DRE;Despesas Administrativas;Manutencao de veiculos;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.07;DRE;Despesas Administrativas;Taxas e despesas gerais;3;Sintetica;Neutro;nao;;;;
+DRE.07.07.01;DRE;Despesas Administrativas;Taxas legais e entidades;4;Sintetica;Neutro;nao;;;;
+DRE.07.07.01.01;DRE;Despesas Administrativas;Cartorios e taxas legais;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.07.01.02;DRE;Despesas Administrativas;Associacoes, conselhos e sindicatos;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.07.01.03;DRE;Despesas Administrativas;Mensalidades associativas e sindicatos;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.07.02;DRE;Despesas Administrativas;Multas e penalidades;4;Sintetica;Neutro;nao;;;;
+DRE.07.07.02.01;DRE;Despesas Administrativas;Multas administrativas e nao dedutiveis;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.07.03;DRE;Despesas Administrativas;Depreciacao e amortizacao administrativa;4;Sintetica;Neutro;nao;;;;
+DRE.07.07.03.01;DRE;Despesas Administrativas;Depreciacao e amortizacao administrativa;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.07.04;DRE;Despesas Administrativas;Despesas corporativas diversas;4;Sintetica;Neutro;nao;;;;
+DRE.07.07.04.01;DRE;Despesas Administrativas;Gastos com cartao corporativo;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.07.04.02;DRE;Despesas Administrativas;Brindes institucionais;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.07.04.03;DRE;Despesas Administrativas;Eventos corporativos;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.07.04.04;DRE;Despesas Administrativas;Publicidade e propaganda;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.07.04.05;DRE;Despesas Administrativas;Reembolso de despesas;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.07.04.06;DRE;Despesas Administrativas;Premios de seguros;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.07.04.07;DRE;Despesas Administrativas;Plano de saude;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.07.04.08;DRE;Despesas Administrativas;Associacoes e classes;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.07.04.09;DRE;Despesas Administrativas;Transportes, fretes e deslocamentos - administrativo;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.07.04.10;DRE;Despesas Administrativas;Marcas e patentes;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.07.04.11;DRE;Despesas Administrativas;Acoes internas;5;Analitica;Debito;sim;Conta do balancete atual.;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.07.07.05;DRE;Despesas Administrativas;Outras despesas administrativas;4;Sintetica;Neutro;nao;;;;
+DRE.07.07.05.01;DRE;Despesas Administrativas;Outras despesas administrativas;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+DRE.08;DRE;Tributos e Provisoes;Tributos e provisoes operacionais;2;Sintetica;Neutro;nao;;;;
+DRE.08.01;DRE;Tributos e Provisoes;Tributos operacionais;3;Sintetica;Neutro;nao;;;;
+DRE.08.01.01;DRE;Tributos e Provisoes;Tributos financeiros e operacionais;4;Sintetica;Neutro;nao;;;;
+DRE.08.01.01.01;DRE;Tributos e Provisoes;IOF operacional;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.08.01.02;DRE;Tributos e Provisoes;Taxas patrimoniais e reguladoras;4;Sintetica;Neutro;nao;;;;
+DRE.08.01.02.01;DRE;Tributos e Provisoes;Taxas de conselhos e orgaos reguladores;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.08.01.02.02;DRE;Tributos e Provisoes;IPTU, IPVA e taxas patrimoniais;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.08.01.03;DRE;Tributos e Provisoes;Outros tributos operacionais;4;Sintetica;Neutro;nao;;;;
+DRE.08.01.03.01;DRE;Tributos e Provisoes;Outros tributos operacionais;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.08.02;DRE;Tributos e Provisoes;Provisoes e perdas;3;Sintetica;Neutro;nao;;;;
+DRE.08.02.01;DRE;Tributos e Provisoes;Provisoes e contingencias;4;Sintetica;Neutro;nao;;;;
+DRE.08.02.01.01;DRE;Tributos e Provisoes;Provisoes operacionais;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.08.02.01.02;DRE;Tributos e Provisoes;Contingencias operacionais;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.08.02.02;DRE;Tributos e Provisoes;Perdas estimadas e diversas;4;Sintetica;Neutro;nao;;;;
+DRE.08.02.02.01;DRE;Tributos e Provisoes;Perdas estimadas com clientes;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.08.02.02.02;DRE;Tributos e Provisoes;Perdas diversas;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.09;DRE;Outros Resultados Operacionais;Outros resultados operacionais;2;Sintetica;Neutro;nao;;;;
+DRE.09.01;DRE;Outros Resultados Operacionais;Outras receitas operacionais;3;Sintetica;Neutro;nao;;;;
+DRE.09.01.01;DRE;Outros Resultados Operacionais;Recuperacoes e bonificacoes;4;Sintetica;Neutro;nao;;;;
+DRE.09.01.01.01;DRE;Outros Resultados Operacionais;Bonificacoes recebidas;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+DRE.09.01.01.02;DRE;Outros Resultados Operacionais;Recuperacoes operacionais;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+DRE.09.01.02;DRE;Outros Resultados Operacionais;Alienacao de ativos;4;Sintetica;Neutro;nao;;;;
+DRE.09.01.02.01;DRE;Outros Resultados Operacionais;Receita na alienacao de ativos;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+DRE.09.01.03;DRE;Outros Resultados Operacionais;Demais receitas operacionais;4;Sintetica;Neutro;nao;;;;
+DRE.09.01.03.01;DRE;Outros Resultados Operacionais;Demais receitas operacionais;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+DRE.09.02;DRE;Outros Resultados Operacionais;Outras despesas operacionais;3;Sintetica;Neutro;nao;;;;
+DRE.09.02.01;DRE;Outros Resultados Operacionais;Baixas e alienacao de ativos;4;Sintetica;Neutro;nao;;;;
+DRE.09.02.01.01;DRE;Outros Resultados Operacionais;Custo na alienacao de ativos;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+DRE.09.02.01.02;DRE;Outros Resultados Operacionais;Baixas operacionais;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+DRE.09.02.02;DRE;Outros Resultados Operacionais;Perdas e demais despesas operacionais;4;Sintetica;Neutro;nao;;;;
+DRE.09.02.02.01;DRE;Outros Resultados Operacionais;Perdas operacionais nao recorrentes;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+DRE.09.02.02.02;DRE;Outros Resultados Operacionais;Demais despesas operacionais;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+DRE.09.02.02.03;DRE;Outros Resultados;Outros resultados operacionais identificados;5;Analitica;Debito;sim;Conta do balancete atual.;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+DRE.10;DRE;Resultado Operacional;Resultado operacional;2;Subtotal;Credito;nao;;;;
+DRE.11;DRE;Depreciacao e Amortizacao;Depreciacao e amortizacao destacada;2;Sintetica;Neutro;nao;;;;
+DRE.11.01;DRE;Depreciacao e Amortizacao;Depreciacao e amortizacao;3;Sintetica;Neutro;nao;;;;
+DRE.11.01.01;DRE;Depreciacao e Amortizacao;Depreciacao;4;Sintetica;Neutro;nao;;;;
+DRE.11.01.01.01;DRE;Depreciacao e Amortizacao;Depreciacao destacada;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+DRE.11.01.02;DRE;Depreciacao e Amortizacao;Amortizacao;4;Sintetica;Neutro;nao;;;;
+DRE.11.01.02.01;DRE;Depreciacao e Amortizacao;Amortizacao destacada;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+DRE.11.01.03;DRE;Depreciacao e Amortizacao;Exaustao;4;Sintetica;Neutro;nao;;;;
+DRE.11.01.03.01;DRE;Depreciacao e Amortizacao;Exaustao destacada;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+DRE.12;DRE;Resultado Operacional;Resultado operacional;2;Subtotal;Credito;nao;;;;
+DRE.13;DRE;Resultado Financeiro;Resultado financeiro;2;Sintetica;Neutro;nao;;;;
+DRE.13.01;DRE;Resultado Financeiro;Receitas financeiras;3;Sintetica;Neutro;nao;;;;
+DRE.13.01.01;DRE;Resultado Financeiro;Rendimentos de aplicacoes;4;Sintetica;Neutro;nao;;;;
+DRE.13.01.01.01;DRE;Resultado Financeiro;Rendimentos de aplicacoes financeiras;5;Analitica;Credito;sim;;6;DFC.OP.REC_FIN;Receitas financeiras
+DRE.13.01.02;DRE;Resultado Financeiro;Juros, descontos e recuperacoes financeiras;4;Sintetica;Neutro;nao;;;;
+DRE.13.01.02.01;DRE;Resultado Financeiro;Juros ativos;5;Analitica;Credito;sim;;6;DFC.OP.REC_FIN;Receitas financeiras
+DRE.13.01.02.02;DRE;Resultado Financeiro;Descontos obtidos;5;Analitica;Credito;sim;;6;DFC.OP.REC_FIN;Receitas financeiras
+DRE.13.01.02.03;DRE;Resultado Financeiro;Recuperacoes e atualizacoes financeiras;5;Analitica;Credito;sim;;6;DFC.OP.REC_FIN;Receitas financeiras
+DRE.13.02;DRE;Resultado Financeiro;Despesas financeiras;3;Sintetica;Neutro;nao;;;;
+DRE.13.02.01;DRE;Resultado Financeiro;Tarifas e despesas bancarias;4;Sintetica;Neutro;nao;;;;
+DRE.13.02.01.01;DRE;Resultado Financeiro;Despesas bancarias;5;Analitica;Debito;sim;;7;DFC.OP.DESP_FIN;Despesas financeiras
+DRE.13.02.01.02;DRE;Resultado Financeiro;Tarifas de cartao debito/credito;5;Analitica;Debito;sim;;7;DFC.OP.DESP_FIN;Despesas financeiras
+DRE.13.02.01.03;DRE;Resultado Financeiro;IOF e impostos financeiros;5;Analitica;Debito;sim;;7;DFC.OP.DESP_FIN;Despesas financeiras
+DRE.13.02.02;DRE;Resultado Financeiro;Juros, multas e descontos financeiros;4;Sintetica;Neutro;nao;;;;
+DRE.13.02.02.01;DRE;Resultado Financeiro;Juros e multas passivos;5;Analitica;Debito;sim;;7;DFC.OP.DESP_FIN;Despesas financeiras
+DRE.13.02.02.02;DRE;Resultado Financeiro;Descontos concedidos financeiros;5;Analitica;Debito;sim;;7;DFC.OP.DESP_FIN;Despesas financeiras
+DRE.13.02.03;DRE;Resultado Financeiro;Outras despesas financeiras;4;Sintetica;Neutro;nao;;;;
+DRE.13.02.03.01;DRE;Resultado Financeiro;Outras despesas financeiras;5;Analitica;Debito;sim;;7;DFC.OP.DESP_FIN;Despesas financeiras
+DRE.13.03;DRE;Resultado Financeiro;Variacao cambial;3;Sintetica;Neutro;nao;;;;
+DRE.13.03.01;DRE;Resultado Financeiro;Variacao cambial ativa;4;Sintetica;Neutro;nao;;;;
+DRE.13.03.01.01;DRE;Resultado Financeiro;Variacao cambial ativa;5;Analitica;Credito;sim;;6;DFC.OP.REC_FIN;Receitas financeiras
+DRE.13.03.02;DRE;Resultado Financeiro;Variacao cambial passiva;4;Sintetica;Neutro;nao;;;;
+DRE.13.03.02.01;DRE;Resultado Financeiro;Variacao cambial passiva;5;Analitica;Debito;sim;;7;DFC.OP.DESP_FIN;Despesas financeiras
+DRE.14;DRE;Resultados Nao Operacionais;Resultados nao operacionais;2;Sintetica;Neutro;nao;;;;
+DRE.14.01;DRE;Resultados Nao Operacionais;Receitas nao operacionais;3;Sintetica;Neutro;nao;;;;
+DRE.14.01.01;DRE;Resultados Nao Operacionais;Receitas nao operacionais recorrentes;4;Sintetica;Neutro;nao;;;;
+DRE.14.01.01.01;DRE;Resultados Nao Operacionais;Outras receitas nao operacionais;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+DRE.14.01.02;DRE;Resultados Nao Operacionais;Ganhos nao operacionais;4;Sintetica;Neutro;nao;;;;
+DRE.14.01.02.01;DRE;Resultados Nao Operacionais;Ganhos na venda de ativos nao operacionais;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+DRE.14.02;DRE;Resultados Nao Operacionais;Despesas nao operacionais;3;Sintetica;Neutro;nao;;;;
+DRE.14.02.01;DRE;Resultados Nao Operacionais;Despesas nao operacionais recorrentes;4;Sintetica;Neutro;nao;;;;
+DRE.14.02.01.01;DRE;Resultados Nao Operacionais;Outras despesas nao operacionais;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+DRE.14.02.02;DRE;Resultados Nao Operacionais;Perdas nao operacionais;4;Sintetica;Neutro;nao;;;;
+DRE.14.02.02.01;DRE;Resultados Nao Operacionais;Perdas na baixa de ativos nao operacionais;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+DRE.15;DRE;Resultado Antes dos Impostos;Resultado antes de IRPJ e CSLL;2;Subtotal;Credito;nao;;;;
+DRE.16;DRE;IRPJ e CSLL;IRPJ e CSLL;2;Sintetica;Neutro;nao;;;;
+DRE.16.01;DRE;IRPJ e CSLL;IRPJ;3;Sintetica;Neutro;nao;;;;
+DRE.16.01.01;DRE;IRPJ e CSLL;IRPJ corrente;4;Sintetica;Neutro;nao;;;;
+DRE.16.01.01.01;DRE;IRPJ e CSLL;IRPJ corrente;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.16.01.02;DRE;IRPJ e CSLL;IRPJ diferido;4;Sintetica;Neutro;nao;;;;
+DRE.16.01.02.01;DRE;IRPJ e CSLL;IRPJ diferido;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.16.02;DRE;IRPJ e CSLL;CSLL;3;Sintetica;Neutro;nao;;;;
+DRE.16.02.01;DRE;IRPJ e CSLL;CSLL corrente;4;Sintetica;Neutro;nao;;;;
+DRE.16.02.01.01;DRE;IRPJ e CSLL;CSLL corrente;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.16.02.02;DRE;IRPJ e CSLL;CSLL diferida;4;Sintetica;Neutro;nao;;;;
+DRE.16.02.02.01;DRE;IRPJ e CSLL;CSLL diferida;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+DRE.17;DRE;Resultado Liquido;Resultado liquido;2;Subtotal;Credito;nao;;;;
+01;BP;Ativo;Ativo;1;Sintetica;Debito;nao;;;;
+01.01;BP;Ativo Circulante;Ativo circulante;2;Sintetica;Debito;nao;;;;
+01.01.01;BP;Ativo Circulante;Caixa e equivalentes de caixa;3;Sintetica;Debito;nao;;;;
+01.01.01.01;BP;Ativo Circulante;Caixa e fundos fixos;4;Sintetica;Debito;nao;;;;
+01.01.01.01.01;BP;Ativo Circulante;Caixa fisico;5;Analitica;Debito;sim;;;;
+01.01.01.01.02;BP;Ativo Circulante;Fundos fixos e caixinhas;5;Analitica;Debito;sim;;;;
+01.01.01.01.03;BP;Ativo Circulante;Valores em transito;5;Analitica;Debito;sim;;;;
+01.01.01.02;BP;Ativo Circulante;Bancos conta movimento;4;Sintetica;Debito;nao;;;;
+01.01.01.02.01;BP;Ativo Circulante;Bancos nacionais;5;Analitica;Debito;sim;;;;
+01.01.01.02.02;BP;Ativo Circulante;Bancos no exterior;5;Analitica;Debito;sim;;;;
+01.01.01.02.03;BP;Ativo Circulante;Contas digitais;5;Analitica;Debito;sim;;;;
+01.01.01.02.04;BP;Ativo Circulante;Cooperativas de credito;5;Analitica;Debito;sim;;;;
+01.01.01.02.05;BP;Ativo Circulante;Instituicoes de pagamento;5;Analitica;Debito;sim;;;;
+01.01.01.02.06;BP;Ativo Circulante;Contas bancarias com restricao;5;Analitica;Debito;sim;;;;
+01.01.01.02.07;BP;Ativo Circulante;Transitorias bancarias;5;Analitica;Debito;sim;;;;
+01.01.01.02.99;BP;Ativo Circulante;Outras contas bancarias;5;Analitica;Debito;sim;;;;
+01.01.01.03;BP;Ativo Circulante;Aplicacoes de liquidez imediata;4;Sintetica;Debito;nao;;;;
+01.01.01.03.01;BP;Ativo Circulante;CDB, fundos e renda fixa;5;Analitica;Debito;sim;;;;
+01.01.01.03.02;BP;Ativo Circulante;Poupanca;5;Analitica;Debito;sim;;;;
+01.01.01.03.03;BP;Ativo Circulante;Aplicacoes automaticas;5;Analitica;Debito;sim;;;;
+01.01.01.03.04;BP;Ativo Circulante;Aplicacoes com resgate imediato;5;Analitica;Debito;sim;;;;
+01.01.01.03.99;BP;Ativo Circulante;Outras aplicacoes de curto prazo;5;Analitica;Debito;sim;;;;
+01.01.02;BP;Ativo Circulante;Creditos;3;Sintetica;Debito;nao;;;;
+01.01.02.01;BP;Ativo Circulante;Clientes;4;Sintetica;Debito;nao;;;;
+01.01.02.01.01;BP;Ativo Circulante;Clientes a receber;5;Analitica;Debito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+01.01.02.01.02;BP;Ativo Circulante;Clientes nacionais;5;Analitica;Debito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+01.01.02.01.03;BP;Ativo Circulante;Clientes no exterior;5;Analitica;Debito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+01.01.02.01.04;BP;Ativo Circulante;Clientes partes relacionadas;5;Analitica;Debito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+01.01.02.01.05;BP;Ativo Circulante;Convenios e operadoras a receber;5;Analitica;Debito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+01.01.02.01.06;BP;Ativo Circulante;Cartoes e adquirentes a receber;5;Analitica;Debito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+01.01.02.01.07;BP;Ativo Circulante;Marketplaces e intermediadores a receber;5;Analitica;Debito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+01.01.02.01.08;BP;Ativo Circulante;Duplicatas e titulos a receber;5;Analitica;Debito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+01.01.02.01.09;BP;Ativo Circulante;Cheques e boletos a receber;5;Analitica;Debito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+01.01.02.01.10;BP;Ativo Circulante;Clientes em cobranca;5;Analitica;Debito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+01.01.02.01.11;BP;Ativo Circulante;Perdas estimadas com clientes;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+01.01.02.01.99;BP;Ativo Circulante;Outros recebiveis de clientes;5;Analitica;Debito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+01.01.02.02;BP;Ativo Circulante;Creditos de funcionarios;4;Sintetica;Debito;nao;;;;
+01.01.02.02.01;BP;Ativo Circulante;Adiantamentos salariais;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+01.01.02.02.02;BP;Ativo Circulante;Adiantamento de ferias;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+01.01.02.02.03;BP;Ativo Circulante;Emprestimos a funcionarios;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+01.01.02.02.04;BP;Ativo Circulante;Beneficios a recuperar;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+01.01.02.02.05;BP;Ativo Circulante;Despesas de funcionarios a reembolsar;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+01.01.02.02.99;BP;Ativo Circulante;Outros creditos de funcionarios;5;Analitica;Debito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+01.01.02.03;BP;Ativo Circulante;Creditos de fornecedores;4;Sintetica;Debito;nao;;;;
+01.01.02.03.01;BP;Ativo Circulante;Adiantamentos a fornecedores;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.02.03.02;BP;Ativo Circulante;Fornecedores a devolver;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.02.03.03;BP;Ativo Circulante;Bonificacoes e verbas a receber;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.02.03.04;BP;Ativo Circulante;Pedidos e compras antecipadas;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.02.03.99;BP;Ativo Circulante;Outros creditos de fornecedores;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.02.04;BP;Ativo Circulante;Impostos a recuperar;4;Sintetica;Debito;nao;;;;
+01.01.02.04.01;BP;Ativo Circulante;ICMS a recuperar;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+01.01.02.04.02;BP;Ativo Circulante;IPI a recuperar;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+01.01.02.04.03;BP;Ativo Circulante;PIS a recuperar;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+01.01.02.04.04;BP;Ativo Circulante;COFINS a recuperar;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+01.01.02.04.05;BP;Ativo Circulante;INSS a recuperar;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+01.01.02.04.06;BP;Ativo Circulante;IRRF a recuperar;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+01.01.02.04.07;BP;Ativo Circulante;ISS a recuperar;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+01.01.02.04.08;BP;Ativo Circulante;CSLL a recuperar;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+01.01.02.04.09;BP;Ativo Circulante;IRPJ a recuperar;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+01.01.02.04.99;BP;Ativo Circulante;Outros impostos a recuperar;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+01.01.02.05;BP;Ativo Circulante;Impostos a compensar;4;Sintetica;Debito;nao;;;;
+01.01.02.05.01;BP;Ativo Circulante;Simples Nacional a compensar;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+01.01.02.05.02;BP;Ativo Circulante;IRPJ a compensar;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+01.01.02.05.03;BP;Ativo Circulante;CSLL a compensar;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+01.01.02.05.04;BP;Ativo Circulante;PERDCOMP a compensar;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+01.01.02.05.05;BP;Ativo Circulante;Saldos negativos de tributos;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+01.01.02.05.99;BP;Ativo Circulante;Outros impostos a compensar;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+01.01.02.06;BP;Ativo Circulante;Outros creditos;4;Sintetica;Debito;nao;;;;
+01.01.02.06.01;BP;Ativo Circulante;Alugueis a receber;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.02.06.02;BP;Ativo Circulante;Seguros a receber;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.02.06.03;BP;Ativo Circulante;Depositos e caucoes de curto prazo;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.02.06.04;BP;Ativo Circulante;Partes relacionadas curto prazo;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.02.06.05;BP;Ativo Circulante;Conta corrente de socios ativo CP;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.02.06.99;BP;Ativo Circulante;Demais creditos de curto prazo;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.03;BP;Ativo Circulante;Estoques;3;Sintetica;Debito;nao;;;;
+01.01.03.01;BP;Ativo Circulante;Estoques comerciais;4;Sintetica;Debito;nao;;;;
+01.01.03.01.01;BP;Ativo Circulante;Mercadorias para revenda;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.03.01.02;BP;Ativo Circulante;Estoque em terceiros ou consignado;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.03.01.03;BP;Ativo Circulante;Importacoes em andamento;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.03.02;BP;Ativo Circulante;Estoques industriais;4;Sintetica;Debito;nao;;;;
+01.01.03.02.01;BP;Ativo Circulante;Materia-prima e insumos;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.03.02.02;BP;Ativo Circulante;Produtos em elaboracao;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.03.02.03;BP;Ativo Circulante;Produtos acabados;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.03.02.04;BP;Ativo Circulante;Materiais de embalagem;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.03.03;BP;Ativo Circulante;Materiais e almoxarifado;4;Sintetica;Debito;nao;;;;
+01.01.03.03.01;BP;Ativo Circulante;Materiais de consumo;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.03.03.02;BP;Ativo Circulante;Materiais de manutencao;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.03.03.03;BP;Ativo Circulante;Uniformes, EPIs e apoio operacional;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.03.04;BP;Ativo Circulante;Ajustes de estoque;4;Sintetica;Debito;nao;;;;
+01.01.03.04.01;BP;Ativo Circulante;Provisao para perdas em estoque;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.03.04.02;BP;Ativo Circulante;Adiantamentos relacionados a estoque;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.03.04.99;BP;Ativo Circulante;Outros estoques;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.04;BP;Ativo Circulante;Despesas antecipadas;3;Sintetica;Debito;nao;;;;
+01.01.04.01;BP;Ativo Circulante;Contratos e servicos antecipados;4;Sintetica;Debito;nao;;;;
+01.01.04.01.01;BP;Ativo Circulante;Seguros a apropriar;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.04.01.02;BP;Ativo Circulante;Assinaturas e licencas a apropriar;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.04.01.03;BP;Ativo Circulante;Alugueis antecipados;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.04.01.04;BP;Ativo Circulante;Manutencoes e contratos antecipados;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.04.01.05;BP;Ativo Circulante;Publicidade e campanhas antecipadas;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.01.04.01.99;BP;Ativo Circulante;Outras despesas antecipadas;5;Analitica;Debito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+01.02;BP;Ativo Nao Circulante;Ativo nao circulante;2;Sintetica;Debito;nao;;;;
+01.02.01;BP;Ativo Nao Circulante;Realizavel a longo prazo;3;Sintetica;Debito;nao;;;;
+01.02.01.01;BP;Ativo Nao Circulante;Creditos de longo prazo;4;Sintetica;Debito;nao;;;;
+01.02.01.01.01;BP;Ativo Nao Circulante;Clientes e recebiveis de longo prazo;5;Analitica;Debito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+01.02.01.01.02;BP;Ativo Nao Circulante;Depositos judiciais;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+01.02.01.01.03;BP;Ativo Nao Circulante;Tributos a recuperar longo prazo;5;Analitica;Debito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+01.02.01.01.04;BP;Ativo Nao Circulante;Partes relacionadas longo prazo;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+01.02.01.01.05;BP;Ativo Nao Circulante;Outros creditos de longo prazo;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+01.02.01.01.06;BP;Ativo Nao Circulante;Conta corrente de socios ativo;5;Analitica;Debito;sim;Conta do balancete atual: CC socio a ativo.;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+01.02.01.01.07;BP;Ativo Nao Circulante;Mutuos com socios e administradores LP;5;Analitica;Debito;sim;Inspirado nos grupos de mutuo/partes relacionadas.;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+01.02.02;BP;Ativo Nao Circulante;Investimentos;3;Sintetica;Debito;nao;;;;
+01.02.02.01;BP;Ativo Nao Circulante;Investimentos permanentes;4;Sintetica;Debito;nao;;;;
+01.02.02.01.01;BP;Ativo Nao Circulante;Participacoes societarias;5;Analitica;Debito;sim;;16;DFC.INV.ACOES_COTAS;Aquisicao de acoes/cotas
+01.02.02.01.02;BP;Ativo Nao Circulante;Imoveis para renda;5;Analitica;Debito;sim;;16;DFC.INV.ACOES_COTAS;Aquisicao de acoes/cotas
+01.02.02.01.03;BP;Ativo Nao Circulante;Aplicacoes financeiras de longo prazo;5;Analitica;Debito;sim;;16;DFC.INV.ACOES_COTAS;Aquisicao de acoes/cotas
+01.02.02.01.04;BP;Ativo Nao Circulante;Titulo de capitalização;5;Analitica;Debito;sim;;16;DFC.INV.ACOES_COTAS;Aquisicao de acoes/cotas
+01.02.02.01.99;BP;Ativo Nao Circulante;Outros investimentos permanentes;5;Analitica;Debito;sim;;16;DFC.INV.ACOES_COTAS;Aquisicao de acoes/cotas
+01.02.03;BP;Ativo Nao Circulante;Imobilizado;3;Sintetica;Debito;nao;;;;
+01.02.03.01;BP;Ativo Nao Circulante;Bens operacionais;4;Sintetica;Debito;nao;;;;
+01.02.03.01.01;BP;Ativo Nao Circulante;Maquinas e equipamentos;5;Analitica;Debito;sim;;15;DFC.INV.IMOBILIZADO;Compras de imobilizado
+01.02.03.01.02;BP;Ativo Nao Circulante;Moveis e utensilios;5;Analitica;Debito;sim;;15;DFC.INV.IMOBILIZADO;Compras de imobilizado
+01.02.03.01.03;BP;Ativo Nao Circulante;Instalacoes;5;Analitica;Debito;sim;;15;DFC.INV.IMOBILIZADO;Compras de imobilizado
+01.02.03.01.04;BP;Ativo Nao Circulante;Veiculos;5;Analitica;Debito;sim;;15;DFC.INV.IMOBILIZADO;Compras de imobilizado
+01.02.03.01.05;BP;Ativo Nao Circulante;Computadores e equipamentos de TI;5;Analitica;Debito;sim;;15;DFC.INV.IMOBILIZADO;Compras de imobilizado
+01.02.03.01.06;BP;Ativo Nao Circulante;Ferramentas, moldes e equipamentos diversos;5;Analitica;Debito;sim;;15;DFC.INV.IMOBILIZADO;Compras de imobilizado
+01.02.03.01.99;BP;Ativo Nao Circulante;Outros bens operacionais;5;Analitica;Debito;sim;;15;DFC.INV.IMOBILIZADO;Compras de imobilizado
+01.02.03.02;BP;Ativo Nao Circulante;Imobilizado em andamento e redutoras;4;Sintetica;Debito;nao;;;;
+01.02.03.02.01;BP;Ativo Nao Circulante;Consorcios e imobilizado em andamento;5;Analitica;Debito;sim;;15;DFC.INV.IMOBILIZADO;Compras de imobilizado
+01.02.03.02.02;BP;Ativo Nao Circulante;Depreciacao acumulada;5;Analitica;Credito;sim;;15;DFC.INV.IMOBILIZADO;Compras de imobilizado
+01.02.03.02.03;BP;Ativo Nao Circulante;Perdas por impairment imobilizado;5;Analitica;Credito;sim;;15;DFC.INV.IMOBILIZADO;Compras de imobilizado
+01.02.04;BP;Ativo Nao Circulante;Intangivel;3;Sintetica;Debito;nao;;;;
+01.02.04.01;BP;Ativo Nao Circulante;Intangiveis;4;Sintetica;Debito;nao;;;;
+01.02.04.01.01;BP;Ativo Nao Circulante;Softwares e sistemas;5;Analitica;Debito;sim;;15;DFC.INV.IMOBILIZADO;Compras de imobilizado
+01.02.04.01.02;BP;Ativo Nao Circulante;Marcas, patentes e direitos;5;Analitica;Debito;sim;;15;DFC.INV.IMOBILIZADO;Compras de imobilizado
+01.02.04.01.03;BP;Ativo Nao Circulante;Goodwill e fundo de comercio;5;Analitica;Debito;sim;;15;DFC.INV.IMOBILIZADO;Compras de imobilizado
+01.02.04.01.04;BP;Ativo Nao Circulante;Intangivel em desenvolvimento;5;Analitica;Debito;sim;;15;DFC.INV.IMOBILIZADO;Compras de imobilizado
+01.02.04.02;BP;Ativo Nao Circulante;Redutoras do intangivel;4;Sintetica;Debito;nao;;;;
+01.02.04.02.01;BP;Ativo Nao Circulante;Amortizacao acumulada;5;Analitica;Credito;sim;;15;DFC.INV.IMOBILIZADO;Compras de imobilizado
+01.02.04.02.02;BP;Ativo Nao Circulante;Perdas por impairment intangivel;5;Analitica;Credito;sim;;15;DFC.INV.IMOBILIZADO;Compras de imobilizado
+01.03;BP;Ativo Compensacao;Contas de compensacao ativo;2;Sintetica;Debito;nao;;;;
+01.03.01;BP;Ativo Compensacao;Garantias e contratos ativos;3;Sintetica;Debito;nao;;;;
+01.03.01.01;BP;Ativo Compensacao;Garantias recebidas;4;Sintetica;Debito;nao;;;;
+01.03.01.01.01;BP;Ativo Compensacao;Garantias recebidas de terceiros;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+01.03.01.01.02;BP;Ativo Compensacao;Caucoes e avais recebidos;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+01.03.02;BP;Ativo Compensacao;Bens e valores de terceiros;3;Sintetica;Debito;nao;;;;
+01.03.02.01;BP;Ativo Compensacao;Bens de terceiros sob guarda;4;Sintetica;Debito;nao;;;;
+01.03.02.01.01;BP;Ativo Compensacao;Bens de terceiros em poder da empresa;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+01.03.02.01.02;BP;Ativo Compensacao;Mercadorias de terceiros em consignacao;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+01.03.03;BP;Ativo Compensacao;Contratos e responsabilidades ativas;3;Sintetica;Debito;nao;;;;
+01.03.03.01;BP;Ativo Compensacao;Direitos contratuais de compensacao;4;Sintetica;Debito;nao;;;;
+01.03.03.01.01;BP;Ativo Compensacao;Contratos a executar ativos;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+01.03.03.01.02;BP;Ativo Compensacao;Ativos contingentes controlados;5;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02;BP;Passivo;Passivo;1;Sintetica;Credito;nao;;;;
+02.01;BP;Passivo Circulante;Passivo circulante;2;Sintetica;Credito;nao;;;;
+02.01.01;BP;Passivo Circulante;Fornecedores;3;Sintetica;Credito;nao;;;;
+02.01.01.01;BP;Passivo Circulante;Fornecedores operacionais;4;Sintetica;Credito;nao;;;;
+02.01.01.01.01;BP;Passivo Circulante;Fornecedores nacionais;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+02.01.01.01.02;BP;Passivo Circulante;Fornecedores de servicos;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+02.01.01.01.03;BP;Passivo Circulante;Fornecedores de mercadorias;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+02.01.01.02;BP;Passivo Circulante;Fornecedores especiais;4;Sintetica;Credito;nao;;;;
+02.01.01.02.01;BP;Passivo Circulante;Fornecedores no exterior;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+02.01.01.02.02;BP;Passivo Circulante;Fornecedores partes relacionadas;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+02.01.01.02.99;BP;Passivo Circulante;Outros fornecedores;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+02.01.02;BP;Passivo Circulante;Obrigacoes financeiras;3;Sintetica;Credito;nao;;;;
+02.01.02.01;BP;Passivo Circulante;Emprestimos e financiamentos CP;4;Sintetica;Credito;nao;;;;
+02.01.02.01.01;BP;Passivo Circulante;Capital de giro CP;5;Analitica;Credito;sim;;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures
+02.01.02.01.02;BP;Passivo Circulante;Financiamentos bancarios CP;5;Analitica;Credito;sim;;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures
+02.01.02.01.03;BP;Passivo Circulante;Emprestimos bancarios CP;5;Analitica;Credito;sim;;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures
+02.01.02.01.04;BP;Passivo Circulante;Arrendamentos e leasing CP;5;Analitica;Credito;sim;;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures
+02.01.02.01.05;BP;Passivo Circulante;Juros a apropriar sobre dividas CP;5;Analitica;Debito;sim;;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures
+02.01.02.01.99;BP;Passivo Circulante;Outras dividas financeiras CP;5;Analitica;Credito;sim;;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures
+02.01.02.02;BP;Passivo Circulante;Instrumentos financeiros e cartoes;4;Sintetica;Credito;nao;;;;
+02.01.02.02.01;BP;Passivo Circulante;Operacoes com adquirentes a liquidar;5;Analitica;Credito;sim;;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures
+02.01.02.02.02;BP;Passivo Circulante;Titulos descontados a pagar;5;Analitica;Credito;sim;;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures
+02.01.03;BP;Passivo Circulante;Obrigacoes tributarias;3;Sintetica;Credito;nao;;;;
+02.01.03.01;BP;Passivo Circulante;Tributos federais;4;Sintetica;Credito;nao;;;;
+02.01.03.01.01;BP;Passivo Circulante;PIS a recolher;5;Analitica;Credito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+02.01.03.01.02;BP;Passivo Circulante;COFINS a recolher;5;Analitica;Credito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+02.01.03.01.03;BP;Passivo Circulante;IRPJ a recolher;5;Analitica;Credito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+02.01.03.01.04;BP;Passivo Circulante;CSLL a recolher;5;Analitica;Credito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+02.01.03.01.05;BP;Passivo Circulante;IPI a recolher;5;Analitica;Credito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+02.01.03.01.06;BP;Passivo Circulante;IRRF e retencoes federais;5;Analitica;Credito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+02.01.03.01.07;BP;Passivo Circulante;Simples Nacional a recolher;5;Analitica;Credito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+02.01.03.01.99;BP;Passivo Circulante;Outros tributos federais;5;Analitica;Credito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+02.01.03.02;BP;Passivo Circulante;Tributos estaduais;4;Sintetica;Credito;nao;;;;
+02.01.03.02.01;BP;Passivo Circulante;ICMS a recolher;5;Analitica;Credito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+02.01.03.02.02;BP;Passivo Circulante;ICMS diferencial e antecipacao;5;Analitica;Credito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+02.01.03.02.99;BP;Passivo Circulante;Outros tributos estaduais;5;Analitica;Credito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+02.01.03.03;BP;Passivo Circulante;Tributos municipais;4;Sintetica;Credito;nao;;;;
+02.01.03.03.01;BP;Passivo Circulante;ISS a recolher;5;Analitica;Credito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+02.01.03.03.99;BP;Passivo Circulante;Outros tributos municipais;5;Analitica;Credito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+02.01.04;BP;Passivo Circulante;Obrigacoes sociais;3;Sintetica;Credito;nao;;;;
+02.01.04.01;BP;Passivo Circulante;Folha a pagar;4;Sintetica;Credito;nao;;;;
+02.01.04.01.01;BP;Passivo Circulante;Salarios a pagar;5;Analitica;Credito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+02.01.04.01.02;BP;Passivo Circulante;Rescisoes a pagar;5;Analitica;Credito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+02.01.04.01.03;BP;Passivo Circulante;Estagiarios a pagar;5;Analitica;Credito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+02.01.04.01.04;BP;Passivo Circulante;13o salario a pagar;5;Analitica;Credito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+02.01.04.01.05;BP;Passivo Circulante;Ferias a pagar;5;Analitica;Credito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+02.01.04.01.06;BP;Passivo Circulante;Pro labore a pagar;5;Analitica;Credito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+02.01.04.02;BP;Passivo Circulante;Encargos sociais;4;Sintetica;Credito;nao;;;;
+02.01.04.02.01;BP;Passivo Circulante;INSS a recolher;5;Analitica;Credito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+02.01.04.02.02;BP;Passivo Circulante;FGTS a recolher;5;Analitica;Credito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+02.01.04.02.03;BP;Passivo Circulante;IRRF folha a recolher;5;Analitica;Credito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+02.01.04.02.99;BP;Passivo Circulante;Outros encargos trabalhistas;5;Analitica;Credito;sim;;4;DFC.OP.EMPREGADOS;Valores pagos a empregados
+02.01.05;BP;Passivo Circulante;Adiantamentos e debitos diversos;3;Sintetica;Credito;nao;;;;
+02.01.05.01;BP;Passivo Circulante;Clientes e receitas diferidas;4;Sintetica;Credito;nao;;;;
+02.01.05.01.01;BP;Passivo Circulante;Adiantamentos de clientes;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+02.01.05.01.02;BP;Passivo Circulante;Receitas diferidas curto prazo;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.01.05.01.03;BP;Passivo Circulante;Obrigacoes com clientes;5;Analitica;Credito;sim;;2;DFC.OP.CLIENTES;Valores recebidos de clientes
+02.01.05.02;BP;Passivo Circulante;Debitos diversos;4;Sintetica;Credito;nao;;;;
+02.01.05.02.01;BP;Passivo Circulante;Depositos e caucoes recebidos;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.01.05.02.99;BP;Passivo Circulante;Outros debitos diversos;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.01.06;BP;Passivo Circulante;Outras contas a pagar;3;Sintetica;Credito;nao;;;;
+02.01.06.01;BP;Passivo Circulante;Contas administrativas;4;Sintetica;Credito;nao;;;;
+02.01.06.01.01;BP;Passivo Circulante;Contas a pagar administrativas;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+02.01.06.01.02;BP;Passivo Circulante;Alugueis e ocupacao a pagar;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+02.01.06.01.03;BP;Passivo Circulante;Importacoes e despesas aduaneiras a pagar;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+02.01.06.02;BP;Passivo Circulante;Partes relacionadas e utilidades;4;Sintetica;Credito;nao;;;;
+02.01.06.02.01;BP;Passivo Circulante;Obrigacoes com socios e partes relacionadas CP;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.01.06.02.02;BP;Passivo Circulante;Lancamentos a identificar;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+02.01.06.02.03;BP;Passivo Circulante;Agua e esgoto a pagar;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+02.01.06.02.04;BP;Passivo Circulante;Energia eletrica a pagar;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+02.01.06.02.05;BP;Passivo Circulante;Telefone, internet e TV a pagar;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+02.01.06.02.06;BP;Passivo Circulante;Cartoes de credito a pagar';5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+02.01.06.02.99;BP;Passivo Circulante;Outras obrigacoes curto prazo;5;Analitica;Credito;sim;;3;DFC.OP.FORNECEDORES;Valores pagos a fornecedores
+02.01.07;BP;Passivo Circulante;Distribuicoes;3;Sintetica;Credito;nao;;;;
+02.01.07.01;BP;Passivo Circulante;Distribuicoes a socios;4;Sintetica;Credito;nao;;;;
+02.01.07.01.01;BP;Passivo Circulante;Dividendos a pagar;5;Analitica;Credito;sim;;22;DFC.FIN.LUCROS_DIV_PAGOS;Pagamentos de lucros e dividendos
+02.01.07.01.02;BP;Passivo Circulante;Lucros a pagar;5;Analitica;Credito;sim;;22;DFC.FIN.LUCROS_DIV_PAGOS;Pagamentos de lucros e dividendos
+02.01.07.01.03;BP;Passivo Circulante;Juros sobre capital proprio a pagar;5;Analitica;Credito;sim;;22;DFC.FIN.LUCROS_DIV_PAGOS;Pagamentos de lucros e dividendos
+02.01.07.01.04;BP;Passivo Circulante;DISTRIBUICOES DE LUCRO;5;Analitica;Credito;sim;;22;DFC.FIN.LUCROS_DIV_PAGOS;Pagamentos de lucros e dividendos
+02.01.08;BP;Passivo Circulante;Provisoes;3;Sintetica;Credito;nao;;;;
+02.01.08.01;BP;Passivo Circulante;Provisoes trabalhistas;4;Sintetica;Credito;nao;;;;
+02.01.08.01.01;BP;Passivo Circulante;Provisao de ferias e encargos;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.01.08.01.02;BP;Passivo Circulante;Provisao de decimo terceiro e encargos;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.01.08.01.99;BP;Passivo Circulante;Outras provisoes trabalhistas CP;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.01.08.02;BP;Passivo Circulante;Provisoes operacionais;4;Sintetica;Credito;nao;;;;
+02.01.08.02.01;BP;Passivo Circulante;Provisoes operacionais curto prazo;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.01.08.02.99;BP;Passivo Circulante;Outras provisoes CP;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.02;BP;Passivo Nao Circulante;Passivo nao circulante;2;Sintetica;Credito;nao;;;;
+02.02.01;BP;Passivo Nao Circulante;Obrigacoes financeiras LP;3;Sintetica;Credito;nao;;;;
+02.02.01.01;BP;Passivo Nao Circulante;Emprestimos e financiamentos LP;4;Sintetica;Credito;nao;;;;
+02.02.01.01.01;BP;Passivo Nao Circulante;Capital de giro LP;5;Analitica;Credito;sim;;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures
+02.02.01.01.02;BP;Passivo Nao Circulante;Financiamentos bancarios LP;5;Analitica;Credito;sim;;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures
+02.02.01.01.03;BP;Passivo Nao Circulante;Emprestimos bancarios LP;5;Analitica;Credito;sim;;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures
+02.02.01.01.04;BP;Passivo Nao Circulante;Arrendamentos e leasing LP;5;Analitica;Credito;sim;;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures
+02.02.01.01.05;BP;Passivo Nao Circulante;Juros a apropriar sobre dividas LP;5;Analitica;Debito;sim;;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures
+02.02.01.01.99;BP;Passivo Nao Circulante;Outras dividas financeiras LP;5;Analitica;Credito;sim;;24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures
+02.02.02;BP;Passivo Nao Circulante;Obrigacoes tributarias LP;3;Sintetica;Credito;nao;;;;
+02.02.02.01;BP;Passivo Nao Circulante;Parcelamentos e tributos LP;4;Sintetica;Credito;nao;;;;
+02.02.02.01.01;BP;Passivo Nao Circulante;Parcelamentos tributarios LP;5;Analitica;Credito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+02.02.02.01.99;BP;Passivo Nao Circulante;Outras obrigacoes tributarias LP;5;Analitica;Credito;sim;;8;DFC.OP.TRIBUTOS;Tributos pagos
+02.02.03;BP;Passivo Nao Circulante;Provisoes e contingencias LP;3;Sintetica;Credito;nao;;;;
+02.02.03.01;BP;Passivo Nao Circulante;Contingencias LP;4;Sintetica;Credito;nao;;;;
+02.02.03.01.01;BP;Passivo Nao Circulante;Provisoes trabalhistas LP;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.02.03.01.02;BP;Passivo Nao Circulante;Provisoes fiscais LP;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.02.03.01.03;BP;Passivo Nao Circulante;Provisoes civeis LP;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.02.03.01.99;BP;Passivo Nao Circulante;Outras contingencias LP;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.02.04;BP;Passivo Nao Circulante;Outras obrigacoes LP;3;Sintetica;Credito;nao;;;;
+02.02.04.01;BP;Passivo Nao Circulante;Partes relacionadas e receitas diferidas LP;4;Sintetica;Credito;nao;;;;
+02.02.04.01.01;BP;Passivo Nao Circulante;Obrigacoes com partes relacionadas LP;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.02.04.01.02;BP;Passivo Nao Circulante;Receitas diferidas longo prazo;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.02.04.01.99;BP;Passivo Nao Circulante;Outras obrigacoes longo prazo;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.03;BP;Passivo Compensacao;Contas de compensacao passivo;2;Sintetica;Credito;nao;;;;
+02.03.01;BP;Passivo Compensacao;Garantias e contratos passivos;3;Sintetica;Credito;nao;;;;
+02.03.01.01;BP;Passivo Compensacao;Garantias prestadas;4;Sintetica;Credito;nao;;;;
+02.03.01.01.01;BP;Passivo Compensacao;Garantias prestadas a terceiros;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.03.01.01.02;BP;Passivo Compensacao;Caucoes e avais prestados;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.03.02;BP;Passivo Compensacao;Responsabilidades por bens de terceiros;3;Sintetica;Credito;nao;;;;
+02.03.02.01;BP;Passivo Compensacao;Bens de terceiros sob responsabilidade;4;Sintetica;Credito;nao;;;;
+02.03.02.01.01;BP;Passivo Compensacao;Responsabilidade por bens de terceiros;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.03.02.01.02;BP;Passivo Compensacao;Mercadorias de terceiros em consignacao;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.03.03;BP;Passivo Compensacao;Contratos e responsabilidades passivas;3;Sintetica;Credito;nao;;;;
+02.03.03.01;BP;Passivo Compensacao;Obrigacoes contratuais de compensacao;4;Sintetica;Credito;nao;;;;
+02.03.03.01.01;BP;Passivo Compensacao;Contratos a executar passivos;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+02.03.03.01.02;BP;Passivo Compensacao;Passivos contingentes controlados;5;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+03;BP;Patrimonio Liquido;Patrimonio liquido;1;Sintetica;Credito;nao;;;;
+03.01;BP;Patrimonio Liquido;Capital e reservas;2;Sintetica;Credito;nao;;;;
+03.01.01;BP;Patrimonio Liquido;Capital social integralizado;3;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+03.01.02;BP;Patrimonio Liquido;Capital social a integralizar;3;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+03.01.03;BP;Patrimonio Liquido;Reservas de capital;3;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+03.01.04;BP;Patrimonio Liquido;Reservas de lucros;3;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+03.01.05;BP;Patrimonio Liquido;Reserva legal;3;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+03.01.06;BP;Patrimonio Liquido;Ajustes de avaliacao patrimonial;3;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+03.02;BP;Patrimonio Liquido;Resultados acumulados;2;Sintetica;Credito;nao;;;;
+03.02.01;BP;Patrimonio Liquido;Resultados;3;Sintetica;Credito;nao;;;;
+03.02.01.01;BP;Patrimonio Liquido;Lucros ou prejuizos acumulados;4;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+03.02.01.02;BP;Patrimonio Liquido;Resultado do exercicio;4;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+03.02.01.03;BP;Patrimonio Liquido;Ajustes de exercicios anteriores;4;Analitica;Credito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+03.02.01.04;BP;Patrimonio Liquido;DISTRIBUICOES DE LUCRO;4;Analitica;Debito;sim;;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos
+03.02.01.05;BP;Patrimonio Liquido;Resultado do periodo gerencial;4;Analitica;Credito;sim;Linha calculada automaticamente pela DRE.;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos

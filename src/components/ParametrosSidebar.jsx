@@ -1,0 +1,54 @@
+import { NavLink, useNavigate } from "react-router-dom";
+import { Building2, Network, Repeat, Users, SlidersHorizontal, ChevronLeft, BarChart3 } from "lucide-react";
+
+const ITEMS = [
+  { to: "/parametros/empresas", label: "Empresas", icon: Building2 },
+  { to: "/parametros/grupo", label: "Grupo", icon: Network },
+  { to: "/parametros/de-para", label: "De/Para", icon: Repeat },
+  { to: "/parametros/representantes", label: "Representantes", icon: Users },
+  { to: "/parametros/bi", label: "B.I.", icon: BarChart3 },
+  { to: "/parametros/sistema", label: "Sistema", icon: SlidersHorizontal },
+];
+
+export default function ParametrosSidebar() {
+  const navigate = useNavigate();
+
+  return (
+    <aside className="flex h-screen w-[232px] shrink-0 flex-col bg-navy-950 text-white">
+      <button type="button" onClick={() => navigate("/")} className="flex items-center gap-2.5 px-5 py-5 text-left">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-500 text-sm font-medium">
+          BI
+        </span>
+        <span className="text-[15px] font-medium leading-tight">BIperformance</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => navigate("/")}
+        className="mx-3 mb-2 flex items-center gap-1.5 rounded-lg px-3 py-2 text-[12px] text-white/50 hover:bg-white/5 hover:text-white"
+      >
+        <ChevronLeft size={14} />
+        Início
+      </button>
+
+      <nav className="mt-1 flex flex-1 flex-col gap-0.5 px-3">
+        {ITEMS.map(({ to, label, icon: Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              `flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13px] transition-colors ${
+                isActive ? "bg-accent-500 font-medium text-white" : "text-white/65 hover:bg-white/5 hover:text-white"
+              }`
+            }
+          >
+            <Icon size={17} strokeWidth={1.75} />
+            {label}
+          </NavLink>
+        ))}
+      </nav>
+
+      <div className="border-t border-white/10 px-5 py-4 text-[11px] text-white/35">Parâmetros</div>
+    </aside>
+  );
+}

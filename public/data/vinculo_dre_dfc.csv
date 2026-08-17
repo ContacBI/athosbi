@@ -1,0 +1,351 @@
+﻿codigo_gerencial;nome;grupo_macro;nivel;natureza;destino_dfc;descricao_dfc;observacao
+DRE;DRE Gerencial;Resultado;1;Sintetica;;;
+DRE.01;Receita bruta;Receita;2;Sintetica;;;
+DRE.01.01;Venda de mercadorias;Receita;3;Sintetica;;;
+DRE.01.01.01;Vendas no mercado interno;Receita;4;Sintetica;;;
+DRE.01.01.01.01;Mercadorias a vista;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.01.01.02;Mercadorias a prazo;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.01.02;Canais digitais e marketplaces;Receita;4;Sintetica;;;
+DRE.01.01.02.01;E-commerce e marketplaces;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.01.03;Mercado externo;Receita;4;Sintetica;;;
+DRE.01.01.03.01;Exportacao de mercadorias;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.01.04;Outras vendas de mercadorias;Receita;4;Sintetica;;;
+DRE.01.01.04.01;Outras vendas de mercadorias;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.02;Venda de produtos;Receita;3;Sintetica;;;
+DRE.01.02.01;Produtos e industrializacao;Receita;4;Sintetica;;;
+DRE.01.02.01.01;Produtos proprios;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.02.01.02;Produtos industrializados por terceiros;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.02.02;Mercado externo;Receita;4;Sintetica;;;
+DRE.01.02.02.01;Exportacao de produtos;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.02.03;Outras vendas de produtos;Receita;4;Sintetica;;;
+DRE.01.02.03.01;Outras vendas de produtos;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.03;Prestacao de servicos;Receita;3;Sintetica;;;
+DRE.01.03.01;Servicos recorrentes;Receita;4;Sintetica;;;
+DRE.01.03.01.01;Servicos recorrentes;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.03.01.02;Servicos recorrentes mensais;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.03.02;Projetos, avulsos e consultorias;Receita;4;Sintetica;;;
+DRE.01.03.02.01;Servicos avulsos e projetos;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.03.02.02;Consultorias e honorarios;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.03.03;Servicos digitais, eventos e treinamentos;Receita;4;Sintetica;;;
+DRE.01.03.03.01;Servicos digitais;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.03.03.02;Receitas de eventos, cursos e treinamentos;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.03.04;Outras receitas de servicos;Receita;4;Sintetica;;;
+DRE.01.03.04.01;Outras receitas de servicos;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.03.04.02;Servicos prestados a prazo;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.04;Receitas recorrentes e acessorias;Receita;3;Sintetica;;;
+DRE.01.04.01;Receitas recorrentes;Receita;4;Sintetica;;;
+DRE.01.04.01.01;Locacoes;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.04.01.02;Assinaturas e mensalidades;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.04.02;Licencas e partes relacionadas;Receita;4;Sintetica;;;
+DRE.01.04.02.01;Royalties e licencas;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.04.02.02;Receitas intercompany;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.01.04.03;Outras receitas brutas;Receita;4;Sintetica;;;
+DRE.01.04.03.01;Outras receitas brutas;Receita;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.02;Deducoes da receita;Deducoes;2;Sintetica;;;
+DRE.02.01;Impostos sobre receita;Deducoes;3;Sintetica;;;
+DRE.02.01.01;Tributos federais sobre receita;Deducoes;4;Sintetica;;;
+DRE.02.01.01.01;PIS sobre receita;Deducoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.02.01.01.02;COFINS sobre receita;Deducoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.02.01.01.03;IPI sobre vendas;Deducoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.02.01.01.04;Simples Nacional DAS;Deducoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.02.01.01.05;INSS sobre faturamento;Deducoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.02.01.01.06;Retencoes sobre servicos prestados;Deducoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.02.01.02;Tributos estaduais sobre receita;Deducoes;4;Sintetica;;;
+DRE.02.01.02.01;ICMS sobre vendas;Deducoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.02.01.03;Tributos municipais sobre receita;Deducoes;4;Sintetica;;;
+DRE.02.01.03.01;ISS sobre servicos;Deducoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.02.01.04;Outras deducoes tributarias;Deducoes;4;Sintetica;;;
+DRE.02.01.04.01;Outros impostos sobre receita;Deducoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.02.02;Cancelamentos e descontos;Deducoes;3;Sintetica;;;
+DRE.02.02.01;Devolucoes e cancelamentos;Deducoes;4;Sintetica;;;
+DRE.02.02.01.01;Devolucoes de vendas;Deducoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.02.02.01.02;Vendas canceladas;Deducoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.02.02.02;Abatimentos e descontos;Deducoes;4;Sintetica;;;
+DRE.02.02.02.01;Abatimentos comerciais;Deducoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.02.02.02.02;Descontos incondicionais;Deducoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.02.02.03;Bonificacoes e outras deducoes;Deducoes;4;Sintetica;;;
+DRE.02.02.03.01;Bonificacoes como deducao;Deducoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.03;Receita liquida;Receita Liquida;2;Subtotal;;;
+DRE.04;Custos diretos;Custos;2;Sintetica;;;
+DRE.04.01;CMV - Comercio;Custos;3;Sintetica;;;
+DRE.04.01.01;Estoques de mercadorias;Custos;4;Sintetica;;;
+DRE.04.01.01.01;Estoque inicial de mercadorias;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.01.01.02;Estoque final de mercadorias;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.01.02;Compras, fretes e aquisicoes;Custos;4;Sintetica;;;
+DRE.04.01.02.01;Compras de mercadorias;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.01.02.02;Fretes sobre compras;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.01.03;Tributos sobre compras;Custos;4;Sintetica;;;
+DRE.04.01.03.01;Impostos nao recuperaveis nas compras;Custos;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.01.03.02;Impostos recuperaveis sobre compras;Custos;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.01.04;Ajustes, transferencias e perdas;Custos;4;Sintetica;;;
+DRE.04.01.04.01;Bonificacoes recebidas redutoras;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.01.04.02;Transferencias entre filiais;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.01.04.03;Baixas e perdas de estoque;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.01.05;Outros custos de mercadorias;Custos;4;Sintetica;;;
+DRE.04.01.05.01;Outros custos de mercadorias;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.02;CPV - Industria;Custos;3;Sintetica;;;
+DRE.04.02.01;Materiais e insumos industriais;Custos;4;Sintetica;;;
+DRE.04.02.01.01;Materia prima e insumos;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.02.02;Mao de obra industrial;Custos;4;Sintetica;;;
+DRE.04.02.02.01;Mao de obra direta industrial;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.02.03;Custos indiretos de fabricacao;Custos;4;Sintetica;;;
+DRE.04.02.03.01;Custos indiretos de fabricacao;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.02.03.02;Energia e utilidades da producao;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.02.03.03;Manutencao industrial;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.02.04;Terceirizacao industrial;Custos;4;Sintetica;;;
+DRE.04.02.04.01;Terceirizacao industrial;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.02.05;Depreciacao fabril;Custos;4;Sintetica;;;
+DRE.04.02.05.01;Depreciacao fabril;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.02.06;Perdas industriais;Custos;4;Sintetica;;;
+DRE.04.02.06.01;Perdas industriais;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.03;CSP - Servicos;Custos;3;Sintetica;;;
+DRE.04.03.01;Mao de obra e encargos de servicos;Custos;4;Sintetica;;;
+DRE.04.03.01.01;Mao de obra direta de servicos;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.03.01.02;Salarios da operacao;Custos;5;Analitica;DFC.OP.EMPREGADOS;Valores pagos a empregados;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.03.01.03;INSS da equipe operacional;Custos;5;Analitica;DFC.OP.EMPREGADOS;Valores pagos a empregados;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.03.01.04;FGTS da equipe operacional;Custos;5;Analitica;DFC.OP.EMPREGADOS;Valores pagos a empregados;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.03.01.05;Vale transporte operacional;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.03.01.06;Vale refeicao e alimentacao operacional;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.03.01.07;Assistencia medica operacional;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.03.02;Terceiros diretos de servicos;Custos;4;Sintetica;;;
+DRE.04.03.02.01;Terceiros diretos de servicos;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.03.02.02;Servicos de terceiros operacionais;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.03.03;Materiais aplicados em servicos;Custos;4;Sintetica;;;
+DRE.04.03.03.01;Materiais aplicados em servicos;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.03.03.02;Outros custos de servicos;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.03.04;Deslocamentos diretos de servicos;Custos;4;Sintetica;;;
+DRE.04.03.04.01;Deslocamentos diretos de servicos;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.03.05;Ferramentas, licencas e software de entrega;Custos;4;Sintetica;;;
+DRE.04.03.05.01;Ferramentas e licencas de entrega;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.03.05.02;Manutencao de software operacional;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.03.06;Seguros e protecoes operacionais;Custos;4;Sintetica;;;
+DRE.04.03.06.01;Seguros e protecoes operacionais;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.04.03.07;Outros custos dos serviços prestados;Custos;4;Sintetica;;;
+DRE.04.03.07.01;Outros custos dos serviços prestados;Custos;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.05;Lucro bruto;Lucro Bruto;2;Subtotal;;;
+DRE.06;Despesas comerciais;Despesas Comerciais;2;Sintetica;;;
+DRE.06.01;Pessoal comercial;Despesas Comerciais;3;Sintetica;;;
+DRE.06.01.01;Remuneracao comercial;Despesas Comerciais;4;Sintetica;;;
+DRE.06.01.01.01;Salarios comerciais;Despesas Comerciais;5;Analitica;DFC.OP.EMPREGADOS;Valores pagos a empregados;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.01.01.02;Ferias e decimo terceiro comerciais;Despesas Comerciais;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.01.02;Encargos e beneficios comerciais;Despesas Comerciais;4;Sintetica;;;
+DRE.06.01.02.01;Encargos comerciais;Despesas Comerciais;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.01.02.02;Beneficios comerciais;Despesas Comerciais;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.01.03;Comissoes e premios comerciais;Despesas Comerciais;4;Sintetica;;;
+DRE.06.01.03.01;Comissoes e premios;Despesas Comerciais;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.02;Marketing e vendas;Despesas Comerciais;3;Sintetica;;;
+DRE.06.02.01;Midia, trafego e agencias;Despesas Comerciais;4;Sintetica;;;
+DRE.06.02.01.01;Publicidade e propaganda;Despesas Comerciais;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.02.01.02;Trafego pago e midia digital;Despesas Comerciais;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.02.01.03;Agencias e producao de conteudo;Despesas Comerciais;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.02.02;Eventos, feiras e materiais promocionais;Despesas Comerciais;4;Sintetica;;;
+DRE.06.02.02.01;Eventos, feiras e patrocinio;Despesas Comerciais;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.02.02.02;Brindes, amostras e material promocional;Despesas Comerciais;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.03;Logistica de venda;Despesas Comerciais;3;Sintetica;;;
+DRE.06.03.01;Fretes e transporte de venda;Despesas Comerciais;4;Sintetica;;;
+DRE.06.03.01.01;Fretes e entregas a clientes;Despesas Comerciais;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.03.01.02;Pedagios e transporte comercial;Despesas Comerciais;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.03.02;Embalagens de venda;Despesas Comerciais;4;Sintetica;;;
+DRE.06.03.02.01;Embalagens de venda;Despesas Comerciais;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.03.03;Estrutura logistica comercial;Despesas Comerciais;4;Sintetica;;;
+DRE.06.03.03.01;Manutencao de veiculos comerciais;Despesas Comerciais;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.03.03.02;Armazenagem comercial;Despesas Comerciais;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.04;Canais e adquirencia;Despesas Comerciais;3;Sintetica;;;
+DRE.06.04.01;Taxas de canais e adquirencia;Despesas Comerciais;4;Sintetica;;;
+DRE.06.04.01.01;Taxas de cartao e adquirentes;Despesas Comerciais;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.04.01.02;Taxas de marketplace;Despesas Comerciais;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.04.02;Plataformas comerciais;Despesas Comerciais;4;Sintetica;;;
+DRE.06.04.02.01;Plataformas comerciais;Despesas Comerciais;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.04.03;Descontos comerciais;Despesas Comerciais;4;Sintetica;;;
+DRE.06.04.03.01;Descontos comerciais concedidos;Despesas Comerciais;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.06.04.04;Outras despesas de canais;Despesas Comerciais;4;Sintetica;;;
+DRE.06.04.04.01;Outras despesas comerciais;Despesas Comerciais;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07;Despesas administrativas;Despesas Administrativas;2;Sintetica;;;
+DRE.07.01;Pessoal administrativo;Despesas Administrativas;3;Sintetica;;;
+DRE.07.01.01;Remuneracao administrativa;Despesas Administrativas;4;Sintetica;;;
+DRE.07.01.01.01;Salarios administrativos;Despesas Administrativas;5;Analitica;DFC.OP.EMPREGADOS;Valores pagos a empregados;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.01.01.02;Ferias e decimo terceiro administrativos;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.01.01.03;Gratificacoes e premios administrativos;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.01.02;Encargos administrativos;Despesas Administrativas;4;Sintetica;;;
+DRE.07.01.02.01;Encargos administrativos;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.01.02.02;INSS administrativo;Despesas Administrativas;5;Analitica;DFC.OP.EMPREGADOS;Valores pagos a empregados;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.01.02.03;FGTS administrativo;Despesas Administrativas;5;Analitica;DFC.OP.EMPREGADOS;Valores pagos a empregados;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.01.03;Beneficios administrativos;Despesas Administrativas;4;Sintetica;;;
+DRE.07.01.03.01;Beneficios administrativos;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.01.03.02;Vale transporte administrativo;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.01.03.03;Vale refeicao e alimentacao administrativo;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.01.03.04;Assistencia medica administrativa;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.01.03.05;Convenios e beneficios administrativos;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.01.03.06;Seguro de vida e beneficios segurados;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.01.04;Recrutamento e medicina ocupacional;Despesas Administrativas;4;Sintetica;;;
+DRE.07.01.04.01;Recrutamento e treinamento;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.01.04.02;Exames admissionais e demissionais;Despesas Administrativas;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.01.05;Acordos e contingencias trabalhistas;Despesas Administrativas;4;Sintetica;;;
+DRE.07.01.05.01;Acordos trabalhistas e judiciais;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.02;Ocupacao e infraestrutura;Despesas Administrativas;3;Sintetica;;;
+DRE.07.02.01;Locacao e ocupacao;Despesas Administrativas;4;Sintetica;;;
+DRE.07.02.01.01;Aluguel predial;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.02.01.02;Condominio;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.02.01.03;Aluguel de equipamentos;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.02.02;Utilidades e comunicacao;Despesas Administrativas;4;Sintetica;;;
+DRE.07.02.02.01;Energia eletrica;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.02.02.02;Agua e saneamento;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.02.02.03;Telefone e internet;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.02.03;Manutencao, limpeza e seguranca;Despesas Administrativas;4;Sintetica;;;
+DRE.07.02.03.01;Limpeza, conservacao e manutencao;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.02.03.02;Seguranca e monitoramento;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.02.03.03;Manutencao predial e reparos gerais;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.03;Tecnologia e sistemas;Despesas Administrativas;3;Sintetica;;;
+DRE.07.03.01;Softwares e assinaturas digitais;Despesas Administrativas;4;Sintetica;;;
+DRE.07.03.01.01;Softwares e licencas;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.03.01.02;Assinaturas digitais;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.03.02;Nuvem e infraestrutura digital;Despesas Administrativas;4;Sintetica;;;
+DRE.07.03.02.01;Hospedagem, nuvem e infraestrutura digital;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.03.03;Suporte e servicos de TI;Despesas Administrativas;4;Sintetica;;;
+DRE.07.03.03.01;Suporte e servicos de TI;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.03.04;Equipamentos e perifericos de TI;Despesas Administrativas;4;Sintetica;;;
+DRE.07.03.04.01;Equipamentos de pequeno valor de TI;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.04;Servicos tomados;Despesas Administrativas;3;Sintetica;;;
+DRE.07.04.01;Honorarios, consultorias e auditoria;Despesas Administrativas;4;Sintetica;;;
+DRE.07.04.01.01;Honorarios contabeis;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.04.01.02;Honorarios juridicos;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.04.01.03;Consultorias;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.04.01.04;Auditoria e certificacoes;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.04.02;Servicos administrativos e tecnicos;Despesas Administrativas;4;Sintetica;;;
+DRE.07.04.02.01;Servicos adminsitrativos;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.04.02.02;Despachante, comercio exterior e alfandega;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.04.02.03;Servicos administrativos contratados;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.04.02.04;Servicos medicos e ocupacionais;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.04.03;Servicos de manutencao e apoio;Despesas Administrativas;4;Sintetica;;;
+DRE.07.04.03.01;Dedetizacao e controle de pragas;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.04.03.02;Assistencia, manutencao e reparos em geral;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.04.03.99;Outros servicos tomados;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.05;Consumo interno;Despesas Administrativas;3;Sintetica;;;
+DRE.07.05.01;Materiais administrativos;Despesas Administrativas;4;Sintetica;;;
+DRE.07.05.01.01;Material de escritorio;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.05.01.02;Correios e postais;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.05.01.03;Bens de pequeno valor;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.05.01.04;Materiais diversos;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.05.01.05;Material de consumo geral;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.05.02;Copa e refeicoes internas;Despesas Administrativas;4;Sintetica;;;
+DRE.07.05.02.01;Copa, refeicoes e lanches;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.05.03;Materiais de limpeza e apoio operacional;Despesas Administrativas;4;Sintetica;;;
+DRE.07.05.03.01;Materiais de limpeza;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.05.03.02;Materiais operacionais e de apoio;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.06;Mobilidade administrativa;Despesas Administrativas;3;Sintetica;;;
+DRE.07.06.01;Viagens, conducoes e pedagios;Despesas Administrativas;4;Sintetica;;;
+DRE.07.06.01.01;Viagens e hospedagens administrativas;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.06.01.02;Estacionamento, pedagios e conducoes;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.06.02;Veiculos e combustiveis;Despesas Administrativas;4;Sintetica;;;
+DRE.07.06.02.01;Combustiveis e lubrificantes;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.06.02.02;Aluguel de veiculos;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.06.02.03;Manutencao de veiculos;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.07;Taxas e despesas gerais;Despesas Administrativas;3;Sintetica;;;
+DRE.07.07.01;Taxas legais e entidades;Despesas Administrativas;4;Sintetica;;;
+DRE.07.07.01.01;Cartorios e taxas legais;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.07.01.02;Associacoes, conselhos e sindicatos;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.07.01.03;Mensalidades associativas e sindicatos;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.07.02;Multas e penalidades;Despesas Administrativas;4;Sintetica;;;
+DRE.07.07.02.01;Multas administrativas e nao dedutiveis;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.07.03;Depreciacao e amortizacao administrativa;Despesas Administrativas;4;Sintetica;;;
+DRE.07.07.03.01;Depreciacao e amortizacao administrativa;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.07.04;Despesas corporativas diversas;Despesas Administrativas;4;Sintetica;;;
+DRE.07.07.04.01;Gastos com cartao corporativo;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.07.04.02;Brindes institucionais;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.07.04.03;Eventos corporativos;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.07.04.04;Premios de seguros;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.07.04.05;Transportes, fretes e deslocamentos administrativos;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.07.07.05;Outras despesas administrativas;Despesas Administrativas;4;Sintetica;;;
+DRE.07.07.05.01;Outras despesas administrativas;Despesas Administrativas;5;Analitica;DFC.OP.FORNECEDORES;Valores pagos a fornecedores;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.08;Tributos e provisoes operacionais;Tributos e Provisoes;2;Sintetica;;;
+DRE.08.01;Tributos operacionais;Tributos e Provisoes;3;Sintetica;;;
+DRE.08.01.01;Tributos financeiros e operacionais;Tributos e Provisoes;4;Sintetica;;;
+DRE.08.01.01.01;IOF operacional;Tributos e Provisoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.08.01.02;Taxas patrimoniais e reguladoras;Tributos e Provisoes;4;Sintetica;;;
+DRE.08.01.02.01;Taxas de conselhos e orgaos reguladores;Tributos e Provisoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.08.01.02.02;IPTU, IPVA e taxas patrimoniais;Tributos e Provisoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.08.01.03;Outros tributos operacionais;Tributos e Provisoes;4;Sintetica;;;
+DRE.08.01.03.01;Outros tributos operacionais;Tributos e Provisoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.08.02;Provisoes e perdas;Tributos e Provisoes;3;Sintetica;;;
+DRE.08.02.01;Provisoes e contingencias;Tributos e Provisoes;4;Sintetica;;;
+DRE.08.02.01.01;Provisoes operacionais;Tributos e Provisoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.08.02.01.02;Contingencias operacionais;Tributos e Provisoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.08.02.02;Perdas estimadas e diversas;Tributos e Provisoes;4;Sintetica;;;
+DRE.08.02.02.01;Perdas estimadas com clientes;Tributos e Provisoes;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.08.02.02.02;Perdas diversas;Tributos e Provisoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.09;Outros resultados operacionais;Outros Resultados Operacionais;2;Sintetica;;;
+DRE.09.01;Outras receitas operacionais;Outros Resultados Operacionais;3;Sintetica;;;
+DRE.09.01.01;Recuperacoes e bonificacoes;Outros Resultados Operacionais;4;Sintetica;;;
+DRE.09.01.01.01;Bonificacoes recebidas;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.09.01.01.02;Recuperacoes operacionais;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.09.01.02;Alienacao de ativos;Outros Resultados Operacionais;4;Sintetica;;;
+DRE.09.01.02.01;Receita na alienacao de ativos;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.09.01.03;Demais receitas operacionais;Outros Resultados Operacionais;4;Sintetica;;;
+DRE.09.01.03.01;Demais receitas operacionais;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.09.02;Outras despesas operacionais;Outros Resultados Operacionais;3;Sintetica;;;
+DRE.09.02.01;Baixas e alienacao de ativos;Outros Resultados Operacionais;4;Sintetica;;;
+DRE.09.02.01.01;Custo na alienacao de ativos;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.09.02.01.02;Baixas operacionais;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.09.02.02;Perdas e demais despesas operacionais;Outros Resultados Operacionais;4;Sintetica;;;
+DRE.09.02.02.01;Perdas operacionais nao recorrentes;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.09.02.02.02;Demais despesas operacionais;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.09.02.02.03;Outros resultados operacionais identificados;Outros Resultados;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.09.02.03;Retiradas e distribuicoes no resultado;Outros Resultados;4;Sintetica;;;
+DRE.09.02.03.01;Retiradas e distribuicoes lancadas no resultado;Outros Resultados;5;Analitica;DFC.FIN.LUCROS_DIV_PAGOS;Lucros e dividendos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.10;EBITDA gerencial;EBITDA;2;Subtotal;;;
+DRE.11;Depreciacao e amortizacao destacada;Depreciacao e Amortizacao;2;Sintetica;;;
+DRE.11.01;Depreciacao e amortizacao;Depreciacao e Amortizacao;3;Sintetica;;;
+DRE.11.01.01;Depreciacao;Depreciacao e Amortizacao;4;Sintetica;;;
+DRE.11.01.01.01;Depreciacao destacada;Depreciacao e Amortizacao;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.11.01.02;Amortizacao;Depreciacao e Amortizacao;4;Sintetica;;;
+DRE.11.01.02.01;Amortizacao destacada;Depreciacao e Amortizacao;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.11.01.03;Exaustao;Depreciacao e Amortizacao;4;Sintetica;;;
+DRE.11.01.03.01;Exaustao destacada;Depreciacao e Amortizacao;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.12;Resultado operacional;Resultado Operacional;2;Subtotal;;;
+DRE.13;Resultado financeiro;Resultado Financeiro;2;Sintetica;;;
+DRE.13.01;Receitas financeiras;Resultado Financeiro;3;Sintetica;;;
+DRE.13.01.01;Rendimentos de aplicacoes;Resultado Financeiro;4;Sintetica;;;
+DRE.13.01.01.01;Rendimentos de aplicacoes financeiras;Resultado Financeiro;5;Analitica;DFC.OP.REC_FIN;Receitas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.13.01.02;Juros, descontos e recuperacoes financeiras;Resultado Financeiro;4;Sintetica;;;
+DRE.13.01.02.01;Juros ativos;Resultado Financeiro;5;Analitica;DFC.OP.REC_FIN;Receitas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.13.01.02.02;Descontos obtidos;Resultado Financeiro;5;Analitica;DFC.OP.REC_FIN;Receitas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.13.01.02.03;Recuperacoes e atualizacoes financeiras;Resultado Financeiro;5;Analitica;DFC.OP.REC_FIN;Receitas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.13.02;Despesas financeiras;Resultado Financeiro;3;Sintetica;;;
+DRE.13.02.01;Tarifas e despesas bancarias;Resultado Financeiro;4;Sintetica;;;
+DRE.13.02.01.01;Despesas bancarias;Resultado Financeiro;5;Analitica;DFC.OP.DESP_FIN;Despesas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.13.02.01.02;Tarifas de cartao debito/credito;Resultado Financeiro;5;Analitica;DFC.OP.DESP_FIN;Despesas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.13.02.01.03;IOF e impostos financeiros;Resultado Financeiro;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.13.02.02;Juros, multas e descontos financeiros;Resultado Financeiro;4;Sintetica;;;
+DRE.13.02.02.01;Juros e multas passivos;Resultado Financeiro;5;Analitica;DFC.OP.DESP_FIN;Despesas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.13.02.02.02;Descontos concedidos financeiros;Resultado Financeiro;5;Analitica;DFC.OP.DESP_FIN;Despesas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.13.02.03;Outras despesas financeiras;Resultado Financeiro;4;Sintetica;;;
+DRE.13.02.03.01;Outras despesas financeiras;Resultado Financeiro;5;Analitica;DFC.OP.DESP_FIN;Despesas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.13.03;Variacao cambial;Resultado Financeiro;3;Sintetica;;;
+DRE.13.03.01;Variacao cambial ativa;Resultado Financeiro;4;Sintetica;;;
+DRE.13.03.01.01;Variacao cambial ativa;Resultado Financeiro;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.13.03.02;Variacao cambial passiva;Resultado Financeiro;4;Sintetica;;;
+DRE.13.03.02.01;Variacao cambial passiva;Resultado Financeiro;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.14;Resultados nao operacionais;Resultados Nao Operacionais;2;Sintetica;;;
+DRE.14.01;Receitas nao operacionais;Resultados Nao Operacionais;3;Sintetica;;;
+DRE.14.01.01;Receitas nao operacionais recorrentes;Resultados Nao Operacionais;4;Sintetica;;;
+DRE.14.01.01.01;Outras receitas nao operacionais;Resultados Nao Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.14.01.02;Ganhos nao operacionais;Resultados Nao Operacionais;4;Sintetica;;;
+DRE.14.01.02.01;Ganhos na venda de ativos nao operacionais;Resultados Nao Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.14.02;Despesas nao operacionais;Resultados Nao Operacionais;3;Sintetica;;;
+DRE.14.02.01;Despesas nao operacionais recorrentes;Resultados Nao Operacionais;4;Sintetica;;;
+DRE.14.02.01.01;Outras despesas nao operacionais;Resultados Nao Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.14.02.02;Perdas nao operacionais;Resultados Nao Operacionais;4;Sintetica;;;
+DRE.14.02.02.01;Perdas na baixa de ativos nao operacionais;Resultados Nao Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.15;Resultado antes de IRPJ e CSLL;Resultado Antes dos Impostos;2;Subtotal;;;
+DRE.16;IRPJ e CSLL;IRPJ e CSLL;2;Sintetica;;;
+DRE.16.01;IRPJ;IRPJ e CSLL;3;Sintetica;;;
+DRE.16.01.01;IRPJ corrente;IRPJ e CSLL;4;Sintetica;;;
+DRE.16.01.01.01;IRPJ corrente;IRPJ e CSLL;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.16.01.02;IRPJ diferido;IRPJ e CSLL;4;Sintetica;;;
+DRE.16.01.02.01;IRPJ diferido;IRPJ e CSLL;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.16.02;CSLL;IRPJ e CSLL;3;Sintetica;;;
+DRE.16.02.01;CSLL corrente;IRPJ e CSLL;4;Sintetica;;;
+DRE.16.02.01.01;CSLL corrente;IRPJ e CSLL;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.16.02.02;CSLL diferida;IRPJ e CSLL;4;Sintetica;;;
+DRE.16.02.02.01;CSLL diferida;IRPJ e CSLL;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.17;Resultado liquido;Resultado Liquido;2;Subtotal;;;

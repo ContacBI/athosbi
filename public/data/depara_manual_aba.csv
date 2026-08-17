@@ -1,0 +1,70 @@
+﻿codigo_conta;classificacao;nome_conta;tipo_conta;codigo_gerencial;categoria_gerencial;demonstrativo;grupo_macro;observacao
+12;1.1.10.200.2;BRADESCO 348302-9;ATIVO;01.01.01.02.01;Bancos nacionais;BP;Ativo Circulante;
+13;1.1.10.200.3;SISPRIME;ATIVO;01.01.01.02.01;Bancos nacionais;BP;Ativo Circulante;
+781;1.2.19.900.1;CC SOCIO A ATIVO;ATIVO;01.02.01.01.04;Partes relacionadas longo prazo;BP;Ativo Nao Circulante;
+1167;2.1.30.100.6;SIMPLES A RECOLHER;PASSIVO;02.01.03.01.08;Simples Nacional a recolher;BP;Passivo Circulante;
+1168;2.1.30.100.7;IRRF A RECOLHER;PASSIVO;02.01.04.02.03;IRRF folha a recolher;BP;Passivo Circulante;
+1221;2.1.30.300.1;ISS A RECOLHER;PASSIVO;02.01.03.03.01;ISS a recolher;BP;Passivo Circulante;
+1302;2.1.40.100.1;SALÁRIOS A PAGAR;PASSIVO;02.01.04.01.01;Salarios a pagar;BP;Passivo Circulante;
+1321;2.1.40.200.1;INSS A RECOLHER;PASSIVO;02.01.04.02.01;INSS a recolher;BP;Passivo Circulante;
+1322;2.1.40.200.2;FGTS A RECOLHER;PASSIVO;02.01.04.02.02;FGTS a recolher;BP;Passivo Circulante;
+1402;2.1.80.100.1;AGUA E ESGOTO A PAGAR;PASSIVO;02.01.06.01.01;Contas a pagar administrativas;BP;Passivo Circulante;
+1403;2.1.80.100.2;ENERGIA ELETRICA A PAGAR;PASSIVO;02.01.06.01.02;Alugueis e ocupacao a pagar;BP;Passivo Circulante;
+1404;2.1.80.100.3;TELEFONE / INTERNET / TV A PAGAR;PASSIVO;02.01.06.01.03;Importacoes e despesas aduaneiras a pagar;BP;Passivo Circulante;
+2023;9.1.30.100.2;VENDA DE SERVIÇOS A PRAZO;RESULTADO;DRE.01.03.04.02;Servicos prestados a prazo;DRE;Receita;
+2036;9.2.10.100.4;SIMPLES NACIONAL;RESULTADO;DRE.02.01.01.04;Simples Nacional DAS;DRE;Deducoes;
+2051;9.2.10.300.1;ISS;RESULTADO;DRE.02.01.03.01;ISS sobre servicos;DRE;Deducoes;
+2402;9.3.30.100.1;SALÁRIOS;RESULTADO;DRE.04.03.01.02;Salarios da operacao;DRE;Custos;
+2406;9.3.30.100.5;FGTS;RESULTADO;DRE.04.03.01.04;FGTS da equipe operacional;DRE;Custos;
+2409;9.3.30.100.8;VALE-TRANSPORTE;RESULTADO;DRE.04.03.01.05;Vale transporte operacional;DRE;Custos;
+2410;9.3.30.100.9;VALE-REFEIÇÃO;RESULTADO;DRE.04.03.01.06;Vale refeicao e alimentacao operacional;DRE;Custos;
+2414;9.3.30.101.3;SERVICOS DE TERCEIROS;RESULTADO;DRE.04.03.02.02;Servicos de terceiros operacionais;DRE;Custos;
+2460;9.3.30.201.0;MANUTENÇÃO DE SOFTWARE;RESULTADO;DRE.04.03.05.02;Manutencao de software operacional;DRE;Custos;
+2652;9.4.20.100.1;SALARIOS;RESULTADO;DRE.07.01.01.01;Salarios administrativos;DRE;Despesas Administrativas;
+2655;9.4.20.100.4;INSS;RESULTADO;DRE.07.01.02.02;INSS administrativo;DRE;Despesas Administrativas;
+2656;9.4.20.100.5;FGTS;RESULTADO;DRE.07.01.02.03;FGTS administrativo;DRE;Despesas Administrativas;
+2660;9.4.20.100.9;VALE-TRANSPORTE;RESULTADO;DRE.07.01.03.02;Vale transporte administrativo;DRE;Despesas Administrativas;
+2661;9.4.20.101.0;VALE-REFEICAO;RESULTADO;DRE.07.01.03.03;Vale refeicao e alimentacao administrativo;DRE;Despesas Administrativas;
+2662;9.4.20.101.1;ASSISTENCIA MEDICA;RESULTADO;DRE.07.01.03.04;Assistencia medica administrativa;DRE;Despesas Administrativas;
+2663;9.4.20.101.2;CONVENIOS;RESULTADO;DRE.07.01.03.05;Convenios e beneficios administrativos;DRE;Despesas Administrativas;
+2668;9.4.20.101.7;CURSOS E TREINAMENTOS;RESULTADO;DRE.07.01.04.01;Recrutamento e treinamento;DRE;Despesas Administrativas;
+3005;9.4.20.101.8;GRATIFICACOES;RESULTADO;DRE.07.01.01.03;Gratificacoes e premios administrativos;DRE;Despesas Administrativas;
+3074;9.4.20.101.9;EXAME ADMISSAO;RESULTADO;DRE.07.01.04.02;Exames admissionais e demissionais;DRE;Despesas Administrativas;
+3077;9.4.20.102.1;ACORDO JUDICIAL;RESULTADO;DRE.07.01.05.01;Acordos trabalhistas e judiciais;DRE;Despesas Administrativas;
+2701;9.4.20.300.1;AGUA E ESGOTO;RESULTADO;DRE.07.02.02.02;Agua e saneamento;DRE;Despesas Administrativas;
+2702;9.4.20.300.2;ENERGIA ELETRICA;RESULTADO;DRE.07.02.02.01;Energia eletrica;DRE;Despesas Administrativas;
+2703;9.4.20.300.3;TELEFONE E INTERNET;RESULTADO;DRE.07.02.02.03;Telefone e internet;DRE;Despesas Administrativas;
+2712;9.4.20.400.2;ALUGUEL PREDIAL;RESULTADO;DRE.07.02.01.01;Aluguel predial;DRE;Despesas Administrativas;
+2721;9.4.20.500.1;HONORÁRIOS CONTABEIS;RESULTADO;DRE.07.04.01.01;Honorarios contabeis;DRE;Despesas Administrativas;
+2722;9.4.20.500.2;HONORÁRIOS ADVOCATICIOS;RESULTADO;DRE.07.04.01.02;Honorarios juridicos;DRE;Despesas Administrativas;
+2726;9.4.20.500.6;ASSISTENCIA MANUTENÇÃO E REPAROS EM GERAL;RESULTADO;DRE.07.02.03.03;Manutencao predial e reparos gerais;DRE;Despesas Administrativas;
+2730;9.4.20.501.0;PREMIOS DE SEGUROS;RESULTADO;DRE.07.07.04.04;Premios de seguros;DRE;Despesas Administrativas;
+2733;9.4.20.501.3;SEGURANCA VIGILANCIA MONITORAMENTO;RESULTADO;DRE.07.02.03.02;Seguranca e monitoramento;DRE;Despesas Administrativas;
+2738;9.4.20.501.8;TRANSPORTES E OUTROS FRETES;RESULTADO;DRE.07.07.04.05;Transportes, fretes e deslocamentos administrativos;DRE;Despesas Administrativas;
+2739;9.4.20.501.9;SERVICOS MEDICOS;RESULTADO;DRE.07.04.02.03;Servicos medicos e ocupacionais;DRE;Despesas Administrativas;
+2740;9.4.20.502.1;SERVICOS COM DETETIZACAO;RESULTADO;DRE.07.04.03.01;Dedetizacao e controle de pragas;DRE;Despesas Administrativas;
+3078;9.4.20.502.2;SERVICOS ADMINISTRATIVOS;RESULTADO;DRE.07.04.02.02;Servicos administrativos contratados;DRE;Despesas Administrativas;
+2761;9.4.20.600.1;MATERIAIS USO E CONSUMO;RESULTADO;DRE.07.05.01.05;Material de consumo geral;DRE;Despesas Administrativas;
+2762;9.4.20.600.2;MATERIAIS DE ESCRITORIO;RESULTADO;DRE.07.05.01.01;Material de escritorio;DRE;Despesas Administrativas;
+2764;9.4.20.600.4;MATERIAIS DE LIMPEZA;RESULTADO;DRE.07.05.03.01;Materiais de limpeza;DRE;Despesas Administrativas;
+2765;9.4.20.600.5;LANCHES E REFEICOES;RESULTADO;DRE.07.05.02.01;Copa, refeicoes e lanches;DRE;Despesas Administrativas;
+3004;9.4.20.601.2;MATERIAIS OPERACIONAIS;RESULTADO;DRE.07.05.03.02;Materiais operacionais e de apoio;DRE;Despesas Administrativas;
+2781;9.4.20.900.1;ALUGUEL DE EQUIPAMENTOS;RESULTADO;DRE.07.02.01.03;Aluguel de equipamentos;DRE;Despesas Administrativas;
+2785;9.4.20.900.5;MENSALIDADE DE ASSOCIAÇÕES E SINDICATOS;RESULTADO;DRE.07.07.01.03;Mensalidades associativas e sindicatos;DRE;Despesas Administrativas;
+3072;9.4.20.900.7;GASTOS COM CARTAO;RESULTADO;DRE.07.07.04.01;Gastos com cartao corporativo;DRE;Despesas Administrativas;
+3073;9.4.20.901.1;BRINDES;RESULTADO;DRE.07.07.04.02;Brindes institucionais;DRE;Despesas Administrativas;
+3075;9.4.20.901.2;EVENTOS;RESULTADO;DRE.06.02.02.01;Eventos, feiras e patrocinio;DRE;Despesas Comerciais;
+3076;9.4.20.901.3;PROPAGANDA E PUBLICIDADE;RESULTADO;DRE.06.02.01.01;Publicidade e propaganda;DRE;Despesas Comerciais;
+2805;9.4.21.200.5;IOF;RESULTADO;DRE.13.02.01.03;IOF e impostos financeiros;DRE;Resultado Financeiro;
+2913;9.5.10.100.1;DESPESAS BANCÁRIAS;RESULTADO;DRE.13.02.01.01;Despesas bancarias;DRE;Resultado Financeiro;
+2914;9.5.10.100.2;JUROS E MULTAS PASSIVOS;RESULTADO;DRE.13.02.02.01;Juros e multas passivos;DRE;Resultado Financeiro;
+2932;9.5.20.100.1;RENDIMENTOS DE APLICAÇÕES FINANCEIRAS;RESULTADO;DRE.13.01.01.01;Rendimentos de aplicacoes financeiras;DRE;Resultado Financeiro;
+11;1.1.10.200.1;BANCO ITAU 43186-0;ATIVO;01.01.01.02.01;Bancos nacionais;BP;Ativo Circulante;cadastrado no portal
+20;1.1.10.201.1;ITAU 99363-8;ATIVO;01.01.01.02.01;Bancos nacionais;BP;Ativo Circulante;cadastrado no portal
+2033;9.2.10.100.1;PIS;RESULTADO;DRE.02.01.01.01;PIS sobre receita;DRE;Deducoes;cadastrado no portal
+2034;9.2.10.100.2;COFINS;RESULTADO;DRE.02.01.01.02;COFINS sobre receita;DRE;Deducoes;cadastrado no portal
+3071;9.2.10.100.6;IRPJ E CSLL;RESULTADO;DRE.02.01.04.01;Outros impostos sobre receita;DRE;Deducoes;cadastrado no portal
+2405;9.3.30.100.4;INSS;RESULTADO;DRE.04.03.01.03;INSS da equipe operacional;DRE;Custos;cadastrado no portal
+2407;9.3.30.100.6;IRRF;RESULTADO;DRE.04.03.01.03;INSS da equipe operacional;DRE;Custos;cadastrado no portal
+2658;9.4.20.100.7;IRRF;RESULTADO;DRE.07.01.02.02;INSS administrativo;DRE;Despesas Administrativas;cadastrado no portal
+3080;9.4.90.900.4;EMPRESTIMOS;RESULTADO;DRE.14.02.01.01;Outras despesas nao operacionais;DRE;Resultados Nao Operacionais;cadastrado no portal
