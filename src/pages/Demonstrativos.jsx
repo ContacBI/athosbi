@@ -77,10 +77,15 @@ function formatPercent(value) {
 // tapering down smoothly to a clearly lighter, italic treatment for real
 // ledger accounts, so the two kinds never get confused at a glance.
 function nameStyle(row, isHighlight) {
-  if (isHighlight) return "text-[16px] font-bold text-navy-950";
+  // text-ink-900, não text-navy-900/950 — navy-9xx é a mesma família usada
+  // como FUNDO do modo escuro (Login, sidebar); como cor de texto ficava
+  // certo no claro (bem escuro sobre branco) mas quase invisível no escuro
+  // (escuro sobre um card também escuro). ink-900 é o token que já inverte
+  // certo pros dois temas.
+  if (isHighlight) return "text-[16px] font-bold text-ink-900";
   if (row.kind !== "synthetic") return "text-[12px] font-normal italic text-ink-400";
   const nivel = Number(row.nivel || 0);
-  if (nivel <= 1) return "text-[16px] font-bold text-navy-900";
+  if (nivel <= 1) return "text-[16px] font-bold text-ink-900";
   if (nivel === 2) return "text-[14px] font-bold text-ink-900";
   if (nivel === 3) return "text-[13.5px] font-semibold text-ink-800";
   if (nivel === 4) return "text-[13px] font-medium text-ink-600";
@@ -643,7 +648,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                     row.isFormula ? "bg-accent-50/50" : index % 2 ? "bg-surface-page/60" : "bg-surface-card"
                   }`}
                 >
-                  <span className={row.isFormula ? "pl-1 text-[14px] font-bold text-navy-900" : "pl-6 text-[12.5px] text-ink-600"}>
+                  <span className={row.isFormula ? "pl-1 text-[14px] font-bold text-ink-900" : "pl-6 text-[12.5px] text-ink-600"}>
                     {row.categoria_gerencial}
                   </span>
                   {columns.map((column) => {

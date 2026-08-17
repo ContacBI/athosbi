@@ -3,6 +3,12 @@
 @theme {
   --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
 
+  /* navy-950/900 are the fixed dark "brand identity" surface — Login,
+     Landing, the Parâmetros sidebar, the company top bar — deliberately the
+     same dark navy in both themes, never overridden below. navy-800/700
+     are a lighter step used for chart lines/fills (Receita líquida etc.),
+     which DOES need to stay legible against a dark card, so those two get
+     a dark-mode override further down; 900/950 never do. */
   --color-navy-950: #081d33;
   --color-navy-900: #0c2b4a;
   --color-navy-800: #123a61;
@@ -28,9 +34,18 @@
   --color-surface-card: #ffffff;
   --color-surface-muted: #eef1f6;
 
+  /* Escala completa de texto — do mais forte (900) ao mais apagado (300).
+     Todo o app já referenciava ink-300 até ink-800 em algum lugar (rótulos
+     de conta analítica, legendas, níveis intermediários do BP/DRE), mas só
+     900/600/400 tinham valor real definido — os degraus do meio nunca
+     pintavam nada, sempre caíam pro texto padrão por baixo. */
   --color-ink-900: #17222f;
+  --color-ink-800: #263447;
+  --color-ink-700: #37485f;
   --color-ink-600: #4c5b6e;
+  --color-ink-500: #64738a;
   --color-ink-400: #8794a3;
+  --color-ink-300: #aab6c2;
 
   --color-line: #e3e8ef;
   --color-line-strong: #cbd3df;
@@ -46,8 +61,12 @@
   --color-surface-muted: #1a2636;
 
   --color-ink-900: #eef2f7;
+  --color-ink-800: #d3dbe6;
+  --color-ink-700: #b7c2d1;
   --color-ink-600: #a2aec0;
+  --color-ink-500: #8793a8;
   --color-ink-400: #6b7789;
+  --color-ink-300: #4d5972;
 
   --color-line: #223046;
   --color-line-strong: #33455f;
@@ -59,8 +78,24 @@
   --color-accent-50: #2a2013;
   --color-accent-100: #402d16;
 
+  /* success/danger/navy-700 são cor de dado (valores em dinheiro positivos/
+     negativos, linhas de gráfico) — as mesmas tonalidades do modo claro,
+     calibradas pra contraste em fundo branco, ficam "neon"/berrantes num
+     fundo escuro por puro efeito de saturação percebida. Versões um pouco
+     mais claras e um pouco menos saturadas leem como "confiante" em vez de
+     "alerta piscando" contra o navy escuro. */
   --color-success-50: #10251e;
+  --color-success-500: #34b98c;
+  --color-success-600: #4fcf9f;
+
   --color-danger-50: #2a1816;
+  --color-danger-500: #e2695c;
+  --color-danger-600: #e88378;
+
+  --color-warning-500: #e0ac52;
+
+  --color-navy-800: #2f5488;
+  --color-navy-700: #5c8fd6;
 }
 
 * {
