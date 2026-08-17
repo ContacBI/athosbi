@@ -142,7 +142,7 @@ function AddAccountModal({ parent, onClose, onCreated }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/40 px-4 backdrop-blur-sm" onClick={onClose}>
-      <form onSubmit={handleSubmit} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+      <form onSubmit={handleSubmit} className="w-full max-w-md rounded-2xl bg-surface-card p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between">
           <div>
             <p className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Nova conta</p>
@@ -222,7 +222,7 @@ function ImportPlanoModal({ result, onClose, onConfirm }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/40 px-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="flex max-h-[80vh] w-full max-w-lg flex-col rounded-2xl bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+      <div className="flex max-h-[80vh] w-full max-w-lg flex-col rounded-2xl bg-surface-card shadow-2xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-line px-6 py-4">
           <h2 className="text-[16px] font-medium text-ink-900">{hasErrors ? "A planilha tem problemas" : "Confirmar importação"}</h2>
           <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-md text-ink-400 hover:bg-surface-muted hover:text-ink-700">
@@ -411,7 +411,7 @@ export default function PlanoGerencial() {
         </div>
       </div>
 
-      <div className="rounded-2xl bg-white p-4 shadow-sm">
+      <div className="rounded-2xl bg-surface-card p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex gap-1.5">
             {demonstrativos.map((item) => (

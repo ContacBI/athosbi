@@ -4,6 +4,7 @@ import { ArrowLeft, Copy, MoveHorizontal, Plus, Sparkles, Trash2, X } from "luci
 import { useAppState } from "../data/useStore.js";
 import { createTab, updateTab, deleteTab, createSubTab, updateSubTab, deleteSubTab } from "../lib/dashboardTabs.js";
 import { replicateDashboardTabs } from "../lib/companies.js";
+import { replicateGroupDashboardTabs } from "../lib/groups.js";
 import { buildDashboardContext } from "../lib/dashboardData.js";
 import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
 import { DEFAULT_SPACING } from "../components/dashboard/gridLayout.js";
@@ -18,8 +19,13 @@ const SPACING_OPTIONS = [
   { value: "amplo", label: "Amplo" },
 ];
 
-function ReplicateWorkspaceModal({ sourceCompany, otherCompanies, onClose, onApplied }) {
+// Works for both contexts (empresa ou grupo) — `kind` only changes the
+// copy ("empresas" vs "grupos") and the icon; which underlying replicate
+// function actually runs is entirely the caller's call via `onReplicate`.
+function ReplicateWorkspaceModal({ sourceItem, otherItems, kind, onClose, onReplicate }) {
   const [selected, setSelected] = useState(new Set());
+  const noun = kind === "grupo" ? "grupos" : "empresas";
+  const nounSingular = kind === "grupo" ? "grupo" : "empresa";
 
   function toggle(id) {
     setSelected((current) => {
@@ -32,52 +38,54 @@ function ReplicateWorkspaceModal({ sourceCompany, otherCompanies, onClose, onApp
 
   function handleApply() {
     if (!selected.size) return;
-    const names = otherCompanies.filter((company) => selected.has(company.id)).map((company) => company.name);
+    const names = otherItems.filter((item) => selected.has(item.id)).map((item) => item.name);
     if (
       !confirm(
-        `Substituir todo o workspace (abas, subabas e widgets) de ${names.length === 1 ? names[0] : `${names.length} empresas`} pelo workspace atual de "${sourceCompany.name}"? O que essas empresas já tinham montado será perdido.`
+        `Substituir todo o workspace (abas, subabas e widgets) de ${names.length === 1 ? names[0] : `${names.length} ${noun}`} pelo workspace atual de "${sourceItem.name}"? O que ${names.length === 1 ? "esse " + nounSingular + " já tinha" : "esses " + noun + " já tinham"} montado será perdido.`
       )
     )
       return;
-    const applied = replicateDashboardTabs(sourceCompany.id, [...selected]);
-    onApplied(applied);
+    const applied = onReplicate(sourceItem.id, [...selected]);
+    onClose(applied);
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/40 px-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="flex max-h-[80vh] w-full max-w-md flex-col rounded-2xl bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/40 px-4 backdrop-blur-sm" onClick={() => onClose(0)}>
+      <div className="flex max-h-[80vh] w-full max-w-md flex-col rounded-2xl bg-surface-card shadow-2xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-line px-6 py-4">
           <div>
             <h2 className="text-[16px] font-medium text-ink-900">Replicar relatórios</h2>
-            <p className="mt-0.5 text-[12.5px] text-ink-400">Use "{sourceCompany.name}" como modelo pra outras empresas.</p>
+            <p className="mt-0.5 text-[12.5px] text-ink-400">Use "{sourceItem.name}" como modelo pra outros {noun}.</p>
           </div>
-          <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-md text-ink-400 hover:bg-surface-muted hover:text-ink-700">
+          <button type="button" onClick={() => onClose(0)} className="flex h-8 w-8 items-center justify-center rounded-md text-ink-400 hover:bg-surface-muted hover:text-ink-700">
             <X size={16} />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4">
-          {otherCompanies.length === 0 ? (
-            <p className="text-[13px] text-ink-400">Cadastre outra empresa primeiro pra poder replicar o workspace pra ela.</p>
+          {otherItems.length === 0 ? (
+            <p className="text-[13px] text-ink-400">
+              {kind === "grupo" ? "Crie outro grupo primeiro" : "Cadastre outra empresa primeiro"} pra poder replicar o workspace pra ele.
+            </p>
           ) : (
             <>
-              <p className="mb-3 text-[12.5px] text-ink-500">Escolha pra quais empresas copiar este workspace inteiro:</p>
+              <p className="mb-3 text-[12.5px] text-ink-500">Escolha pra quais {noun} copiar este workspace inteiro:</p>
               <div className="flex flex-col gap-1">
-                {otherCompanies.map((company) => (
+                {otherItems.map((item) => (
                   <label
-                    key={company.id}
+                    key={item.id}
                     className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors ${
-                      selected.has(company.id) ? "bg-accent-50" : "hover:bg-surface-muted"
+                      selected.has(item.id) ? "bg-accent-50" : "hover:bg-surface-muted"
                     }`}
                   >
                     <input
                       type="checkbox"
-                      checked={selected.has(company.id)}
-                      onChange={() => toggle(company.id)}
+                      checked={selected.has(item.id)}
+                      onChange={() => toggle(item.id)}
                       className="h-4 w-4 rounded border-line-strong text-accent-500 focus:ring-accent-400"
                     />
-                    <Avatar name={company.name} size={26} />
-                    <span className="text-[13px] text-ink-700">{company.name}</span>
+                    <Avatar name={item.name} size={26} />
+                    <span className="text-[13px] text-ink-700">{item.name}</span>
                   </label>
                 ))}
               </div>
@@ -85,9 +93,9 @@ function ReplicateWorkspaceModal({ sourceCompany, otherCompanies, onClose, onApp
           )}
         </div>
 
-        {otherCompanies.length > 0 && (
+        {otherItems.length > 0 && (
           <div className="flex items-center justify-end gap-2 border-t border-line px-6 py-4">
-            <button type="button" onClick={onClose} className="rounded-md border border-line-strong px-3.5 py-2 text-[13px] text-ink-600 hover:bg-surface-muted">
+            <button type="button" onClick={() => onClose(0)} className="rounded-md border border-line-strong px-3.5 py-2 text-[13px] text-ink-600 hover:bg-surface-muted">
               Cancelar
             </button>
             <button
@@ -148,7 +156,7 @@ function TabPill({ item, active, small, onSelect, onRename, onDelete }) {
             setEditing(false);
           }
         }}
-        className={`rounded-full border border-accent-400 bg-white px-3.5 py-1 font-medium text-ink-900 outline-none ${textSize}`}
+        className={`rounded-full border border-accent-400 bg-surface-card px-3.5 py-1 font-medium text-ink-900 outline-none ${textSize}`}
       />
     );
   }
@@ -167,7 +175,7 @@ function TabPill({ item, active, small, onSelect, onRename, onDelete }) {
         onClick={() => setEditing(true)}
         title="Renomear"
         className={`rounded-full px-1 text-[10px] opacity-0 transition-opacity group-hover:opacity-100 ${
-          active ? "hover:bg-white/20" : "hover:bg-white"
+          active ? "hover:bg-white/20" : "hover:bg-surface-card"
         }`}
       >
         ✎
@@ -177,7 +185,7 @@ function TabPill({ item, active, small, onSelect, onRename, onDelete }) {
         onClick={onDelete}
         title="Excluir"
         className={`flex h-5 w-5 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100 ${
-          active ? "hover:bg-white/20" : "hover:bg-white"
+          active ? "hover:bg-white/20" : "hover:bg-surface-card"
         }`}
       >
         <X size={12} />
@@ -197,8 +205,16 @@ export default function PersonalizarHub() {
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [replicateOpen, setReplicateOpen] = useState(false);
   const [flash, setFlash] = useState("");
+  // "Replicar relatórios" works the same way in company mode and group
+  // mode — just pointed at a different pair of arrays/replicate function.
+  const isGroupMode = Boolean(appState.activeGroupId);
   const activeCompany = appState.companies.find((company) => company.id === appState.activeCompanyId) || null;
-  const otherCompanies = appState.companies.filter((company) => company.id !== appState.activeCompanyId);
+  const activeGroupItem = appState.groups.find((group) => group.id === appState.activeGroupId) || null;
+  const replicateSource = isGroupMode ? activeGroupItem : activeCompany;
+  const replicateTargets = isGroupMode
+    ? appState.groups.filter((group) => group.id !== appState.activeGroupId)
+    : appState.companies.filter((company) => company.id !== appState.activeCompanyId);
+  const replicateFn = isGroupMode ? replicateGroupDashboardTabs : replicateDashboardTabs;
   const activeTab = tabs.find((item) => item.id === activeId) || null;
   const subTabs = activeTab?.subTabs || [];
   const hasData = appState.accounts.length > 0 || appState.journal.length > 0;
@@ -304,13 +320,13 @@ export default function PersonalizarHub() {
             </h1>
           </div>
         </div>
-        {!appState.activeGroupId && activeCompany && (
+        {replicateSource && (
           <div className="flex items-center gap-2">
             {flash && <span className="text-[12px] text-ink-400">{flash}</span>}
             <button
               type="button"
               onClick={() => setReplicateOpen(true)}
-              title="Copiar este workspace inteiro pra outras empresas"
+              title={`Copiar este workspace inteiro pra outr${isGroupMode ? "os grupos" : "as empresas"}`}
               className="flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-[12px] font-medium text-ink-700 transition-colors hover:bg-surface-muted"
             >
               <Copy size={14} strokeWidth={1.8} />
@@ -320,7 +336,7 @@ export default function PersonalizarHub() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-xl bg-white p-2.5 shadow-sm">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl bg-surface-card p-2.5 shadow-sm">
         {tabs.map((tab) => (
           <TabPill
             key={tab.id}
@@ -372,17 +388,17 @@ export default function PersonalizarHub() {
       )}
 
       {!hasData ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line-strong bg-white px-6 py-16 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line-strong bg-surface-card px-6 py-16 text-center">
           <Sparkles size={22} strokeWidth={1.6} className="text-accent-400" />
           <p className="text-[13px] text-ink-500">Importe o balancete e o diário da empresa pra poder montar o workspace com dados reais.</p>
         </div>
       ) : !activeTab ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line-strong bg-white px-6 py-16 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line-strong bg-surface-card px-6 py-16 text-center">
           <Sparkles size={22} strokeWidth={1.6} className="text-accent-400" />
           <p className="text-[13px] text-ink-500">Crie uma aba acima pra começar a montar o workspace.</p>
         </div>
       ) : !editTarget ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line-strong bg-white px-6 py-16 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line-strong bg-surface-card px-6 py-16 text-center">
           <Sparkles size={22} strokeWidth={1.6} className="text-accent-400" />
           <p className="text-[13px] text-ink-500">Escolha ou crie uma subaba acima pra montar o conteúdo dela.</p>
         </div>
@@ -402,7 +418,7 @@ export default function PersonalizarHub() {
                     onClick={() => saveEditTarget({ spacing: option.value })}
                     className={`rounded px-2.5 py-1 text-[12px] transition-colors ${
                       (editTarget.spacing || DEFAULT_SPACING) === option.value
-                        ? "bg-white font-medium text-ink-900 shadow-sm"
+                        ? "bg-surface-card font-medium text-ink-900 shadow-sm"
                         : "text-ink-500 hover:text-ink-800"
                     }`}
                   >
@@ -458,14 +474,16 @@ export default function PersonalizarHub() {
         <CatalogPicker ctx={ctx} selectedIds={selectedIds} onToggle={toggleWidget} onClose={() => setCatalogOpen(false)} />
       )}
 
-      {replicateOpen && activeCompany && (
+      {replicateOpen && replicateSource && (
         <ReplicateWorkspaceModal
-          sourceCompany={activeCompany}
-          otherCompanies={otherCompanies}
-          onClose={() => setReplicateOpen(false)}
-          onApplied={(count) => {
+          sourceItem={replicateSource}
+          otherItems={replicateTargets}
+          kind={isGroupMode ? "grupo" : "empresa"}
+          onReplicate={replicateFn}
+          onClose={(count) => {
             setReplicateOpen(false);
-            setFlash(count > 0 ? `Replicado pra ${count} empresa${count === 1 ? "" : "s"}.` : "");
+            const noun = isGroupMode ? "grupo" : "empresa";
+            setFlash(count > 0 ? `Replicado pra ${count} ${noun}${count === 1 ? "" : "s"}.` : "");
             if (count > 0) setTimeout(() => setFlash(""), 3500);
           }}
         />

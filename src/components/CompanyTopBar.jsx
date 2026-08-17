@@ -13,6 +13,7 @@ import { exportDemonstrativoExcel } from "../lib/reportExcel.js";
 import { periodLabelPt } from "../lib/format.js";
 import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
 import PeriodPicker from "./PeriodPicker.jsx";
+import ThemeToggle from "./ThemeToggle.jsx";
 
 // Ghost buttons that live directly on the navy identity bar — same shape as
 // the old white-background versions, just recolored for a dark surface.
@@ -137,7 +138,7 @@ function ReportBuilderModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/30 p-6 backdrop-blur-sm" onClick={onClose}>
-      <div className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+      <div className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl bg-surface-card shadow-2xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-line px-6 py-4">
           <div>
             <h2 className="text-[16px] font-medium text-ink-900">Relatórios personalizados</h2>
@@ -233,7 +234,7 @@ function ReportsMenu() {
         {open && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-            <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-60 rounded-xl bg-white p-1.5 shadow-lg ring-1 ring-line">
+            <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-60 rounded-xl bg-surface-card p-1.5 shadow-lg ring-1 ring-line">
               <button
                 type="button"
                 onClick={() => {
@@ -403,11 +404,12 @@ export default function CompanyTopBar({ company }) {
             Personalizar
           </button>
           {company && <SettingsButton />}
+          <ThemeToggle className="h-8 w-8" />
         </div>
       </div>
 
       {showNav && (
-        <nav className="flex items-center gap-4 overflow-x-auto border-b border-line bg-white px-5 py-1">
+        <nav className="flex items-center gap-4 overflow-x-auto border-b border-line bg-surface-card px-5 py-1">
           {tabs.map((tab) => (
             <NavLink
               key={tab.id}
@@ -427,7 +429,7 @@ export default function CompanyTopBar({ company }) {
       )}
 
       {isDataArea && (
-        <nav className="flex items-center gap-4 overflow-x-auto border-b border-line bg-white px-5 py-1">
+        <nav className="flex items-center gap-4 overflow-x-auto border-b border-line bg-surface-card px-5 py-1">
           <button
             type="button"
             onClick={() => navigate("/empresa")}

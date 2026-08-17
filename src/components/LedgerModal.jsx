@@ -22,7 +22,7 @@ export default function LedgerModal({ row, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8 backdrop-blur-[2px]">
-      <div className="flex h-full max-h-[820px] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-xl">
+      <div className="flex h-full max-h-[820px] w-full max-w-4xl flex-col rounded-2xl bg-surface-card shadow-xl">
         <div className="flex items-start justify-between gap-4 border-b border-line p-6">
           <div className="flex items-center gap-3.5">
             <Avatar name={label} size={44} />
@@ -43,7 +43,7 @@ export default function LedgerModal({ row, onClose }) {
         </div>
 
         <div className="grid grid-cols-2 gap-3 border-b border-line bg-surface-page px-6 py-4">
-          <div className="flex items-center gap-3 rounded-xl bg-white p-3.5 shadow-sm">
+          <div className="flex items-center gap-3 rounded-xl bg-surface-card p-3.5 shadow-sm">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-success-50 text-success-600">
               <ArrowDownCircle size={18} strokeWidth={1.8} />
             </span>
@@ -52,7 +52,7 @@ export default function LedgerModal({ row, onClose }) {
               <p className="text-[16px] font-semibold text-success-600">{money(totalDebito)}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-xl bg-white p-3.5 shadow-sm">
+          <div className="flex items-center gap-3 rounded-xl bg-surface-card p-3.5 shadow-sm">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-danger-50 text-danger-600">
               <ArrowUpCircle size={18} strokeWidth={1.8} />
             </span>
@@ -65,7 +65,7 @@ export default function LedgerModal({ row, onClose }) {
 
         <div className="overflow-y-auto scrollbar-thin">
           <table className="w-full text-[13px]">
-            <thead className="sticky top-0 bg-white text-ink-400 shadow-[0_1px_0_var(--color-line)]">
+            <thead className="sticky top-0 bg-surface-card text-ink-400 shadow-[0_1px_0_var(--color-line)]">
               <tr>
                 <th className="px-6 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Data</th>
                 <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Histórico</th>
@@ -75,7 +75,7 @@ export default function LedgerModal({ row, onClose }) {
             </thead>
             <tbody>
               {entries.map((entry, index) => (
-                <tr key={`${entry.linha_origem}-${index}`} className={`transition-colors hover:bg-surface-muted ${index % 2 ? "bg-surface-page/60" : "bg-white"}`}>
+                <tr key={`${entry.linha_origem}-${index}`} className={`transition-colors hover:bg-surface-muted ${index % 2 ? "bg-surface-page/60" : "bg-surface-card"}`}>
                   <td className="whitespace-nowrap px-6 py-2 text-ink-600">{formatDate(entry.data)}</td>
                   <td className="px-4 py-2 text-ink-900">{entry.historico}</td>
                   <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums text-success-600">{entry.debito ? money(entry.debito) : ""}</td>

@@ -36,7 +36,7 @@ export default function ReportSettingsMenu({ tab }) {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-72 rounded-xl bg-white p-3 shadow-lg ring-1 ring-line">
+          <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-72 rounded-xl bg-surface-card p-3 shadow-lg ring-1 ring-line">
             <label className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] text-ink-700 hover:bg-surface-muted">
               <input
                 type="checkbox"

@@ -147,7 +147,7 @@ export default function RelatoriosMensais() {
 
   return (
     <div className="mx-auto flex max-w-[1100px] flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-card p-4 shadow-sm">
         <div>
           <span className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Dados</span>
           <h1 className="mt-1 text-[20px] font-semibold text-ink-900">Relatórios mensais</h1>
@@ -158,7 +158,7 @@ export default function RelatoriosMensais() {
             type="button"
             onClick={() => setYear((value) => value - 1)}
             aria-label="Ano anterior"
-            className="flex h-7 w-7 items-center justify-center rounded-full text-ink-500 hover:bg-white"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-ink-500 hover:bg-surface-card"
           >
             <ChevronLeft size={15} />
           </button>
@@ -167,7 +167,7 @@ export default function RelatoriosMensais() {
             type="button"
             onClick={() => setYear((value) => value + 1)}
             aria-label="Próximo ano"
-            className="flex h-7 w-7 items-center justify-center rounded-full text-ink-500 hover:bg-white"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-ink-500 hover:bg-surface-card"
           >
             <ChevronRight size={15} />
           </button>
@@ -175,7 +175,7 @@ export default function RelatoriosMensais() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="flex items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-card p-4 shadow-sm">
           <div className="min-w-0">
             <p className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Diário</p>
             <p className="mt-1 text-[14px] font-medium text-ink-900">
@@ -193,7 +193,7 @@ export default function RelatoriosMensais() {
           </button>
         </div>
 
-        <div className="flex items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-card p-4 shadow-sm">
           <div className="min-w-0">
             <p className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Balancete</p>
             <p className="mt-1 text-[14px] font-medium text-ink-900">{state.accounts.length} contas carregadas</p>
@@ -244,7 +244,7 @@ export default function RelatoriosMensais() {
                 isOpen
                   ? "border-accent-500 ring-2 ring-accent-100"
                   : hasJournal
-                    ? "border-line bg-white"
+                    ? "border-line bg-surface-card"
                     : "border-dashed border-line-strong bg-surface-page"
               }`}
             >
@@ -266,7 +266,7 @@ export default function RelatoriosMensais() {
       </div>
 
       {openMonth !== null && (
-        <div className="rounded-xl bg-white p-5 shadow-sm">
+        <div className="rounded-xl bg-surface-card p-5 shadow-sm">
           <h2 className="text-[15px] font-semibold text-ink-900">
             {MONTHS[openMonth]} de {year}
           </h2>
@@ -325,7 +325,7 @@ export default function RelatoriosMensais() {
                         type="button"
                         onClick={() => openFile(report)}
                         aria-label={`Abrir ${report.name}`}
-                        className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-ink-600 hover:bg-white"
+                        className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-ink-600 hover:bg-surface-card"
                       >
                         <Download size={14} />
                       </button>

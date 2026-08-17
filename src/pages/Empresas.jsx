@@ -49,7 +49,7 @@ export default function Empresas() {
 
         <section className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
           {state.companies.length === 0 && (
-            <div className="col-span-full flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line-strong bg-white px-6 py-16 text-center">
+            <div className="col-span-full flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line-strong bg-surface-card px-6 py-16 text-center">
               <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
                 <Building2 size={26} strokeWidth={1.6} />
               </span>
@@ -73,7 +73,7 @@ export default function Empresas() {
                 type="button"
                 key={company.id}
                 onClick={() => handleAccess(company.id)}
-                className={`group flex flex-col gap-3 rounded-2xl border bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg ${
+                className={`group flex flex-col gap-3 rounded-2xl border bg-surface-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg ${
                   isActive ? "border-accent-500 ring-1 ring-accent-100" : "border-line hover:border-accent-400"
                 }`}
               >
@@ -120,7 +120,7 @@ export default function Empresas() {
                     type="button"
                     key={group.id}
                     onClick={() => handleAccessGroup(group.id)}
-                    className={`group flex flex-col gap-3 rounded-2xl border bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg ${
+                    className={`group flex flex-col gap-3 rounded-2xl border bg-surface-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg ${
                       isActive ? "border-accent-500 ring-1 ring-accent-100" : "border-line hover:border-accent-400"
                     }`}
                   >

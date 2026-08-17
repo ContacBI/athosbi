@@ -91,7 +91,7 @@ function LinePicker({ value, onChange, ctx }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-2 rounded-md border border-line-strong bg-white px-2.5 py-1.5 text-left text-[12.5px] text-ink-800 hover:border-accent-400"
+        className="flex w-full items-center justify-between gap-2 rounded-md border border-line-strong bg-surface-card px-2.5 py-1.5 text-left text-[12.5px] text-ink-800 hover:border-accent-400"
       >
         <span className="truncate">{value ? lineLabel(value) : "Escolher linha…"}</span>
         <ChevronDown size={13} className="shrink-0 text-ink-400" />
@@ -99,7 +99,7 @@ function LinePicker({ value, onChange, ctx }) {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-[calc(100%+4px)] z-50 w-80 rounded-xl bg-white p-2 shadow-lg ring-1 ring-line">
+          <div className="absolute left-0 top-[calc(100%+4px)] z-50 w-80 rounded-xl bg-surface-card p-2 shadow-lg ring-1 ring-line">
             <div className="flex items-center gap-1.5 rounded-md border border-line-strong px-2 py-1">
               <Search size={13} className="text-ink-300" />
               <input
@@ -237,7 +237,7 @@ export default function IndicatorEditorModal({ definition, defaultCategory, ctx,
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-white">
+    <div className="fixed inset-0 z-50 flex flex-col bg-surface-card">
       <div className="flex shrink-0 items-center justify-between border-b border-line px-6 py-4">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-wide text-accent-600">
@@ -420,11 +420,11 @@ export default function IndicatorEditorModal({ definition, defaultCategory, ctx,
             <p className="mt-6 text-[13px] text-ink-400">Escolha pelo menos uma linha à esquerda pra ver o card ganhar vida aqui.</p>
           ) : (
             <>
-              <div className="mt-5 flex h-[160px] w-[260px] flex-col rounded-xl bg-white p-4 shadow-sm ring-1 ring-line">
+              <div className="mt-5 flex h-[160px] w-[260px] flex-col rounded-xl bg-surface-card p-4 shadow-sm ring-1 ring-line">
                 <WidgetBody definition={previewDefinition} ctx={ctx} />
               </div>
 
-              <div className="mt-6 max-w-lg rounded-xl border border-line bg-white p-4">
+              <div className="mt-6 max-w-lg rounded-xl border border-line bg-surface-card p-4">
                 <p className="text-[11px] font-medium uppercase tracking-wide text-ink-400">Fórmula</p>
                 <p className="mt-1 text-[13px] text-ink-700">{formulaText || "—"}</p>
                 <div className="mt-3 flex flex-col gap-1.5 border-t border-line pt-3">

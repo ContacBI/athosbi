@@ -34,7 +34,7 @@ export default function DeParaAdmin() {
       />
 
       {state.companies.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl bg-white px-6 py-12 text-center shadow-sm">
+        <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-card px-6 py-12 text-center shadow-sm">
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
             <Building2 size={22} strokeWidth={1.6} />
           </span>
@@ -52,7 +52,7 @@ export default function DeParaAdmin() {
                   type="button"
                   onClick={() => handleSelect(company.id)}
                   className={`flex items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-3.5 text-[13px] transition-colors ${
-                    active ? "border-accent-500 bg-accent-50 font-medium text-accent-700" : "border-line-strong bg-white text-ink-700 hover:border-accent-400"
+                    active ? "border-accent-500 bg-accent-50 font-medium text-accent-700" : "border-line-strong bg-surface-card text-ink-700 hover:border-accent-400"
                   }`}
                 >
                   <Avatar name={company.name} size={24} />
@@ -66,7 +66,7 @@ export default function DeParaAdmin() {
           {selectedId ? (
             <Depara />
           ) : (
-            <div className="flex flex-col items-center gap-2 rounded-2xl bg-white px-6 py-12 text-center shadow-sm">
+            <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-card px-6 py-12 text-center shadow-sm">
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
                 <Repeat size={22} strokeWidth={1.6} />
               </span>

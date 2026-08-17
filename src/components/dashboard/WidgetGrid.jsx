@@ -41,7 +41,7 @@ function DetailModal({ detail, onClose }) {
   if (!detail) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/20 px-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(event) => event.stopPropagation()}>
+      <div className="w-full max-w-md rounded-2xl bg-surface-card p-5 shadow-xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-[16px] font-medium text-ink-900">{detail.title}</h3>
           <button
@@ -546,7 +546,7 @@ export default function WidgetGrid({ widgets, ctx, spacing = DEFAULT_SPACING }) 
           const definition = catalogById.get(entry.id);
           if (!definition) return null;
           return (
-            <div key={entry.id} className="overflow-hidden rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+            <div key={entry.id} className="overflow-hidden rounded-xl bg-surface-card p-4 shadow-sm transition-shadow hover:shadow-md">
               <WidgetBody definition={definition} ctx={ctx} onOpenDetail={handleOpenDetail} onNavigate={navigate} />
             </div>
           );
@@ -618,6 +618,10 @@ export function PrintableWidgetGrid({ widgets, ctx, spacing = DEFAULT_SPACING })
         return (
           <div
             key={entry.id}
+            // bg-white literal on purpose, not bg-surface-card — this card is
+            // only ever captured off-screen for the PDF export (see
+            // domSnapshotPdf.js), which must always look like white paper
+            // regardless of which theme is active on screen.
             className="rounded-xl bg-white p-4 ring-1 ring-line"
             style={{
               height: heightPx,

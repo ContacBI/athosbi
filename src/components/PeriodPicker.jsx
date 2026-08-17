@@ -55,8 +55,8 @@ export default function PeriodPicker({ label = "Período", start, end, onChange,
   const hasRange = Boolean(start && end);
   const toneClasses =
     accent === "navy"
-      ? "border-line-strong bg-white hover:border-navy-400"
-      : "border-line-strong bg-white hover:border-accent-400";
+      ? "border-line-strong bg-surface-card hover:border-navy-400"
+      : "border-line-strong bg-surface-card hover:border-accent-400";
 
   return (
     <div className="relative" ref={rootRef}>
@@ -74,7 +74,7 @@ export default function PeriodPicker({ label = "Período", start, end, onChange,
       </button>
 
       {open && (
-        <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-72 rounded-xl bg-white p-3 shadow-lg ring-1 ring-line">
+        <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-72 rounded-xl bg-surface-card p-3 shadow-lg ring-1 ring-line">
           <div className="mb-3 flex flex-wrap gap-1.5">
             {PRESETS.map((preset) => (
               <button

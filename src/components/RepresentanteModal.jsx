@@ -20,7 +20,7 @@ export default function RepresentanteModal({ onClose, onSubmit, representante = 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-[2px]">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-2xl bg-surface-card p-6 shadow-xl">
         <div className="flex items-start justify-between">
           <div>
             <span className="text-[11px] font-medium uppercase tracking-wide text-accent-600">

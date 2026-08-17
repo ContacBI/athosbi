@@ -10,7 +10,7 @@ export default function FeaturePreviewCard({ icon: Icon, title, description, to 
     <Wrapper
       type={isReady ? "button" : undefined}
       onClick={isReady ? () => navigate(to) : undefined}
-      className={`flex w-full items-start gap-3.5 rounded-2xl bg-white p-4 text-left shadow-sm transition-all hover:shadow-md ${
+      className={`flex w-full items-start gap-3.5 rounded-2xl bg-surface-card p-4 text-left shadow-sm transition-all hover:shadow-md ${
         isReady ? "hover:-translate-y-0.5" : ""
       }`}
     >

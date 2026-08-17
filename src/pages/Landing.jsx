@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Settings, LayoutDashboard, FileText, BarChart3, LogOut } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
+import ThemeToggle from "../components/ThemeToggle.jsx";
 
 const FEATURES = [
   { icon: LayoutDashboard, label: "Dashboards por empresa" },
@@ -22,6 +23,7 @@ export default function Landing() {
       />
 
       <div className="absolute right-6 top-6 flex items-center gap-1">
+        <ThemeToggle />
         <button
           type="button"
           onClick={() => navigate("/parametros")}

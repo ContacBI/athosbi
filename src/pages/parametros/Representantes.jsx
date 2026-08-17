@@ -35,7 +35,7 @@ export default function Representantes() {
 
       <div className="mt-4 flex flex-col gap-2">
         {state.representantes.length === 0 && (
-          <div className="flex flex-col items-center gap-2 rounded-2xl bg-white px-6 py-12 text-center shadow-sm">
+          <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-card px-6 py-12 text-center shadow-sm">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
               <Users size={22} strokeWidth={1.6} />
             </span>
@@ -46,7 +46,7 @@ export default function Representantes() {
         {state.representantes.map((representante) => {
           const empresas = companiesForRepresentante(representante.id);
           return (
-            <div key={representante.id} className="flex items-center justify-between gap-3 rounded-xl bg-white p-3.5 shadow-sm transition-shadow hover:shadow-md">
+            <div key={representante.id} className="flex items-center justify-between gap-3 rounded-xl bg-surface-card p-3.5 shadow-sm transition-shadow hover:shadow-md">
               <div className="flex items-center gap-3">
                 <Avatar name={representante.nome} size={36} />
                 <div>

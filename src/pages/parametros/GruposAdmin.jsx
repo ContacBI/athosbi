@@ -47,7 +47,7 @@ export default function GruposAdmin() {
 
           <div className="mt-3 flex flex-col gap-2">
             {state.companies.length < 2 && (
-              <div className="flex flex-col items-center gap-2 rounded-2xl bg-white px-6 py-12 text-center shadow-sm">
+              <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-card px-6 py-12 text-center shadow-sm">
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
                   <Building2 size={22} strokeWidth={1.6} />
                 </span>
@@ -64,7 +64,7 @@ export default function GruposAdmin() {
             )}
 
             {state.companies.length >= 2 && state.groups.length === 0 && (
-              <div className="flex flex-col items-center gap-2 rounded-2xl bg-white px-6 py-12 text-center shadow-sm">
+              <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-card px-6 py-12 text-center shadow-sm">
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
                   <Network size={22} strokeWidth={1.6} />
                 </span>
@@ -80,7 +80,7 @@ export default function GruposAdmin() {
               return (
                 <div
                   key={group.id}
-                  className={`rounded-xl bg-white p-3.5 shadow-sm transition-shadow hover:shadow-md ${isActive ? "ring-1 ring-accent-300" : ""}`}
+                  className={`rounded-xl bg-surface-card p-3.5 shadow-sm transition-shadow hover:shadow-md ${isActive ? "ring-1 ring-accent-300" : ""}`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
@@ -143,7 +143,7 @@ export default function GruposAdmin() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <div className="rounded-xl bg-white p-3.5 shadow-sm">
+          <div className="rounded-xl bg-surface-card p-3.5 shadow-sm">
             <p className="mb-2.5 text-[11px] font-medium uppercase tracking-wide text-ink-400">Visão geral</p>
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between text-[13px]">
@@ -163,7 +163,7 @@ export default function GruposAdmin() {
             </div>
           </div>
 
-          <div className="rounded-xl bg-white p-3.5 shadow-sm">
+          <div className="rounded-xl bg-surface-card p-3.5 shadow-sm">
             <p className="mb-2.5 text-[11px] font-medium uppercase tracking-wide text-ink-400">Como funciona</p>
             <p className="text-[12.5px] leading-relaxed text-ink-500">
               O relatório consolidado soma os lançamentos de todas as empresas do grupo pela conta gerencial — cada
@@ -180,7 +180,7 @@ export default function GruposAdmin() {
             </button>
           </div>
 
-          <div className="rounded-xl bg-white p-3.5 shadow-sm">
+          <div className="rounded-xl bg-surface-card p-3.5 shadow-sm">
             <p className="mb-2.5 text-[11px] font-medium uppercase tracking-wide text-ink-400">Atalhos</p>
             <div className="flex flex-col gap-1">
               <button

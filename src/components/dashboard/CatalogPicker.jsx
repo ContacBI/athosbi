@@ -28,7 +28,7 @@ export default function CatalogPicker({ ctx, selectedIds, onToggle, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/40 px-4 py-6" onClick={onClose}>
       <div
-        className="flex max-h-full w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="flex max-h-full w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-surface-card shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-line px-5 py-4">
@@ -65,7 +65,7 @@ export default function CatalogPicker({ ctx, selectedIds, onToggle, onClose }) {
                             onToggle(definition);
                           }
                         }}
-                        className={`flex h-40 cursor-pointer flex-col overflow-hidden rounded-xl border bg-white p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
+                        className={`flex h-40 cursor-pointer flex-col overflow-hidden rounded-xl border bg-surface-card p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
                           active ? "border-accent-400 ring-2 ring-accent-200" : "border-line"
                         }`}
                       >

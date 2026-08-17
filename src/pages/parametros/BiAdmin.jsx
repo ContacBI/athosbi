@@ -24,7 +24,7 @@ function PreviewModal({ definition, ctx, onNavigate, onClose }) {
   const isLink = definition.type === "link";
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/50 px-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+      <div className="w-full max-w-lg rounded-2xl bg-surface-card p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <p className="text-[12px] font-medium uppercase tracking-wide text-accent-600">
             {isLink ? "Atalho" : "Pré-visualização · carteira consolidada"}
@@ -117,15 +117,15 @@ export default function BiAdmin() {
       />
 
       <div className="mb-5 grid grid-cols-3 gap-3">
-        <div className="rounded-xl bg-white p-3.5 shadow-sm">
+        <div className="rounded-xl bg-surface-card p-3.5 shadow-sm">
           <p className="text-[11px] text-ink-400">Itens no catálogo</p>
           <p className="mt-1 text-[19px] font-medium text-ink-900">{WIDGET_CATALOG.length}</p>
         </div>
-        <div className="rounded-xl bg-white p-3.5 shadow-sm">
+        <div className="rounded-xl bg-surface-card p-3.5 shadow-sm">
           <p className="text-[11px] text-ink-400">Categorias</p>
           <p className="mt-1 text-[19px] font-medium text-ink-900">{groups.length}</p>
         </div>
-        <div className="rounded-xl bg-white p-3.5 shadow-sm">
+        <div className="rounded-xl bg-surface-card p-3.5 shadow-sm">
           <p className="text-[11px] text-ink-400">Disponível para</p>
           <p className="mt-1 text-[19px] font-medium text-ink-900">Todas as empresas</p>
         </div>
@@ -136,7 +136,7 @@ export default function BiAdmin() {
           const open = Boolean(openCategories[group.category]);
           const isEditable = EDITABLE_CATEGORIES.includes(group.category);
           return (
-            <div key={group.category} className="overflow-hidden rounded-xl bg-white shadow-sm">
+            <div key={group.category} className="overflow-hidden rounded-xl bg-surface-card shadow-sm">
               <div className="flex w-full items-center justify-between px-4 py-3">
                 <button type="button" onClick={() => toggleCategory(group.category)} className="flex flex-1 items-center gap-2 text-left">
                   <span className="text-[12px] font-medium uppercase tracking-wide text-ink-500">{group.category}</span>

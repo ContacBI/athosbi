@@ -82,7 +82,7 @@ export default function CompaniesAdmin() {
 
           <div className="mt-3 flex flex-col gap-2">
             {state.companies.length === 0 && (
-              <div className="flex flex-col items-center gap-2 rounded-2xl bg-white px-6 py-12 text-center shadow-sm">
+              <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-card px-6 py-12 text-center shadow-sm">
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
                   <Building2 size={22} strokeWidth={1.6} />
                 </span>
@@ -93,7 +93,7 @@ export default function CompaniesAdmin() {
             {state.companies.map((company) => {
               const names = representanteNames(company);
               return (
-                <div key={company.id} className="flex items-center justify-between gap-3 rounded-xl bg-white p-3.5 shadow-sm transition-shadow hover:shadow-md">
+                <div key={company.id} className="flex items-center justify-between gap-3 rounded-xl bg-surface-card p-3.5 shadow-sm transition-shadow hover:shadow-md">
                   <div className="flex items-center gap-3">
                     <Avatar name={company.name} size={36} />
                     <div>
@@ -132,7 +132,7 @@ export default function CompaniesAdmin() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <div className="rounded-xl bg-white p-3.5 shadow-sm">
+          <div className="rounded-xl bg-surface-card p-3.5 shadow-sm">
             <p className="mb-2.5 text-[11px] font-medium uppercase tracking-wide text-ink-400">Visão geral</p>
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between text-[13px]">
@@ -159,7 +159,7 @@ export default function CompaniesAdmin() {
             </div>
           </div>
 
-          <div className="rounded-xl bg-white p-3.5 shadow-sm">
+          <div className="rounded-xl bg-surface-card p-3.5 shadow-sm">
             <p className="mb-2.5 text-[11px] font-medium uppercase tracking-wide text-ink-400">Backup da carteira</p>
             <div className="flex flex-col gap-1.5">
               <button
@@ -183,7 +183,7 @@ export default function CompaniesAdmin() {
             {busy && <p className="px-2.5 pt-1 text-[11px] text-accent-600">{busy}</p>}
           </div>
 
-          <div className="rounded-xl bg-white p-3.5 shadow-sm">
+          <div className="rounded-xl bg-surface-card p-3.5 shadow-sm">
             <p className="mb-2.5 text-[11px] font-medium uppercase tracking-wide text-ink-400">Atalhos</p>
             <div className="flex flex-col gap-1">
               <button

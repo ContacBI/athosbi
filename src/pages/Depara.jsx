@@ -48,7 +48,7 @@ function AccountPicker({ options, natureLabel, onSelect, onClear, hasCurrent, on
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute right-0 top-[calc(100%+6px)] z-50 flex max-h-80 w-80 flex-col overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-line">
+      <div className="absolute right-0 top-[calc(100%+6px)] z-50 flex max-h-80 w-80 flex-col overflow-hidden rounded-xl bg-surface-card shadow-lg ring-1 ring-line">
         <div className="relative shrink-0 border-b border-line p-2">
           <Search size={13} className="pointer-events-none absolute left-4.5 top-1/2 -translate-y-1/2 text-ink-400" />
           <input
@@ -206,7 +206,7 @@ export default function Depara() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-card p-4 shadow-sm">
         <div>
           <span className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Dados</span>
           <h1 className="mt-1 text-[20px] font-semibold text-ink-900">De/Para</h1>
@@ -241,7 +241,7 @@ export default function Depara() {
 
       {busy && <p className="rounded-lg bg-accent-50 px-3 py-2 text-[12px] text-accent-700">{busy}</p>}
 
-      <div className="flex flex-wrap items-center gap-2 rounded-xl bg-white p-3 shadow-sm">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl bg-surface-card p-3 shadow-sm">
         <div className="relative flex-1 min-w-[200px]">
           <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-400" />
           <input
@@ -262,7 +262,7 @@ export default function Depara() {
               type="button"
               onClick={() => setDemonstrativoFilter(option.id)}
               className={`rounded-full px-3 py-1.5 text-[12.5px] font-medium transition-colors ${
-                demonstrativoFilter === option.id ? "bg-white text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-800"
+                demonstrativoFilter === option.id ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-800"
               }`}
             >
               {option.label}
@@ -275,7 +275,7 @@ export default function Depara() {
         </label>
       </div>
 
-      <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl bg-surface-card shadow-sm">
         <div className="grid grid-cols-[110px_minmax(0,1fr)_minmax(0,1fr)_40px] items-center gap-3 border-b border-line bg-surface-muted px-4 py-2 text-[11px] font-medium text-ink-400">
           <span>Código</span>
           <span>Conta contábil</span>
@@ -302,7 +302,7 @@ export default function Depara() {
                     onClick={() => setOpenPickerFor(openPickerFor === account.classificacao ? null : account.classificacao)}
                     className={`flex w-full items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-[12.5px] transition-colors ${
                       mapping
-                        ? "border-line-strong bg-white text-ink-800 hover:border-accent-400"
+                        ? "border-line-strong bg-surface-card text-ink-800 hover:border-accent-400"
                         : "border-dashed border-warning-400 bg-warning-50 text-warning-700 hover:border-warning-500"
                     }`}
                   >

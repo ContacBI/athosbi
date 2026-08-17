@@ -69,6 +69,58 @@ export function updateGroup(id, { name, companyIds }) {
   return groups.find((group) => group.id === id) || null;
 }
 
+function freshTabId() {
+  return `tab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+// Same deep-clone-with-fresh-ids helper as replicateDashboardTabs in
+// companies.js (kept duplicated rather than shared — groups and companies
+// are different enough elsewhere in this file that a shared import would
+// buy little and risk coupling the two for no reason).
+function cloneDashboardTabs(tabs) {
+  return (tabs || []).map((tab) => ({
+    ...tab,
+    id: freshTabId(),
+    widgets: (tab.widgets || []).map((widget) => ({ ...widget })),
+    ...(tab.subTabs
+      ? {
+          subTabs: tab.subTabs.map((sub) => ({
+            ...sub,
+            id: freshTabId(),
+            widgets: (sub.widgets || []).map((widget) => ({ ...widget })),
+          })),
+        }
+      : {}),
+  }));
+}
+
+// The group-mode counterpart of replicateDashboardTabs (companies.js) — use
+// one group's consolidated workspace as the model and push it onto other
+// groups. Same full-replace semantics: whatever the target groups had gets
+// overwritten, caller confirms with the user first.
+export function replicateGroupDashboardTabs(sourceId, targetIds) {
+  const source = state.groups.find((group) => group.id === sourceId);
+  if (!source) return 0;
+  const targetSet = new Set(targetIds);
+  targetSet.delete(sourceId);
+  if (!targetSet.size) return 0;
+
+  let applied = 0;
+  const groups = state.groups.map((group) => {
+    if (!targetSet.has(group.id)) return group;
+    applied += 1;
+    return { ...group, dashboardTabs: cloneDashboardTabs(source.dashboardTabs), updatedAt: new Date().toISOString() };
+  });
+  writeStoredGroups(groups);
+  setData({ groups });
+
+  if (targetSet.has(state.activeGroupId)) {
+    const updated = groups.find((group) => group.id === state.activeGroupId);
+    setData({ dashboardTabs: updated?.dashboardTabs || [] });
+  }
+  return applied;
+}
+
 export function deleteGroup(id) {
   const groups = state.groups.filter((group) => group.id !== id);
   writeStoredGroups(groups);

@@ -50,7 +50,7 @@ export default function CanvasEditor({ widgets, ctx, spacing = DEFAULT_SPACING, 
           const definition = catalogById.get(entry.id);
           if (!definition) return null;
           return (
-            <div key={entry.id} className="group relative overflow-hidden rounded-xl bg-white p-4 shadow-sm ring-1 ring-transparent transition-shadow hover:shadow-md">
+            <div key={entry.id} className="group relative overflow-hidden rounded-xl bg-surface-card p-4 shadow-sm ring-1 ring-transparent transition-shadow hover:shadow-md">
               <div className="pointer-events-none absolute inset-x-2 top-2 z-10 flex items-center justify-between opacity-0 transition-opacity group-hover:opacity-100">
                 <span
                   className="widget-drag-handle pointer-events-auto flex h-6 w-6 cursor-move items-center justify-center rounded-md bg-white/95 text-ink-400 shadow ring-1 ring-line hover:text-accent-600"

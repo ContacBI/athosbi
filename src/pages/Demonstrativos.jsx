@@ -123,7 +123,7 @@ function SegmentedControl({ options, value, onChange }) {
           type="button"
           onClick={() => onChange(option.id)}
           className={`rounded-full px-3 py-1.5 text-[12.5px] font-medium transition-colors ${
-            value === option.id ? "bg-white text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-800"
+            value === option.id ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-800"
           }`}
         >
           {option.label}
@@ -502,7 +502,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
   return (
     <div className={expanded ? "fixed inset-0 z-50 overflow-y-auto bg-surface-page p-5" : "flex flex-col gap-4"}>
       <div className={expanded ? "mx-auto flex max-w-[1600px] flex-col gap-4" : "contents"}>
-      <div className="rounded-xl bg-white p-4 shadow-sm">
+      <div className="rounded-xl bg-surface-card p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             {lockedTab ? (
@@ -563,7 +563,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
           </div>
           {mode === "comparativo" && (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-md border border-line-strong bg-white px-3 py-1.5 text-[12px] text-ink-500">
+              <span className="rounded-md border border-line-strong bg-surface-card px-3 py-1.5 text-[12px] text-ink-500">
                 Período A: <span className="font-medium text-ink-900">{periodLabelPt(appState.periodStart, appState.periodEnd)}</span>
               </span>
               <span className="text-[11px] text-ink-300">vs</span>
@@ -590,7 +590,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
       )}
 
       {mode === "comparativo" && !compareMap && (
-        <div className="rounded-xl bg-white px-4 py-8 text-center text-[13px] text-ink-400 shadow-sm">
+        <div className="rounded-xl bg-surface-card px-4 py-8 text-center text-[13px] text-ink-400 shadow-sm">
           Escolha o Período B acima para comparar com o Período A.
         </div>
       )}
@@ -603,7 +603,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
       )}
 
       {mode === "graficos" && (
-        <div className="rounded-xl bg-white p-4 shadow-sm">
+        <div className="rounded-xl bg-surface-card p-4 shadow-sm">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-[13px] font-medium text-ink-900">Gráficos EBITDA</p>
             <SegmentedControl options={EBITDA_CHARTS} value={ebitdaChart} onChange={setEbitdaChart} />
@@ -621,7 +621,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
       )}
 
       {mode === "executiva" && (
-        <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+        <div className="overflow-hidden rounded-xl bg-surface-card shadow-sm">
           <div className={`overflow-auto scrollbar-thin ${expanded ? "max-h-[calc(100vh-260px)]" : "max-h-[600px]"}`}>
             <div className="min-w-max">
               <div
@@ -640,7 +640,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                   key={row.codigo_gerencial}
                   style={{ gridTemplateColumns: template }}
                   className={`grid items-center px-3 py-2 text-[13px] ${index !== executiveRows.length - 1 ? "border-b border-line" : ""} ${
-                    row.isFormula ? "bg-accent-50/50" : index % 2 ? "bg-surface-page/60" : "bg-white"
+                    row.isFormula ? "bg-accent-50/50" : index % 2 ? "bg-surface-page/60" : "bg-surface-card"
                   }`}
                 >
                   <span className={row.isFormula ? "pl-1 text-[14px] font-bold text-navy-900" : "pl-6 text-[12.5px] text-ink-600"}>
@@ -668,7 +668,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
       )}
 
       {(mode === "padrao" || mode === "comparativo" || mode === "vertical" || mode === "horizontal") && (mode !== "comparativo" || compareMap) && (
-        <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+        <div className="overflow-hidden rounded-xl bg-surface-card shadow-sm">
           <div className={`overflow-auto scrollbar-thin ${expanded ? "max-h-[calc(100vh-260px)]" : "max-h-[600px]"}`}>
             <div className="min-w-max">
               <div
@@ -720,7 +720,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                     style={{ gridTemplateColumns: template }}
                     className={`grid w-full items-center px-3 py-2 text-left text-[13px] transition-colors enabled:hover:bg-surface-muted disabled:cursor-default ${
                       index !== rows.length - 1 ? "border-b border-line" : ""
-                    } ${isHighlight ? "bg-accent-50/50" : index % 2 ? "bg-surface-page/60" : "bg-white"}`}
+                    } ${isHighlight ? "bg-accent-50/50" : index % 2 ? "bg-surface-page/60" : "bg-surface-card"}`}
                   >
                     <RowLabel row={row} canToggle={canToggle} isOpen={appState.expandedLines.has(row.codigo_gerencial)} isHighlight={isHighlight} />
 

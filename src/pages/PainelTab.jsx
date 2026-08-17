@@ -131,7 +131,7 @@ export default function PainelTab() {
       {subTabStrip}
 
       {widgets.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line-strong bg-white px-6 py-16 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line-strong bg-surface-card px-6 py-16 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
             <Sparkles size={26} strokeWidth={1.6} />
           </span>

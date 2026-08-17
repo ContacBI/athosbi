@@ -36,6 +36,33 @@
   --color-line-strong: #cbd3df;
 }
 
+:root[data-theme="dark"] {
+  /* Reaproveita a mesma família de azul-marinho já usada no Login/Landing
+     (navy-950) como base da superfície escura, em vez de um cinza genérico
+     — é isso que faz o app inteiro parecer a mesma marca nos dois temas,
+     não dois produtos diferentes colados. */
+  --color-surface-page: #0b1420;
+  --color-surface-card: #121d2c;
+  --color-surface-muted: #1a2636;
+
+  --color-ink-900: #eef2f7;
+  --color-ink-600: #a2aec0;
+  --color-ink-400: #6b7789;
+
+  --color-line: #223046;
+  --color-line-strong: #33455f;
+
+  /* accent-500/600 (o laranja de marca) ficam iguais — já têm contraste de
+     sobra num fundo escuro. Só os tons claros usados como fundo de selo/
+     hover (accent-50/100) precisam virar uma versão escura e translúcida
+     do mesmo laranja, em vez de um creme que brigaria com o fundo. */
+  --color-accent-50: #2a2013;
+  --color-accent-100: #402d16;
+
+  --color-success-50: #10251e;
+  --color-danger-50: #2a1816;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -52,6 +79,13 @@ body {
   color: var(--color-ink-900);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Só cor, nunca layout (largura/altura/transform) — troca de tema fica
+   suave sem arriscar interferir em nenhum drag/resize da grade de widgets. */
+body,
+body * {
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
 }
 
 ::selection {

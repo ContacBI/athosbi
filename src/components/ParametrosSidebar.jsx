@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { Building2, Network, Repeat, Users, SlidersHorizontal, ChevronLeft, BarChart3, LogOut } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
+import ThemeToggle from "./ThemeToggle.jsx";
 
 const ITEMS = [
   { to: "/parametros/empresas", label: "Empresas", icon: Building2 },
