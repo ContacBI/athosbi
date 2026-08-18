@@ -61,6 +61,38 @@ export function buildDfcDirect() {
   return rows.filter((row) => row.natureza === "heading" || row.hasValue || row.qtd_lancamentos || row.codigo_gerencial.startsWith("DFC.CASH"));
 }
 
+// DFC indireta: parte do resultado e reconcilia as variações das principais
+// contas operacionais. Investimento, financiamento e disponibilidades usam a
+// mesma apuração por movimentos de caixa da DFC direta para manter o caixa
+// final conciliado entre as duas apresentações.
+export function buildDfcIndirect() {
+  const dre = buildReportTree("DRE");
+  const bp = buildReportTree("BP");
+  const direct = buildDfcDirect();
+  const value = (rows, code) => rows.find((row) => row.codigo_gerencial === code)?.saldo || 0;
+  const variation = (code) => {
+    const row = bp.find((item) => item.codigo_gerencial === code);
+    return row ? Number(row.saldo_final || 0) - Number(row.saldo_inicial || 0) : 0;
+  };
+  const rows = [];
+  const add = (code, name, saldo, group, natureza = "analytic") => rows.push({ codigo_gerencial: code, categoria_gerencial: name, saldo, grupo_macro: group, natureza });
+  add("DFCI.OP.RESULTADO", "Resultado líquido do período", value(dre, "DRE.17"), "Operacional");
+  add("DFCI.OP.DEPRECIACAO", "Depreciações e amortizações", value(dre, "DRE.11"), "Operacional");
+  add("DFCI.OP.CLIENTES", "Variação em clientes e outros recebíveis", -variation("01.01.02"), "Operacional");
+  add("DFCI.OP.ESTOQUES", "Variação em estoques", -variation("01.01.03"), "Operacional");
+  add("DFCI.OP.FORNECEDORES", "Variação em fornecedores", variation("02.01.01"), "Operacional");
+  add("DFCI.OP.OBRIGACOES", "Variação em obrigações trabalhistas e tributárias", variation("02.01.03") + variation("02.01.04"), "Operacional");
+  const operating = rows.reduce((sum, row) => sum + row.saldo, 0);
+  add("DFCI.OP.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES OPERACIONAIS", operating, "Operacional", "subtotal");
+  const directValue = (code) => direct.find((row) => row.codigo_gerencial === code)?.saldo || 0;
+  add("DFCI.INV.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES DE INVESTIMENTO", directValue("DFC.INV.CAIXA_LIQUIDO"), "Investimento", "subtotal");
+  add("DFCI.FIN.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES DE FINANCIAMENTO", directValue("DFC.FIN.CAIXA_LIQUIDO"), "Financiamento", "subtotal");
+  add("DFCI.CASH.VARIACAO", "AUMENTO/(REDUÇÃO) NAS DISPONIBILIDADES", operating + directValue("DFC.INV.CAIXA_LIQUIDO") + directValue("DFC.FIN.CAIXA_LIQUIDO"), "Disponibilidades", "subtotal");
+  add("DFCI.CASH.INICIO", "DISPONIBILIDADES NO INÍCIO DO PERÍODO", directValue("DFC.CASH.INICIO"), "Disponibilidades", "subtotal");
+  add("DFCI.CASH.FIM", "DISPONIBILIDADES NO FINAL DO PERÍODO", directValue("DFC.CASH.FIM"), "Disponibilidades", "subtotal");
+  return rows;
+}
+
 export function buildReportTree(type) {
   const mapping = mappingByClassification();
   const plan = planByCode();

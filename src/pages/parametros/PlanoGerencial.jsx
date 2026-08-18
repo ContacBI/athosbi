@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, ArrowLeft, ChevronRight, Download, ListTree, Plus, RotateCcw, Search, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ChevronRight, Download, ListTree, Pencil, Plus, RotateCcw, Search, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { addPlanoAccount, hasChildren, previewNewAccount, removePlanoAccount } from "../../lib/planoOverrides.js";
 import { exportPlanoExcel, parsePlanoExcelFile } from "../../lib/planoExcel.js";
 import { savePlanoSnapshot, restorePreviousPlano } from "../../lib/planoStore.js";
+import { invalidateMappingsForPlanoCodes } from "../../lib/companies.js";
 import PageHeader from "../../components/PageHeader.jsx";
 
 function normalize(value) {
@@ -40,7 +41,7 @@ function matchingCodes(rows, query) {
   return matches;
 }
 
-function TreeNode({ node, depth, expanded, toggle, visibleCodes, highlight, onAddChild, onDeleteCustom }) {
+function TreeNode({ node, depth, expanded, toggle, visibleCodes, highlight, onAddChild, onEdit, onDeleteCustom }) {
   if (visibleCodes && !visibleCodes.has(node.codigo_gerencial)) return null;
   const isOpen = visibleCodes ? true : expanded.has(node.codigo_gerencial);
   const nodeHasChildren = node.children.length > 0;
@@ -80,6 +81,14 @@ function TreeNode({ node, depth, expanded, toggle, visibleCodes, highlight, onAd
         <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
           <button
             type="button"
+            onClick={() => onEdit(node)}
+            title="Editar esta conta"
+            className="flex h-6 w-6 items-center justify-center rounded-md text-ink-400 hover:bg-accent-50 hover:text-accent-600"
+          >
+            <Pencil size={13} strokeWidth={2} />
+          </button>
+          <button
+            type="button"
             onClick={() => onAddChild(node)}
             title="Adicionar conta aqui dentro"
             className="flex h-6 w-6 items-center justify-center rounded-md text-ink-400 hover:bg-accent-50 hover:text-accent-600"
@@ -110,6 +119,7 @@ function TreeNode({ node, depth, expanded, toggle, visibleCodes, highlight, onAd
               visibleCodes={visibleCodes}
               highlight={highlight}
               onAddChild={onAddChild}
+              onEdit={onEdit}
               onDeleteCustom={onDeleteCustom}
             />
           ))}
@@ -211,6 +221,39 @@ function AddAccountModal({ parent, onClose, onCreated }) {
   );
 }
 
+function EditAccountModal({ row, demonstrativos, hasChildren, onClose, onSave }) {
+  const [form, setForm] = useState({
+    codigo_gerencial: row.codigo_gerencial,
+    nome: row.nome,
+    demonstrativo: row.demonstrativo,
+    grupo_macro: row.grupo_macro || "",
+    nivel: row.nivel || "",
+    natureza: row.natureza || "Analitica",
+    aceita_depara: row.aceita_depara === "sim",
+  });
+  const [error, setError] = useState("");
+  const changed = Object.entries(form).some(([key, value]) => String(value) !== String(key === "aceita_depara" ? row.aceita_depara === "sim" : row[key] ?? ""));
+  function update(key, value) { setForm((current) => ({ ...current, [key]: value })); }
+  function submit(event) {
+    event.preventDefault();
+    if (!form.codigo_gerencial.trim() || !form.nome.trim()) return setError("Informe o código e o nome da conta.");
+    if (hasChildren && form.codigo_gerencial.trim() !== row.codigo_gerencial) return setError("Essa conta possui subtítulos. Edite os códigos das contas-filhas antes de alterar este código.");
+    onSave({ ...form, codigo_gerencial: form.codigo_gerencial.trim(), nome: form.nome.trim(), nivel: String(form.nivel || 1), aceita_depara: form.aceita_depara ? "sim" : "nao" });
+  }
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/40 px-4 backdrop-blur-sm" onClick={onClose}>
+    <form onSubmit={submit} className="w-full max-w-xl rounded-2xl bg-surface-card p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+      <div className="flex items-start justify-between"><div><p className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Editar conta</p><h2 className="mt-0.5 text-[16px] font-medium text-ink-900">{row.nome}</h2></div><button type="button" onClick={onClose} className="text-ink-400 hover:text-ink-700"><X size={18} /></button></div>
+      <p className="mt-3 rounded-lg bg-warning-50 px-3 py-2 text-[11.5px] text-warning-700">Ao salvar qualquer alteração, os vínculos desta conta serão desfeitos em todas as empresas para que sejam cadastrados novamente.</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2"><Field label="Código gerencial"><input value={form.codigo_gerencial} onChange={(event) => update("codigo_gerencial", event.target.value)} className="input" /></Field><Field label="Nome"><input value={form.nome} onChange={(event) => update("nome", event.target.value)} className="input" /></Field><Field label="Demonstrativo"><select value={form.demonstrativo} onChange={(event) => update("demonstrativo", event.target.value)} className="input">{demonstrativos.map((item) => <option key={item}>{item}</option>)}</select></Field><Field label="Grupo macro"><input value={form.grupo_macro} onChange={(event) => update("grupo_macro", event.target.value)} className="input" /></Field><Field label="Nível"><input type="number" min="1" value={form.nivel} onChange={(event) => update("nivel", event.target.value)} className="input" /></Field><Field label="Natureza"><select value={form.natureza} onChange={(event) => update("natureza", event.target.value)} className="input"><option value="Sintetica">Sintética</option><option value="Analitica">Analítica</option></select></Field></div>
+      <label className="mt-4 flex items-center gap-2 text-[12.5px] text-ink-700"><input type="checkbox" checked={form.aceita_depara} onChange={(event) => update("aceita_depara", event.target.checked)} />Aceita vínculo de De/Para</label>
+      {error && <p className="mt-3 text-[12px] text-danger-600">{error}</p>}
+      <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onClose} className="rounded-md border border-line-strong px-3.5 py-2 text-[13px] text-ink-600">Cancelar</button><button type="submit" disabled={!changed} className="rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white disabled:opacity-50">Salvar alteração</button></div>
+    </form>
+  </div>;
+}
+
+function Field({ label, children }) { return <label className="block text-[12px] text-ink-600">{label}<span className="mt-1 block [&_input]:w-full [&_input]:rounded-md [&_input]:border [&_input]:border-line-strong [&_input]:px-2.5 [&_input]:py-1.5 [&_input]:text-[13px] [&_input]:outline-none [&_input:focus]:border-accent-500 [&_select]:w-full [&_select]:rounded-md [&_select]:border [&_select]:border-line-strong [&_select]:px-2.5 [&_select]:py-1.5 [&_select]:text-[13px] [&_select]:outline-none [&_select:focus]:border-accent-500">{children}</span></label>; }
+
 // Shows validation problems (nothing gets applied until the sheet is
 // clean) or, once it parses cleanly, a summary + explicit confirm before
 // replacing the whole plano — this is the bulk path, so it backs up
@@ -288,6 +331,7 @@ export default function PlanoGerencial() {
 
   const [activeLevel, setActiveLevel] = useState(null);
   const [addingUnder, setAddingUnder] = useState(null);
+  const [editing, setEditing] = useState(null);
   const [importResult, setImportResult] = useState(null);
   const [busy, setBusy] = useState("");
   const importInputRef = useRef(null);
@@ -325,8 +369,22 @@ export default function PlanoGerencial() {
       alert("Essa conta tem contas dentro dela — remova as de dentro primeiro.");
       return;
     }
-    if (!confirm(`Excluir "${node.nome}"? Se alguma empresa já vinculou uma conta a ela no De/Para, esse vínculo fica órfão.`)) return;
+    if (!confirm(`Excluir "${node.nome}"? Os vínculos dela serão desfeitos em todas as empresas.`)) return;
     removePlanoAccount(node.codigo_gerencial);
+    const count = invalidateMappingsForPlanoCodes(node.codigo_gerencial);
+    flashBusy(count ? `${count} vínculo${count === 1 ? "" : "s"} desfeito${count === 1 ? "" : "s"}.` : "Conta removida.");
+  }
+
+  function handleSaveEdit(nextValues) {
+    if (state.plano.some((row) => row.codigo_gerencial === nextValues.codigo_gerencial && row.codigo_gerencial !== editing.codigo_gerencial)) {
+      alert("Já existe uma conta com este código gerencial.");
+      return;
+    }
+    const nextPlano = state.plano.map((row) => row.codigo_gerencial === editing.codigo_gerencial ? { ...row, ...nextValues } : row);
+    savePlanoSnapshot(nextPlano);
+    const count = invalidateMappingsForPlanoCodes(editing.codigo_gerencial);
+    setEditing(null);
+    flashBusy(count ? `Conta atualizada e ${count} vínculo${count === 1 ? "" : "s"} desfeito${count === 1 ? "" : "s"}.` : "Conta atualizada. Não havia vínculos para desfazer.");
   }
 
   function flashBusy(message) {
@@ -350,9 +408,15 @@ export default function PlanoGerencial() {
   }
 
   function handleConfirmImport() {
+    const incomingByCode = new Map(importResult.rows.map((row) => [row.codigo_gerencial, row]));
+    const changedCodes = state.plano.filter((oldRow) => {
+      const incoming = incomingByCode.get(oldRow.codigo_gerencial);
+      return !incoming || ["nome", "demonstrativo", "grupo_macro", "nivel", "natureza", "aceita_depara"].some((key) => String(oldRow[key] ?? "") !== String(incoming[key] ?? ""));
+    }).map((row) => row.codigo_gerencial);
     savePlanoSnapshot(importResult.rows, { backupCurrent: true });
+    const count = invalidateMappingsForPlanoCodes(changedCodes);
     setImportResult(null);
-    flashBusy("Plano gerencial atualizado.");
+    flashBusy(count ? `Plano atualizado e ${count} vínculo${count === 1 ? "" : "s"} desfeito${count === 1 ? "" : "s"}.` : "Plano gerencial atualizado.");
   }
 
   async function handleRestore() {
@@ -479,6 +543,7 @@ export default function PlanoGerencial() {
               visibleCodes={visibleCodes}
               highlight={search}
               onAddChild={setAddingUnder}
+              onEdit={setEditing}
               onDeleteCustom={handleDeleteCustom}
             />
           ))}
@@ -487,6 +552,7 @@ export default function PlanoGerencial() {
       </div>
 
       {addingUnder && <AddAccountModal parent={addingUnder} onClose={() => setAddingUnder(null)} onCreated={handleCreated} />}
+      {editing && <EditAccountModal row={editing} demonstrativos={demonstrativos} hasChildren={hasChildren(editing.codigo_gerencial)} onClose={() => setEditing(null)} onSave={handleSaveEdit} />}
       {importResult && <ImportPlanoModal result={importResult} onClose={() => setImportResult(null)} onConfirm={handleConfirmImport} />}
     </div>
   );

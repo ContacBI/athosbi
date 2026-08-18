@@ -228,6 +228,8 @@ export const TABLE_WIDGETS = [
   { id: "table_dre_resumo", label: "DRE resumida", category: "Demonstrações", icon: Table2, defaultSize: "lg", type: "table", table: "dre_resumida" },
   { id: "table_bp_resumo", label: "Balanço resumido", category: "Demonstrações", icon: Table2, defaultSize: "lg", type: "table", table: "bp" },
   { id: "table_dre_executiva", label: "EBITDA", category: "Demonstrações", icon: Table2, defaultSize: "lg", type: "table", table: "executiva" },
+  { id: "table_dfc_direta", label: "DFC direta (resumo)", category: "Demonstrações", icon: Table2, defaultSize: "lg", type: "table", table: "dfc_direta" },
+  { id: "table_dfc_indireta", label: "DFC indireta (resumo)", category: "Demonstrações", icon: Table2, defaultSize: "lg", type: "table", table: "dfc_indireta" },
 ];
 
 // The full interactive report tool (DRE/BP, comparativo, DRE Executiva,
@@ -258,6 +260,28 @@ export const LINK_WIDGETS = [
     navState: { tab: "BP" },
     preview: "bp_resumo",
     description: "Balanço patrimonial completo e interativo: comparativo, análise vertical e exportação.",
+  },
+  {
+    id: "link_dfc_direta",
+    label: "DFC direta",
+    category: "Demonstrações",
+    icon: FileBarChart,
+    defaultSize: "lg",
+    type: "link",
+    href: "/empresa/dfc",
+    navState: { mode: "direct" },
+    description: "Demonstração dos fluxos de caixa pelo método direto, com movimentos operacionais, de investimento e financiamento.",
+  },
+  {
+    id: "link_dfc_indireta",
+    label: "DFC indireta",
+    category: "Demonstrações",
+    icon: FileBarChart,
+    defaultSize: "lg",
+    type: "link",
+    href: "/empresa/dfc",
+    navState: { mode: "indirect" },
+    description: "Demonstração dos fluxos de caixa pelo método indireto, conciliando resultado, capital de giro e caixa final.",
   },
 ];
 

@@ -1,358 +1,104 @@
 import { useMemo, useRef, useState } from "react";
-import { ChevronDown, Download, Search, TriangleAlert, Upload, X } from "lucide-react";
+import { Check, Download, Link2, Search, Upload, X } from "lucide-react";
 import { useAppState, setData } from "../data/useStore.js";
 import { persistActiveCompany, remapJournal } from "../lib/companies.js";
 import { parseCsv } from "../importers/csv.js";
 import { NATURE_LABELS, accountNature, planoNature } from "../lib/accountNature.js";
 
-function normalize(text) {
-  return String(text || "")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase();
-}
-
-const MAPPING_HEADERS = [
-  "codigo_conta",
-  "classificacao",
-  "nome_conta",
-  "tipo_conta",
-  "codigo_gerencial",
-  "categoria_gerencial",
-  "demonstrativo",
-  "grupo_macro",
-  "observacao",
-];
-
-function mappingsToCsv(mappings) {
-  const lines = [MAPPING_HEADERS.join(";")];
-  mappings.forEach((row) => {
-    lines.push(MAPPING_HEADERS.map((key) => String(row[key] ?? "").replace(/;/g, ",")).join(";"));
-  });
-  return lines.join("\n");
-}
-
-// Popover combobox for picking the target managerial account — only
-// `aceita_depara === "sim"` rows are valid landing spots (the plano's
-// synthetic/rollup levels aren't something a real ledger account maps to
-// directly), and only rows of the same natureza (Ativo/Passivo/PL/
-// Resultado) as the ledger account being mapped — see lib/accountNature.js.
-function AccountPicker({ options, natureLabel, onSelect, onClear, hasCurrent, onClose }) {
-  const [query, setQuery] = useState("");
-  const filtered = useMemo(() => {
-    if (!query) return options.slice(0, 60);
-    const normalized = normalize(query);
-    return options.filter((row) => normalize(`${row.codigo_gerencial} ${row.nome}`).includes(normalized)).slice(0, 60);
-  }, [options, query]);
-
-  return (
-    <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute right-0 top-[calc(100%+6px)] z-50 flex max-h-80 w-80 flex-col overflow-hidden rounded-xl bg-surface-card shadow-lg ring-1 ring-line">
-        <div className="relative shrink-0 border-b border-line p-2">
-          <Search size={13} className="pointer-events-none absolute left-4.5 top-1/2 -translate-y-1/2 text-ink-400" />
-          <input
-            autoFocus
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Buscar conta gerencial…"
-            className="w-full rounded-md border border-line-strong py-1.5 pl-7 pr-2 text-[12.5px] outline-none focus:border-accent-500"
-          />
-          {natureLabel && (
-            <p className="mt-1.5 text-[10.5px] text-ink-400">
-              Mostrando só linhas de <span className="font-medium text-ink-600">{natureLabel}</span> — mesma natureza dessa conta.
-            </p>
-          )}
-        </div>
-        <div className="flex-1 overflow-y-auto p-1.5">
-          {hasCurrent && (
-            <button
-              type="button"
-              onClick={onClear}
-              className="mb-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[12.5px] text-danger-600 hover:bg-danger-50"
-            >
-              <X size={13} strokeWidth={1.8} />
-              Remover vínculo
-            </button>
-          )}
-          {filtered.length === 0 && <p className="px-2.5 py-3 text-[12px] text-ink-400">Nenhuma conta gerencial encontrada.</p>}
-          {filtered.map((row) => (
-            <button
-              key={row.codigo_gerencial}
-              type="button"
-              onClick={() => onSelect(row)}
-              className="flex w-full flex-col items-start gap-0.5 rounded-lg px-2.5 py-1.5 text-left hover:bg-surface-muted"
-            >
-              <span className="text-[12.5px] text-ink-800">{row.nome}</span>
-              <span className="text-[11px] text-ink-400">
-                {row.codigo_gerencial} · {row.demonstrativo}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </>
-  );
-}
+const HEADERS = ["codigo_conta", "classificacao", "nome_conta", "tipo_conta", "codigo_gerencial", "categoria_gerencial", "demonstrativo", "grupo_macro", "observacao"];
+const norm = (value) => String(value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const csv = (rows) => [HEADERS.join(";"), ...rows.map((row) => HEADERS.map((key) => String(row[key] ?? "").replace(/;/g, ",")).join(";"))].join("\n");
 
 export default function Depara() {
   const state = useAppState();
-  const [search, setSearch] = useState("");
+  const [accountSearch, setAccountSearch] = useState("");
+  const [planoSearch, setPlanoSearch] = useState("");
   const [onlyPending, setOnlyPending] = useState(false);
-  const [demonstrativoFilter, setDemonstrativoFilter] = useState("todos");
-  const [openPickerFor, setOpenPickerFor] = useState(null);
-  const [busy, setBusy] = useState("");
-  const importInputRef = useRef(null);
-
-  const mappingByClass = useMemo(() => new Map(state.mappings.map((row) => [row.classificacao, row])), [state.mappings]);
-  const planoOptions = useMemo(
-    () => state.plano.filter((row) => row.aceita_depara === "sim").sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
-    [state.plano]
-  );
-  // Same list, split by natureza (Ativo/Passivo/PL/Resultado) — so each
-  // account's picker only ever offers lines from its own side of the
-  // balance sheet / DRE, instead of the full plano every time.
-  const planoByNature = useMemo(() => {
-    const byNature = new Map();
-    planoOptions.forEach((row) => {
-      const nature = planoNature(row);
-      if (!byNature.has(nature)) byNature.set(nature, []);
-      byNature.get(nature).push(row);
+  const [report, setReport] = useState("todos");
+  const [selected, setSelected] = useState([]);
+  const [target, setTarget] = useState(null);
+  const [notice, setNotice] = useState("");
+  const inputRef = useRef(null);
+  const mappings = useMemo(() => new Map(state.mappings.map((row) => [row.classificacao, row])), [state.mappings]);
+  const accounts = useMemo(() => state.accounts.filter((a) => a.tipo_sintetica === "nao").map((account) => ({ account, mapping: mappings.get(account.classificacao) || null })).sort((a, b) => a.account.classificacao.localeCompare(b.account.classificacao, "pt-BR", { numeric: true })), [state.accounts, mappings]);
+  const plan = useMemo(() => state.plano.filter((row) => row.aceita_depara === "sim").sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")), [state.plano]);
+  const selectedRows = useMemo(() => accounts.filter(({ account }) => selected.includes(account.classificacao)), [accounts, selected]);
+  const selectedNature = useMemo(() => {
+    const values = [...new Set(selectedRows.map(({ account }) => accountNature(account.classificacao, state.natureRules)).filter(Boolean))];
+    return values.length === 1 ? values[0] : null;
+  }, [selectedRows, state.natureRules]);
+  const pending = accounts.filter((row) => !row.mapping).length;
+  const mapGroups = useMemo(() => {
+    const groups = new Map();
+    state.mappings.forEach((mapping) => {
+      if (!groups.has(mapping.codigo_gerencial)) groups.set(mapping.codigo_gerencial, { ...mapping, accounts: [] });
+      groups.get(mapping.codigo_gerencial).accounts.push(mapping);
     });
-    return byNature;
-  }, [planoOptions]);
-
-  function optionsForAccount(account) {
-    const nature = accountNature(account.classificacao, state.natureRules);
-    // Unclassified (doesn't match any configured prefix) falls back to the
-    // full list rather than an empty, dead-end picker.
-    if (!nature) return { options: planoOptions, natureLabel: null };
-    return { options: planoByNature.get(nature) || [], natureLabel: NATURE_LABELS[nature] };
-  }
-
-  const accountRows = useMemo(() => {
-    return state.accounts
-      .filter((account) => account.tipo_sintetica === "nao")
-      .map((account) => ({ account, mapping: mappingByClass.get(account.classificacao) || null }))
-      .sort((a, b) => a.account.classificacao.localeCompare(b.account.classificacao, "pt-BR", { numeric: true }));
-  }, [state.accounts, mappingByClass]);
-
-  const pendingCount = accountRows.filter((row) => !row.mapping).length;
-
-  const filtered = accountRows.filter(({ account, mapping }) => {
+    return [...groups.values()].sort((a, b) => a.categoria_gerencial.localeCompare(b.categoria_gerencial, "pt-BR"));
+  }, [state.mappings]);
+  const visibleAccounts = useMemo(() => accounts.filter(({ account, mapping }) => {
     if (onlyPending && mapping) return false;
-    if (demonstrativoFilter !== "todos" && mapping?.demonstrativo !== demonstrativoFilter) return false;
-    if (!search) return true;
-    const haystack = normalize(
-      `${account.classificacao} ${account.nome_conta} ${mapping?.categoria_gerencial || ""} ${mapping?.codigo_gerencial || ""}`
-    );
-    return haystack.includes(normalize(search));
-  });
+    if (report !== "todos" && mapping?.demonstrativo !== report) return false;
+    return !accountSearch || norm(`${account.classificacao} ${account.nome_conta} ${mapping?.categoria_gerencial || ""}`).includes(norm(accountSearch));
+  }), [accounts, onlyPending, report, accountSearch]);
+  const visiblePlan = useMemo(() => plan.filter((row) => {
+    if (selectedNature && planoNature(row) !== selectedNature) return false;
+    if (report !== "todos" && row.demonstrativo !== report) return false;
+    return !planoSearch || norm(`${row.codigo_gerencial} ${row.nome} ${row.grupo_macro || ""}`).includes(norm(planoSearch));
+  }), [plan, selectedNature, report, planoSearch]);
+  const flash = (message) => { setNotice(message); setTimeout(() => setNotice(""), 3200); };
 
-  function flashBusy(message) {
-    setBusy(message);
-    setTimeout(() => setBusy(""), 3000);
+  function toggle(account) {
+    const code = account.classificacao;
+    if (selected.includes(code)) return setSelected((current) => current.filter((value) => value !== code));
+    const nature = accountNature(code, state.natureRules);
+    if (selectedNature && nature && selectedNature !== nature) {
+      setSelected([code]);
+      flash(`Seleção alterada para ${NATURE_LABELS[nature]}. Naturezas diferentes não podem ser vinculadas juntas.`);
+    } else setSelected((current) => [...current, code]);
   }
-
-  function applyMapping(account, planoRow) {
-    const next = state.mappings.filter((row) => row.classificacao !== account.classificacao);
-    if (planoRow) {
-      next.push({
-        codigo_conta: account.codigo,
-        classificacao: account.classificacao,
-        nome_conta: account.nome_conta,
-        tipo_conta: "",
-        codigo_gerencial: planoRow.codigo_gerencial,
-        categoria_gerencial: planoRow.nome,
-        demonstrativo: planoRow.demonstrativo,
-        grupo_macro: planoRow.grupo_macro,
-        observacao: "",
-      });
-    }
-    // Re-stamp the already-loaded journal immediately — without this, every
-    // report keeps showing the old classification until the company is
-    // reselected, since journal entries cache codigo_gerencial at import time.
+  function save(next, message) {
     setData({ mappings: next, journal: remapJournal(state.journal, next) });
-    persistActiveCompany();
-    setOpenPickerFor(null);
+    persistActiveCompany(); flash(message); setSelected([]);
   }
-
-  async function handleImportCsv(event) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    flashBusy("Importando de/para...");
-    try {
-      const rows = parseCsv(await file.text());
-      setData({ mappings: rows, journal: remapJournal(state.journal, rows) });
-      persistActiveCompany();
-      flashBusy(`De/para importado: ${rows.length} vínculos.`);
-    } catch {
-      flashBusy("Não consegui ler esse arquivo de de/para.");
-    }
+  function link() {
+    if (!selectedRows.length || !target) return;
+    const set = new Set(selected);
+    const next = state.mappings.filter((item) => !set.has(item.classificacao));
+    selectedRows.forEach(({ account }) => next.push({ codigo_conta: account.codigo, classificacao: account.classificacao, nome_conta: account.nome_conta, tipo_conta: "", codigo_gerencial: target.codigo_gerencial, categoria_gerencial: target.nome, demonstrativo: target.demonstrativo, grupo_macro: target.grupo_macro, observacao: "" }));
+    save(next, `${selectedRows.length} ${selectedRows.length === 1 ? "conta vinculada" : "contas vinculadas"} a “${target.nome}”.`);
+    setTarget(null);
   }
-
-  function handleExportCsv() {
-    const blob = new Blob(["﻿" + mappingsToCsv(state.mappings)], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "de_para.csv";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+  function unlink() {
+    if (!selectedRows.length) return;
+    const set = new Set(selected); save(state.mappings.filter((row) => !set.has(row.classificacao)), `${selectedRows.length} ${selectedRows.length === 1 ? "vínculo removido" : "vínculos removidos"}.`);
   }
+  function editMapping(mapping) {
+    const account = accounts.find((row) => row.account.classificacao === mapping.classificacao)?.account;
+    if (!account) return;
+    setSelected([account.classificacao]);
+    setTarget(plan.find((row) => row.codigo_gerencial === mapping.codigo_gerencial) || null);
+  }
+  function unlinkOne(mapping) {
+    save(state.mappings.filter((row) => row.classificacao !== mapping.classificacao), `Vínculo de “${mapping.nome_conta}” removido.`);
+  }
+  async function importCsv(event) {
+    const file = event.target.files?.[0]; event.target.value = ""; if (!file) return;
+    try { const rows = parseCsv(await file.text()); setData({ mappings: rows, journal: remapJournal(state.journal, rows) }); persistActiveCompany(); flash(`De/para importado: ${rows.length} vínculos.`); } catch { flash("Não consegui ler esse arquivo de de/para."); }
+  }
+  function exportCsv() { const blob = new Blob(["﻿" + csv(state.mappings)], { type: "text/csv;charset=utf-8" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "de_para.csv"; link.click(); URL.revokeObjectURL(url); }
 
-  return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-card p-4 shadow-sm">
-        <div>
-          <span className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Dados</span>
-          <h1 className="mt-1 text-[20px] font-semibold text-ink-900">De/Para</h1>
-          <p className="mt-0.5 text-[13px] text-ink-400">
-            {accountRows.length} contas contábeis ·{" "}
-            {pendingCount > 0 ? (
-              <span className="font-medium text-warning-600">{pendingCount} sem vínculo</span>
-            ) : (
-              <span className="font-medium text-success-600">todas vinculadas</span>
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            className="flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-[12px] text-ink-600 hover:bg-surface-muted"
-          >
-            <Download size={14} strokeWidth={1.8} />
-            Exportar CSV
-          </button>
-          <button
-            type="button"
-            onClick={() => importInputRef.current?.click()}
-            className="flex items-center gap-1.5 rounded-md bg-accent-500 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md"
-          >
-            <Upload size={14} strokeWidth={1.8} />
-            Importar CSV
-          </button>
-        </div>
-      </div>
-
-      {busy && <p className="rounded-lg bg-accent-50 px-3 py-2 text-[12px] text-accent-700">{busy}</p>}
-
-      <div className="flex flex-wrap items-center gap-2 rounded-xl bg-surface-card p-3 shadow-sm">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-400" />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar conta contábil ou gerencial…"
-            className="w-full rounded-md border border-line-strong py-1.5 pl-7 pr-2 text-[12.5px] outline-none focus:border-accent-500"
-          />
-        </div>
-        <div className="inline-flex items-center gap-0.5 rounded-full bg-surface-muted p-1">
-          {[
-            { id: "todos", label: "Todos" },
-            { id: "BP", label: "Balanço" },
-            { id: "DRE", label: "DRE" },
-          ].map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => setDemonstrativoFilter(option.id)}
-              className={`rounded-full px-3 py-1.5 text-[12.5px] font-medium transition-colors ${
-                demonstrativoFilter === option.id ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-800"
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-        <label className="flex items-center gap-1.5 text-[12.5px] text-ink-600">
-          <input type="checkbox" checked={onlyPending} onChange={(event) => setOnlyPending(event.target.checked)} />
-          Só pendentes
-        </label>
-      </div>
-
-      <div className="overflow-hidden rounded-xl bg-surface-card shadow-sm">
-        <div className="grid grid-cols-[110px_minmax(0,1fr)_minmax(0,1fr)_40px] items-center gap-3 border-b border-line bg-surface-muted px-4 py-2 text-[11px] font-medium text-ink-400">
-          <span>Código</span>
-          <span>Conta contábil</span>
-          <span>Conta gerencial</span>
-          <span />
-        </div>
-
-        {filtered.length === 0 ? (
-          <p className="px-4 py-10 text-center text-[13px] text-ink-400">Nenhuma conta encontrada com esse filtro.</p>
-        ) : (
-          <div className="max-h-[65vh] overflow-y-auto">
-            {filtered.map(({ account, mapping }) => {
-              const { options: pickerOptions, natureLabel } = optionsForAccount(account);
-              return (
-              <div
-                key={account.classificacao}
-                className="grid grid-cols-[110px_minmax(0,1fr)_minmax(0,1fr)_40px] items-center gap-3 border-b border-line px-4 py-2 text-[13px] last:border-b-0 hover:bg-surface-muted"
-              >
-                <span className="truncate text-[12px] text-ink-400">{account.classificacao}</span>
-                <span className="truncate text-ink-800">{account.nome_conta}</span>
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setOpenPickerFor(openPickerFor === account.classificacao ? null : account.classificacao)}
-                    className={`flex w-full items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-[12.5px] transition-colors ${
-                      mapping
-                        ? "border-line-strong bg-surface-card text-ink-800 hover:border-accent-400"
-                        : "border-dashed border-warning-400 bg-warning-50 text-warning-700 hover:border-warning-500"
-                    }`}
-                  >
-                    <span className="min-w-0 truncate">
-                      {mapping ? (
-                        <>
-                          {mapping.categoria_gerencial}
-                          <span className="ml-1.5 text-ink-400">· {mapping.demonstrativo}</span>
-                        </>
-                      ) : (
-                        <span className="flex items-center gap-1.5">
-                          <TriangleAlert size={12} strokeWidth={2} />
-                          Selecionar conta
-                        </span>
-                      )}
-                    </span>
-                    <ChevronDown size={12} className="shrink-0 text-ink-400" />
-                  </button>
-                  {openPickerFor === account.classificacao && (
-                    <AccountPicker
-                      options={pickerOptions}
-                      natureLabel={natureLabel}
-                      hasCurrent={Boolean(mapping)}
-                      onSelect={(planoRow) => applyMapping(account, planoRow)}
-                      onClear={() => applyMapping(account, null)}
-                      onClose={() => setOpenPickerFor(null)}
-                    />
-                  )}
-                </div>
-                <div className="flex justify-center">
-                  {mapping && (
-                    <button
-                      type="button"
-                      onClick={() => applyMapping(account, null)}
-                      aria-label={`Remover vínculo de ${account.nome_conta}`}
-                      title="Remover vínculo"
-                      className="flex h-7 w-7 items-center justify-center rounded-md text-ink-300 hover:bg-danger-50 hover:text-danger-600"
-                    >
-                      <X size={14} strokeWidth={1.8} />
-                    </button>
-                  )}
-                </div>
-              </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <input ref={importInputRef} type="file" accept=".csv" className="hidden" onChange={handleImportCsv} />
-    </div>
-  );
+  return <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-4">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-card p-4 shadow-sm"><div><span className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Dados</span><h1 className="mt-1 text-[20px] font-semibold text-ink-900">De/Para</h1><p className="mt-0.5 text-[13px] text-ink-400">{accounts.length} contas contábeis · {pending ? <span className="font-medium text-warning-600">{pending} sem vínculo</span> : <span className="font-medium text-success-600">todas vinculadas</span>}</p></div><div className="flex gap-2"><button type="button" onClick={exportCsv} className="flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-[12px] text-ink-600 hover:bg-surface-muted"><Download size={14} />Exportar CSV</button><button type="button" onClick={() => inputRef.current?.click()} className="flex items-center gap-1.5 rounded-md bg-accent-500 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-accent-600"><Upload size={14} />Importar CSV</button></div></div>
+    {notice && <p className="rounded-lg bg-accent-50 px-3 py-2 text-[12px] text-accent-700">{notice}</p>}
+    <div className="flex flex-wrap items-center gap-2 rounded-xl bg-surface-card p-3 shadow-sm"><div className="inline-flex gap-0.5 rounded-full bg-surface-muted p-1">{[{ id: "todos", label: "Todos" }, { id: "BP", label: "Balanço" }, { id: "DRE", label: "DRE" }].map((item) => <button key={item.id} type="button" onClick={() => setReport(item.id)} className={`rounded-full px-3 py-1.5 text-[12.5px] font-medium ${report === item.id ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"}`}>{item.label}</button>)}</div><label className="flex items-center gap-1.5 text-[12.5px] text-ink-600"><input type="checkbox" checked={onlyPending} onChange={(event) => setOnlyPending(event.target.checked)} />Só pendentes</label>{selectedRows.length > 0 && <div className="ml-auto flex items-center gap-2 text-[12px]"><span className="rounded-full bg-accent-50 px-2.5 py-1 text-accent-700">{selectedRows.length} selecionada{selectedRows.length > 1 ? "s" : ""}{selectedNature && ` · ${NATURE_LABELS[selectedNature]}`}</span><button type="button" onClick={unlink} className="flex items-center gap-1 text-danger-600"><X size={14} />Remover vínculos</button></div>}</div>
+    <div className="grid min-h-[570px] grid-cols-1 overflow-hidden rounded-xl bg-surface-card shadow-sm xl:grid-cols-3">
+      <Panel title="Contas do balancete" caption={`${pending} pendentes de ${accounts.length} contas analíticas`} placeholder="Buscar conta, código ou classificação" value={accountSearch} onChange={setAccountSearch} count={`${visibleAccounts.length} contas`}><div className="max-h-[62vh] overflow-y-auto p-2">{visibleAccounts.map(({ account, mapping }) => { const on = selected.includes(account.classificacao); return <button key={account.classificacao} type="button" onClick={() => toggle(account)} className={`mb-1 flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left ${on ? "border-accent-400 bg-accent-50" : "border-line hover:border-accent-200 hover:bg-surface-muted"}`}><span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${on ? "border-accent-500 bg-accent-500 text-white" : "border-line-strong"}`}>{on && <Check size={11} strokeWidth={3} />}</span><span className="min-w-0 flex-1"><span className="block truncate text-[12.5px] font-medium text-ink-800">{account.nome_conta}</span><span className="block text-[10.5px] text-ink-400">{account.classificacao}</span></span><span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${mapping ? "bg-success-50 text-success-600" : "bg-warning-50 text-warning-700"}`}>{mapping ? "Vinculada" : "Pendente"}</span></button>})}{!visibleAccounts.length && <Empty text="Nenhuma conta encontrada." />}</div></Panel>
+      <section className="flex min-h-0 flex-col border-b border-line xl:border-b-0 xl:border-r"><div className="border-b border-line bg-surface-muted px-4 py-3"><h2 className="text-[14px] font-semibold text-ink-900">Mapa em construção</h2><p className="mt-0.5 text-[11.5px] text-ink-400">O esqueleto atualiza conforme os vínculos são cadastrados.</p></div><div className="border-b border-line bg-warning-50 px-4 py-2 text-[11px] text-warning-700">{selectedRows.length ? `Seleção: ${selectedRows.length} conta${selectedRows.length > 1 ? "s" : ""}${target ? ` → ${target.nome}` : ". Escolha o destino."}` : "Marque uma ou mais contas do balancete."}</div><div className="max-h-[62vh] overflow-y-auto p-2">{mapGroups.map((group) => <div key={group.codigo_gerencial} className="mb-2 overflow-hidden rounded-lg border border-line"><div className="bg-surface-muted px-3 py-2"><p className="text-[12.5px] font-semibold text-ink-800">{group.categoria_gerencial}</p><p className="text-[10.5px] text-ink-400">{group.codigo_gerencial} · {group.accounts.length} conta{group.accounts.length > 1 ? "s" : ""}</p></div>{group.accounts.map((mapping) => <div key={mapping.classificacao} className="border-t border-line px-3 py-2"><div className="flex justify-between gap-2"><div className="min-w-0"><p className="truncate text-[11.5px] text-ink-800">{mapping.nome_conta}</p><p className="text-[10px] text-ink-400">{mapping.classificacao}</p></div><button type="button" onClick={() => editMapping(mapping)} className="rounded border border-accent-200 px-1.5 py-0.5 text-[10px] text-accent-700">Alterar</button></div><button type="button" onClick={() => unlinkOne(mapping)} className="mt-1.5 w-full rounded border border-danger-200 py-1 text-[10px] text-danger-600">Desvincular</button></div>)}</div>)}{!mapGroups.length && <Empty text="Nenhum vínculo cadastrado ainda." />}</div></section>
+      <Panel title="Plano gerencial" caption={target ? `Destino selecionado: ${target.nome}` : "Selecione o destino para os vínculos"} placeholder="Buscar código ou descrição" value={planoSearch} onChange={setPlanoSearch}><div className="max-h-[62vh] overflow-y-auto p-2">{visiblePlan.map((row) => { const active = target?.codigo_gerencial === row.codigo_gerencial; return <button key={row.codigo_gerencial} type="button" onClick={() => setTarget(row)} className={`mb-1 flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left ${active ? "border-accent-500 bg-accent-50" : "border-line hover:border-accent-300 hover:bg-surface-muted"}`}><span className={`flex h-5 w-5 items-center justify-center rounded-full border ${active ? "border-accent-500 bg-accent-500 text-white" : "border-line-strong"}`}>{active && <Check size={12} strokeWidth={3} />}</span><span className="min-w-0"><span className="block truncate text-[12.5px] font-medium text-ink-800">{row.nome}</span><span className="block text-[10.5px] text-ink-400">{row.codigo_gerencial} · {row.demonstrativo}{row.grupo_macro && ` | ${row.grupo_macro}`}</span></span></button>})}{!visiblePlan.length && <Empty text="Nenhuma conta gerencial disponível." />}</div></Panel>
+    </div><div className="sticky bottom-3 z-20 rounded-lg bg-accent-500 p-1.5 shadow-lg"><button type="button" disabled={!selectedRows.length || !target} onClick={link} className="flex w-full items-center justify-center gap-2 rounded-md py-2 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"><Link2 size={15} />{target ? `Vincular seleção a ${target.nome}` : "Escolha uma conta gerencial para vincular"}</button></div><input ref={inputRef} type="file" accept=".csv" className="hidden" onChange={importCsv} />
+  </div>;
 }
+
+function Panel({ title, caption, placeholder, value, onChange, count, children }) { return <section className="flex min-h-0 flex-col border-b border-line last:border-b-0 xl:border-b-0 xl:first:border-r"><div className="border-b border-line bg-surface-muted px-4 py-3"><div className="flex justify-between"><div><h2 className="text-[14px] font-semibold text-ink-900">{title}</h2><p className="mt-0.5 text-[11.5px] text-ink-400">{caption}</p></div>{count && <span className="text-[11px] text-ink-400">{count}</span>}</div><div className="relative mt-3"><Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-400" /><input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="w-full rounded-md border border-line-strong bg-surface-card py-1.5 pl-7 pr-2 text-[12.5px] outline-none focus:border-accent-500" /></div></div>{children}</section>; }
+function Empty({ text }) { return <p className="px-3 py-10 text-center text-[13px] text-ink-400">{text}</p>; }

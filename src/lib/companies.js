@@ -32,7 +32,18 @@ export function remapJournal(journal, mappings) {
   const mapping = new Map(mappings.map((row) => [row.classificacao, row]));
   return journal.map((entry) => {
     const map = mapping.get(entry.classificacao);
-    if (!map) return entry;
+    // An unmapped account must not retain a former managerial destination.
+    // This is especially important after a plano account is edited/deleted:
+    // its old De/Para is intentionally invalidated across every company.
+    if (!map) {
+      return {
+        ...entry,
+        codigo_gerencial: "",
+        categoria_gerencial: "",
+        demonstrativo: "",
+        grupo_macro: "",
+      };
+    }
     return {
       ...entry,
       codigo_gerencial: map.codigo_gerencial || "",
@@ -41,6 +52,31 @@ export function remapJournal(journal, mappings) {
       grupo_macro: map.grupo_macro || "",
     };
   });
+}
+
+// The plano gerencial is shared by all companies, but each company owns its
+// own De/Para. When a target line changes, prior links to its old definition
+// are deliberately discarded instead of silently pointing to a new meaning.
+// Returns how many links were removed, so callers can give the user a clear
+// confirmation message.
+export function invalidateMappingsForPlanoCodes(codes) {
+  const invalidCodes = new Set((Array.isArray(codes) ? codes : [codes]).filter(Boolean));
+  if (!invalidCodes.size) return 0;
+  let removed = 0;
+  const companies = state.companies.map((company) => {
+    const previous = company.mappings || [];
+    const mappings = previous.filter((mapping) => !invalidCodes.has(mapping.codigo_gerencial));
+    removed += previous.length - mappings.length;
+    return { ...company, mappings, journal: remapJournal(company.journal || [], mappings), updatedAt: new Date().toISOString() };
+  });
+  if (!removed) return 0;
+  const active = companies.find((company) => company.id === state.activeCompanyId);
+  setData({
+    companies,
+    ...(active ? { mappings: active.mappings, journal: active.journal } : {}),
+  });
+  writeStoredCompanies(companies);
+  return removed;
 }
 
 // Returns { groupId } when a group was the last active workspace — App.jsx

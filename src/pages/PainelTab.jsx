@@ -15,6 +15,7 @@ import { activeWorkspaceName } from "../lib/groups.js";
 import Placeholder from "../components/Placeholder.jsx";
 import WidgetGrid, { PrintableWidgetGrid } from "../components/dashboard/WidgetGrid.jsx";
 import Demonstrativos from "./Demonstrativos.jsx";
+import Dfc from "./Dfc.jsx";
 
 // Renders nothing — just registers the top bar's "Relatório atual" action
 // for this tab. PDF is a screenshot of `printRef` — a plain, off-screen
@@ -80,6 +81,7 @@ export default function PainelTab() {
   // the real Demonstrativos page directly, full width, instead of a card.
   const soleLinkDefinition = widgets.length === 1 ? WIDGET_CATALOG.find((definition) => definition.id === widgets[0].id) : null;
   const isSoleLink = soleLinkDefinition?.type === "link" && soleLinkDefinition.href === "/empresa/demonstrativos";
+  const isSoleDfcLink = soleLinkDefinition?.type === "link" && soleLinkDefinition.href === "/empresa/dfc";
 
   if (!tab) return <Navigate to="/empresa" replace />;
 
@@ -120,6 +122,15 @@ export default function PainelTab() {
       <div className="mx-auto flex w-full flex-col gap-3">
         {subTabStrip}
         <Demonstrativos lockedTab={soleLinkDefinition.navState?.tab} />
+      </div>
+    );
+  }
+
+  if (isSoleDfcLink) {
+    return (
+      <div className="mx-auto flex w-full flex-col gap-3">
+        {subTabStrip}
+        <Dfc lockedMode={soleLinkDefinition.navState?.mode} />
       </div>
     );
   }

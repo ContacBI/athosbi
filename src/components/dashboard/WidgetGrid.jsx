@@ -18,6 +18,7 @@ import {
 import { ArrowLeft, ArrowUpRight, ChevronRight, X, CheckCircle2, Circle, TriangleAlert } from "lucide-react";
 import { WIDGET_CATALOG, formatWidgetValue } from "../../lib/dashboardWidgets.js";
 import { directChildren } from "../../lib/reportTree.js";
+import { buildDfcDirect, buildDfcIndirect } from "../../data/calculations.js";
 import { money } from "../../lib/format.js";
 import { GRID_COLS, ROW_HEIGHT, layoutFor, marginPxFor, DEFAULT_SPACING } from "./gridLayout.js";
 
@@ -333,7 +334,11 @@ function ChartWidgetCard({ definition, ctx }) {
 
 function TableWidgetCard({ definition, ctx, maxRows }) {
   const rows =
-    definition.table === "executiva"
+    definition.table === "dfc_direta"
+      ? buildDfcDirect()
+      : definition.table === "dfc_indireta"
+        ? buildDfcIndirect()
+        : definition.table === "executiva"
       ? ctx.executive
       : definition.table === "dre_resumida"
         ? ctx.dreResumida

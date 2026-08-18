@@ -10,6 +10,7 @@ import CompanyHome from "./pages/CompanyHome.jsx";
 import PainelTab from "./pages/PainelTab.jsx";
 import PersonalizarHub from "./pages/PersonalizarHub.jsx";
 import Demonstrativos from "./pages/Demonstrativos.jsx";
+import Dfc from "./pages/Dfc.jsx";
 import Depara from "./pages/Depara.jsx";
 import RelatoriosMensais from "./pages/RelatoriosMensais.jsx";
 import CompaniesAdmin from "./pages/parametros/CompaniesAdmin.jsx";
@@ -124,6 +125,7 @@ export default function App() {
           <Route path="painel/:tabId" element={<PainelTab />} />
           <Route path="personalizar" element={<PersonalizarHub />} />
           <Route path="demonstrativos" element={<Demonstrativos />} />
+          <Route path="dfc" element={<Dfc />} />
           <Route path="de-para" element={<Depara />} />
           <Route path="relatorios" element={<RelatoriosMensais />} />
         </Route>
