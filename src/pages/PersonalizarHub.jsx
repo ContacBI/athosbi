@@ -12,6 +12,7 @@ import Avatar from "../components/Avatar.jsx";
 import CanvasEditor from "../components/dashboard/CanvasEditor.jsx";
 import CatalogPicker from "../components/dashboard/CatalogPicker.jsx";
 import Demonstrativos from "./Demonstrativos.jsx";
+import Dfc from "./Dfc.jsx";
 
 const SPACING_OPTIONS = [
   { value: "compacto", label: "Compacto" },
@@ -249,6 +250,8 @@ export default function PersonalizarHub() {
   // are still there as the way back into a normal widget canvas.
   const soleLinkDefinition = editWidgets.length === 1 ? WIDGET_CATALOG.find((definition) => definition.id === editWidgets[0].id) : null;
   const isSoleLink = soleLinkDefinition?.type === "link" && soleLinkDefinition.href === "/empresa/demonstrativos";
+  const isSoleDfcLink = soleLinkDefinition?.type === "link" && soleLinkDefinition.href === "/empresa/dfc";
+  const isSoleReportLink = isSoleLink || isSoleDfcLink;
 
   function saveEditTarget(patch) {
     if (!activeTab || !editTarget) return;
@@ -405,7 +408,7 @@ export default function PersonalizarHub() {
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            {!isSoleLink ? (
+            {!isSoleReportLink ? (
               <div className="flex items-center gap-1.5 rounded-md bg-surface-muted p-1">
                 <span className="flex items-center gap-1 pl-1.5 text-[11px] text-ink-400">
                   <MoveHorizontal size={12} strokeWidth={1.8} />
@@ -457,6 +460,8 @@ export default function PersonalizarHub() {
 
           {isSoleLink ? (
             <Demonstrativos lockedTab={soleLinkDefinition.navState?.tab} />
+          ) : isSoleDfcLink ? (
+            <Dfc lockedMode={soleLinkDefinition.navState?.mode} />
           ) : (
             <CanvasEditor
               widgets={editWidgets}

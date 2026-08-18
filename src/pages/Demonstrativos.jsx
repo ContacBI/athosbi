@@ -111,7 +111,8 @@ function RowLabel({ row, canToggle, isOpen, isHighlight }) {
 function gridTemplate({ mode, columnsCount, showTrend }) {
   if (mode === "comparativo") return "minmax(260px,1fr) 118px 118px 118px 90px";
   if (mode === "vertical") return "minmax(260px,1fr) 118px 170px";
-  const cols = Array(columnsCount).fill("112px").join(" ");
+  // Na análise horizontal cada mês mostra o valor e, ao lado, a variação %.
+  const cols = Array(columnsCount).fill(mode === "horizontal" ? "170px" : "112px").join(" ");
   return `minmax(260px,1fr) ${cols}${showTrend ? " 90px" : ""}`;
 }
 
@@ -309,7 +310,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
       tab,
       reportCompare: appState.reportCompare,
       showPreviousBalance,
-      showReportTotal: appState.showReportTotal,
+      showReportTotal: tab === "BP" ? appState.showReportTotalBP : appState.showReportTotalDRE,
       bpMonthlyMode: appState.bpMonthlyMode,
     });
     // reportColumns() reads the selected period internally (via reportMonths()),
@@ -321,7 +322,8 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
     tab,
     appState.reportCompare,
     showPreviousBalance,
-    appState.showReportTotal,
+    appState.showReportTotalBP,
+    appState.showReportTotalDRE,
     appState.bpMonthlyMode,
     appState.periodStart,
     appState.periodEnd,
@@ -432,7 +434,9 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
       if (mode === "horizontal") {
         const cells = {};
         columns.forEach((column) => {
-          cells[column] = format(horizontalPercent(row, column, { tab, bpMonthlyMode: appState.bpMonthlyMode, months }), true);
+          const value = columnValue(row, column, { tab, bpMonthlyMode: appState.bpMonthlyMode, months });
+          const percent = horizontalPercent(row, column, { tab, bpMonthlyMode: appState.bpMonthlyMode, months });
+          cells[column] = `${format(value)} (${format(percent, true)})`;
         });
         return { ...base, cells };
       }
@@ -750,13 +754,17 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
 
                     {mode === "horizontal" &&
                       columns.map((column) => {
+                        const value = columnValue(row, column, { tab, bpMonthlyMode: appState.bpMonthlyMode, months });
                         const pct = horizontalPercent(row, column, { tab, bpMonthlyMode: appState.bpMonthlyMode, months });
                         return (
                           <span
                             key={column}
-                            className={`text-right tabular-nums ${pct == null ? "text-ink-300" : moneyClass(pct)} ${isHighlight ? "font-semibold" : ""}`}
+                            className={`flex items-baseline justify-end gap-2 tabular-nums ${isHighlight ? "font-semibold" : ""}`}
                           >
-                            {pct == null ? "—" : formatPercent(pct)}
+                            <span className={moneyClass(value)}>{money(value)}</span>
+                            <span className={`text-[11px] font-normal ${pct == null ? "text-ink-300" : moneyClass(pct)}`}>
+                              {pct == null ? "—" : formatPercent(pct)}
+                            </span>
                           </span>
                         );
                       })}
@@ -787,7 +795,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                             <span className={`text-right tabular-nums font-medium ${moneyClass(value)}`}>{money(value)}</span>
                             <span className="flex items-center justify-end gap-2">
                               <MiniBar percent={pct} />
-                              <span className="w-12 text-right tabular-nums text-ink-500">{formatPercent(pct)}</span>
+                              <span className="w-12 text-right text-[11px] font-normal tabular-nums text-ink-500">{formatPercent(pct)}</span>
                             </span>
                           </>
                         );

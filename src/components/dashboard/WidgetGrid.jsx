@@ -20,6 +20,8 @@ import { WIDGET_CATALOG, formatWidgetValue } from "../../lib/dashboardWidgets.js
 import { directChildren } from "../../lib/reportTree.js";
 import { buildDfcDirect, buildDfcIndirect } from "../../data/calculations.js";
 import { money } from "../../lib/format.js";
+import { columnLabel, columnValue } from "../../lib/reportColumns.js";
+import ReportSettingsMenu from "../ReportSettingsMenu.jsx";
 import { GRID_COLS, ROW_HEIGHT, layoutFor, marginPxFor, DEFAULT_SPACING } from "./gridLayout.js";
 
 const GridLayout = WidthProvider(RGL);
@@ -333,6 +335,8 @@ function ChartWidgetCard({ definition, ctx }) {
 }
 
 function TableWidgetCard({ definition, ctx, maxRows }) {
+  const state = useAppState();
+  const tab = definition.table === "bp" ? "BP" : definition.table?.startsWith("dfc_") ? "DFC" : "DRE";
   const rows =
     definition.table === "dfc_direta"
       ? buildDfcDirect()
@@ -347,27 +351,34 @@ function TableWidgetCard({ definition, ctx, maxRows }) {
           );
   const visibleRows = maxRows ? rows.slice(0, maxRows) : rows;
   const hiddenCount = rows.length - visibleRows.length;
+  const columns = state.reportCompare ? ctx.months : ["saldo"];
+  const valueFor = (row, column) => {
+    if (column === "saldo") return row.saldo || 0;
+    if (tab === "BP") return columnValue(row, column, { tab, bpMonthlyMode: state.bpMonthlyMode, months: ctx.months });
+    return row.monthValues?.[column] || 0;
+  };
   return (
-    <div>
-      <p className="mb-3 text-[13px] font-medium text-ink-900">{definition.label}</p>
+    <div className="min-w-0">
+      <div className="mb-3 flex items-center justify-between gap-2"><p className="text-[13px] font-medium text-ink-900">{definition.label}</p><ReportSettingsMenu tab={tab} /></div>
+      <div className="overflow-x-auto"><div className="min-w-max">
+        {state.reportCompare && <div className="mb-1 grid gap-3 text-[10px] text-ink-400" style={{ gridTemplateColumns: `minmax(180px, 1fr) ${columns.map(() => "92px").join(" ")}` }}><span>Conta</span>{columns.map((column) => <span key={column} className="text-right">{columnLabel(column)}</span>)}</div>}
       <div className="flex flex-col gap-1.5">
         {visibleRows.map((row) => {
           const isBold = row.isFormula || Number(row.nivel || 0) <= 1;
           return (
             <div
               key={row.codigo_gerencial}
-              className={`flex items-center justify-between gap-3 text-[13px] ${isBold ? "border-t border-line pt-1.5 font-semibold text-ink-900" : "text-ink-600"}`}
+              className={`grid items-center gap-3 text-[13px] ${isBold ? "border-t border-line pt-1.5 font-semibold text-ink-900" : "text-ink-600"}`}
+              style={{ gridTemplateColumns: `minmax(180px, 1fr) ${columns.map(() => "92px").join(" ")}` }}
             >
               <span className="truncate">{row.categoria_gerencial}</span>
-              <span className={`shrink-0 tabular-nums ${row.isPercentage ? "text-navy-700" : moneyClass(row.saldo)}`}>
-                {row.isPercentage ? `${Number(row.saldo || 0).toFixed(1).replace(".", ",")}%` : money(row.saldo)}
-              </span>
+              {columns.map((column) => { const value = valueFor(row, column); return <span key={column} className={`text-right tabular-nums ${row.isPercentage ? "text-navy-700" : moneyClass(value)}`}>{row.isPercentage ? `${Number(value || 0).toFixed(1).replace(".", ",")}%` : money(value)}</span>; })}
             </div>
           );
         })}
         {rows.length === 0 && <p className="text-[12px] text-ink-400">Sem lançamentos no período selecionado.</p>}
         {hiddenCount > 0 && <p className="pt-0.5 text-[11px] text-ink-400">+{hiddenCount} linhas — veja o relatório completo.</p>}
-      </div>
+      </div></div></div>
     </div>
   );
 }

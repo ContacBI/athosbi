@@ -48,7 +48,11 @@ export const state = {
   // cada demonstração tem seu próprio padrão, mas ambos continuam togglables.
   showPreviousBalanceBP: true,
   showPreviousBalanceDRE: false,
-  showReportTotal: true,
+  // Each statement keeps its own default: BP is a rolling balance (no
+  // redundant total), while DRE is a period flow and benefits from a total.
+  showReportTotalBP: false,
+  showReportTotalDRE: true,
+  showReportTotalDFC: false,
   bpMonthlyMode: "accumulated",
   hideZeroNoMovement: true,
   hideNonOperatingResults: false,

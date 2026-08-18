@@ -9,6 +9,25 @@ const HEADERS = ["codigo_conta", "classificacao", "nome_conta", "tipo_conta", "c
 const norm = (value) => String(value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const csv = (rows) => [HEADERS.join(";"), ...rows.map((row) => HEADERS.map((key) => String(row[key] ?? "").replace(/;/g, ",")).join(";"))].join("\n");
 
+// Código contábil é uma hierarquia, não texto comum: 1 vem antes de 1.01,
+// que vem antes de 1.01.01. A comparação por descrição deixava o plano
+// aparentemente aleatório e dificultava localizar a conta-pai correta.
+function compareClassification(left, right) {
+  const a = String(left || "").split(".");
+  const b = String(right || "").split(".");
+  for (let index = 0; index < Math.min(a.length, b.length); index += 1) {
+    const aPart = a[index];
+    const bPart = b[index];
+    if (aPart === bPart) continue;
+    if (/^\d+$/.test(aPart) && /^\d+$/.test(bPart)) {
+      const difference = Number(aPart) - Number(bPart);
+      if (difference) return difference;
+    }
+    return aPart.localeCompare(bPart, "pt-BR", { numeric: true, sensitivity: "base" });
+  }
+  return a.length - b.length;
+}
+
 export default function Depara() {
   const state = useAppState();
   const [accountSearch, setAccountSearch] = useState("");
@@ -20,8 +39,8 @@ export default function Depara() {
   const [notice, setNotice] = useState("");
   const inputRef = useRef(null);
   const mappings = useMemo(() => new Map(state.mappings.map((row) => [row.classificacao, row])), [state.mappings]);
-  const accounts = useMemo(() => state.accounts.filter((a) => a.tipo_sintetica === "nao").map((account) => ({ account, mapping: mappings.get(account.classificacao) || null })).sort((a, b) => a.account.classificacao.localeCompare(b.account.classificacao, "pt-BR", { numeric: true })), [state.accounts, mappings]);
-  const plan = useMemo(() => state.plano.filter((row) => row.aceita_depara === "sim").sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")), [state.plano]);
+  const accounts = useMemo(() => state.accounts.filter((a) => a.tipo_sintetica === "nao").map((account) => ({ account, mapping: mappings.get(account.classificacao) || null })).sort((a, b) => compareClassification(a.account.classificacao, b.account.classificacao)), [state.accounts, mappings]);
+  const plan = useMemo(() => state.plano.filter((row) => row.aceita_depara === "sim").sort((a, b) => compareClassification(a.codigo_gerencial, b.codigo_gerencial)), [state.plano]);
   const selectedRows = useMemo(() => accounts.filter(({ account }) => selected.includes(account.classificacao)), [accounts, selected]);
   const selectedNature = useMemo(() => {
     const values = [...new Set(selectedRows.map(({ account }) => accountNature(account.classificacao, state.natureRules)).filter(Boolean))];
@@ -34,7 +53,9 @@ export default function Depara() {
       if (!groups.has(mapping.codigo_gerencial)) groups.set(mapping.codigo_gerencial, { ...mapping, accounts: [] });
       groups.get(mapping.codigo_gerencial).accounts.push(mapping);
     });
-    return [...groups.values()].sort((a, b) => a.categoria_gerencial.localeCompare(b.categoria_gerencial, "pt-BR"));
+    return [...groups.values()]
+      .map((group) => ({ ...group, accounts: group.accounts.sort((a, b) => compareClassification(a.classificacao, b.classificacao)) }))
+      .sort((a, b) => compareClassification(a.codigo_gerencial, b.codigo_gerencial));
   }, [state.mappings]);
   const visibleAccounts = useMemo(() => accounts.filter(({ account, mapping }) => {
     if (onlyPending && mapping) return false;

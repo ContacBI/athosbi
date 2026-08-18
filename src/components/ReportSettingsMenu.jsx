@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Settings2 } from "lucide-react";
 import { useAppState, setData } from "../data/useStore.js";
+import { persistActiveCompany } from "../lib/companies.js";
 
 export default function ReportSettingsMenu({ tab }) {
   const state = useAppState();
@@ -13,12 +14,19 @@ export default function ReportSettingsMenu({ tab }) {
     .sort((a, b) => String(a.codigo_gerencial).localeCompare(String(b.codigo_gerencial), "pt-BR", { numeric: true }));
 
   const excluded = new Set(state.excludedNonOperatingCodes || []);
+  const totalKey = tab === "BP" ? "showReportTotalBP" : tab === "DRE" ? "showReportTotalDRE" : "showReportTotalDFC";
+  const canShowPrevious = tab === "BP" || tab === "DRE";
 
   function toggleExcluded(code) {
     const next = new Set(excluded);
     if (next.has(code)) next.delete(code);
     else next.add(code);
-    setData({ excludedNonOperatingCodes: Array.from(next) });
+    saveSettings({ excludedNonOperatingCodes: Array.from(next) });
+  }
+
+  function saveSettings(next) {
+    setData(next);
+    persistActiveCompany();
   }
 
   return (
@@ -41,26 +49,28 @@ export default function ReportSettingsMenu({ tab }) {
               <input
                 type="checkbox"
                 checked={state.reportCompare}
-                onChange={(event) => setData({ reportCompare: event.target.checked })}
+                onChange={(event) => saveSettings({ reportCompare: event.target.checked })}
               />
               Comparar meses
             </label>
-            <label className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] text-ink-700 hover:bg-surface-muted">
+            {canShowPrevious && (
+              <label className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] text-ink-700 hover:bg-surface-muted">
               <input
                 type="checkbox"
                 checked={tab === "BP" ? state.showPreviousBalanceBP : state.showPreviousBalanceDRE}
                 onChange={(event) =>
-                  setData({ [tab === "BP" ? "showPreviousBalanceBP" : "showPreviousBalanceDRE"]: event.target.checked })
+                  saveSettings({ [tab === "BP" ? "showPreviousBalanceBP" : "showPreviousBalanceDRE"]: event.target.checked })
                 }
               />
               Mostrar saldo anterior
-            </label>
-            {!(tab === "BP" && state.bpMonthlyMode === "accumulated") && (
+              </label>
+            )}
+            {tab !== "DFC" && !(tab === "BP" && state.bpMonthlyMode === "accumulated") && (
               <label className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] text-ink-700 hover:bg-surface-muted">
                 <input
                   type="checkbox"
-                  checked={state.showReportTotal}
-                  onChange={(event) => setData({ showReportTotal: event.target.checked })}
+                  checked={Boolean(state[totalKey])}
+                  onChange={(event) => saveSettings({ [totalKey]: event.target.checked })}
                 />
                 Mostrar coluna saldo total
               </label>
@@ -71,11 +81,11 @@ export default function ReportSettingsMenu({ tab }) {
                 Valores mensais do balanço
                 <select
                   value={state.bpMonthlyMode}
-                  onChange={(event) => setData({ bpMonthlyMode: event.target.value === "accumulated" ? "accumulated" : "movement" })}
+                  onChange={(event) => saveSettings({ bpMonthlyMode: event.target.value === "accumulated" ? "accumulated" : "movement" })}
                   className="mt-1 w-full rounded-md border border-line-strong px-2 py-1.5 text-[12px]"
                 >
-                  <option value="movement">Movimento de cada mês</option>
                   <option value="accumulated">Saldo acumulado até o mês</option>
+                  <option value="movement">Movimento de cada mês</option>
                 </select>
               </label>
             )}
@@ -86,7 +96,7 @@ export default function ReportSettingsMenu({ tab }) {
               <input
                 type="checkbox"
                 checked={state.hideZeroNoMovement}
-                onChange={(event) => setData({ hideZeroNoMovement: event.target.checked })}
+                onChange={(event) => saveSettings({ hideZeroNoMovement: event.target.checked })}
               />
               Ocultar contas zeradas
             </label>
@@ -94,7 +104,7 @@ export default function ReportSettingsMenu({ tab }) {
               <input
                 type="checkbox"
                 checked={Boolean(state.hideNonOperatingResults)}
-                onChange={(event) => setData({ hideNonOperatingResults: event.target.checked })}
+                onChange={(event) => saveSettings({ hideNonOperatingResults: event.target.checked })}
               />
               Ocultar resultados não operacionais
             </label>

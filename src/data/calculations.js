@@ -45,14 +45,17 @@ export function buildDfcDirect() {
   }));
   const byCode = new Map(rows.map((row) => [row.codigo_gerencial, row]));
   const entries = filteredJournal();
+  const counterpartIndex = indexDfcCounterparts(entries);
+  const dfcConfig = prepareDfcConfig();
+  const analyticsByRow = new Map();
   const cashEntries = entries.filter(isCashEntry);
 
   cashEntries.forEach((entry) => {
     if (isOpeningBalanceEntry(entry)) return;
-    const counterpart = findCashCounterpart(entry, entries);
+    const counterpart = findCashCounterpart(entry, counterpartIndex);
     if (counterpart && isCashEntry(counterpart)) return;
-    const targetCode = classifyDfcEntry(entry, counterpart);
-    addDfcValue(byCode.get(targetCode) || byCode.get("DFC.OP.OUTROS"), entry, counterpart);
+    const targetCode = classifyDfcEntry(entry, counterpart, dfcConfig);
+    addDfcValue(byCode.get(targetCode) || byCode.get("DFC.OP.OUTROS"), entry, counterpart, analyticsByRow);
   });
 
   applyDfcSubtotals(byCode);
@@ -74,22 +77,37 @@ export function buildDfcIndirect() {
     const row = bp.find((item) => item.codigo_gerencial === code);
     return row ? Number(row.saldo_final || 0) - Number(row.saldo_inicial || 0) : 0;
   };
+  const rowMonths = (rows, code) => ({ ...(rows.find((row) => row.codigo_gerencial === code)?.monthValues || {}) });
+  const scaledMonths = (values, factor = 1) => Object.fromEntries(Object.entries(values).map(([month, value]) => [month, Number(value || 0) * factor]));
+  const sumMonths = (...values) => values.reduce((total, current) => {
+    Object.entries(current || {}).forEach(([month, value]) => { total[month] = (total[month] || 0) + Number(value || 0); });
+    return total;
+  }, {});
   const rows = [];
-  const add = (code, name, saldo, group, natureza = "analytic") => rows.push({ codigo_gerencial: code, categoria_gerencial: name, saldo, grupo_macro: group, natureza });
-  add("DFCI.OP.RESULTADO", "Resultado líquido do período", value(dre, "DRE.17"), "Operacional");
-  add("DFCI.OP.DEPRECIACAO", "Depreciações e amortizações", value(dre, "DRE.11"), "Operacional");
-  add("DFCI.OP.CLIENTES", "Variação em clientes e outros recebíveis", -variation("01.01.02"), "Operacional");
-  add("DFCI.OP.ESTOQUES", "Variação em estoques", -variation("01.01.03"), "Operacional");
-  add("DFCI.OP.FORNECEDORES", "Variação em fornecedores", variation("02.01.01"), "Operacional");
-  add("DFCI.OP.OBRIGACOES", "Variação em obrigações trabalhistas e tributárias", variation("02.01.03") + variation("02.01.04"), "Operacional");
+  const add = (code, name, saldo, group, natureza = "analytic", monthValues = {}) => rows.push({ codigo_gerencial: code, categoria_gerencial: name, saldo, grupo_macro: group, natureza, monthValues });
+  const resultMonths = rowMonths(dre, "DRE.17");
+  const depreciationMonths = rowMonths(dre, "DRE.11");
+  const clientMonths = scaledMonths(rowMonths(bp, "01.01.02"), -1);
+  const inventoryMonths = scaledMonths(rowMonths(bp, "01.01.03"), -1);
+  const supplierMonths = rowMonths(bp, "02.01.01");
+  const obligationMonths = sumMonths(rowMonths(bp, "02.01.03"), rowMonths(bp, "02.01.04"));
+  add("DFCI.OP.RESULTADO", "Resultado líquido do período", value(dre, "DRE.17"), "Operacional", "analytic", resultMonths);
+  add("DFCI.OP.DEPRECIACAO", "Depreciações e amortizações", value(dre, "DRE.11"), "Operacional", "analytic", depreciationMonths);
+  add("DFCI.OP.CLIENTES", "Variação em clientes e outros recebíveis", -variation("01.01.02"), "Operacional", "analytic", clientMonths);
+  add("DFCI.OP.ESTOQUES", "Variação em estoques", -variation("01.01.03"), "Operacional", "analytic", inventoryMonths);
+  add("DFCI.OP.FORNECEDORES", "Variação em fornecedores", variation("02.01.01"), "Operacional", "analytic", supplierMonths);
+  add("DFCI.OP.OBRIGACOES", "Variação em obrigações trabalhistas e tributárias", variation("02.01.03") + variation("02.01.04"), "Operacional", "analytic", obligationMonths);
   const operating = rows.reduce((sum, row) => sum + row.saldo, 0);
-  add("DFCI.OP.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES OPERACIONAIS", operating, "Operacional", "subtotal");
+  const operatingMonths = sumMonths(resultMonths, depreciationMonths, clientMonths, inventoryMonths, supplierMonths, obligationMonths);
+  add("DFCI.OP.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES OPERACIONAIS", operating, "Operacional", "subtotal", operatingMonths);
   const directValue = (code) => direct.find((row) => row.codigo_gerencial === code)?.saldo || 0;
-  add("DFCI.INV.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES DE INVESTIMENTO", directValue("DFC.INV.CAIXA_LIQUIDO"), "Investimento", "subtotal");
-  add("DFCI.FIN.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES DE FINANCIAMENTO", directValue("DFC.FIN.CAIXA_LIQUIDO"), "Financiamento", "subtotal");
-  add("DFCI.CASH.VARIACAO", "AUMENTO/(REDUÇÃO) NAS DISPONIBILIDADES", operating + directValue("DFC.INV.CAIXA_LIQUIDO") + directValue("DFC.FIN.CAIXA_LIQUIDO"), "Disponibilidades", "subtotal");
-  add("DFCI.CASH.INICIO", "DISPONIBILIDADES NO INÍCIO DO PERÍODO", directValue("DFC.CASH.INICIO"), "Disponibilidades", "subtotal");
-  add("DFCI.CASH.FIM", "DISPONIBILIDADES NO FINAL DO PERÍODO", directValue("DFC.CASH.FIM"), "Disponibilidades", "subtotal");
+  const investmentMonths = rowMonths(direct, "DFC.INV.CAIXA_LIQUIDO");
+  const financingMonths = rowMonths(direct, "DFC.FIN.CAIXA_LIQUIDO");
+  add("DFCI.INV.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES DE INVESTIMENTO", directValue("DFC.INV.CAIXA_LIQUIDO"), "Investimento", "subtotal", investmentMonths);
+  add("DFCI.FIN.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES DE FINANCIAMENTO", directValue("DFC.FIN.CAIXA_LIQUIDO"), "Financiamento", "subtotal", financingMonths);
+  add("DFCI.CASH.VARIACAO", "AUMENTO/(REDUÇÃO) NAS DISPONIBILIDADES", operating + directValue("DFC.INV.CAIXA_LIQUIDO") + directValue("DFC.FIN.CAIXA_LIQUIDO"), "Disponibilidades", "subtotal", sumMonths(operatingMonths, investmentMonths, financingMonths));
+  add("DFCI.CASH.INICIO", "DISPONIBILIDADES NO INÍCIO DO PERÍODO", directValue("DFC.CASH.INICIO"), "Disponibilidades", "subtotal", rowMonths(direct, "DFC.CASH.INICIO"));
+  add("DFCI.CASH.FIM", "DISPONIBILIDADES NO FINAL DO PERÍODO", directValue("DFC.CASH.FIM"), "Disponibilidades", "subtotal", rowMonths(direct, "DFC.CASH.FIM"));
   return rows;
 }
 
@@ -343,23 +361,44 @@ function isOpeningBalanceEntry(entry) {
   return normalize(entry.historico).includes("saldo anterior");
 }
 
-function findCashCounterpart(cashEntry, entries) {
+function dfcCounterpartKey(entry, value = Number(entry.debito || 0) - Number(entry.credito || 0)) {
+  return `${entry.data || ""}\u0000${normalize(entry.historico)}\u0000${Math.round(value * 100)}`;
+}
+
+function indexDfcCounterparts(entries) {
+  const index = new Map();
+  entries.forEach((entry) => {
+    const key = dfcCounterpartKey(entry);
+    const list = index.get(key) || [];
+    list.push(entry);
+    index.set(key, list);
+  });
+  return index;
+}
+
+function findCashCounterpart(cashEntry, counterpartIndex) {
   const value = Number(cashEntry.debito || 0) - Number(cashEntry.credito || 0);
-  const candidates = entries
-    .filter((entry) => entry !== cashEntry)
-    .filter((entry) => entry.data === cashEntry.data)
-    .filter((entry) => normalize(entry.historico) === normalize(cashEntry.historico))
-    .filter((entry) => Math.abs((Number(entry.debito || 0) - Number(entry.credito || 0)) + value) < 0.005);
+  const candidates = counterpartIndex.get(dfcCounterpartKey(cashEntry, -value)) || [];
   return candidates.find((entry) => !isCashEntry(entry)) || candidates[0] || null;
 }
 
-function classifyDfcEntry(cashEntry, counterpart) {
+function prepareDfcConfig() {
+  const structureByNumber = new Map(dfcStructure()
+    .filter((item) => item.number && item.code)
+    .map((item) => [String(item.number), item.code]));
+  return {
+    links: state.dfcLinks.map((row) => normalizeDfcLink(row, structureByNumber)).filter((link) => link.codigo && link.destino),
+    rules: state.dfcRules.map(normalizeDfcRule).filter((rule) => rule.tipo && rule.valor && rule.destino),
+  };
+}
+
+function classifyDfcEntry(cashEntry, counterpart, dfcConfig) {
   const cashValue = Number(cashEntry.debito || 0) - Number(cashEntry.credito || 0);
   const code = gerencialCodeForEntry(counterpart);
   const text = normalize(`${counterpart?.descricao_conta || ""} ${counterpart?.categoria_gerencial || ""} ${counterpart?.grupo_macro || ""} ${counterpart?.historico || cashEntry.historico || ""}`);
-  const linkTarget = dfcLinkTarget(code, cashValue);
+  const linkTarget = dfcLinkTarget(code, cashValue, dfcConfig.links);
   if (linkTarget) return linkTarget;
-  const manualTarget = dfcRuleTarget(cashEntry, counterpart, code, text);
+  const manualTarget = dfcRuleTarget(cashEntry, counterpart, code, text, dfcConfig.rules);
   if (manualTarget) {
     return directionalDfcTarget(manualTarget, cashValue);
   }
@@ -380,13 +419,7 @@ function classifyDfcEntry(cashEntry, counterpart) {
   return "DFC.OP.OUTROS";
 }
 
-function dfcLinkTarget(code, cashValue) {
-  const structureByNumber = new Map(dfcStructure()
-    .filter((item) => item.number && item.code)
-    .map((item) => [String(item.number), item.code]));
-  const links = state.dfcLinks
-    .map((row) => normalizeDfcLink(row, structureByNumber))
-    .filter((link) => link.codigo && link.destino);
+function dfcLinkTarget(code, cashValue, links) {
   const match = links
     .filter((link) => code === link.codigo || code.startsWith(`${link.codigo}.`))
     .sort((a, b) => b.codigo.length - a.codigo.length)[0];
@@ -408,14 +441,11 @@ function directionalDfcTarget(target, cashValue) {
   return target;
 }
 
-function dfcRuleTarget(cashEntry, counterpart, code, text) {
+function dfcRuleTarget(cashEntry, counterpart, code, text, rules) {
   const classification = String(counterpart?.classificacao || "");
   const cashClassification = String(cashEntry?.classificacao || "");
   const accountName = normalize(counterpart?.descricao_conta || counterpart?.nome_conta || "");
   const cashText = normalize(`${cashEntry?.descricao_conta || ""} ${cashEntry?.historico || ""}`);
-  const rules = state.dfcRules
-    .map(normalizeDfcRule)
-    .filter((rule) => rule.tipo && rule.valor && rule.destino);
   const rule = rules.find((item) => {
     if (item.tipo === "codigo_gerencial" || item.tipo === "codigo") return code === item.valor || code.startsWith(`${item.valor}.`);
     if (item.tipo === "classificacao") return classification === item.valor || classification.startsWith(`${item.valor}.`);
@@ -435,7 +465,7 @@ function normalizeDfcRule(row) {
   };
 }
 
-function addDfcValue(row, cashEntry, counterpart) {
+function addDfcValue(row, cashEntry, counterpart, analyticsByRow) {
   if (!row) return;
   const value = Number(cashEntry.debito || 0) - Number(cashEntry.credito || 0);
   const month = String(cashEntry.data || "").slice(0, 7);
@@ -445,12 +475,14 @@ function addDfcValue(row, cashEntry, counterpart) {
   row.monthValues[month] = (row.monthValues[month] || 0) + value;
   row.qtd_lancamentos += 1;
   row.hasValue = true;
-  addDfcAnalytic(row, cashEntry, counterpart, value, month);
+  addDfcAnalytic(row, cashEntry, counterpart, value, month, analyticsByRow);
 }
 
-function addDfcAnalytic(row, cashEntry, counterpart, value, month) {
+function addDfcAnalytic(row, cashEntry, counterpart, value, month, analyticsByRow) {
   const key = counterpart?.classificacao || counterpart?.codigo_gerencial || "sem-contrapartida";
-  let analytic = row.contas.find((item) => item.classificacao === key);
+  const rowAnalytics = analyticsByRow.get(row.codigo_gerencial) || new Map();
+  analyticsByRow.set(row.codigo_gerencial, rowAnalytics);
+  let analytic = rowAnalytics.get(key);
   if (!analytic) {
     analytic = {
       kind: "analytic",
@@ -472,6 +504,7 @@ function addDfcAnalytic(row, cashEntry, counterpart, value, month) {
       dfcEntries: [],
     };
     row.contas.push(analytic);
+    rowAnalytics.set(key, analytic);
   }
   analytic.valor_gerencial += value;
   analytic.saldo += value;
