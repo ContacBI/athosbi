@@ -20,7 +20,7 @@ import { WIDGET_CATALOG, formatWidgetValue } from "../../lib/dashboardWidgets.js
 import { directChildren } from "../../lib/reportTree.js";
 import { buildDfcDirect, buildDfcIndirect } from "../../data/calculations.js";
 import { money } from "../../lib/format.js";
-import { columnLabel, columnValue, reportColumns } from "../../lib/reportColumns.js";
+import { columnLabel, columnValue, reportColumns, isZeroNoMovement } from "../../lib/reportColumns.js";
 import ReportSettingsMenu from "../ReportSettingsMenu.jsx";
 import { GRID_COLS, ROW_HEIGHT, layoutFor, marginPxFor, DEFAULT_SPACING } from "./gridLayout.js";
 
@@ -336,8 +336,10 @@ function ChartWidgetCard({ definition, ctx }) {
 
 function TableWidgetCard({ definition, ctx, maxRows }) {
   const state = useAppState();
+  const [expandedRows, setExpandedRows] = useState(new Set());
   const tab = definition.table === "bp" ? "BP" : definition.table?.startsWith("dfc_") ? "DFC" : "DRE";
-  const rows =
+  const isDfc = tab === "DFC";
+  const builtRows =
     definition.table === "dfc_direta"
       ? buildDfcDirect()
       : definition.table === "dfc_indireta"
@@ -349,7 +351,17 @@ function TableWidgetCard({ definition, ctx, maxRows }) {
         : (definition.table === "bp" ? ctx.bp : ctx.dre).filter(
             (row) => row.kind === "synthetic" && row.hasValue && Number(row.nivel || 0) >= 1 && Number(row.nivel || 0) <= 2
           );
+  const rows = state.hideZeroNoMovement
+    ? builtRows.filter((row) => row.natureza === "heading" || !isZeroNoMovement(row))
+    : builtRows;
   const visibleRows = maxRows ? rows.slice(0, maxRows) : rows;
+  const toggleRow = (code) =>
+    setExpandedRows((current) => {
+      const next = new Set(current);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
   const hiddenCount = rows.length - visibleRows.length;
   // "Saldo anterior" was never offered on this compact card — only the
   // months plus an optional "Saldo total" — so that stays pinned off here
@@ -377,14 +389,33 @@ function TableWidgetCard({ definition, ctx, maxRows }) {
       <div className="flex flex-col gap-1.5">
         {visibleRows.map((row) => {
           const isBold = row.isFormula || Number(row.nivel || 0) <= 1;
+          const children = isDfc ? row.contas || [] : [];
+          const isOpen = expandedRows.has(row.codigo_gerencial);
           return (
-            <div
-              key={row.codigo_gerencial}
-              className={`grid items-center gap-3 text-[13px] ${isBold ? "border-t border-line pt-1.5 font-semibold text-ink-900" : "text-ink-600"}`}
-              style={{ gridTemplateColumns: `minmax(180px, 1fr) ${columns.map(() => "92px").join(" ")}` }}
-            >
-              <span className="truncate">{row.categoria_gerencial}</span>
-              {columns.map((column) => { const value = valueFor(row, column); return <span key={column} className={`text-right tabular-nums ${row.isPercentage ? "text-navy-700" : moneyClass(value)}`}>{row.isPercentage ? `${Number(value || 0).toFixed(1).replace(".", ",")}%` : money(value)}</span>; })}
+            <div key={row.codigo_gerencial}>
+              <div
+                role={children.length ? "button" : undefined}
+                tabIndex={children.length ? 0 : undefined}
+                onClick={children.length ? () => toggleRow(row.codigo_gerencial) : undefined}
+                className={`grid items-center gap-3 text-[13px] ${isBold ? "border-t border-line pt-1.5 font-semibold text-ink-900" : "text-ink-600"} ${children.length ? "cursor-pointer hover:bg-surface-muted" : ""}`}
+                style={{ gridTemplateColumns: `minmax(180px, 1fr) ${columns.map(() => "92px").join(" ")}` }}
+              >
+                <span className="flex min-w-0 items-center gap-1 truncate">
+                  {children.length > 0 && <ChevronRight size={13} className={`shrink-0 transition-transform ${isOpen ? "rotate-90" : ""}`} />}
+                  {row.categoria_gerencial}
+                </span>
+                {columns.map((column) => { const value = valueFor(row, column); return <span key={column} className={`text-right tabular-nums ${row.isPercentage ? "text-navy-700" : moneyClass(value)}`}>{row.isPercentage ? `${Number(value || 0).toFixed(1).replace(".", ",")}%` : money(value)}</span>; })}
+              </div>
+              {isOpen && children.map((child) => (
+                <div
+                  key={child.classificacao}
+                  className="grid items-center gap-3 bg-surface-page/60 py-1 text-[12px] text-ink-500"
+                  style={{ gridTemplateColumns: `minmax(180px, 1fr) ${columns.map(() => "92px").join(" ")}` }}
+                >
+                  <span className="truncate pl-5">{child.nome_conta}</span>
+                  {columns.map((column) => { const value = valueFor(child, column); return <span key={column} className={`text-right tabular-nums ${moneyClass(value)}`}>{money(value)}</span>; })}
+                </div>
+              ))}
             </div>
           );
         })}
