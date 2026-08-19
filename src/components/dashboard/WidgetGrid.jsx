@@ -404,7 +404,7 @@ function TableWidgetCard({ definition, ctx, maxRows }) {
                   {children.length > 0 && <ChevronRight size={13} className={`shrink-0 transition-transform ${isOpen ? "rotate-90" : ""}`} />}
                   {row.categoria_gerencial}
                 </span>
-                {columns.map((column) => { const value = valueFor(row, column); return <span key={column} className={`text-right tabular-nums ${row.isPercentage ? "text-navy-700" : moneyClass(value)}`}>{row.isPercentage ? `${Number(value || 0).toFixed(1).replace(".", ",")}%` : money(value)}</span>; })}
+                {columns.map((column) => { const value = valueFor(row, column); return <span key={column} className={`whitespace-nowrap text-right tabular-nums ${row.isPercentage ? "text-navy-700" : moneyClass(value)}`}>{row.isPercentage ? `${Number(value || 0).toFixed(1).replace(".", ",")}%` : money(value)}</span>; })}
               </div>
               {isOpen && children.map((child) => (
                 <div
@@ -413,7 +413,7 @@ function TableWidgetCard({ definition, ctx, maxRows }) {
                   style={{ gridTemplateColumns: `minmax(180px, 1fr) ${columns.map(() => "92px").join(" ")}` }}
                 >
                   <span className="truncate pl-5">{child.nome_conta}</span>
-                  {columns.map((column) => { const value = valueFor(child, column); return <span key={column} className={`text-right tabular-nums ${moneyClass(value)}`}>{money(value)}</span>; })}
+                  {columns.map((column) => { const value = valueFor(child, column); return <span key={column} className={`whitespace-nowrap text-right tabular-nums ${moneyClass(value)}`}>{money(value)}</span>; })}
                 </div>
               ))}
             </div>

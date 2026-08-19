@@ -660,7 +660,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                     return (
                       <span
                         key={column}
-                        className={`text-right tabular-nums ${row.isFormula ? "font-semibold" : ""} ${
+                        className={`whitespace-nowrap text-right tabular-nums ${row.isFormula ? "font-semibold" : ""} ${
                           row.isPercentage ? "text-navy-700" : moneyClass(value)
                         }`}
                       >
@@ -739,7 +739,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                           const value = columnValue(row, column, { tab, bpMonthlyMode: appState.bpMonthlyMode, months });
                           const tone = columnTone(column) || moneyClass(value);
                           return (
-                            <span key={column} className={`text-right tabular-nums ${tone} ${isHighlight ? "font-semibold" : ""}`}>
+                            <span key={column} className={`whitespace-nowrap text-right tabular-nums ${tone} ${isHighlight ? "font-semibold" : ""}`}>
                               {money(value)}
                             </span>
                           );
