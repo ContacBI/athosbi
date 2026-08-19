@@ -20,7 +20,7 @@ import { WIDGET_CATALOG, formatWidgetValue } from "../../lib/dashboardWidgets.js
 import { directChildren } from "../../lib/reportTree.js";
 import { buildDfcDirect, buildDfcIndirect } from "../../data/calculations.js";
 import { money } from "../../lib/format.js";
-import { columnLabel, columnValue } from "../../lib/reportColumns.js";
+import { columnLabel, columnValue, reportColumns } from "../../lib/reportColumns.js";
 import ReportSettingsMenu from "../ReportSettingsMenu.jsx";
 import { GRID_COLS, ROW_HEIGHT, layoutFor, marginPxFor, DEFAULT_SPACING } from "./gridLayout.js";
 
@@ -351,11 +351,23 @@ function TableWidgetCard({ definition, ctx, maxRows }) {
           );
   const visibleRows = maxRows ? rows.slice(0, maxRows) : rows;
   const hiddenCount = rows.length - visibleRows.length;
-  const columns = state.reportCompare ? ctx.months : ["saldo"];
+  // "Saldo anterior" was never offered on this compact card — only the
+  // months plus an optional "Saldo total" — so that stays pinned off here
+  // even though reportColumns() can add it; this only picks up whatever
+  // ReportSettingsMenu's "Mostrar coluna saldo total" is set to.
+  const columns = state.reportCompare
+    ? reportColumns({
+        tab,
+        reportCompare: true,
+        showPreviousBalance: false,
+        showReportTotal: tab === "BP" ? state.showReportTotalBP : tab === "DFC" ? state.showReportTotalDFC : state.showReportTotalDRE,
+        bpMonthlyMode: state.bpMonthlyMode,
+      })
+    : ["saldo"];
   const valueFor = (row, column) => {
     if (column === "saldo") return row.saldo || 0;
-    if (tab === "BP") return columnValue(row, column, { tab, bpMonthlyMode: state.bpMonthlyMode, months: ctx.months });
-    return row.monthValues?.[column] || 0;
+    if (row.isPercentage) return column === "total" ? row.saldo : row.monthValues?.[column] || 0;
+    return columnValue(row, column, { tab, bpMonthlyMode: state.bpMonthlyMode, months: ctx.months });
   };
   return (
     <div className="min-w-0">

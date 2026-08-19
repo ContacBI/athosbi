@@ -3,7 +3,7 @@ import { ArrowDownToLine, ArrowUpFromLine, ChevronRight } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { buildDfcDirect, buildDfcIndirect, reportMonths } from "../data/calculations.js";
 import { money } from "../lib/format.js";
-import { columnLabel } from "../lib/reportColumns.js";
+import { columnLabel, isZeroNoMovement } from "../lib/reportColumns.js";
 import ReportSettingsMenu from "../components/ReportSettingsMenu.jsx";
 import LedgerModal from "../components/LedgerModal.jsx";
 
@@ -19,7 +19,10 @@ export default function Dfc({ lockedMode } = {}) {
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [ledgerRow, setLedgerRow] = useState(null);
   const columns = useMemo(() => (state.reportCompare ? reportMonths() : ["saldo"]), [state.reportCompare, state.periodStart, state.periodEnd, state.journal]);
-  const rows = mode === "direct" ? buildDfcDirect() : buildDfcIndirect();
+  const builtRows = mode === "direct" ? buildDfcDirect() : buildDfcIndirect();
+  const rows = state.hideZeroNoMovement
+    ? builtRows.filter((row) => row.natureza === "heading" || !isZeroNoMovement(row))
+    : builtRows;
   const toggle = (code) => setExpandedRows((current) => { const next = new Set(current); if (next.has(code)) next.delete(code); else next.add(code); return next; });
   return <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-4"><div className="flex items-center justify-between gap-3">{!lockedMode && <div className="inline-flex w-fit rounded-full bg-surface-muted p-1"><button type="button" onClick={() => setMode("direct")} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${mode === "direct" ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"}`}><ArrowDownToLine size={14} />DFC direta</button><button type="button" onClick={() => setMode("indirect")} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${mode === "indirect" ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"}`}><ArrowUpFromLine size={14} />DFC indireta</button></div>}<ReportSettingsMenu tab="DFC" /></div><DfcTable rows={rows} mode={mode} columns={columns} expandedRows={expandedRows} onToggle={toggle} onOpenLedger={setLedgerRow} />{ledgerRow && <LedgerModal row={ledgerRow} onClose={() => setLedgerRow(null)} />}</div>;
 }
