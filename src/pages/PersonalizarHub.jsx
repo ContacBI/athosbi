@@ -4,7 +4,7 @@ import { ArrowLeft, Copy, MoveHorizontal, Plus, Sparkles, Trash2, X } from "luci
 import { useAppState } from "../data/useStore.js";
 import { createTab, updateTab, deleteTab, createSubTab, updateSubTab, deleteSubTab } from "../lib/dashboardTabs.js";
 import { replicateDashboardTabs } from "../lib/companies.js";
-import { replicateGroupDashboardTabs } from "../lib/groups.js";
+import { replicateGroupDashboardTabs, replicateGroupDashboardTabsToCompanies } from "../lib/groups.js";
 import { buildDashboardContext } from "../lib/dashboardData.js";
 import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
 import { DEFAULT_SPACING } from "../components/dashboard/gridLayout.js";
@@ -20,13 +20,24 @@ const SPACING_OPTIONS = [
   { value: "amplo", label: "Amplo" },
 ];
 
+const KIND_LABELS = { grupo: { noun: "grupos", singular: "grupo" }, empresa: { noun: "empresas", singular: "empresa" } };
+
 // Works for both contexts (empresa ou grupo) — `kind` only changes the
 // copy ("empresas" vs "grupos") and the icon; which underlying replicate
 // function actually runs is entirely the caller's call via `onReplicate`.
+// From a group, `otherItems` can mix groups and companies (each item tags
+// its own `kind`) — a group's consolidated workspace is just as valid a
+// model for one client's own dashboard as it is for another group's.
 function ReplicateWorkspaceModal({ sourceItem, otherItems, kind, onClose, onReplicate }) {
   const [selected, setSelected] = useState(new Set());
-  const noun = kind === "grupo" ? "grupos" : "empresas";
-  const nounSingular = kind === "grupo" ? "grupo" : "empresa";
+  const mixedKinds = [...new Set(otherItems.map((item) => item.kind || kind))];
+  const noun = mixedKinds.length > 1 ? "grupos e empresas" : KIND_LABELS[mixedKinds[0] || kind].noun;
+  const sections = mixedKinds.length > 1
+    ? [
+        { label: "Grupos", items: otherItems.filter((item) => (item.kind || kind) === "grupo") },
+        { label: "Empresas", items: otherItems.filter((item) => (item.kind || kind) === "empresa") },
+      ].filter((section) => section.items.length > 0)
+    : [{ label: null, items: otherItems }];
 
   function toggle(id) {
     setSelected((current) => {
@@ -39,10 +50,12 @@ function ReplicateWorkspaceModal({ sourceItem, otherItems, kind, onClose, onRepl
 
   function handleApply() {
     if (!selected.size) return;
-    const names = otherItems.filter((item) => selected.has(item.id)).map((item) => item.name);
+    const chosen = otherItems.filter((item) => selected.has(item.id));
+    const names = chosen.map((item) => item.name);
+    const singular = KIND_LABELS[chosen[0]?.kind || kind].singular;
     if (
       !confirm(
-        `Substituir todo o workspace (abas, subabas e widgets) de ${names.length === 1 ? names[0] : `${names.length} ${noun}`} pelo workspace atual de "${sourceItem.name}"? O que ${names.length === 1 ? "esse " + nounSingular + " já tinha" : "esses " + noun + " já tinham"} montado será perdido.`
+        `Substituir todo o workspace (abas, subabas e widgets) de ${names.length === 1 ? names[0] : `${names.length} ${noun}`} pelo workspace atual de "${sourceItem.name}"? O que ${names.length === 1 ? "esse " + singular + " já tinha" : "esses " + noun + " já tinham"} montado será perdido.`
       )
     )
       return;
@@ -66,30 +79,35 @@ function ReplicateWorkspaceModal({ sourceItem, otherItems, kind, onClose, onRepl
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {otherItems.length === 0 ? (
             <p className="text-[13px] text-ink-400">
-              {kind === "grupo" ? "Crie outro grupo primeiro" : "Cadastre outra empresa primeiro"} pra poder replicar o workspace pra ele.
+              {kind === "grupo" ? "Crie outro grupo ou cadastre uma empresa primeiro" : "Cadastre outra empresa primeiro"} pra poder replicar o workspace pra ele.
             </p>
           ) : (
             <>
               <p className="mb-3 text-[12.5px] text-ink-500">Escolha pra quais {noun} copiar este workspace inteiro:</p>
-              <div className="flex flex-col gap-1">
-                {otherItems.map((item) => (
-                  <label
-                    key={item.id}
-                    className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors ${
-                      selected.has(item.id) ? "bg-accent-50" : "hover:bg-surface-muted"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.has(item.id)}
-                      onChange={() => toggle(item.id)}
-                      className="h-4 w-4 rounded border-line-strong text-accent-500 focus:ring-accent-400"
-                    />
-                    <Avatar name={item.name} size={26} />
-                    <span className="text-[13px] text-ink-700">{item.name}</span>
-                  </label>
-                ))}
-              </div>
+              {sections.map((section) => (
+                <div key={section.label || "all"} className="mb-3 last:mb-0">
+                  {section.label && <p className="mb-1.5 px-1 text-[11px] font-medium uppercase tracking-wide text-ink-400">{section.label}</p>}
+                  <div className="flex flex-col gap-1">
+                    {section.items.map((item) => (
+                      <label
+                        key={item.id}
+                        className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors ${
+                          selected.has(item.id) ? "bg-accent-50" : "hover:bg-surface-muted"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected.has(item.id)}
+                          onChange={() => toggle(item.id)}
+                          className="h-4 w-4 rounded border-line-strong text-accent-500 focus:ring-accent-400"
+                        />
+                        <Avatar name={item.name} size={26} />
+                        <span className="text-[13px] text-ink-700">{item.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </>
           )}
         </div>
@@ -212,10 +230,24 @@ export default function PersonalizarHub() {
   const activeCompany = appState.companies.find((company) => company.id === appState.activeCompanyId) || null;
   const activeGroupItem = appState.groups.find((group) => group.id === appState.activeGroupId) || null;
   const replicateSource = isGroupMode ? activeGroupItem : activeCompany;
+  // From a group, "outro grupo" and "empresa avulsa" are both valid targets —
+  // a group's consolidated workspace is just as good a model for one
+  // client's own dashboard as it is for another group's.
   const replicateTargets = isGroupMode
-    ? appState.groups.filter((group) => group.id !== appState.activeGroupId)
+    ? [
+        ...appState.groups.filter((group) => group.id !== appState.activeGroupId).map((group) => ({ ...group, kind: "grupo" })),
+        ...appState.companies.map((company) => ({ ...company, kind: "empresa" })),
+      ]
     : appState.companies.filter((company) => company.id !== appState.activeCompanyId);
-  const replicateFn = isGroupMode ? replicateGroupDashboardTabs : replicateDashboardTabs;
+  function replicateFromGroup(sourceId, targetIds) {
+    const groupIds = targetIds.filter((id) => appState.groups.some((group) => group.id === id));
+    const companyIds = targetIds.filter((id) => appState.companies.some((company) => company.id === id));
+    let applied = 0;
+    if (groupIds.length) applied += replicateGroupDashboardTabs(sourceId, groupIds);
+    if (companyIds.length) applied += replicateGroupDashboardTabsToCompanies(sourceId, companyIds);
+    return applied;
+  }
+  const replicateFn = isGroupMode ? replicateFromGroup : replicateDashboardTabs;
   const activeTab = tabs.find((item) => item.id === activeId) || null;
   const subTabs = activeTab?.subTabs || [];
   const hasData = appState.accounts.length > 0 || appState.journal.length > 0;
@@ -329,7 +361,7 @@ export default function PersonalizarHub() {
             <button
               type="button"
               onClick={() => setReplicateOpen(true)}
-              title={`Copiar este workspace inteiro pra outr${isGroupMode ? "os grupos" : "as empresas"}`}
+              title={`Copiar este workspace inteiro pra ${isGroupMode ? "outros grupos ou empresas" : "outras empresas"}`}
               className="flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-[12px] font-medium text-ink-700 transition-colors hover:bg-surface-muted"
             >
               <Copy size={14} strokeWidth={1.8} />
@@ -487,7 +519,7 @@ export default function PersonalizarHub() {
           onReplicate={replicateFn}
           onClose={(count) => {
             setReplicateOpen(false);
-            const noun = isGroupMode ? "grupo" : "empresa";
+            const noun = isGroupMode ? "destino" : "empresa";
             setFlash(count > 0 ? `Replicado pra ${count} ${noun}${count === 1 ? "" : "s"}.` : "");
             if (count > 0) setTimeout(() => setFlash(""), 3500);
           }}

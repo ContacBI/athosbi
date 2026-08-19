@@ -1,6 +1,6 @@
 import { state, setData } from "../data/useStore.js";
 import { ACTIVE_COMPANY_KEY, ACTIVE_GROUP_KEY, GROUPS_KEY, writePersistent } from "./persistence.js";
-import { persistActiveCompany } from "./companies.js";
+import { persistActiveCompany, replicateTabsToCompanies } from "./companies.js";
 
 function writeStoredGroups(groups) {
   return writePersistent(GROUPS_KEY, groups);
@@ -119,6 +119,15 @@ export function replicateGroupDashboardTabs(sourceId, targetIds) {
     setData({ dashboardTabs: updated?.dashboardTabs || [] });
   }
   return applied;
+}
+
+// A group's consolidated workspace used as the model for individual
+// companies (member or not) — same idea as replicateGroupDashboardTabs, just
+// stamped onto state.companies instead of state.groups.
+export function replicateGroupDashboardTabsToCompanies(sourceId, companyIds) {
+  const source = state.groups.find((group) => group.id === sourceId);
+  if (!source) return 0;
+  return replicateTabsToCompanies(source.dashboardTabs, companyIds);
 }
 
 export function deleteGroup(id) {

@@ -328,12 +328,13 @@ function cloneDashboardTabs(tabs) {
 // companies had gets overwritten, same as any other bulk-replace action in
 // this app (balancete, plano gerencial); the caller confirms with the user
 // first. Returns how many companies actually got updated.
-export function replicateDashboardTabs(sourceId, targetIds) {
-  const source = state.companies.find((company) => company.id === sourceId);
-  if (!source) return 0;
-  const sourceTabs = migrateDashboardTabs(source);
+// Shared by "empresa modelo -> outras empresas" and "grupo modelo -> empresas
+// avulsas" — the source's tabs are already resolved by the caller (a
+// migrateDashboardTabs(company) or a group's own dashboardTabs), this only
+// ever needs to know what to stamp and onto which company ids.
+function applyDashboardTabsToCompanies(sourceTabs, targetIds, excludeId) {
   const targetSet = new Set(targetIds);
-  targetSet.delete(sourceId);
+  if (excludeId) targetSet.delete(excludeId);
   if (!targetSet.size) return 0;
 
   let applied = 0;
@@ -352,6 +353,21 @@ export function replicateDashboardTabs(sourceId, targetIds) {
     setData({ dashboardTabs: updated?.dashboardTabs || [] });
   }
   return applied;
+}
+
+export function replicateDashboardTabs(sourceId, targetIds) {
+  const source = state.companies.find((company) => company.id === sourceId);
+  if (!source) return 0;
+  return applyDashboardTabsToCompanies(migrateDashboardTabs(source), targetIds, sourceId);
+}
+
+// A group's consolidated workspace used as the model for individual member
+// (or non-member) companies — same "replicar" mechanics as company-to-company,
+// just sourced from lib/groups.js's replicateGroupDashboardTabsToCompanies
+// instead of another company, since a group's tabs live in state.groups, not
+// state.companies.
+export function replicateTabsToCompanies(sourceTabs, targetIds) {
+  return applyDashboardTabsToCompanies(sourceTabs, targetIds);
 }
 
 export function deleteCompany(id) {
