@@ -16,6 +16,18 @@ export const PLANO_OVERRIDES_KEY = "portalGerencial.planoOverrides.v1";
 export const PLANO_SNAPSHOT_KEY = "portalGerencial.planoSnapshot.v1";
 export const PLANO_BACKUP_KEY = "portalGerencial.planoBackup.v1";
 
+// A company's "journal" (monthly ledger entries) is the one piece of data
+// that can run into the tens of thousands of rows — everything else in a
+// company record together rarely exceeds a few hundred KB. Keeping it
+// embedded inside the single COMPANIES_KEY blob meant editing anything on
+// any one company (even just a De/Para link) re-uploaded every company's
+// entire ledger on every save — multi-megabyte writes that took the better
+// part of a minute and were trivial to interrupt with a page reload,
+// silently discarding the edit. Splitting it into its own per-company key
+// means a save only ever re-uploads the ledger of the company that actually
+// changed. See lib/companies.js writeStoredCompanies/loadCompanies.
+export const companyJournalKey = (companyId) => `portalGerencial.companyJournal.${companyId}`;
+
 // Several screens can save the same "drawer" in quick succession (for
 // example, creating a company first saves the currently open company and
 // immediately after saves the new list). Network requests do not necessarily

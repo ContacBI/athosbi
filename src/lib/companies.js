@@ -5,13 +5,33 @@ import {
   GROUPS_KEY,
   ACTIVE_GROUP_KEY,
   readStoredArray,
+  readPersistent,
   writePersistent,
+  companyJournalKey,
 } from "./persistence.js";
 import { DEFAULT_NATURE_RULES } from "./accountNature.js";
 import { supabase, MONTHLY_REPORTS_BUCKET } from "./supabaseClient.js";
 
+// Remembers, per company id, the exact `journal` array reference last sent
+// to Supabase — so a save that didn't touch a given company's ledger (the
+// vast majority of saves: a De/Para edit or a dashboard tweak only ever
+// changes the active company) can skip re-uploading it. `.map()` calls that
+// leave a company untouched hand back the very same object/array reference,
+// so a `!==` check reliably tells "actually edited" apart from "just along
+// for the ride in the same companies array".
+const lastWrittenJournals = new Map();
+
 function writeStoredCompanies(companies) {
-  return writePersistent(COMPANIES_KEY, companies);
+  const writes = companies.map((company) => {
+    if (lastWrittenJournals.get(company.id) === company.journal) return null;
+    lastWrittenJournals.set(company.id, company.journal);
+    return writePersistent(companyJournalKey(company.id), company.journal || []);
+  });
+  // The light index (everything but the ledger) is comparatively small —
+  // still cheap to write in full every time, same as before.
+  const light = companies.map(({ journal, ...rest }) => rest);
+  writes.push(writePersistent(COMPANIES_KEY, light));
+  return Promise.all(writes.filter(Boolean));
 }
 
 function writeStoredGroups(groups) {
@@ -84,7 +104,19 @@ export function invalidateMappingsForPlanoCodes(codes) {
 // to avoid a circular import, since selectGroup itself calls back into
 // persistActiveCompany above).
 export async function loadCompanies() {
-  const companies = await readStoredArray(COMPANIES_KEY);
+  const light = await readStoredArray(COMPANIES_KEY);
+  const companies = await Promise.all(
+    light.map(async (company) => {
+      const journal = await readPersistent(companyJournalKey(company.id));
+      // `journal` embedded on `company` itself is only present for records
+      // saved before the ledger was split into its own key — once this
+      // company gets saved again it'll have its own key and this fallback
+      // stops being hit for it.
+      const resolved = journal !== undefined ? journal : company.journal || [];
+      lastWrittenJournals.set(company.id, resolved);
+      return { ...company, journal: resolved };
+    })
+  );
   const groups = await readStoredArray(GROUPS_KEY);
   const storedGroupId = localStorage.getItem(ACTIVE_GROUP_KEY);
   const groupValid = Boolean(storedGroupId) && groups.some((group) => group.id === storedGroupId);
