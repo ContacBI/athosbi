@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Calendar, ChevronDown } from "lucide-react";
+import { Calendar, ChevronDown, Check } from "lucide-react";
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -41,16 +41,36 @@ const PRESETS = [
 // popover carries quick presets plus the two raw pickers for custom ranges.
 export default function PeriodPicker({ label = "Período", start, end, onChange, accent = "accent" }) {
   const [open, setOpen] = useState(false);
+  // Typing a date is a multi-step edit (day, then month, then year) — firing
+  // onChange on every keystroke used to trigger a full report recompute each
+  // time, which is what made the picker feel like it was freezing on a
+  // company with a big journal. The two date fields only edit this local
+  // draft now; nothing recomputes until "Aplicar" is clicked.
+  const [draftStart, setDraftStart] = useState(start || "");
+  const [draftEnd, setDraftEnd] = useState(end || "");
   const rootRef = useRef(null);
 
   useEffect(() => {
     if (!open) return;
+    // Re-sync the draft to whatever's actually active every time the
+    // popover opens, so a stale edit from last time it was open (closed
+    // without applying) never lingers.
+    setDraftStart(start || "");
+    setDraftEnd(end || "");
     function handleOutside(event) {
       if (rootRef.current && !rootRef.current.contains(event.target)) setOpen(false);
     }
     document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const dirty = draftStart !== (start || "") || draftEnd !== (end || "");
+
+  function apply() {
+    onChange(draftStart, draftEnd);
+    setOpen(false);
+  }
 
   const hasRange = Boolean(start && end);
   const toneClasses =
@@ -95,8 +115,8 @@ export default function PeriodPicker({ label = "Período", start, end, onChange,
               Início
               <input
                 type="date"
-                value={start || ""}
-                onChange={(event) => onChange(event.target.value, end)}
+                value={draftStart}
+                onChange={(event) => setDraftStart(event.target.value)}
                 className="mt-1 block w-full rounded-md border border-line-strong px-2 py-1.5 text-[12px] outline-none focus:border-accent-500"
               />
             </label>
@@ -104,12 +124,21 @@ export default function PeriodPicker({ label = "Período", start, end, onChange,
               Fim
               <input
                 type="date"
-                value={end || ""}
-                onChange={(event) => onChange(start, event.target.value)}
+                value={draftEnd}
+                onChange={(event) => setDraftEnd(event.target.value)}
                 className="mt-1 block w-full rounded-md border border-line-strong px-2 py-1.5 text-[12px] outline-none focus:border-accent-500"
               />
             </label>
           </div>
+          <button
+            type="button"
+            onClick={apply}
+            disabled={!dirty}
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-md bg-accent-500 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Check size={13} strokeWidth={2} />
+            Aplicar
+          </button>
         </div>
       )}
     </div>

@@ -251,8 +251,8 @@ function renderLineOrBarChart(kind, ctx) {
   if (kind === "margens_comparativo") {
     const data = [
       { name: "Margem bruta", value: ctx.margemBruta },
-      { name: "Margem líquida", value: ctx.margemLiquida },
       { name: "Margem EBITDA", value: ctx.margemEbitda },
+      { name: "Margem líquida", value: ctx.margemLiquida },
     ];
     return (
       <ComposedChart data={data} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
