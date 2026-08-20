@@ -1295,6 +1295,26 @@ export function entriesForAccount(classificacao) {
   return filteredJournal().filter((entry) => (codes ? codes.has(entry.classificacao) : entry.classificacao === classificacao));
 }
 
+// Diagnóstico visual pro "Diário da conta": pra um lançamento, quais OUTROS
+// lançamentos do mesmo dia + mesmo histórico (mesma empresa) existem no
+// razão inteiro — ou seja, com quem ele "bate" na partida dobrada, sem
+// depender de acertar o valor exato (mostra tudo do grupo, mesmo que a
+// soma não feche, pra servir de conferência manual). Não usa período
+// filtrado — busca no razão inteiro, já que a contrapartida de um
+// lançamento pode ter sido classificada num mês/período diferente do
+// lançamento em si só por um problema de data.
+export function sameTransactionEntries(entry) {
+  if (!entry?.data || !entry?.historico) return [];
+  const key = normalize(entry.historico);
+  return state.journal.filter(
+    (other) =>
+      other !== entry &&
+      (other.companyId || "") === (entry.companyId || "") &&
+      other.data === entry.data &&
+      normalize(other.historico) === key
+  );
+}
+
 export function entriesForDfcAnalytic(parentCode, classificacao) {
   const parent = buildDfcDirect().find((row) => row.codigo_gerencial === parentCode);
   const analytic = parent?.contas?.find((row) => row.classificacao === classificacao);

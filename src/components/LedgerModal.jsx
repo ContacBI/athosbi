@@ -1,8 +1,14 @@
 import { Fragment } from "react";
 import { ArrowDownCircle, ArrowUpCircle, X } from "lucide-react";
-import { entriesForAccount } from "../data/calculations.js";
+import { entriesForAccount, sameTransactionEntries } from "../data/calculations.js";
 import { money } from "../lib/format.js";
 import Avatar from "./Avatar.jsx";
+
+// Nome de exibição de uma conta a partir de um lançamento — mesma
+// prioridade de campo usada em vários lugares (descricao_conta primeiro).
+function accountLabel(entry) {
+  return entry.descricao_conta || entry.categoria_gerencial || entry.classificacao || "(sem nome)";
+}
 
 function moneyClass(value) {
   const numeric = Number(value || 0);
@@ -33,6 +39,13 @@ export default function LedgerModal({ row, onClose }) {
   const totalDebito = entries.reduce((sum, entry) => sum + Number(entry.debito || 0), 0);
   const totalCredito = entries.reduce((sum, entry) => sum + Number(entry.credito || 0), 0);
   const label = row.nome_conta || row.categoria_gerencial;
+  // sameTransactionEntries varre o razão inteiro a cada chamada — ótimo
+  // pra conferir uma conta pequena (é exatamente o caso que motivou isso:
+  // achar por que só 4 de 6 pagamentos de um empréstimo "casavam"), mas
+  // inviável linha a linha numa conta com milhares de lançamentos
+  // (ex.: "Clientes Diversos" com quase 8 mil). Só mostra a contrapartida
+  // abaixo desse teto; contas grandes continuam mostrando só o lançamento.
+  const showCounterparts = entries.length <= 300;
   // Linha somada entre empresas (ver mergeGroupRowsByName em calculations.js)
   // carrega um array de códigos em vez de um só — mostra quantas empresas
   // foram somadas nessa conta em vez do código cru de cada uma.
@@ -106,10 +119,27 @@ export default function LedgerModal({ row, onClose }) {
                       </tr>
                     )}
                     <tr className={`transition-colors hover:bg-surface-muted ${index % 2 ? "bg-surface-page/60" : "bg-surface-card"}`}>
-                      <td className="whitespace-nowrap px-6 py-2 text-ink-600">{formatDate(entry.data)}</td>
-                      <td className="px-4 py-2 text-ink-900">{entry.historico}</td>
-                      <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums text-success-600">{entry.debito ? money(entry.debito) : ""}</td>
-                      <td className="whitespace-nowrap px-6 py-2 text-right tabular-nums text-danger-600">{entry.credito ? money(entry.credito) : ""}</td>
+                      <td className="whitespace-nowrap px-6 py-2 align-top text-ink-600">{formatDate(entry.data)}</td>
+                      <td className="px-4 py-2 text-ink-900">
+                        {entry.historico}
+                        {showCounterparts && (() => {
+                          const counterparts = sameTransactionEntries(entry);
+                          if (!counterparts.length) {
+                            return <div className="mt-0.5 text-[10.5px] italic text-warning-600">↔ nenhuma contrapartida achada no mesmo dia/histórico</div>;
+                          }
+                          return (
+                            <div className="mt-0.5 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[10.5px] text-ink-400">
+                              {counterparts.map((counterpart, counterpartIndex) => (
+                                <span key={counterpartIndex}>
+                                  ↔ {accountLabel(counterpart)} ({money(Number(counterpart.debito || 0) - Number(counterpart.credito || 0))})
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2 align-top text-right tabular-nums text-success-600">{entry.debito ? money(entry.debito) : ""}</td>
+                      <td className="whitespace-nowrap px-6 py-2 align-top text-right tabular-nums text-danger-600">{entry.credito ? money(entry.credito) : ""}</td>
                     </tr>
                   </Fragment>
                 );
