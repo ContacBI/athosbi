@@ -522,55 +522,81 @@ function cashPieceFor(cashEntry, counterpart) {
   return { ...cashEntry, debito: Number(counterpart.credito || 0), credito: Number(counterpart.debito || 0) };
 }
 
+// Empacota uma lista de contrapartidas já resolvidas (uma perna ou duas de
+// um lançamento composto) no formato que findCashPieces devolve.
+function closeCashPieces(cashEntry, counterparts) {
+  return { pieces: counterparts.map((counterpart) => ({ counterpart, entry: cashPieceFor(cashEntry, counterpart) })), leftover: 0 };
+}
+
 // Retorna { pieces, leftover }:
 //   - pieces: lista de { counterpart, entry } prontos pra addDfcValue —
-//     um só no caso de sempre (contrapartida exata), dois ou mais quando
-//     é um lançamento composto que fechou certinho (a soma das
-//     contrapartidas bate com o valor do lançamento de caixa).
+//     um só no caso de sempre (contrapartida exata), dois quando é um
+//     lançamento composto que fechou certinho (a soma das contrapartidas
+//     bate com o valor do lançamento de caixa).
 //   - leftover: quanto do valor do lançamento de caixa NÃO foi possível
 //     explicar com nenhuma contrapartida — vai pra "Sem contrapartida
 //     identificada" (nunca fica perdido/escondido).
 // Retorna null quando a única contrapartida achada é outra conta de
 // caixa (transferência entre contas do próprio caixa — quem chama ignora
 // esses, igual sempre fez).
+//
+// Tenta, em ordem (do mais certo pro mais arriscado — só avança pro
+// próximo nível se o anterior não fechou o valor em centavos):
+//  1. uma conta do MESMO histórico do caixa cujo valor sozinho já fecha
+//     (testa TODAS as candidatas, não só a primeira — quando várias contas
+//     dividem um histórico genérico no mesmo dia, ex. "RENDIMENTO DE
+//     APLICACAO FINANCEIRA" batendo em 4 fundos diferentes, a primeira da
+//     lista raramente é a que pertence a ESSE lançamento específico);
+//  2. uma conta do MESMO histórico como perna principal + uma segunda
+//     conta no mesmo dia, com QUALQUER outro histórico, cuja soma feche
+//     (o caso do empréstimo + juros: históricos diferentes, mesmo dia);
+//  3. quando NENHUMA perna do lançamento compartilha o histórico do caixa
+//     — comum quando o extrato bancário importado usa uma descrição
+//     própria (ex. "RECEBIMENTO - ... BAIXA POR COBRANCA ESCRITURAL - DOC
+//     N 17792") que não bate com o histórico lançado nas contas
+//     contrapartida (ex. "CLIENTES DIVERSOS" + "JUROS E MULTAS ATIVAS") —
+//     procura só por empresa + dia, sem exigir histórico igual: uma conta
+//     sozinha, ou um par de contas, cuja soma feche exatamente. Exigir o
+//     fechamento exato em centavos é o que evita casar lançamentos que só
+//     coincidem de estar no mesmo dia por acaso.
 function findCashPieces(cashEntry, groupIndex, dayIndex) {
   const cashValue = entryValue(cashEntry);
-  const exactCandidates = (groupIndex.get(dfcGroupKey(cashEntry)) || []).filter((entry) => entry !== cashEntry);
-  const primary = exactCandidates.find((entry) => !isCashEntry(entry));
+  const target = Math.round(-cashValue * 100);
+  const sameHistorico = (groupIndex.get(dfcGroupKey(cashEntry)) || []).filter((entry) => entry !== cashEntry && !isCashEntry(entry));
+  const sameDay = (dayIndex.get(dfcDayKey(cashEntry)) || []).filter((entry) => entry !== cashEntry && !isCashEntry(entry));
 
-  if (!primary) {
-    if (exactCandidates.some((entry) => isCashEntry(entry))) return null; // transferência entre caixas
-    return { pieces: [], leftover: cashValue };
+  if (!sameDay.length) {
+    const groupHasOnlyCash = (groupIndex.get(dfcGroupKey(cashEntry)) || []).some((entry) => entry !== cashEntry && isCashEntry(entry));
+    return groupHasOnlyCash ? null : { pieces: [], leftover: cashValue };
   }
 
-  const primaryValue = entryValue(primary);
-  if (Math.round(primaryValue * 100) === Math.round(-cashValue * 100)) {
-    return { pieces: [{ counterpart: primary, entry: cashPieceFor(cashEntry, primary) }], leftover: 0 };
+  const exactSingle = sameHistorico.find((entry) => Math.round(entryValue(entry) * 100) === target);
+  if (exactSingle) return closeCashPieces(cashEntry, [exactSingle]);
+
+  for (const primary of sameHistorico) {
+    const remainder = target - Math.round(entryValue(primary) * 100);
+    const extra = sameDay.find((entry) => entry !== primary && Math.round(entryValue(entry) * 100) === remainder);
+    if (extra) return closeCashPieces(cashEntry, [primary, extra]);
   }
 
-  // A contrapartida principal sozinha não fecha o valor — procura, no
-  // mesmo dia (qualquer histórico), uma outra conta cuja soma com a
-  // principal feche exatamente o valor do lançamento de caixa.
-  const remainder = -cashValue - primaryValue;
-  const sameDay = (dayIndex.get(dfcDayKey(cashEntry)) || []).filter((entry) => entry !== cashEntry && entry !== primary && !isCashEntry(entry));
-  const extra = sameDay.find((entry) => Math.round(entryValue(entry) * 100) === Math.round(remainder * 100));
+  const daySingle = sameDay.find((entry) => Math.round(entryValue(entry) * 100) === target);
+  if (daySingle) return closeCashPieces(cashEntry, [daySingle]);
 
-  if (extra) {
-    return {
-      pieces: [
-        { counterpart: primary, entry: cashPieceFor(cashEntry, primary) },
-        { counterpart: extra, entry: cashPieceFor(cashEntry, extra) },
-      ],
-      leftover: 0,
-    };
+  for (let i = 0; i < sameDay.length; i += 1) {
+    const first = sameDay[i];
+    const remainder = target - Math.round(entryValue(first) * 100);
+    const second = sameDay.find((entry, index) => index > i && Math.round(entryValue(entry) * 100) === remainder);
+    if (second) return closeCashPieces(cashEntry, [first, second]);
   }
 
-  // Não achou como fechar a diferença — usa a principal do jeito que ela
-  // é (valor dela mesma, não uma fração) e deixa o restante visível em
-  // "Sem contrapartida identificada" em vez de forçar um número.
+  // Não achou como fechar de jeito nenhum — usa a primeira candidata do
+  // mesmo histórico (se houver; senão a primeira do mesmo dia) do jeito
+  // que ela é, e deixa o restante visível em "Sem contrapartida
+  // identificada" em vez de forçar um número.
+  const fallback = sameHistorico[0] || sameDay[0];
   return {
-    pieces: [{ counterpart: primary, entry: cashPieceFor(cashEntry, primary) }],
-    leftover: cashValue - -primaryValue,
+    pieces: [{ counterpart: fallback, entry: cashPieceFor(cashEntry, fallback) }],
+    leftover: cashValue - -entryValue(fallback),
   };
 }
 
