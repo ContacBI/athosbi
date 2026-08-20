@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowDownToLine, ArrowUpFromLine, ChevronRight, Search, Waves } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, ChevronRight, Maximize2, Minimize2, Search, Waves } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { buildDfcDirect, buildDfcIndirect, reportMonths } from "../data/calculations.js";
 import { money, moneyOrDash, periodLabelPt } from "../lib/format.js";
@@ -47,17 +47,23 @@ function buildDfcExportColumns(columns) {
   return columns.map((column) => ({ key: column, label: columnLabel(column) }));
 }
 
-function buildDfcExportRows(rows, columns) {
+// Exporta exatamente o que está na tela — só entra o detalhe analítico de
+// uma linha (row.contas) se ela estiver expandida no momento do clique em
+// "Baixar". Antes exportava tudo aberto sempre, direto do relatório
+// completo, sem olhar pro que estava fechado/aberto na tela.
+function buildDfcExportRows(rows, columns, expandedRows) {
   const out = [];
   const cellsFor = (source) => {
     const cells = {};
     columns.forEach((column) => { cells[column] = moneyOrDash(column === "saldo" ? source.saldo : source.monthValues?.[column] || 0); });
     return cells;
   };
+  const codeLabel = (classificacao) => (Array.isArray(classificacao) ? classificacao.join(", ") : classificacao || "");
   rows.forEach((row) => {
     out.push({ codigo: row.codigo_gerencial || "", nome: row.categoria_gerencial || "", nivel: Number(row.nivel || 0), isAnalytic: false, cells: cellsFor(row) });
+    if (!expandedRows.has(row.codigo_gerencial)) return;
     (row.contas || []).forEach((child) => {
-      out.push({ codigo: child.classificacao || "", nome: child.nome_conta || "", nivel: Number(row.nivel || 0) + 1, isAnalytic: true, cells: cellsFor(child) });
+      out.push({ codigo: codeLabel(child.classificacao), nome: child.nome_conta || "", nivel: Number(row.nivel || 0) + 1, isAnalytic: true, cells: cellsFor(child) });
     });
   });
   return out;
@@ -100,14 +106,19 @@ function DfcRow({ row, columns, template, isOpen, onToggle, onOpenLedger }) {
           {children.length > 0 && <ChevronRight size={15} className={`shrink-0 transition-transform ${isOpen ? "rotate-90" : ""}`} />}
           <span className="truncate">{row.categoria_gerencial}</span>
         </span>
-        {columns.map((column) => {
-          const value = column === "saldo" ? row.saldo : row.monthValues?.[column] || 0;
-          return (
-            <span key={column} className={`whitespace-nowrap text-right tabular-nums text-[13px] ${value < 0 ? "text-danger-600" : "text-ink-900"}`}>
-              {money(value)}
-            </span>
-          );
-        })}
+        {/* Linha de cabeçalho de seção (ex.: "ATIVIDADES OPERACIONAIS") não
+            carrega valor de verdade — antes mostrava "R$ 0,00" em cada mês
+            à toa; agora fica em branco, só o título mesmo. */}
+        {!heading &&
+          columns.map((column) => {
+            const value = column === "saldo" ? row.saldo : row.monthValues?.[column] || 0;
+            return (
+              <span key={column} className={`whitespace-nowrap text-right tabular-nums text-[13px] ${value < 0 ? "text-danger-600" : "text-ink-900"}`}>
+                {money(value)}
+              </span>
+            );
+          })}
+        {heading && columns.map((column) => <span key={column} />)}
       </button>
       {isOpen &&
         children.map((child) => (
@@ -136,8 +147,13 @@ function DfcRow({ row, columns, template, isOpen, onToggle, onOpenLedger }) {
   );
 }
 
-function DfcTable({ rows, mode, columns, expandedRows, onToggle, onOpenLedger, search }) {
-  const template = `minmax(280px, 1fr) ${columns.map(() => "120px").join(" ")}`;
+function DfcTable({ rows, mode, columns, expandedRows, onToggle, onOpenLedger, search, expanded }) {
+  // Coluna de valor com largura mínima em vez de fixa — com fixa, um valor
+  // largo (ex.: "-R$ 1.628.776,38") estourava os 120px e desalinhava o
+  // corpo em relação ao cabeçalho de meses. minmax deixa a coluna crescer
+  // quando precisa, cabeçalho e linhas sempre usam o mesmo template então
+  // continuam alinhados entre si.
+  const template = `minmax(240px, 1fr) ${columns.map(() => "minmax(112px, auto)").join(" ")}`;
   const visibleRows = rows.filter((row) => matchesSearch(row, search));
   let lastGroup = "";
   return (
@@ -149,7 +165,7 @@ function DfcTable({ rows, mode, columns, expandedRows, onToggle, onOpenLedger, s
         </div>
         <span className="rounded-full bg-accent-50 px-2.5 py-1 text-[11px] font-medium text-accent-700">{visibleRows.length} linhas</span>
       </div>
-      <div className="max-h-[68vh] overflow-auto">
+      <div className={`overflow-auto scrollbar-thin ${expanded ? "max-h-[calc(100vh-260px)]" : "max-h-[68vh]"}`}>
         <div className="min-w-max">
           <div className="sticky top-0 z-10 grid border-b border-line bg-surface-muted px-4 py-2 text-[11px] font-medium text-ink-400" style={{ gridTemplateColumns: template }}>
             <span>Conta</span>
@@ -200,6 +216,7 @@ export default function Dfc({ lockedMode } = {}) {
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [ledgerRow, setLedgerRow] = useState(null);
   const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState(false);
   const columns = useMemo(() => (state.reportCompare ? reportMonths() : ["saldo"]), [state.reportCompare, state.periodStart, state.periodEnd, state.journal]);
   const builtRows = mode === "direct" ? buildDfcDirect() : buildDfcIndirect();
   const rows = state.hideZeroNoMovement
@@ -207,53 +224,69 @@ export default function Dfc({ lockedMode } = {}) {
     : builtRows;
   const toggle = (code) => setExpandedRows((current) => { const next = new Set(current); if (next.has(code)) next.delete(code); else next.add(code); return next; });
   useDownloadHandlers(rows.length ? {
-    pdf: () => exportDemonstrativoPdf({ ...exportMeta(state, mode), columns: buildDfcExportColumns(columns), rows: buildDfcExportRows(rows, columns) }),
-    excel: () => exportDemonstrativoExcel({ ...exportMeta(state, mode), columns: buildDfcExportColumns(columns), rows: buildDfcExportRows(rows, columns) }),
+    pdf: () => exportDemonstrativoPdf({ ...exportMeta(state, mode), columns: buildDfcExportColumns(columns), rows: buildDfcExportRows(rows, columns, expandedRows) }),
+    excel: () => exportDemonstrativoExcel({ ...exportMeta(state, mode), columns: buildDfcExportColumns(columns), rows: buildDfcExportRows(rows, columns, expandedRows) }),
   } : null);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {!lockedMode && (
-            <div className="inline-flex w-fit rounded-full bg-surface-muted p-1">
+    <div className={expanded ? "fixed inset-0 z-50 overflow-y-auto bg-surface-page p-5" : "flex flex-col gap-4"}>
+      <div className={expanded ? "mx-auto flex max-w-[1600px] flex-col gap-4" : "contents"}>
+        <div className="rounded-xl bg-surface-card p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {!lockedMode && (
+                <div className="inline-flex w-fit rounded-full bg-surface-muted p-1">
+                  <button
+                    type="button"
+                    onClick={() => setLocalMode("direct")}
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${mode === "direct" ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"}`}
+                  >
+                    <ArrowDownToLine size={14} />DFC direta
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLocalMode("indirect")}
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${mode === "indirect" ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"}`}
+                  >
+                    <ArrowUpFromLine size={14} />DFC indireta
+                  </button>
+                </div>
+              )}
+              <div className="relative">
+                <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-400" />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Buscar conta"
+                  className="w-52 rounded-md border border-line-strong bg-surface-card py-1.5 pl-7 pr-2 text-[12.5px] outline-none focus:border-accent-500"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <ReportSettingsMenu tab="DFC" />
               <button
                 type="button"
-                onClick={() => setLocalMode("direct")}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${mode === "direct" ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"}`}
+                onClick={() => setExpanded((value) => !value)}
+                aria-label={expanded ? "Sair da tela cheia" : "Tela cheia"}
+                title={expanded ? "Sair da tela cheia" : "Tela cheia"}
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-ink-500 transition-colors hover:bg-surface-muted"
               >
-                <ArrowDownToLine size={14} />DFC direta
-              </button>
-              <button
-                type="button"
-                onClick={() => setLocalMode("indirect")}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${mode === "indirect" ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"}`}
-              >
-                <ArrowUpFromLine size={14} />DFC indireta
+                {expanded ? <Minimize2 size={14} strokeWidth={1.8} /> : <Maximize2 size={14} strokeWidth={1.8} />}
               </button>
             </div>
-          )}
-          <div className="relative">
-            <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-400" />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar conta"
-              className="w-52 rounded-md border border-line-strong bg-surface-card py-1.5 pl-7 pr-2 text-[12.5px] outline-none focus:border-accent-500"
-            />
           </div>
         </div>
-        <ReportSettingsMenu tab="DFC" />
+        <DfcTable
+          rows={rows}
+          mode={mode}
+          columns={columns}
+          expandedRows={expandedRows}
+          onToggle={toggle}
+          onOpenLedger={setLedgerRow}
+          search={norm(search)}
+          expanded={expanded}
+        />
       </div>
-      <DfcTable
-        rows={rows}
-        mode={mode}
-        columns={columns}
-        expandedRows={expandedRows}
-        onToggle={toggle}
-        onOpenLedger={setLedgerRow}
-        search={norm(search)}
-      />
       {ledgerRow && <LedgerModal row={ledgerRow} onClose={() => setLedgerRow(null)} />}
     </div>
   );

@@ -1,7 +1,11 @@
-﻿export function money(value) {
+﻿// Zero vira "-" em vez de "R$ 0,00" — em toda a tela, não só nos exports
+// (era assim só no export antes; o padrão da própria planilha de referência
+// da equipe contábil já imprimia célula vazia assim, então virou o padrão
+// daqui pra frente em qualquer lugar que usa money()).
+export function money(value) {
   const numberValue = Number(value || 0);
-  const normalized = Math.abs(numberValue) < 0.005 ? 0 : numberValue;
-  return normalized.toLocaleString("pt-BR", {
+  if (Math.abs(numberValue) < 0.005) return "-";
+  return numberValue.toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
     minimumFractionDigits: 2,
@@ -12,12 +16,10 @@ export function number(value) {
   return Number(value || 0).toLocaleString("pt-BR");
 }
 
-// Same as money(), but renders exact-zero cells as "-" instead of "R$ 0,00" —
-// matches how the accounting team's own report templates print empty cells.
+// Mantido por compatibilidade com quem já chamava explicitamente por esse
+// nome — hoje é o mesmo comportamento de money().
 export function moneyOrDash(value) {
-  const numberValue = Number(value || 0);
-  if (Math.abs(numberValue) < 0.005) return "-";
-  return money(numberValue);
+  return money(value);
 }
 
 export function formatDatePt(iso) {

@@ -76,7 +76,7 @@ function analyticBreakdown(tree, code) {
   const row = tree.find((item) => item.codigo_gerencial === code);
   if (!row || !row.contas?.length) return [];
   const entries = filteredJournal();
-  return row.contas.map((account) => {
+  const perAccount = row.contas.map((account) => {
     const accountEntries = entries.filter((entry) => entry.classificacao === account.classificacao);
     const monthValues = {};
     let saldo = 0;
@@ -88,6 +88,7 @@ function analyticBreakdown(tree, code) {
     });
     return {
       classificacao: account.classificacao,
+      companyId: account.companyId,
       codigo: account.codigo,
       nome_conta: account.nome_conta,
       categoria_gerencial: row.categoria_gerencial,
@@ -97,6 +98,32 @@ function analyticBreakdown(tree, code) {
       monthValues,
     };
   });
+
+  // Mesma questão de sempre: em modo grupo cada empresa tem seu próprio
+  // account (código namespaced), então a mesma conta de verdade em 3
+  // empresas irmãs virava 3 entradas aqui. Junta por nome quando há mais
+  // de uma empresa nesse conjunto — mesmo critério do mergeGroupRowsByName.
+  const companyCount = new Set(perAccount.map((item) => item.companyId).filter(Boolean)).size;
+  if (companyCount <= 1) return perAccount.map(({ companyId: _companyId, ...rest }) => rest);
+
+  const merged = new Map();
+  const order = [];
+  perAccount.forEach((item) => {
+    const key = comparableAccountName(item.nome_conta || item.classificacao);
+    if (!merged.has(key)) {
+      merged.set(key, { ...item, classificacao: [item.classificacao] });
+      order.push(key);
+      return;
+    }
+    const target = merged.get(key);
+    target.classificacao.push(item.classificacao);
+    target.qtd_lancamentos += item.qtd_lancamentos;
+    target.saldo += item.saldo;
+    Object.entries(item.monthValues).forEach(([month, value]) => {
+      target.monthValues[month] = (target.monthValues[month] || 0) + value;
+    });
+  });
+  return order.map((key) => { const { companyId: _companyId, ...rest } = merged.get(key); return rest; });
 }
 
 // DFC indireta: parte do resultado e reconcilia as variações das principais
@@ -154,10 +181,15 @@ export function buildDfcIndirect() {
   const operatingMonths = sumMonths(resultMonths, depreciationMonths, clientMonths, inventoryMonths, supplierMonths, obligationMonths);
   add("DFCI.OP.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES OPERACIONAIS", operating, "Operacional", "subtotal", operatingMonths);
   const directValue = (code) => direct.find((row) => row.codigo_gerencial === code)?.saldo || 0;
+  const directContas = (code) => direct.find((row) => row.codigo_gerencial === code)?.contas || [];
   const investmentMonths = rowMonths(direct, "DFC.INV.CAIXA_LIQUIDO");
   const financingMonths = rowMonths(direct, "DFC.FIN.CAIXA_LIQUIDO");
-  add("DFCI.INV.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES DE INVESTIMENTO", directValue("DFC.INV.CAIXA_LIQUIDO"), "Investimento", "subtotal", investmentMonths);
-  add("DFCI.FIN.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES DE FINANCIAMENTO", directValue("DFC.FIN.CAIXA_LIQUIDO"), "Financiamento", "subtotal", financingMonths);
+  // As linhas de Investimento e Financiamento reaproveitam o valor da DFC
+  // direta (comentário no topo da função), mas antes não reaproveitavam
+  // as CONTAS dela — ficavam sem "contas" (padrão [] do add()), então sem
+  // seta pra abrir, "impossível de expandir" na indireta.
+  add("DFCI.INV.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES DE INVESTIMENTO", directValue("DFC.INV.CAIXA_LIQUIDO"), "Investimento", "subtotal", investmentMonths, directContas("DFC.INV.CAIXA_LIQUIDO"));
+  add("DFCI.FIN.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES DE FINANCIAMENTO", directValue("DFC.FIN.CAIXA_LIQUIDO"), "Financiamento", "subtotal", financingMonths, directContas("DFC.FIN.CAIXA_LIQUIDO"));
   add("DFCI.CASH.VARIACAO", "AUMENTO/(REDUÇÃO) NAS DISPONIBILIDADES", operating + directValue("DFC.INV.CAIXA_LIQUIDO") + directValue("DFC.FIN.CAIXA_LIQUIDO"), "Disponibilidades", "subtotal", sumMonths(operatingMonths, investmentMonths, financingMonths));
   add("DFCI.CASH.INICIO", "DISPONIBILIDADES NO INÍCIO DO PERÍODO", directValue("DFC.CASH.INICIO"), "Disponibilidades", "subtotal", rowMonths(direct, "DFC.CASH.INICIO"));
   add("DFCI.CASH.FIM", "DISPONIBILIDADES NO FINAL DO PERÍODO", directValue("DFC.CASH.FIM"), "Disponibilidades", "subtotal", rowMonths(direct, "DFC.CASH.FIM"));
@@ -532,7 +564,16 @@ function addDfcValue(row, cashEntry, counterpart, analyticsByRow) {
 }
 
 function addDfcAnalytic(row, cashEntry, counterpart, value, month, analyticsByRow) {
-  const key = counterpart?.classificacao || counterpart?.codigo_gerencial || "sem-contrapartida";
+  // Em modo grupo cada empresa tem sua contrapartida com um código
+  // namespaced próprio (ver groups.js) mesmo quando é a MESMA conta de
+  // verdade (ex.: "CLIENTES DIVERSOS" repetida em 3 empresas irmãs) — sem
+  // isso, virava uma linha analítica separada por empresa na DFC. Junta
+  // pelo nome nesse caso, igual já fazemos pro Balanço/DRE
+  // (mergeGroupRowsByName). classificacao vira um array dos códigos reais
+  // por trás — entriesForAccount já sabe lidar com array (ver ali).
+  const isGroupAccount = Boolean(counterpart?.companyId);
+  const nameKey = comparableAccountName(counterpart?.categoria_gerencial || counterpart?.descricao_conta || "");
+  const key = isGroupAccount && nameKey ? `grupo::${nameKey}` : counterpart?.classificacao || counterpart?.codigo_gerencial || "sem-contrapartida";
   const rowAnalytics = analyticsByRow.get(row.codigo_gerencial) || new Map();
   analyticsByRow.set(row.codigo_gerencial, rowAnalytics);
   let analytic = rowAnalytics.get(key);
@@ -540,7 +581,7 @@ function addDfcAnalytic(row, cashEntry, counterpart, value, month, analyticsByRo
     analytic = {
       kind: "analytic",
       demonstrativo: "DFC",
-      classificacao: key,
+      classificacao: isGroupAccount ? [] : counterpart?.classificacao || key,
       codigo: counterpart?.codigo_gerencial || "",
       codigo_gerencial: row.codigo_gerencial,
       nome_conta: counterpart?.descricao_conta || counterpart?.categoria_gerencial || "Sem contrapartida identificada",
@@ -558,6 +599,9 @@ function addDfcAnalytic(row, cashEntry, counterpart, value, month, analyticsByRo
     };
     row.contas.push(analytic);
     rowAnalytics.set(key, analytic);
+  }
+  if (isGroupAccount && counterpart?.classificacao && Array.isArray(analytic.classificacao) && !analytic.classificacao.includes(counterpart.classificacao)) {
+    analytic.classificacao.push(counterpart.classificacao);
   }
   analytic.valor_gerencial += value;
   analytic.saldo += value;
