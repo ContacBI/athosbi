@@ -130,7 +130,7 @@ export default function PainelTab() {
     return (
       <div className="mx-auto flex w-full flex-col gap-3">
         {subTabStrip}
-        <Dfc lockedMode={soleLinkDefinition.navState?.mode} />
+        <Dfc key={soleLinkDefinition.navState?.mode} lockedMode={soleLinkDefinition.navState?.mode} />
       </div>
     );
   }

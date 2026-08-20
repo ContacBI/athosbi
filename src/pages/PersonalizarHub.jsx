@@ -493,7 +493,7 @@ export default function PersonalizarHub() {
           {isSoleLink ? (
             <Demonstrativos lockedTab={soleLinkDefinition.navState?.tab} />
           ) : isSoleDfcLink ? (
-            <Dfc lockedMode={soleLinkDefinition.navState?.mode} />
+            <Dfc key={soleLinkDefinition.navState?.mode} lockedMode={soleLinkDefinition.navState?.mode} />
           ) : (
             <CanvasEditor
               widgets={editWidgets}
