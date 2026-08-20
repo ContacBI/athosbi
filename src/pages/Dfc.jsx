@@ -2,10 +2,54 @@ import { useMemo, useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, ChevronRight } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { buildDfcDirect, buildDfcIndirect, reportMonths } from "../data/calculations.js";
-import { money } from "../lib/format.js";
+import { money, moneyOrDash, periodLabelPt } from "../lib/format.js";
 import { columnLabel, isZeroNoMovement } from "../lib/reportColumns.js";
+import { activeWorkspaceName } from "../lib/groups.js";
+import { exportDemonstrativoPdf } from "../lib/reportPdf.js";
+import { exportDemonstrativoExcel } from "../lib/reportExcel.js";
+import { useDownloadHandlers } from "../lib/pageActions.jsx";
 import ReportSettingsMenu from "../components/ReportSettingsMenu.jsx";
 import LedgerModal from "../components/LedgerModal.jsx";
+
+// Mesmo padrão de exportação de Demonstrativos.jsx (exportMeta/buildExportColumns/
+// buildExportRows), simplificado pro formato da DFC: só o modo "padrão" existe
+// aqui (sem comparativo/vertical), e as contas analíticas vêm em row.contas em
+// vez de já estarem achatadas nas linhas — exporta tudo (não só o que estiver
+// expandido na tela), pra não depender do estado de UI no momento do clique.
+function exportMeta(state, mode) {
+  const company = state.companies.find((item) => item.id === state.activeCompanyId);
+  const workspaceName = activeWorkspaceName();
+  const reportName = `DFC ${mode === "direct" ? "Direta" : "Indireta"}`;
+  const periodLabel = periodLabelPt(state.periodStart, state.periodEnd);
+  const metaLine = [company?.cnpj && `CNPJ ${company.cnpj}`, reportName, periodLabel].filter(Boolean).join(" | ");
+  const fileLabel = `${reportName}_${workspaceName}`
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return { companyName: workspaceName, reportName, metaLine, fileLabel };
+}
+
+function buildDfcExportColumns(columns) {
+  return columns.map((column) => ({ key: column, label: columnLabel(column) }));
+}
+
+function buildDfcExportRows(rows, columns) {
+  const out = [];
+  const cellsFor = (source) => {
+    const cells = {};
+    columns.forEach((column) => { cells[column] = moneyOrDash(column === "saldo" ? source.saldo : source.monthValues?.[column] || 0); });
+    return cells;
+  };
+  rows.forEach((row) => {
+    out.push({ codigo: row.codigo_gerencial || "", nome: row.categoria_gerencial || "", nivel: Number(row.nivel || 0), isAnalytic: false, cells: cellsFor(row) });
+    (row.contas || []).forEach((child) => {
+      out.push({ codigo: child.classificacao || "", nome: child.nome_conta || "", nivel: Number(row.nivel || 0) + 1, isAnalytic: true, cells: cellsFor(child) });
+    });
+  });
+  return out;
+}
 
 function DfcTable({ rows, mode, columns, expandedRows, onToggle, onOpenLedger }) {
   let lastGroup = "";
@@ -24,5 +68,9 @@ export default function Dfc({ lockedMode } = {}) {
     ? builtRows.filter((row) => row.natureza === "heading" || !isZeroNoMovement(row))
     : builtRows;
   const toggle = (code) => setExpandedRows((current) => { const next = new Set(current); if (next.has(code)) next.delete(code); else next.add(code); return next; });
+  useDownloadHandlers(rows.length ? {
+    pdf: () => exportDemonstrativoPdf({ ...exportMeta(state, mode), columns: buildDfcExportColumns(columns), rows: buildDfcExportRows(rows, columns) }),
+    excel: () => exportDemonstrativoExcel({ ...exportMeta(state, mode), columns: buildDfcExportColumns(columns), rows: buildDfcExportRows(rows, columns) }),
+  } : null);
   return <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4"><div className="flex items-center justify-between gap-3">{!lockedMode && <div className="inline-flex w-fit rounded-full bg-surface-muted p-1"><button type="button" onClick={() => setMode("direct")} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${mode === "direct" ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"}`}><ArrowDownToLine size={14} />DFC direta</button><button type="button" onClick={() => setMode("indirect")} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${mode === "indirect" ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"}`}><ArrowUpFromLine size={14} />DFC indireta</button></div>}<ReportSettingsMenu tab="DFC" /></div><DfcTable rows={rows} mode={mode} columns={columns} expandedRows={expandedRows} onToggle={toggle} onOpenLedger={setLedgerRow} />{ledgerRow && <LedgerModal row={ledgerRow} onClose={() => setLedgerRow(null)} />}</div>;
 }

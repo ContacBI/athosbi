@@ -110,6 +110,7 @@ function RowLabel({ row, canToggle, isOpen, isHighlight }) {
 
 function gridTemplate({ mode, columnsCount, showTrend }) {
   if (mode === "comparativo") return "minmax(260px,1fr) 118px 118px 118px 90px";
+  if (mode === "vertical" && columnsCount) return `minmax(260px,1fr) ${Array(columnsCount).fill("170px").join(" ")}`;
   if (mode === "vertical") return "minmax(260px,1fr) 118px 170px";
   // Na análise horizontal cada mês mostra o valor e, ao lado, a variação %.
   const cols = Array(columnsCount).fill(mode === "horizontal" ? "170px" : "112px").join(" ");
@@ -266,6 +267,13 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
   const [mode, setMode] = useState("padrao");
   const [compareStart, setCompareStart] = useState("");
   const [compareEnd, setCompareEnd] = useState("");
+  // Período A antes era sempre o período global (o do topo da tela) sem
+  // opção de trocar. Vazio aqui significa "segue o período global" — só
+  // passa a valer um período próprio quando o usuário mexe no PeriodPicker.
+  const [compareAStart, setCompareAStart] = useState("");
+  const [compareAEnd, setCompareAEnd] = useState("");
+  const effectiveAStart = compareAStart || appState.periodStart;
+  const effectiveAEnd = compareAEnd || appState.periodEnd;
   const [ledgerRow, setLedgerRow] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [ebitdaChart, setEbitdaChart] = useState("evolucao");
@@ -305,6 +313,10 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
 
   const columns = useMemo(() => {
     if (mode === "horizontal") return months;
+    // "Comparar meses" na Análise vertical: um par Valor/% por mês, em vez
+    // de um só pra todo o período (era ignorado nesse modo antes — o
+    // checkbox existia mas não tinha efeito nenhum aqui).
+    if (mode === "vertical") return appState.reportCompare ? months : null;
     if (mode !== "padrao" && mode !== "executiva") return null;
     return reportColumns({
       tab,
@@ -365,12 +377,38 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
     return new Map(compareRows.map((row) => [rowKey(row), row]));
   }, [compareRows]);
 
+  const compareARows = useMemo(() => {
+    if (!hasData || mode !== "comparativo") return null;
+    return rowsForPeriod(tab, effectiveAStart, effectiveAEnd);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasData, mode, tab, effectiveAStart, effectiveAEnd, appState.mappings, appState.accounts, appState.journal, appState.expandedLines]);
+
+  const compareAMap = useMemo(() => {
+    if (!compareARows) return null;
+    return new Map(compareARows.map((row) => [rowKey(row), row]));
+  }, [compareARows]);
+
   const baseValue = useMemo(() => {
     if (mode !== "vertical") return 0;
     const baseCode = tab === "DRE" ? "DRE.03" : "01";
     const baseRow = rows.find((row) => row.codigo_gerencial === baseCode);
     return baseRow ? Math.abs(rowValue(baseRow, tab)) : 0;
   }, [mode, tab, rows]);
+
+  // Base do "% do ativo/receita" mês a mês, pro modo "Comparar meses" da
+  // Análise vertical — mesma ideia do baseValue acima, só que uma base por
+  // coluna em vez de uma só pro período inteiro.
+  const baseValueByMonth = useMemo(() => {
+    if (mode !== "vertical" || !appState.reportCompare || !months.length) return null;
+    const baseCode = tab === "DRE" ? "DRE.03" : "01";
+    const baseRow = rows.find((row) => row.codigo_gerencial === baseCode);
+    if (!baseRow) return null;
+    const map = new Map();
+    months.forEach((month) => {
+      map.set(month, Math.abs(columnValue(baseRow, month, { tab, bpMonthlyMode: appState.bpMonthlyMode, months })));
+    });
+    return map;
+  }, [mode, tab, rows, appState.reportCompare, appState.bpMonthlyMode, months]);
 
   const missing = useMemo(() => (hasData ? missingMappingAccounts() : []), [hasData, appState.mappings, appState.accounts]);
 
@@ -397,6 +435,9 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
         { key: "diffPct", label: "Var. %" },
       ];
     }
+    if (mode === "vertical" && baseValueByMonth) {
+      return columns.map((month) => ({ key: month, label: columnLabel(month) }));
+    }
     if (mode === "vertical") {
       return [
         { key: "valor", label: "Valor" },
@@ -420,11 +461,21 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
         isAnalytic: row.kind !== "synthetic",
       };
       if (mode === "comparativo") {
-        const a = rowValue(row, tab);
+        const a = compareAMap ? rowValue(compareAMap.get(rowKey(row)) || {}, tab) : rowValue(row, tab);
         const b = compareMap ? rowValue(compareMap.get(rowKey(row)) || {}, tab) : 0;
         const diff = a - b;
         const diffPct = b ? (diff / Math.abs(b)) * 100 : 0;
         return { ...base, cells: { a: format(a), b: format(b), diff: format(diff), diffPct: format(diffPct, true) } };
+      }
+      if (mode === "vertical" && baseValueByMonth) {
+        const cells = {};
+        columns.forEach((month) => {
+          const value = columnValue(row, month, { tab, bpMonthlyMode: appState.bpMonthlyMode, months });
+          const monthBase = baseValueByMonth.get(month);
+          const pct = monthBase ? (Math.abs(value) / monthBase) * 100 : 0;
+          cells[month] = `${format(value)} (${format(pct, true)})`;
+        });
+        return { ...base, cells };
       }
       if (mode === "vertical") {
         const value = rowValue(row, tab);
@@ -460,7 +511,10 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
     const hasAnalytic = activeRows.some((row) => row.kind !== "synthetic");
     const maxLevel = activeRows.reduce((max, row) => Math.max(max, Number(row.nivel || 0)), 0);
     const depthLabel = hasAnalytic ? "Analítico" : maxLevel ? `Sintético até nível ${maxLevel}` : "";
-    const periodLabel = periodLabelPt(appState.periodStart, appState.periodEnd);
+    const periodLabel =
+      mode === "comparativo" && compareStart && compareEnd
+        ? `${periodLabelPt(effectiveAStart, effectiveAEnd)} vs ${periodLabelPt(compareStart, compareEnd)}`
+        : periodLabelPt(appState.periodStart, appState.periodEnd);
     // Balanço não leva CNPJ na linha de meta (mesmo padrão da referência);
     // DRE/EBITDA levam CNPJ + a profundidade de detalhe exibida — um grupo
     // não tem um único CNPJ, então essa parte só aparece com uma empresa.
@@ -572,9 +626,16 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
           </div>
           {mode === "comparativo" && (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-md border border-line-strong bg-surface-card px-3 py-1.5 text-[12px] text-ink-500">
-                Período A: <span className="font-medium text-ink-900">{periodLabelPt(appState.periodStart, appState.periodEnd)}</span>
-              </span>
+              <PeriodPicker
+                label="Período A"
+                start={effectiveAStart}
+                end={effectiveAEnd}
+                accent="accent"
+                onChange={(start, end) => {
+                  setCompareAStart(start);
+                  setCompareAEnd(end);
+                }}
+              />
               <span className="text-[11px] text-ink-300">vs</span>
               <PeriodPicker
                 label="Período B"
@@ -700,12 +761,15 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                     <span className="text-right">Var. %</span>
                   </>
                 )}
-                {mode === "vertical" && (
+                {mode === "vertical" && !baseValueByMonth && (
                   <>
                     <span className="text-right">Valor</span>
                     <span className="text-right">% {tab === "DRE" ? "da receita" : "do ativo"}</span>
                   </>
                 )}
+                {mode === "vertical" && baseValueByMonth && columns?.map((month) => (
+                  <span key={month} className="text-right">{columnLabel(month)}</span>
+                ))}
               </div>
 
               {rows.map((row, index) => {
@@ -771,7 +835,8 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
 
                     {mode === "comparativo" &&
                       (() => {
-                        const a = rowValue(row, tab);
+                        const compareARow = compareAMap?.get(rowKey(row));
+                        const a = compareARow ? rowValue(compareARow, tab) : rowValue(row, tab);
                         const compareRow = compareMap.get(rowKey(row));
                         const b = compareRow ? rowValue(compareRow, tab) : 0;
                         const diff = a - b;
@@ -786,7 +851,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                         );
                       })()}
 
-                    {mode === "vertical" &&
+                    {mode === "vertical" && !baseValueByMonth &&
                       (() => {
                         const value = rowValue(row, tab);
                         const pct = baseValue ? (Math.abs(value) / baseValue) * 100 : 0;
@@ -800,6 +865,22 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                           </>
                         );
                       })()}
+
+                    {/* "Comparar meses": um par valor/% por mês — sem a barrinha de
+                        progresso (MiniBar), que fica poluída com várias colunas
+                        lado a lado; só o percentual mesmo, como no padrão/horizontal. */}
+                    {mode === "vertical" && baseValueByMonth &&
+                      columns.map((month) => {
+                        const value = columnValue(row, month, { tab, bpMonthlyMode: appState.bpMonthlyMode, months });
+                        const base = baseValueByMonth.get(month);
+                        const pct = base ? (Math.abs(value) / base) * 100 : 0;
+                        return (
+                          <span key={month} className="flex items-baseline justify-end gap-2 tabular-nums">
+                            <span className={moneyClass(value)}>{money(value)}</span>
+                            <span className="text-[11px] font-normal text-ink-500">{formatPercent(pct)}</span>
+                          </span>
+                        );
+                      })}
                   </button>
                 );
               })}

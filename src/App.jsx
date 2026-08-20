@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import CompanyLayout from "./components/CompanyLayout.jsx";
 import ParametrosLayout from "./components/ParametrosLayout.jsx";
@@ -7,24 +7,39 @@ import Login from "./pages/Login.jsx";
 import { supabase } from "./lib/supabaseClient.js";
 import Empresas from "./pages/Empresas.jsx";
 import CompanyHome from "./pages/CompanyHome.jsx";
-import PainelTab from "./pages/PainelTab.jsx";
-import PersonalizarHub from "./pages/PersonalizarHub.jsx";
-import Demonstrativos from "./pages/Demonstrativos.jsx";
-import Dfc from "./pages/Dfc.jsx";
-import Depara from "./pages/Depara.jsx";
-import RelatoriosMensais from "./pages/RelatoriosMensais.jsx";
-import CompaniesAdmin from "./pages/parametros/CompaniesAdmin.jsx";
-import GruposAdmin from "./pages/parametros/GruposAdmin.jsx";
-import DeParaAdmin from "./pages/parametros/DeParaAdmin.jsx";
-import Representantes from "./pages/parametros/Representantes.jsx";
-import BiAdmin from "./pages/parametros/BiAdmin.jsx";
-import Sistema from "./pages/parametros/Sistema.jsx";
-import PlanoGerencial from "./pages/parametros/PlanoGerencial.jsx";
 import { loadPlan } from "./lib/plan.js";
 import { loadCompanies } from "./lib/companies.js";
 import { selectGroup } from "./lib/groups.js";
 import { loadRepresentantes } from "./lib/representantes.js";
 import { loadIndicatorOverrides } from "./lib/indicators.js";
+
+// Carregadas sob demanda (React.lazy) em vez de no pacote inicial — são as
+// telas que só entram depois que a pessoa já navegou pra dentro de uma
+// empresa/parâmetros, e várias delas puxam bibliotecas pesadas (jsPDF,
+// html2canvas, xlsx, exceljs) só usadas nesse momento. Landing/Login/
+// Empresas/CompanyHome continuam no pacote inicial — são a primeira tela
+// que qualquer sessão vê.
+const PainelTab = lazy(() => import("./pages/PainelTab.jsx"));
+const PersonalizarHub = lazy(() => import("./pages/PersonalizarHub.jsx"));
+const Demonstrativos = lazy(() => import("./pages/Demonstrativos.jsx"));
+const Dfc = lazy(() => import("./pages/Dfc.jsx"));
+const Depara = lazy(() => import("./pages/Depara.jsx"));
+const RelatoriosMensais = lazy(() => import("./pages/RelatoriosMensais.jsx"));
+const CompaniesAdmin = lazy(() => import("./pages/parametros/CompaniesAdmin.jsx"));
+const GruposAdmin = lazy(() => import("./pages/parametros/GruposAdmin.jsx"));
+const DeParaAdmin = lazy(() => import("./pages/parametros/DeParaAdmin.jsx"));
+const Representantes = lazy(() => import("./pages/parametros/Representantes.jsx"));
+const BiAdmin = lazy(() => import("./pages/parametros/BiAdmin.jsx"));
+const Sistema = lazy(() => import("./pages/parametros/Sistema.jsx"));
+const PlanoGerencial = lazy(() => import("./pages/parametros/PlanoGerencial.jsx"));
+
+function RouteFallback() {
+  return (
+    <div className="flex h-[60vh] items-center justify-center text-[13px] text-ink-400">
+      Carregando…
+    </div>
+  );
+}
 
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = ainda não checou, null = deslogado
@@ -107,6 +122,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route index element={<Landing />} />
         <Route path="empresas" element={<Empresas />} />
@@ -131,6 +147,7 @@ export default function App() {
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

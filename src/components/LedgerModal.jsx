@@ -99,7 +99,7 @@ export default function LedgerModal({ row, onClose }) {
                 return (
                   <Fragment key={`${entry.linha_origem}-${index}`}>
                     {newCompany && (
-                      <tr key={`company-${entry.companyName}-${index}`}>
+                      <tr key={`company-${entry.companyName}-${index}`} className="sticky top-9 z-[1]">
                         <td colSpan={4} className="border-y border-line bg-surface-muted px-6 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
                           {entry.companyName || "Empresa não identificada"}
                         </td>
