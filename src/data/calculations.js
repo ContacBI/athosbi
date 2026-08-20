@@ -46,16 +46,29 @@ export function buildDfcDirect() {
   const byCode = new Map(rows.map((row) => [row.codigo_gerencial, row]));
   const entries = filteredJournal();
   const counterpartIndex = indexDfcCounterparts(entries);
+  const groupIndex = indexDfcGroups(entries);
   const dfcConfig = prepareDfcConfig();
   const analyticsByRow = new Map();
   const cashEntries = entries.filter(isCashEntry);
 
   cashEntries.forEach((entry) => {
     if (isOpeningBalanceEntry(entry)) return;
-    const counterpart = findCashCounterpart(entry, counterpartIndex);
-    if (counterpart && isCashEntry(counterpart)) return;
-    const targetCode = classifyDfcEntry(entry, counterpart, dfcConfig);
-    addDfcValue(byCode.get(targetCode) || byCode.get("DFC.OP.OUTROS"), entry, counterpart, analyticsByRow);
+    const allocations = findCashAllocations(entry, counterpartIndex, groupIndex);
+    if (allocations.length === 1 && isCashEntry(allocations[0].counterpart)) return; // transferência entre contas de caixa
+    if (!allocations.length) {
+      const targetCode = classifyDfcEntry(entry, null, dfcConfig);
+      addDfcValue(byCode.get(targetCode) || byCode.get("DFC.OP.OUTROS"), entry, null, analyticsByRow);
+      return;
+    }
+    allocations.forEach(({ counterpart, share }) => {
+      const targetCode = classifyDfcEntry(entry, counterpart, dfcConfig);
+      // share === 1 é o caso comum (um contrapartida só) — usa a entrada
+      // original sem alterar nada, mesmo objeto de sempre. Só um lançamento
+      // composto (share < 1, mais de uma contrapartida) precisa de uma
+      // cópia com o valor proporcional à parte que cabe a essa contrapartida.
+      const partialEntry = share === 1 ? entry : { ...entry, debito: Number(entry.debito || 0) * share, credito: Number(entry.credito || 0) * share };
+      addDfcValue(byCode.get(targetCode) || byCode.get("DFC.OP.OUTROS"), partialEntry, counterpart, analyticsByRow);
+    });
   });
 
   applyDfcSubtotals(byCode);
@@ -471,7 +484,7 @@ function isOpeningBalanceEntry(entry) {
 // parcelas e datas parecidas. Fora do modo grupo, companyId e undefined
 // pra todo mundo, entao isso nao muda nada pra uma empresa sozinha.
 function dfcCounterpartKey(entry, value = Number(entry.debito || 0) - Number(entry.credito || 0)) {
-  return `${entry.companyId || ""}\u0000${entry.data || ""}\u0000${normalize(entry.historico)}\u0000${Math.round(value * 100)}`;
+  return JSON.stringify([entry.companyId || "", entry.data || "", normalize(entry.historico), Math.round(value * 100)]);
 }
 
 function indexDfcCounterparts(entries) {
@@ -485,10 +498,63 @@ function indexDfcCounterparts(entries) {
   return index;
 }
 
-function findCashCounterpart(cashEntry, counterpartIndex) {
-  const value = Number(cashEntry.debito || 0) - Number(cashEntry.credito || 0);
-  const candidates = counterpartIndex.get(dfcCounterpartKey(cashEntry, -value)) || [];
-  return candidates.find((entry) => !isCashEntry(entry)) || candidates[0] || null;
+// Mesma ideia de dfcCounterpartKey, mas SEM o valor — agrupa todo lançamento
+// (de qualquer valor) do mesmo dia + histórico dentro da mesma empresa. Usada
+// só quando o casamento exato (com valor) não acha nada: é o sinal de um
+// LANÇAMENTO COMPOSTO — um único crédito de caixa baixando várias contas de
+// uma vez (ex.: uma parcela de empréstimo cuja baixa cobre principal +
+// juros em duas linhas de débito separadas), onde nenhuma conta sozinha
+// bate com o valor total do lançamento de caixa, mas a SOMA delas bate.
+function dfcGroupKey(entry) {
+  return JSON.stringify([entry.companyId || "", entry.data || "", normalize(entry.historico)]);
+}
+
+function indexDfcGroups(entries) {
+  const index = new Map();
+  entries.forEach((entry) => {
+    const key = dfcGroupKey(entry);
+    const list = index.get(key) || [];
+    list.push(entry);
+    index.set(key, list);
+  });
+  return index;
+}
+
+// Retorna uma lista de { counterpart, share } — share é a fração do valor
+// do cashEntry que cabe a cada contrapartida:
+//   - Caso de sempre (um contrapartida só, valor exatamente oposto):
+//     [{ counterpart, share: 1 }] — comportamento idêntico a antes.
+//   - Transferência entre duas contas de caixa (nenhuma contrapartida
+//     "real" achada, só outra entrada de caixa com valor oposto):
+//     [{ counterpart: <a entrada de caixa>, share: 1 }] — quem chama
+//     continua reconhecendo isCashEntry(counterpart) e ignorando, igual
+//     sempre fez.
+//   - Lançamento composto (nenhum casamento exato, mas duas ou mais
+//     contrapartidas do mesmo dia/histórico somam o valor do cashEntry):
+//     uma entrada por contrapartida, share proporcional ao valor de cada
+//     uma — assim cada pedaço (ex.: principal do empréstimo, juros) vai
+//     pra sua própria linha da DFC com o valor certo, em vez do
+//     lançamento inteiro cair em "Sem contrapartida identificada".
+//   - Nada bate de jeito nenhum: [] (mesmo fallback "sem contrapartida"
+//     de sempre, só que agora reservado pro que de fato não tem como
+//     identificar, não mais pra todo lançamento composto).
+function findCashAllocations(cashEntry, counterpartIndex, groupIndex) {
+  const cashValue = Number(cashEntry.debito || 0) - Number(cashEntry.credito || 0);
+  const exactMatches = counterpartIndex.get(dfcCounterpartKey(cashEntry, -cashValue)) || [];
+  const exactNonCash = exactMatches.find((entry) => !isCashEntry(entry));
+  if (exactNonCash) return [{ counterpart: exactNonCash, share: 1 }];
+  if (exactMatches.length) return [{ counterpart: exactMatches[0], share: 1 }];
+
+  const group = (groupIndex.get(dfcGroupKey(cashEntry)) || []).filter((entry) => entry !== cashEntry && !isCashEntry(entry));
+  if (!group.length) return [];
+  const total = group.reduce((sum, entry) => sum + (Number(entry.debito || 0) - Number(entry.credito || 0)), 0);
+  if (Math.round(total * 100) !== Math.round(-cashValue * 100)) return [];
+  const totalAbs = group.reduce((sum, entry) => sum + Math.abs(Number(entry.debito || 0) - Number(entry.credito || 0)), 0);
+  if (!totalAbs) return [];
+  return group.map((counterpart) => ({
+    counterpart,
+    share: Math.abs(Number(counterpart.debito || 0) - Number(counterpart.credito || 0)) / totalAbs,
+  }));
 }
 
 function prepareDfcConfig() {
