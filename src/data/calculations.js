@@ -558,11 +558,14 @@ function closeCashPieces(cashEntry, counterparts) {
 //     — comum quando o extrato bancário importado usa uma descrição
 //     própria (ex. "RECEBIMENTO - ... BAIXA POR COBRANCA ESCRITURAL - DOC
 //     N 17792") que não bate com o histórico lançado nas contas
-//     contrapartida (ex. "CLIENTES DIVERSOS" + "JUROS E MULTAS ATIVAS") —
-//     procura só por empresa + dia, sem exigir histórico igual: uma conta
-//     não-caixa sozinha, ou um par delas, cuja soma feche exatamente.
-//     Exigir o fechamento exato em centavos é o que evita casar
-//     lançamentos que só coincidem de estar no mesmo dia por acaso.
+//     contrapartida (ex. "CLIENTES DIVERSOS" + "JUROS E MULTAS ATIVAS"), ou
+//     é um "vários débitos para vários créditos" de verdade (ex.: um
+//     pagamento de tributos saindo do Caixa e entrando em INSS + IRRF +
+//     Salários, cada um com histórico próprio) — procura só por empresa +
+//     dia, sem exigir histórico igual: uma conta não-caixa sozinha, um par,
+//     ou uma trinca delas, cuja soma feche exatamente. Exigir o fechamento
+//     exato em centavos é o que evita casar lançamentos que só coincidem
+//     de estar no mesmo dia por acaso.
 //  4. só se NADA acima fechou: confere se é uma TRANSFERÊNCIA entre contas
 //     de caixa/equivalentes — outra conta de caixa aparece no mesmo
 //     histórico, ou no mesmo dia com o valor batendo exato — e, se for,
@@ -596,6 +599,23 @@ function findCashPieces(cashEntry, groupIndex, dayIndex) {
     const remainder = target - Math.round(entryValue(first) * 100);
     const second = sameDay.find((entry, index) => index > i && Math.round(entryValue(entry) * 100) === remainder);
     if (second) return closeCashPieces(cashEntry, [first, second]);
+  }
+
+  // Um "vários débitos para vários créditos" real pode ter 3+ contas do
+  // outro lado (ex.: um pagamento de tributos com Caixa de um lado e
+  // INSS + IRRF + Salários do outro, cada um com histórico próprio) — o
+  // par acima não fecha nesses casos. Tenta trincas antes de desistir; um
+  // teto no tamanho de sameDay evita busca combinatória explosiva num dia
+  // muito cheio (não deveria faltar em nenhum caso real: um lote de
+  // lançamento raramente tem dezenas de contrapartidas).
+  if (sameDay.length <= 80) {
+    for (let i = 0; i < sameDay.length; i += 1) {
+      for (let j = i + 1; j < sameDay.length; j += 1) {
+        const remainder = target - Math.round(entryValue(sameDay[i]) * 100) - Math.round(entryValue(sameDay[j]) * 100);
+        const third = sameDay.find((entry, index) => index > j && Math.round(entryValue(entry) * 100) === remainder);
+        if (third) return closeCashPieces(cashEntry, [sameDay[i], sameDay[j], third]);
+      }
+    }
   }
 
   const transferByHistorico = sameHistoricoAll.some((entry) => isCashEntry(entry));
