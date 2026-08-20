@@ -857,9 +857,31 @@ function cashEquivalentAccounts() {
     .filter((account) => isCashEntry({ ...account, descricao_conta: account.nome_conta, historico: "" }));
 }
 
+// Composição, conta a conta, de "DISPONIBILIDADES - NO INÍCIO/FINAL DO
+// PERÍODO" — antes vinha com monthValues sempre {} (todo mês em branco) e
+// qtd_lancamentos sempre 0, então clicar numa conta de caixa aqui não dava
+// nenhuma pista pra comparar mês a mês com o razão de verdade. Recalcula o
+// saldo de CADA conta mês a mês (saldo_anterior do período + movimento
+// acumulado dos lançamentos DELA até aquele mês) do mesmo jeito que
+// applyDfcAvailability já faz pro total — "início" mostra o saldo ANTES do
+// movimento do mês, "final" mostra DEPOIS.
 function cashEquivalentAnalyticRows(balanceField, parentCode) {
+  const isStart = balanceField === "saldo_anterior";
+  const months = reportMonths();
+  const journal = filteredJournal();
   return cashEquivalentAccounts().map((account) => {
     const value = Number(account[balanceField] || 0);
+    const accountEntries = journal.filter((entry) => entry.classificacao === account.classificacao);
+    const monthValues = {};
+    let running = Number(account.saldo_anterior || 0);
+    months.forEach((month) => {
+      const beforeMonth = running;
+      const monthMovement = accountEntries
+        .filter((entry) => String(entry.data || "").slice(0, 7) === month)
+        .reduce((sum, entry) => sum + entryValue(entry), 0);
+      running += monthMovement;
+      monthValues[month] = isStart ? beforeMonth : running;
+    });
     return {
       kind: "analytic",
       demonstrativo: "DFC",
@@ -870,14 +892,14 @@ function cashEquivalentAnalyticRows(balanceField, parentCode) {
       categoria_gerencial: "Caixa e equivalentes",
       grupo_macro: "Disponibilidades",
       nivel: 2,
-      qtd_lancamentos: 0,
-      monthValues: {},
+      qtd_lancamentos: accountEntries.length,
+      monthValues,
       valor_gerencial: value,
       saldo: value,
       saldo_final: value,
       movimento_periodo: value,
-      saldo_anterior_balancete: balanceField === "saldo_anterior" ? value : 0,
-      dfcEntries: [],
+      saldo_anterior_balancete: isStart ? value : 0,
+      dfcEntries: accountEntries,
     };
   });
 }
