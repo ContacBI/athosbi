@@ -536,39 +536,48 @@ function closeCashPieces(cashEntry, counterparts) {
 //   - leftover: quanto do valor do lançamento de caixa NÃO foi possível
 //     explicar com nenhuma contrapartida — vai pra "Sem contrapartida
 //     identificada" (nunca fica perdido/escondido).
-// Retorna null quando a única contrapartida achada é outra conta de
-// caixa (transferência entre contas do próprio caixa — quem chama ignora
-// esses, igual sempre fez).
+// Retorna null quando a contrapartida é outra conta de caixa/equivalente
+// (transferência entre disponibilidades — Caixa pra Aplicação, entre
+// fundos etc.) — não é entrada nem saída de caixa de verdade, então o
+// lançamento inteiro é ignorado, nunca sobra em "sem contrapartida".
 //
 // Tenta, em ordem (do mais certo pro mais arriscado — só avança pro
 // próximo nível se o anterior não fechou o valor em centavos):
-//  1. uma conta do MESMO histórico do caixa cujo valor sozinho já fecha
-//     (testa TODAS as candidatas, não só a primeira — quando várias contas
-//     dividem um histórico genérico no mesmo dia, ex. "RENDIMENTO DE
+//  1. uma conta NÃO-caixa do MESMO histórico do caixa cujo valor sozinho já
+//     fecha (testa TODAS as candidatas, não só a primeira — quando várias
+//     contas dividem um histórico genérico no mesmo dia, ex. "RENDIMENTO DE
 //     APLICACAO FINANCEIRA" batendo em 4 fundos diferentes, a primeira da
-//     lista raramente é a que pertence a ESSE lançamento específico);
-//  2. uma conta do MESMO histórico como perna principal + uma segunda
-//     conta no mesmo dia, com QUALQUER outro histórico, cuja soma feche
-//     (o caso do empréstimo + juros: históricos diferentes, mesmo dia);
+//     lista raramente é a que pertence a ESSE lançamento específico — e o
+//     fato de haver OUTRAS contas de caixa também nesse histórico, os
+//     outros 3 fundos, não pode ser confundido com transferência);
+//  2. uma conta NÃO-caixa do mesmo histórico como perna principal + uma
+//     segunda conta não-caixa no mesmo dia, com QUALQUER outro histórico,
+//     cuja soma feche (o caso do empréstimo + juros: históricos
+//     diferentes, mesmo dia);
 //  3. quando NENHUMA perna do lançamento compartilha o histórico do caixa
 //     — comum quando o extrato bancário importado usa uma descrição
 //     própria (ex. "RECEBIMENTO - ... BAIXA POR COBRANCA ESCRITURAL - DOC
 //     N 17792") que não bate com o histórico lançado nas contas
 //     contrapartida (ex. "CLIENTES DIVERSOS" + "JUROS E MULTAS ATIVAS") —
 //     procura só por empresa + dia, sem exigir histórico igual: uma conta
-//     sozinha, ou um par de contas, cuja soma feche exatamente. Exigir o
-//     fechamento exato em centavos é o que evita casar lançamentos que só
-//     coincidem de estar no mesmo dia por acaso.
+//     não-caixa sozinha, ou um par delas, cuja soma feche exatamente.
+//     Exigir o fechamento exato em centavos é o que evita casar
+//     lançamentos que só coincidem de estar no mesmo dia por acaso.
+//  4. só se NADA acima fechou: confere se é uma TRANSFERÊNCIA entre contas
+//     de caixa/equivalentes — outra conta de caixa aparece no mesmo
+//     histórico, ou no mesmo dia com o valor batendo exato — e, se for,
+//     ignora o lançamento inteiro (não é entrada/saída de caixa de
+//     verdade). Só chega até aqui depois de garantir que NENHUMA conta
+//     real explicava o valor, senão um histórico genérico compartilhado
+//     por caixa E por uma conta de verdade (caso 1 acima) seria confundido
+//     com transferência.
 function findCashPieces(cashEntry, groupIndex, dayIndex) {
   const cashValue = entryValue(cashEntry);
   const target = Math.round(-cashValue * 100);
-  const sameHistorico = (groupIndex.get(dfcGroupKey(cashEntry)) || []).filter((entry) => entry !== cashEntry && !isCashEntry(entry));
-  const sameDay = (dayIndex.get(dfcDayKey(cashEntry)) || []).filter((entry) => entry !== cashEntry && !isCashEntry(entry));
-
-  if (!sameDay.length) {
-    const groupHasOnlyCash = (groupIndex.get(dfcGroupKey(cashEntry)) || []).some((entry) => entry !== cashEntry && isCashEntry(entry));
-    return groupHasOnlyCash ? null : { pieces: [], leftover: cashValue };
-  }
+  const sameHistoricoAll = (groupIndex.get(dfcGroupKey(cashEntry)) || []).filter((entry) => entry !== cashEntry);
+  const sameDayAll = (dayIndex.get(dfcDayKey(cashEntry)) || []).filter((entry) => entry !== cashEntry);
+  const sameHistorico = sameHistoricoAll.filter((entry) => !isCashEntry(entry));
+  const sameDay = sameDayAll.filter((entry) => !isCashEntry(entry));
 
   const exactSingle = sameHistorico.find((entry) => Math.round(entryValue(entry) * 100) === target);
   if (exactSingle) return closeCashPieces(cashEntry, [exactSingle]);
@@ -589,11 +598,19 @@ function findCashPieces(cashEntry, groupIndex, dayIndex) {
     if (second) return closeCashPieces(cashEntry, [first, second]);
   }
 
-  // Não achou como fechar de jeito nenhum — usa a primeira candidata do
-  // mesmo histórico (se houver; senão a primeira do mesmo dia) do jeito
-  // que ela é, e deixa o restante visível em "Sem contrapartida
-  // identificada" em vez de forçar um número.
-  const fallback = sameHistorico[0] || sameDay[0];
+  const transferByHistorico = sameHistoricoAll.some((entry) => isCashEntry(entry));
+  const transferByDay = sameDayAll.some((entry) => isCashEntry(entry) && Math.round(entryValue(entry) * 100) === target);
+  if (transferByHistorico || transferByDay) return null;
+
+  // Não achou como fechar de jeito nenhum e não é transferência. Se existe
+  // ao menos uma conta do MESMO histórico do caixa, usa ela do jeito que é
+  // (valor dela mesma, não uma fração) e deixa o restante visível em "Sem
+  // contrapartida identificada". Sem NENHUMA candidata de histórico igual,
+  // não força uma conta qualquer do mesmo dia só porque ela existe —
+  // melhor um leftover limpo (sem contrapartida nenhuma anotada) do que um
+  // par inventado.
+  const fallback = sameHistorico[0];
+  if (!fallback) return { pieces: [], leftover: cashValue };
   return {
     pieces: [{ counterpart: fallback, entry: cashPieceFor(cashEntry, fallback) }],
     leftover: cashValue - -entryValue(fallback),
