@@ -228,6 +228,7 @@ export default function Dfc({ lockedMode } = {}) {
   useDownloadHandlers(rows.length ? {
     pdf: () => exportDemonstrativoPdf({ ...exportMeta(state, mode), columns: buildDfcExportColumns(columns), rows: buildDfcExportRows(rows, columns, expandedRows) }),
     excel: () => exportDemonstrativoExcel({ ...exportMeta(state, mode), columns: buildDfcExportColumns(columns), rows: buildDfcExportRows(rows, columns, expandedRows) }),
+    reportKind: { type: "dfc", mode },
   } : null);
 
   return (

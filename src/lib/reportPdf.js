@@ -50,12 +50,22 @@ function levelIndex(row) {
   return Math.min(Math.max(Number(row.nivel || 1), 1), 3) - 1;
 }
 
-// `columns` is the plain {key,label} list already shown on screen; `rows`
-// carry {nome, nivel, isAnalytic, cells} — cells hold the exact same
-// pre-formatted strings (money/percent) the on-screen table renders, so the
-// PDF is never out of sync with what the user was just looking at. No
-// account-code column, by design — just the description and the values.
-export function exportDemonstrativoPdf({ companyName, metaLine, columns, rows, fileLabel }) {
+// Recuo pela esquerda proporcional ao nível da conta — sem isso, todas as
+// linhas ficavam alinhadas na mesma margem e a única pista de hierarquia
+// era a cor de fundo, que satura nos 3 primeiros níveis e não diferencia
+// nada mais fundo que isso (o relatório de referência da equipe contábil
+// tem recuo visível linha a linha, ficando mais raso quanto mais analítica
+// a conta). 4 é o padding padrão da tabela; cada nível some mais 9pt.
+function indentFor(row) {
+  return 4 + Math.max(0, Number(row.nivel || 1) - 1) * 9;
+}
+
+// Monta o jsPDF (tabela, banner, rodapé) sem salvar — usado tanto pelo
+// download normal (exportDemonstrativoPdf, abaixo) quanto pelo export
+// Consolidado+Individual (buildDemonstrativoPdfBlob), que precisa do PDF
+// de cada empresa como um blob pra empacotar num .zip em vez de disparar
+// um download por arquivo.
+function buildDemonstrativoPdfDoc({ companyName, metaLine, columns, rows }) {
   // Explicit "pt" unit — every coordinate/size below is sized in points to
   // match the accounting team's reference PDF (measured directly off it).
   // jsPDF defaults to "mm", which would make all of those numbers ~3x too
@@ -84,6 +94,9 @@ export function exportDemonstrativoPdf({ companyName, metaLine, columns, rows, f
       }
       const row = rows[data.row.index];
       if (!row) return;
+      if (data.column.index === 0) {
+        data.cell.styles.cellPadding = { top: 4, right: 4, bottom: 4, left: indentFor(row) };
+      }
       if (row.isAnalytic) {
         if (data.column.index >= 1) data.cell.styles.textColor = ANALYTIC_TEXT;
       } else {
@@ -126,5 +139,20 @@ export function exportDemonstrativoPdf({ companyName, metaLine, columns, rows, f
     drawPageLabel(doc, `Página ${page}/${pageCount}`);
   }
 
-  doc.save(`${fileLabel}.pdf`);
+  return doc;
+}
+
+// `columns` is the plain {key,label} list already shown on screen; `rows`
+// carry {nome, nivel, isAnalytic, cells} — cells hold the exact same
+// pre-formatted strings (money/percent) the on-screen table renders, so the
+// PDF is never out of sync with what the user was just looking at. No
+// account-code column, by design — just the description and the values.
+export function exportDemonstrativoPdf(meta) {
+  buildDemonstrativoPdfDoc(meta).save(`${meta.fileLabel}.pdf`);
+}
+
+// Mesma renderização, devolvida como Blob em vez de disparar o download —
+// usado pra empacotar vários PDFs (consolidado + cada empresa) num .zip só.
+export function buildDemonstrativoPdfBlob(meta) {
+  return buildDemonstrativoPdfDoc(meta).output("blob");
 }

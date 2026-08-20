@@ -46,6 +46,13 @@ export function useDownloadHandlers(handlers) {
     const proxy = {
       pdf: handlersRef.current?.pdf ? () => handlersRef.current.pdf() : undefined,
       excel: handlersRef.current?.excel ? () => handlersRef.current.excel() : undefined,
+      // Descreve QUAL relatório está montado ({ type: "dfc", mode } ou
+      // { type: "demonstrativo", tab }) — não uma função, só um objeto —
+      // pro export "Consolidado + Individual" do grupo saber qual função
+      // pura (buildFullDfcExport/buildFullReportExport) chamar pra gerar o
+      // mesmo tipo de relatório de cada empresa-membro. Ausente em telas
+      // sem um construtor "cheio" equivalente (ex.: o Resumo com widgets).
+      reportKind: handlersRef.current?.reportKind,
     };
     setDownloadHandlers(proxy);
     return () => setDownloadHandlers((current) => (current === proxy ? null : current));

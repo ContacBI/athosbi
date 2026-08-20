@@ -554,7 +554,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
   // The top bar's global "Baixar" button always exports whatever's active
   // here — disabled (registers nothing) on the chart-only EBITDA view,
   // which has no tabular form to export.
-  useDownloadHandlers(hasData && mode !== "graficos" ? { pdf: handleExportPdf, excel: handleExportExcel } : null);
+  useDownloadHandlers(hasData && mode !== "graficos" ? { pdf: handleExportPdf, excel: handleExportExcel, reportKind: { type: "demonstrativo", tab } } : null);
 
   if (!hasData) {
     return (

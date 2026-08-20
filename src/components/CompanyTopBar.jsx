@@ -8,12 +8,29 @@ import { usePageActions } from "../lib/pageActions.jsx";
 import { buildDashboardContext } from "../lib/dashboardData.js";
 import { buildSummaryExportRows } from "../lib/dashboardExport.js";
 import { buildFullReportExport, slug } from "../lib/demonstrativoExport.js";
-import { exportDemonstrativoPdf } from "../lib/reportPdf.js";
-import { exportDemonstrativoExcel } from "../lib/reportExcel.js";
+import { buildFullDfcExport } from "../lib/dfcExport.js";
+import { buildPerCompanyReports } from "../lib/groupExport.js";
+import { exportDemonstrativoPdf, buildDemonstrativoPdfBlob } from "../lib/reportPdf.js";
+import { exportDemonstrativoExcel, exportMultiSheetExcel } from "../lib/reportExcel.js";
+import { downloadZip } from "../lib/zipExport.js";
 import { periodLabelPt } from "../lib/format.js";
 import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
 import PeriodPicker from "./PeriodPicker.jsx";
 import ThemeToggle from "./ThemeToggle.jsx";
+
+// Chama a função pura certa (buildFullDfcExport/buildFullReportExport) pra
+// reconstruir "o mesmo tipo de relatório que está na tela" a partir do
+// {type, mode|tab} que a própria página registrou (ver reportKind em
+// useDownloadHandlers) — usado tanto pro consolidado quanto, escopado por
+// empresa (ver buildPerCompanyReports em groupExport.js), pra cada membro
+// do grupo. null quando a tela atual não tem um construtor "cheio"
+// equivalente (ex.: o Resumo com widgets) — export Consolidado+Individual
+// fica indisponível nesse caso.
+function buildReportForKind(reportKind) {
+  if (reportKind?.type === "dfc") return buildFullDfcExport(reportKind.mode);
+  if (reportKind?.type === "demonstrativo") return buildFullReportExport(reportKind.tab);
+  return null;
+}
 
 // Ghost buttons that live directly on the navy identity bar — same shape as
 // the old white-background versions, just recolored for a dark surface.
@@ -208,19 +225,79 @@ function ReportBuilderModal({ onClose }) {
   );
 }
 
+// Monta o consolidado (com o estado atual, já é a visão do grupo) + um
+// relatório por empresa-membro (estado escopado, ver groupExport.js), no
+// MESMO formato "cheio"/expandido dos dois — o ponto do flag é justamente
+// abrir cada empresa separada, então usa sempre o relatório completo em
+// vez do que estiver aberto/fechado na tela (que só faz sentido pro
+// consolidado sozinho).
+function buildConsolidatedAndIndividual(group, reportKind) {
+  const consolidated = buildReportForKind(reportKind);
+  if (!consolidated) return null;
+  const perCompany = buildPerCompanyReports(group, () => buildReportForKind(reportKind));
+  return [{ company: null, data: consolidated }, ...perCompany];
+}
+
+async function downloadConsolidatedAndIndividualPdf(group, reportKind) {
+  const entries = buildConsolidatedAndIndividual(group, reportKind);
+  if (!entries) return;
+  const files = entries.map(({ data }) => ({ name: `${data.fileLabel}.pdf`, blob: buildDemonstrativoPdfBlob(data) }));
+  await downloadZip(files, `${slug(`${entries[0].data.reportName}_${group.name}`)}.zip`);
+}
+
+async function downloadConsolidatedAndIndividualExcel(group, reportKind) {
+  const entries = buildConsolidatedAndIndividual(group, reportKind);
+  if (!entries) return;
+  const sheets = entries.map(({ company, data }) => ({
+    sheetName: company ? company.name : "Consolidado",
+    companyName: data.companyName,
+    metaLine: data.metaLine,
+    columns: data.columns,
+    rows: data.rows,
+  }));
+  await exportMultiSheetExcel(sheets, slug(`${entries[0].data.reportName}_${group.name}`));
+}
+
 // Two ways to leave with a report: "Relatório atual" fires the current
-// screen's registered {pdf} handler as-is (whatever's on screen right now —
-// Resumo, Demonstrativos, any tab); "Personalizado" opens the full builder
-// covering every tab at once. Disappears entirely once there's no data to
-// report on.
+// screen's registered {pdf/excel} handler as-is (whatever's on screen right
+// now — Resumo, Demonstrativos, any tab); "Personalizado" opens the full
+// builder covering every tab at once. Disappears entirely once there's no
+// data to report on.
+//
+// Em modo grupo, um flag "Consolidado + Individual" troca esse
+// comportamento padrão: além do consolidado, baixa também o relatório de
+// cada empresa-membro separada — em PDF, tudo zipado junto; em Excel, um
+// arquivo só com uma aba por empresa (+ consolidado). Só disponível quando
+// a tela atual registrou um reportKind (DFC ou Demonstrativos — não o
+// Resumo com widgets, que não tem um "relatório completo" equivalente).
 function ReportsMenu() {
   const appState = useAppState();
   const actions = usePageActions();
   const [open, setOpen] = useState(false);
   const [builderOpen, setBuilderOpen] = useState(false);
+  const [consolidatedIndividual, setConsolidatedIndividual] = useState(false);
+  const [busy, setBusy] = useState(false);
   const hasData = appState.accounts.length > 0 || appState.journal.length > 0;
+  const group = appState.activeGroupId ? appState.groups.find((item) => item.id === appState.activeGroupId) || null : null;
   if (!hasData) return null;
   const handlers = actions?.downloadHandlers;
+  const canSplit = Boolean(group && handlers?.reportKind);
+
+  async function handleCurrent(format) {
+    setOpen(false);
+    if (canSplit && consolidatedIndividual) {
+      setBusy(true);
+      try {
+        if (format === "pdf") await downloadConsolidatedAndIndividualPdf(group, handlers.reportKind);
+        else await downloadConsolidatedAndIndividualExcel(group, handlers.reportKind);
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+    if (format === "pdf") handlers?.pdf?.();
+    else handlers?.excel?.();
+  }
 
   return (
     <>
@@ -234,19 +311,46 @@ function ReportsMenu() {
         {open && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-            <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-60 rounded-xl bg-surface-card p-1.5 shadow-lg ring-1 ring-line">
+            <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-64 rounded-xl bg-surface-card p-1.5 shadow-lg ring-1 ring-line">
+              {group && (
+                <label
+                  title={canSplit ? "" : "Esse relatório ainda não gera versão separada por empresa"}
+                  className={`mb-1 flex items-start gap-2 rounded-lg border-b border-line px-2.5 pb-2.5 pt-1.5 ${canSplit ? "" : "cursor-not-allowed opacity-50"}`}
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={consolidatedIndividual}
+                    disabled={!canSplit}
+                    onChange={(event) => setConsolidatedIndividual(event.target.checked)}
+                  />
+                  <span>
+                    <span className="block text-[12.5px] font-medium text-ink-800">Consolidado + Individual</span>
+                    <span className="block text-[11px] text-ink-400">Baixa também cada empresa do grupo separada — PDF vira .zip, Excel vira abas</span>
+                  </span>
+                </label>
+              )}
               <button
                 type="button"
-                onClick={() => {
-                  setOpen(false);
-                  handlers?.pdf?.();
-                }}
-                disabled={!handlers?.pdf}
+                onClick={() => handleCurrent("pdf")}
+                disabled={busy || (!handlers?.pdf && !(canSplit && consolidatedIndividual))}
                 className="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <FileText size={15} strokeWidth={1.8} className="mt-0.5 shrink-0 text-ink-500" />
                 <span>
-                  <span className="block text-[13px] text-ink-800">Relatório atual</span>
+                  <span className="block text-[13px] text-ink-800">{busy ? "Gerando…" : "Relatório atual (PDF)"}</span>
+                  <span className="block text-[11px] text-ink-400">Exatamente o que está na tela</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCurrent("excel")}
+                disabled={busy || (!handlers?.excel && !(canSplit && consolidatedIndividual))}
+                className="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <FileSpreadsheet size={15} strokeWidth={1.8} className="mt-0.5 shrink-0 text-ink-500" />
+                <span>
+                  <span className="block text-[13px] text-ink-800">{busy ? "Gerando…" : "Relatório atual (Excel)"}</span>
                   <span className="block text-[11px] text-ink-400">Exatamente o que está na tela</span>
                 </span>
               </button>
