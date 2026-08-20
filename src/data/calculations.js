@@ -991,6 +991,44 @@ function appendVisibleChildren(row, byParent, output) {
   output.push(...analyticRowsForLine(row));
 }
 
+// Group mode (see groups.js buildGroupDataset) namespaces every account's
+// classificacao with its company id so two companies that happen to reuse
+// the same code for unrelated accounts never collide. The side effect: the
+// exact same real-world account (e.g. "CLIENTES DIVERSOS") repeated across
+// sibling companies produced one separate row per company instead of one
+// summed row. This merges those back together by account name — the one
+// thing that's still genuinely comparable across companies — for any line
+// where more than one company's accounts were involved. classificacao on
+// the merged row becomes an array of every source code (see
+// entriesForAccount above), so "ver o diário" on a merged row still shows
+// every company's lançamentos for that account.
+function mergeGroupRowsByName(rows) {
+  const merged = new Map();
+  const order = [];
+  rows.forEach((row) => {
+    const key = comparableAccountName(row.nome_conta || row.descricao || row.classificacao);
+    if (!merged.has(key)) {
+      merged.set(key, { ...row, classificacao: [row.classificacao], monthValues: { ...row.monthValues } });
+      order.push(key);
+      return;
+    }
+    const target = merged.get(key);
+    target.classificacao.push(row.classificacao);
+    target.qtd_lancamentos += row.qtd_lancamentos;
+    target.saldo_inicial += row.saldo_inicial;
+    target.saldo_anterior_balancete += row.saldo_anterior_balancete;
+    target.movimento_periodo += row.movimento_periodo;
+    target.saldo_final += row.saldo_final;
+    target.valor_gerencial += row.valor_gerencial;
+    target.periodDebito += row.periodDebito;
+    target.periodCredito += row.periodCredito;
+    Object.entries(row.monthValues || {}).forEach(([month, value]) => {
+      target.monthValues[month] = (target.monthValues[month] || 0) + value;
+    });
+  });
+  return order.map((key) => merged.get(key));
+}
+
 export function analyticRowsForLine(line) {
   if (!line) return [];
   const mapping = mappingByClassification();
@@ -1004,7 +1042,7 @@ export function analyticRowsForLine(line) {
     counts.set(key, (counts.get(key) || 0) + 1);
     return counts;
   }, new Map());
-  return analyticAccounts
+  const rows = analyticAccounts
     .filter((account) => mapping.get(account.classificacao)?.codigo_gerencial === line.codigo_gerencial)
     .map((account) => {
       const sameClassEntries = entries.filter((entry) => entry.classificacao === account.classificacao);
@@ -1039,14 +1077,20 @@ export function analyticRowsForLine(line) {
         periodDebito,
         periodCredito,
       };
-    })
-    .sort((a, b) => {
-      if (type === "BP") {
-        const byName = analyticAlphabeticalKey(a).localeCompare(analyticAlphabeticalKey(b), "pt-BR", { sensitivity: "base", numeric: true });
-        if (byName) return byName;
-      }
-      return String(a.classificacao || "").localeCompare(String(b.classificacao || ""), "pt-BR", { numeric: true });
     });
+
+  const companyCount = new Set(rows.map((row) => row.companyId).filter(Boolean)).size;
+  const mergedRows = companyCount > 1 ? mergeGroupRowsByName(rows) : rows;
+
+  return mergedRows.sort((a, b) => {
+    if (type === "BP") {
+      const byName = analyticAlphabeticalKey(a).localeCompare(analyticAlphabeticalKey(b), "pt-BR", { sensitivity: "base", numeric: true });
+      if (byName) return byName;
+    }
+    const codeA = Array.isArray(a.classificacao) ? a.classificacao[0] : a.classificacao;
+    const codeB = Array.isArray(b.classificacao) ? b.classificacao[0] : b.classificacao;
+    return String(codeA || "").localeCompare(String(codeB || ""), "pt-BR", { numeric: true });
+  });
 }
 
 function journalEntryMatchesAccount(entry, account) {
@@ -1103,8 +1147,13 @@ export function kpis() {
   };
 }
 
+// `classificacao` is normally one account's code, but a row merged across
+// companies in group mode (see mergeGroupRowsByName below) carries an array
+// of every underlying company's code instead — accept both so the ledger
+// drill-down keeps working the same either way.
 export function entriesForAccount(classificacao) {
-  return filteredJournal().filter((entry) => entry.classificacao === classificacao);
+  const codes = Array.isArray(classificacao) ? new Set(classificacao) : null;
+  return filteredJournal().filter((entry) => (codes ? codes.has(entry.classificacao) : entry.classificacao === classificacao));
 }
 
 export function entriesForDfcAnalytic(parentCode, classificacao) {
