@@ -463,8 +463,15 @@ function isOpeningBalanceEntry(entry) {
   return normalize(entry.historico).includes("saldo anterior");
 }
 
+// Em modo grupo, entry.companyId identifica de qual empresa e o
+// lancamento (ver groups.js). SEM isso na chave, um pagamento de uma
+// empresa podia "casar" com a contrapartida de OUTRA empresa do grupo so
+// por coincidencia de data + historico + valor - bem provavel quando
+// empresas irmas tem o mesmo tipo de emprestimo (ex.: Pronampe) com
+// parcelas e datas parecidas. Fora do modo grupo, companyId e undefined
+// pra todo mundo, entao isso nao muda nada pra uma empresa sozinha.
 function dfcCounterpartKey(entry, value = Number(entry.debito || 0) - Number(entry.credito || 0)) {
-  return `${entry.data || ""}\u0000${normalize(entry.historico)}\u0000${Math.round(value * 100)}`;
+  return `${entry.companyId || ""}\u0000${entry.data || ""}\u0000${normalize(entry.historico)}\u0000${Math.round(value * 100)}`;
 }
 
 function indexDfcCounterparts(entries) {
