@@ -64,6 +64,41 @@ export function buildDfcDirect() {
   return rows.filter((row) => row.natureza === "heading" || row.hasValue || row.qtd_lancamentos || row.codigo_gerencial.startsWith("DFC.CASH"));
 }
 
+// Per-ledger-account composition of one BP/DRE managerial code — the same
+// "click a line, see the accounts, click an account, see the diário" flow
+// DFC direta already had (via addDfcAnalytic), rebuilt here from
+// buildReportTree's own row.contas instead of re-walking cash movements,
+// since these DFC indireta lines are variações of balance-sheet/DRE codes,
+// not cash entries. Grouped by ledger account (classificacao) the same way,
+// with each account's own monthly breakdown computed from its journal
+// entries so the table's month columns work exactly like DFC direta's.
+function analyticBreakdown(tree, code) {
+  const row = tree.find((item) => item.codigo_gerencial === code);
+  if (!row || !row.contas?.length) return [];
+  const entries = filteredJournal();
+  return row.contas.map((account) => {
+    const accountEntries = entries.filter((entry) => entry.classificacao === account.classificacao);
+    const monthValues = {};
+    let saldo = 0;
+    accountEntries.forEach((entry) => {
+      const month = String(entry.data || "").slice(0, 7);
+      const value = Number(entry.debito || 0) - Number(entry.credito || 0);
+      monthValues[month] = (monthValues[month] || 0) + value;
+      saldo += value;
+    });
+    return {
+      classificacao: account.classificacao,
+      codigo: account.codigo,
+      nome_conta: account.nome_conta,
+      categoria_gerencial: row.categoria_gerencial,
+      codigo_gerencial: code,
+      qtd_lancamentos: accountEntries.length,
+      saldo,
+      monthValues,
+    };
+  });
+}
+
 // DFC indireta: parte do resultado e reconcilia as variações das principais
 // contas operacionais. Investimento, financiamento e disponibilidades usam a
 // mesma apuração por movimentos de caixa da DFC direta para manter o caixa
@@ -84,19 +119,37 @@ export function buildDfcIndirect() {
     return total;
   }, {});
   const rows = [];
-  const add = (code, name, saldo, group, natureza = "analytic", monthValues = {}) => rows.push({ codigo_gerencial: code, categoria_gerencial: name, saldo, grupo_macro: group, natureza, monthValues });
+  const add = (code, name, saldo, group, natureza = "analytic", monthValues = {}, contas = []) =>
+    rows.push({
+      codigo_gerencial: code,
+      categoria_gerencial: name,
+      saldo,
+      grupo_macro: group,
+      natureza,
+      monthValues,
+      contas,
+      qtd_lancamentos: contas.reduce((sum, conta) => sum + (conta.qtd_lancamentos || 0), 0),
+    });
   const resultMonths = rowMonths(dre, "DRE.17");
   const depreciationMonths = rowMonths(dre, "DRE.11");
   const clientMonths = scaledMonths(rowMonths(bp, "01.01.02"), -1);
   const inventoryMonths = scaledMonths(rowMonths(bp, "01.01.03"), -1);
   const supplierMonths = rowMonths(bp, "02.01.01");
   const obligationMonths = sumMonths(rowMonths(bp, "02.01.03"), rowMonths(bp, "02.01.04"));
-  add("DFCI.OP.RESULTADO", "Resultado líquido do período", value(dre, "DRE.17"), "Operacional", "analytic", resultMonths);
-  add("DFCI.OP.DEPRECIACAO", "Depreciações e amortizações", value(dre, "DRE.11"), "Operacional", "analytic", depreciationMonths);
-  add("DFCI.OP.CLIENTES", "Variação em clientes e outros recebíveis", -variation("01.01.02"), "Operacional", "analytic", clientMonths);
-  add("DFCI.OP.ESTOQUES", "Variação em estoques", -variation("01.01.03"), "Operacional", "analytic", inventoryMonths);
-  add("DFCI.OP.FORNECEDORES", "Variação em fornecedores", variation("02.01.01"), "Operacional", "analytic", supplierMonths);
-  add("DFCI.OP.OBRIGACOES", "Variação em obrigações trabalhistas e tributárias", variation("02.01.03") + variation("02.01.04"), "Operacional", "analytic", obligationMonths);
+  add("DFCI.OP.RESULTADO", "Resultado líquido do período", value(dre, "DRE.17"), "Operacional", "analytic", resultMonths, analyticBreakdown(dre, "DRE.17"));
+  add("DFCI.OP.DEPRECIACAO", "Depreciações e amortizações", value(dre, "DRE.11"), "Operacional", "analytic", depreciationMonths, analyticBreakdown(dre, "DRE.11"));
+  add("DFCI.OP.CLIENTES", "Variação em clientes e outros recebíveis", -variation("01.01.02"), "Operacional", "analytic", clientMonths, analyticBreakdown(bp, "01.01.02"));
+  add("DFCI.OP.ESTOQUES", "Variação em estoques", -variation("01.01.03"), "Operacional", "analytic", inventoryMonths, analyticBreakdown(bp, "01.01.03"));
+  add("DFCI.OP.FORNECEDORES", "Variação em fornecedores", variation("02.01.01"), "Operacional", "analytic", supplierMonths, analyticBreakdown(bp, "02.01.01"));
+  add(
+    "DFCI.OP.OBRIGACOES",
+    "Variação em obrigações trabalhistas e tributárias",
+    variation("02.01.03") + variation("02.01.04"),
+    "Operacional",
+    "analytic",
+    obligationMonths,
+    [...analyticBreakdown(bp, "02.01.03"), ...analyticBreakdown(bp, "02.01.04")]
+  );
   const operating = rows.reduce((sum, row) => sum + row.saldo, 0);
   const operatingMonths = sumMonths(resultMonths, depreciationMonths, clientMonths, inventoryMonths, supplierMonths, obligationMonths);
   add("DFCI.OP.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES OPERACIONAIS", operating, "Operacional", "subtotal", operatingMonths);
