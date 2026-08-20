@@ -141,8 +141,6 @@ const SUGGESTED_DEFAULT = [
   { id: "ratio_liquidez_corrente", size: "sm" },
   { id: "chart_resultado", size: "lg" },
   { id: "chart_balanco", size: "md" },
-  { id: "list_destaques_dre", size: "md" },
-  { id: "list_checklist", size: "md" },
 ];
 
 function TabPill({ item, active, small, onSelect, onRename, onDelete }) {

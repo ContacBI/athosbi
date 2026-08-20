@@ -181,15 +181,32 @@ export function buildDfcIndirect() {
   const operatingMonths = sumMonths(resultMonths, depreciationMonths, clientMonths, inventoryMonths, supplierMonths, obligationMonths);
   add("DFCI.OP.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES OPERACIONAIS", operating, "Operacional", "subtotal", operatingMonths);
   const directValue = (code) => direct.find((row) => row.codigo_gerencial === code)?.saldo || 0;
-  const directContas = (code) => direct.find((row) => row.codigo_gerencial === code)?.contas || [];
+  // O subtotal ("DFC.INV.CAIXA_LIQUIDO") em si nunca tem contas próprias —
+  // é só a soma dos 4 itens abaixo dele (ver applyDfcSubtotals/sumDfcRows,
+  // que soma valores mas não junta as listas de contas). O detalhe
+  // analítico mora nesses itens, não no subtotal — por isso buscar
+  // ".contas" direto no subtotal sempre voltava vazio.
+  const directContasFrom = (codes) => codes.flatMap((code) => direct.find((row) => row.codigo_gerencial === code)?.contas || []);
   const investmentMonths = rowMonths(direct, "DFC.INV.CAIXA_LIQUIDO");
   const financingMonths = rowMonths(direct, "DFC.FIN.CAIXA_LIQUIDO");
-  // As linhas de Investimento e Financiamento reaproveitam o valor da DFC
-  // direta (comentário no topo da função), mas antes não reaproveitavam
-  // as CONTAS dela — ficavam sem "contas" (padrão [] do add()), então sem
-  // seta pra abrir, "impossível de expandir" na indireta.
-  add("DFCI.INV.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES DE INVESTIMENTO", directValue("DFC.INV.CAIXA_LIQUIDO"), "Investimento", "subtotal", investmentMonths, directContas("DFC.INV.CAIXA_LIQUIDO"));
-  add("DFCI.FIN.LIQUIDO", "CAIXA LÍQUIDO DAS ATIVIDADES DE FINANCIAMENTO", directValue("DFC.FIN.CAIXA_LIQUIDO"), "Financiamento", "subtotal", financingMonths, directContas("DFC.FIN.CAIXA_LIQUIDO"));
+  add(
+    "DFCI.INV.LIQUIDO",
+    "CAIXA LÍQUIDO DAS ATIVIDADES DE INVESTIMENTO",
+    directValue("DFC.INV.CAIXA_LIQUIDO"),
+    "Investimento",
+    "subtotal",
+    investmentMonths,
+    directContasFrom(["DFC.INV.IMOBILIZADO", "DFC.INV.ACOES_COTAS", "DFC.INV.VENDA_ATIVOS", "DFC.INV.JUROS_EMPRESTIMOS"])
+  );
+  add(
+    "DFCI.FIN.LIQUIDO",
+    "CAIXA LÍQUIDO DAS ATIVIDADES DE FINANCIAMENTO",
+    directValue("DFC.FIN.CAIXA_LIQUIDO"),
+    "Financiamento",
+    "subtotal",
+    financingMonths,
+    directContasFrom(["DFC.FIN.CAPITAL", "DFC.FIN.LUCROS_DIV_PAGOS", "DFC.FIN.EMPRESTIMOS_TOMADOS", "DFC.FIN.EMPRESTIMOS_PAGOS"])
+  );
   add("DFCI.CASH.VARIACAO", "AUMENTO/(REDUÇÃO) NAS DISPONIBILIDADES", operating + directValue("DFC.INV.CAIXA_LIQUIDO") + directValue("DFC.FIN.CAIXA_LIQUIDO"), "Disponibilidades", "subtotal", sumMonths(operatingMonths, investmentMonths, financingMonths));
   add("DFCI.CASH.INICIO", "DISPONIBILIDADES NO INÍCIO DO PERÍODO", directValue("DFC.CASH.INICIO"), "Disponibilidades", "subtotal", rowMonths(direct, "DFC.CASH.INICIO"));
   add("DFCI.CASH.FIM", "DISPONIBILIDADES NO FINAL DO PERÍODO", directValue("DFC.CASH.FIM"), "Disponibilidades", "subtotal", rowMonths(direct, "DFC.CASH.FIM"));
@@ -572,7 +589,12 @@ function addDfcAnalytic(row, cashEntry, counterpart, value, month, analyticsByRo
   // (mergeGroupRowsByName). classificacao vira um array dos códigos reais
   // por trás — entriesForAccount já sabe lidar com array (ver ali).
   const isGroupAccount = Boolean(counterpart?.companyId);
-  const nameKey = comparableAccountName(counterpart?.categoria_gerencial || counterpart?.descricao_conta || "");
+  // Precisa ser exatamente a mesma prioridade de campo usada no nome_conta
+  // exibido logo abaixo (descricao_conta primeiro) — usar categoria_gerencial
+  // aqui por engano juntou contas DIFERENTES que só compartilhavam uma
+  // categoria mais ampla (ex.: todo mundo virando "RECEITAS ANHANGUERA" e
+  // sumindo "CLIENTES DIVERSOS").
+  const nameKey = comparableAccountName(counterpart?.descricao_conta || counterpart?.categoria_gerencial || "");
   const key = isGroupAccount && nameKey ? `grupo::${nameKey}` : counterpart?.classificacao || counterpart?.codigo_gerencial || "sem-contrapartida";
   const rowAnalytics = analyticsByRow.get(row.codigo_gerencial) || new Map();
   analyticsByRow.set(row.codigo_gerencial, rowAnalytics);

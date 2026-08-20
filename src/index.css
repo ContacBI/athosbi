@@ -52,24 +52,25 @@
 }
 
 :root[data-theme="dark"] {
-  /* Reaproveita a mesma família de azul-marinho já usada no Login/Landing
-     (navy-950) como base da superfície escura, em vez de um cinza genérico
-     — é isso que faz o app inteiro parecer a mesma marca nos dois temas,
-     não dois produtos diferentes colados. */
-  --color-surface-page: #0b1420;
-  --color-surface-card: #121d2c;
-  --color-surface-muted: #1a2636;
+  /* Pedido explícito: cinza-escuro neutro em vez do azul-marinho saturado
+     de antes (que reaproveitava o navy do Login/Landing como superfície —
+     ficava "azul demais" pro gosto de quem usa o dia a dia). Mantém só um
+     resquício frio bem sutil, o suficiente pra não ficar um cinza "morto",
+     mas a esmagadora maioria da saturação de azul saiu daqui. */
+  --color-surface-page: #16181c;
+  --color-surface-card: #1e2126;
+  --color-surface-muted: #26292f;
 
-  --color-ink-900: #eef2f7;
-  --color-ink-800: #d3dbe6;
-  --color-ink-700: #b7c2d1;
-  --color-ink-600: #a2aec0;
-  --color-ink-500: #8793a8;
-  --color-ink-400: #6b7789;
-  --color-ink-300: #4d5972;
+  --color-ink-900: #f0f1f2;
+  --color-ink-800: #d6d8db;
+  --color-ink-700: #b9bcc1;
+  --color-ink-600: #a3a7ae;
+  --color-ink-500: #888d96;
+  --color-ink-400: #6c7079;
+  --color-ink-300: #4e5259;
 
-  --color-line: #223046;
-  --color-line-strong: #33455f;
+  --color-line: #34373e;
+  --color-line-strong: #454952;
 
   /* accent-500/600 (o laranja de marca) ficam iguais — já têm contraste de
      sobra num fundo escuro. Só os tons claros usados como fundo de selo/

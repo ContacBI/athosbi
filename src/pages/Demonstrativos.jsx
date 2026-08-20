@@ -36,10 +36,14 @@ const MODES = [
   { id: "horizontal", label: "Análise horizontal" },
 ];
 
-const DRE_ONLY_MODES = [
-  { id: "executiva", label: "DRE Ebitda" },
-  { id: "graficos", label: "Gráficos EBITDA" },
-];
+// "DRE Ebitda" e "Gráficos EBITDA" ficavam aqui como sub-modos da DRE,
+// duplicando o que já existe como widgets próprios no catálogo (tabela
+// "EBITDA" e os gráficos "Evolução do EBITDA"/"Margem EBITDA no tempo",
+// já disponíveis pra qualquer aba de Gráficos/Demonstrações). Removidos
+// daqui pra não ter duas formas de chegar na mesma coisa — o código de
+// renderização (mode "executiva"/"graficos") continua existindo, só não
+// é mais alcançável por este seletor.
+const DRE_ONLY_MODES = [];
 
 const EBITDA_CHARTS = [
   { id: "evolucao", label: "Evolução do EBITDA" },

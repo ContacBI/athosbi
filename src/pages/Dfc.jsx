@@ -148,12 +148,14 @@ function DfcRow({ row, columns, template, isOpen, onToggle, onOpenLedger }) {
 }
 
 function DfcTable({ rows, mode, columns, expandedRows, onToggle, onOpenLedger, search, expanded }) {
-  // Coluna de valor com largura mínima em vez de fixa — com fixa, um valor
-  // largo (ex.: "-R$ 1.628.776,38") estourava os 120px e desalinhava o
-  // corpo em relação ao cabeçalho de meses. minmax deixa a coluna crescer
-  // quando precisa, cabeçalho e linhas sempre usam o mesmo template então
-  // continuam alinhados entre si.
-  const template = `minmax(240px, 1fr) ${columns.map(() => "minmax(112px, auto)").join(" ")}`;
+  // Largura FIXA (não minmax/auto) é o que garante alinhamento de verdade
+  // aqui: cabeçalho e cada linha são grids CSS independentes (um <div> por
+  // linha, não uma <table> só), então "auto"/minmax deixa cada um calcular
+  // a própria largura sozinho a partir do PRÓPRIO conteúdo — cabeçalho e
+  // linhas nunca ficavam de fato sincronizados, só pareciam por acaso.
+  // Fixo em todos garante o mesmo valor em todo mundo. 148px cobre valores
+  // grandes (ex. "-R$ 1.628.776,38") sem estourar.
+  const template = `minmax(240px, 1fr) ${columns.map(() => "148px").join(" ")}`;
   const visibleRows = rows.filter((row) => matchesSearch(row, search));
   let lastGroup = "";
   return (
@@ -230,7 +232,7 @@ export default function Dfc({ lockedMode } = {}) {
 
   return (
     <div className={expanded ? "fixed inset-0 z-50 overflow-y-auto bg-surface-page p-5" : "flex flex-col gap-4"}>
-      <div className={expanded ? "mx-auto flex max-w-[1600px] flex-col gap-4" : "contents"}>
+      <div className={expanded ? "flex flex-col gap-4" : "contents"}>
         <div className="rounded-xl bg-surface-card p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
