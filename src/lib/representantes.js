@@ -1,5 +1,6 @@
 import { state, setData } from "../data/useStore.js";
-import { REPRESENTANTES_KEY, COMPANIES_KEY, readStoredArray, writePersistent } from "./persistence.js";
+import { REPRESENTANTES_KEY, readStoredArray, writePersistent } from "./persistence.js";
+import { unlinkRepresentanteFromCompanies } from "./companies.js";
 
 function persist(representantes) {
   return writePersistent(REPRESENTANTES_KEY, representantes);
@@ -41,14 +42,7 @@ export function deleteRepresentante(id) {
   const representantes = state.representantes.filter((item) => item.id !== id);
   persist(representantes);
   setData({ representantes });
-
-  // Unlink from any company that referenced this representante.
-  const companies = state.companies.map((company) => ({
-    ...company,
-    representanteIds: (company.representanteIds || []).filter((repId) => repId !== id),
-  }));
-  writePersistent(COMPANIES_KEY, companies);
-  setData({ companies });
+  unlinkRepresentanteFromCompanies(id);
 }
 
 export function companiesForRepresentante(id) {

@@ -28,6 +28,21 @@ export const PLANO_BACKUP_KEY = "portalGerencial.planoBackup.v1";
 // changed. See lib/companies.js writeStoredCompanies/loadCompanies.
 export const companyJournalKey = (companyId) => `portalGerencial.companyJournal.${companyId}`;
 
+// Every company gets its OWN row (this key, one per id) instead of all
+// companies sharing a single array under COMPANIES_KEY. That single-array
+// design is what actually caused real data loss (see the Aug 2026 incident
+// with two client companies losing their contas/De-Para): any tab/device
+// holding an even slightly stale in-memory copy of `state.companies` — one
+// that simply hadn't reloaded since another tab saved something — would
+// blast that whole stale array back over Supabase the next time it saved
+// ANYTHING, silently overwriting every other company's newer data with old
+// data it never actually touched. With one row per company, a save can only
+// ever affect the one company it actually has new data for; every other
+// company's row is never read, never rewritten, and so can never be
+// clobbered by a stale copy sitting in some other tab's memory.
+export const companyKey = (companyId) => `portalGerencial.company.${companyId}`;
+export const COMPANY_KEY_PREFIX = "portalGerencial.company.";
+
 // Several screens can save the same "drawer" in quick succession (for
 // example, creating a company first saves the currently open company and
 // immediately after saves the new list). Network requests do not necessarily
@@ -77,4 +92,26 @@ export function writePersistent(key, value) {
 export async function readStoredArray(key) {
   const stored = await readPersistent(key);
   return Array.isArray(stored) ? stored : [];
+}
+
+// Every row whose key starts with `prefix` — how the company list is loaded
+// now (one row per company, see companyKey above) instead of one shared
+// array under a single key.
+export async function readPersistentByPrefix(prefix) {
+  const { data, error } = await supabase.from("app_storage").select("value").like("key", `${prefix}%`);
+  if (error) {
+    console.error(`Falha ao listar "${prefix}*" do Supabase:`, error);
+    return [];
+  }
+  return (data || []).map((row) => row.value);
+}
+
+export async function deletePersistent(key) {
+  try {
+    localStorage.removeItem(localKey(key));
+  } catch {
+    /* storage can be unavailable */
+  }
+  const { error } = await supabase.from("app_storage").delete().eq("key", key);
+  if (error) console.error(`Falha ao apagar "${key}" do Supabase:`, error);
 }

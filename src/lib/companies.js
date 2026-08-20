@@ -7,30 +7,53 @@ import {
   readStoredArray,
   readPersistent,
   writePersistent,
+  readPersistentByPrefix,
+  deletePersistent,
+  companyKey,
   companyJournalKey,
+  COMPANY_KEY_PREFIX,
 } from "./persistence.js";
 import { DEFAULT_NATURE_RULES } from "./accountNature.js";
 import { supabase, MONTHLY_REPORTS_BUCKET } from "./supabaseClient.js";
 
-// Remembers, per company id, the exact `journal` array reference last sent
-// to Supabase — so a save that didn't touch a given company's ledger (the
-// vast majority of saves: a De/Para edit or a dashboard tweak only ever
-// changes the active company) can skip re-uploading it. `.map()` calls that
-// leave a company untouched hand back the very same object/array reference,
-// so a `!==` check reliably tells "actually edited" apart from "just along
-// for the ride in the same companies array".
+// Remembers, per company id, the exact array/object reference last sent to
+// Supabase for that company's journal and for the rest of its record — so a
+// save that didn't touch a given company (the vast majority of saves: a
+// De/Para edit or a dashboard tweak only ever changes the active company)
+// skips re-uploading it entirely. `.map()` calls that leave a company
+// untouched hand back the very same object/array reference, so a `!==`
+// check reliably tells "actually edited" apart from "just along for the
+// ride in the same companies array". This is also what makes it SAFE for
+// two tabs/devices to be open at once: each company now lives in its own
+// Supabase row (companyKey), so a tab only ever writes the rows it actually
+// changed — it can never blast a stale in-memory copy of some OTHER
+// company over a newer row it never even read.
 const lastWrittenJournals = new Map();
+const lastWrittenRecords = new Map();
 
 function writeStoredCompanies(companies) {
   const writes = companies.map((company) => {
-    if (lastWrittenJournals.get(company.id) === company.journal) return null;
-    lastWrittenJournals.set(company.id, company.journal);
-    return writePersistent(companyJournalKey(company.id), company.journal || []);
+    // Compared against the COMPANY object itself, not a `{ ...company }`
+    // copy — object-rest-spread always allocates a new object, so
+    // comparing copies would never match and this whole skip-what-didn't-
+    // change mechanism would silently do nothing. Comparing the real
+    // reference works because a `.map()` that leaves a given company
+    // untouched hands back that exact same object every time.
+    const recordChanged = lastWrittenRecords.get(company.id) !== company;
+    const journalChanged = lastWrittenJournals.get(company.id) !== company.journal;
+    if (!journalChanged && !recordChanged) return null;
+    const pending = [];
+    if (journalChanged) {
+      lastWrittenJournals.set(company.id, company.journal);
+      pending.push(writePersistent(companyJournalKey(company.id), company.journal || []));
+    }
+    if (recordChanged) {
+      lastWrittenRecords.set(company.id, company);
+      const { journal, ...record } = company; // stripped only for the write payload
+      pending.push(writePersistent(companyKey(company.id), record));
+    }
+    return Promise.all(pending);
   });
-  // The light index (everything but the ledger) is comparatively small —
-  // still cheap to write in full every time, same as before.
-  const light = companies.map(({ journal, ...rest }) => rest);
-  writes.push(writePersistent(COMPANIES_KEY, light));
   return Promise.all(writes.filter(Boolean));
 }
 
@@ -85,6 +108,14 @@ export function invalidateMappingsForPlanoCodes(codes) {
   let removed = 0;
   const companies = state.companies.map((company) => {
     const previous = company.mappings || [];
+    const hasInvalidLink = previous.some((mapping) => invalidCodes.has(mapping.codigo_gerencial));
+    // Companies with nothing to invalidate pass through as the exact same
+    // object — building a new one for every company regardless (even when
+    // nothing on it actually changed) is what writeStoredCompanies uses to
+    // decide what needs re-saving, so touching all of them here would mean
+    // this one plano edit rewrites every company's row, stale in-memory
+    // copies included.
+    if (!hasInvalidLink) return company;
     const mappings = previous.filter((mapping) => !invalidCodes.has(mapping.codigo_gerencial));
     removed += previous.length - mappings.length;
     return { ...company, mappings, journal: remapJournal(company.journal || [], mappings), updatedAt: new Date().toISOString() };
@@ -104,17 +135,36 @@ export function invalidateMappingsForPlanoCodes(codes) {
 // to avoid a circular import, since selectGroup itself calls back into
 // persistActiveCompany above).
 export async function loadCompanies() {
-  const light = await readStoredArray(COMPANIES_KEY);
+  let records = await readPersistentByPrefix(COMPANY_KEY_PREFIX);
+  // One-time migration: nothing under the new per-company keys yet means
+  // this account still has its companies under the old shared-array key
+  // (COMPANIES_KEY) — read that once, split every company into its own row
+  // right away, and never touch the old key again. Safe to run from more
+  // than one tab/device at once: it only ever re-writes rows from data it
+  // just read, the same as any other save.
+  if (records.length === 0) {
+    const legacyLight = await readStoredArray(COMPANIES_KEY);
+    if (legacyLight.length > 0) {
+      records = legacyLight.map(({ journal, ...rest }) => rest);
+      await Promise.all(records.map((record) => writePersistent(companyKey(record.id), record)));
+    }
+  }
   const companies = await Promise.all(
-    light.map(async (company) => {
-      const journal = await readPersistent(companyJournalKey(company.id));
-      // `journal` embedded on `company` itself is only present for records
-      // saved before the ledger was split into its own key — once this
-      // company gets saved again it'll have its own key and this fallback
-      // stops being hit for it.
-      const resolved = journal !== undefined ? journal : company.journal || [];
-      lastWrittenJournals.set(company.id, resolved);
-      return { ...company, journal: resolved };
+    records.map(async (record) => {
+      let journal = await readPersistent(companyJournalKey(record.id));
+      // `journal` embedded on the legacy record itself is only present for
+      // companies saved before the ledger was split into its own key.
+      if (journal === undefined) journal = record.journal || [];
+      const { journal: _legacyJournal, ...rest } = record;
+      const company = { ...rest, journal };
+      // Pre-populate the "already saved" trackers with the exact object
+      // this tab is about to hold in state.companies — otherwise every
+      // company, not just the one actually edited, would look "changed"
+      // (and get needlessly rewritten) the very first time anything in
+      // this tab gets saved.
+      lastWrittenJournals.set(record.id, journal);
+      lastWrittenRecords.set(record.id, company);
+      return company;
     })
   );
   const groups = await readStoredArray(GROUPS_KEY);
@@ -370,9 +420,31 @@ export function replicateTabsToCompanies(sourceTabs, targetIds) {
   return applyDashboardTabsToCompanies(sourceTabs, targetIds);
 }
 
+// Called when a representante is deleted (see lib/representantes.js) —
+// drops that id from every company's representanteIds. Routed through here
+// (rather than representantes.js writing to company storage directly, which
+// it used to) so it goes through writeStoredCompanies and gets the same
+// per-row, only-what-actually-changed treatment as every other company
+// edit — companies with no reference to this representante pass through
+// untouched instead of every single one being rewritten.
+export function unlinkRepresentanteFromCompanies(representanteId) {
+  const companies = state.companies.map((company) => {
+    if (!(company.representanteIds || []).includes(representanteId)) return company;
+    return { ...company, representanteIds: company.representanteIds.filter((id) => id !== representanteId) };
+  });
+  writeStoredCompanies(companies);
+  setData({ companies });
+}
+
 export function deleteCompany(id) {
   const companies = state.companies.filter((company) => company.id !== id);
-  writeStoredCompanies(companies);
+  // Each company is its own row now (see companyKey) — simply leaving it
+  // out of a future write no longer removes it, its row has to be deleted
+  // explicitly.
+  deletePersistent(companyKey(id));
+  deletePersistent(companyJournalKey(id));
+  lastWrittenRecords.delete(id);
+  lastWrittenJournals.delete(id);
   const nextActive = state.activeCompanyId === id ? companies[0]?.id || "" : state.activeCompanyId;
   setData({ companies });
   if (state.activeCompanyId === id) {
@@ -386,6 +458,28 @@ export async function importBackupFile(file) {
   const payload = JSON.parse(text);
   const companies = Array.isArray(payload.companies) ? payload.companies : [];
   const groups = Array.isArray(payload.groups) ? payload.groups : [];
+  // Full replace: any company that exists today but isn't in the backup
+  // needs its row deleted explicitly — writeStoredCompanies only ever
+  // writes rows for what's handed to it, it has no way to know a company
+  // that's simply absent from this list should be removed rather than left
+  // alone (each company is its own row; see companyKey).
+  const incomingIds = new Set(companies.map((company) => company.id));
+  const staleIds = state.companies.map((company) => company.id).filter((id) => !incomingIds.has(id));
+  await Promise.all(
+    staleIds.map((id) => {
+      lastWrittenRecords.delete(id);
+      lastWrittenJournals.delete(id);
+      return Promise.all([deletePersistent(companyKey(id)), deletePersistent(companyJournalKey(id))]);
+    })
+  );
+  // Force-write every incoming company regardless of reference tracking —
+  // a restore should always land exactly as the backup says, never skipped
+  // because some unrelated earlier write happened to leave a matching
+  // reference cached.
+  companies.forEach((company) => {
+    lastWrittenRecords.delete(company.id);
+    lastWrittenJournals.delete(company.id);
+  });
   writeStoredCompanies(companies);
   writeStoredGroups(groups);
   const activeCompanyId = payload.activeCompanyId && companies.some((company) => company.id === payload.activeCompanyId)
