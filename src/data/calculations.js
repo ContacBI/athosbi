@@ -45,30 +45,25 @@ export function buildDfcDirect() {
   }));
   const byCode = new Map(rows.map((row) => [row.codigo_gerencial, row]));
   const entries = filteredJournal();
-  const counterpartIndex = indexDfcCounterparts(entries);
-  const groupIndex = indexDfcGroups(entries);
+  const groupIndex = indexByKey(entries, dfcGroupKey);
+  const dayIndex = indexByKey(entries, dfcDayKey);
   const dfcConfig = prepareDfcConfig();
   const analyticsByRow = new Map();
   const cashEntries = entries.filter(isCashEntry);
 
   cashEntries.forEach((entry) => {
     if (isOpeningBalanceEntry(entry)) return;
-    const allocations = findCashAllocations(entry, counterpartIndex, groupIndex);
-    if (allocations.length === 1 && isCashEntry(allocations[0].counterpart)) return; // transferência entre contas de caixa
-    if (!allocations.length) {
-      const targetCode = classifyDfcEntry(entry, null, dfcConfig);
-      addDfcValue(byCode.get(targetCode) || byCode.get("DFC.OP.OUTROS"), entry, null, analyticsByRow);
-      return;
-    }
-    allocations.forEach(({ counterpart, share }) => {
-      const targetCode = classifyDfcEntry(entry, counterpart, dfcConfig);
-      // share === 1 é o caso comum (um contrapartida só) — usa a entrada
-      // original sem alterar nada, mesmo objeto de sempre. Só um lançamento
-      // composto (share < 1, mais de uma contrapartida) precisa de uma
-      // cópia com o valor proporcional à parte que cabe a essa contrapartida.
-      const partialEntry = share === 1 ? entry : { ...entry, debito: Number(entry.debito || 0) * share, credito: Number(entry.credito || 0) * share };
-      addDfcValue(byCode.get(targetCode) || byCode.get("DFC.OP.OUTROS"), partialEntry, counterpart, analyticsByRow);
+    const result = findCashPieces(entry, groupIndex, dayIndex);
+    if (!result) return; // transferência entre contas de caixa
+    result.pieces.forEach(({ counterpart, entry: piece }) => {
+      const targetCode = classifyDfcEntry(piece, counterpart, dfcConfig);
+      addDfcValue(byCode.get(targetCode) || byCode.get("DFC.OP.OUTROS"), piece, counterpart, analyticsByRow);
     });
+    if (Math.round(result.leftover * 100) !== 0) {
+      const leftoverPiece = { ...entry, debito: result.leftover < 0 ? 0 : result.leftover, credito: result.leftover < 0 ? -result.leftover : 0 };
+      const targetCode = classifyDfcEntry(leftoverPiece, null, dfcConfig);
+      addDfcValue(byCode.get(targetCode) || byCode.get("DFC.OP.OUTROS"), leftoverPiece, null, analyticsByRow);
+    }
   });
 
   applyDfcSubtotals(byCode);
@@ -476,43 +471,34 @@ function isOpeningBalanceEntry(entry) {
   return normalize(entry.historico).includes("saldo anterior");
 }
 
-// Em modo grupo, entry.companyId identifica de qual empresa e o
-// lancamento (ver groups.js). SEM isso na chave, um pagamento de uma
-// empresa podia "casar" com a contrapartida de OUTRA empresa do grupo so
-// por coincidencia de data + historico + valor - bem provavel quando
-// empresas irmas tem o mesmo tipo de emprestimo (ex.: Pronampe) com
-// parcelas e datas parecidas. Fora do modo grupo, companyId e undefined
-// pra todo mundo, entao isso nao muda nada pra uma empresa sozinha.
-function dfcCounterpartKey(entry, value = Number(entry.debito || 0) - Number(entry.credito || 0)) {
-  return JSON.stringify([entry.companyId || "", entry.data || "", normalize(entry.historico), Math.round(value * 100)]);
-}
-
-function indexDfcCounterparts(entries) {
-  const index = new Map();
-  entries.forEach((entry) => {
-    const key = dfcCounterpartKey(entry);
-    const list = index.get(key) || [];
-    list.push(entry);
-    index.set(key, list);
-  });
-  return index;
-}
-
-// Mesma ideia de dfcCounterpartKey, mas SEM o valor — agrupa todo lançamento
-// (de qualquer valor) do mesmo dia + histórico dentro da mesma empresa. Usada
-// só quando o casamento exato (com valor) não acha nada: é o sinal de um
-// LANÇAMENTO COMPOSTO — um único crédito de caixa baixando várias contas de
-// uma vez (ex.: uma parcela de empréstimo cuja baixa cobre principal +
-// juros em duas linhas de débito separadas), onde nenhuma conta sozinha
-// bate com o valor total do lançamento de caixa, mas a SOMA delas bate.
+// A contrapartida PRINCIPAL de um lançamento de caixa é achada por
+// EMPRESA + DATA + HISTÓRICO idênticos (ex.: "PAGAMENTO EMPRESTIMO
+// PRONAMPE 07/48" bate nos dois lados). entry.companyId identifica de
+// qual empresa é o lançamento (ver groups.js) — sem isso, um pagamento de
+// uma empresa podia casar com a contrapartida de OUTRA empresa do grupo
+// só por coincidência de data e histórico, bem provável entre empresas
+// irmãs com o mesmo tipo de empréstimo. Fora do modo grupo, companyId é
+// undefined pra todo mundo, então isso não muda nada pra uma empresa só.
 function dfcGroupKey(entry) {
   return JSON.stringify([entry.companyId || "", entry.data || "", normalize(entry.historico)]);
 }
 
-function indexDfcGroups(entries) {
+// Só empresa + data (sem histórico) — usada como fallback quando a
+// contrapartida principal não fecha sozinha o valor do lançamento de
+// caixa: é o sinal de um LANÇAMENTO COMPOSTO, uma baixa de caixa só
+// cobrindo duas contas ao mesmo tempo (ex.: parcela do empréstimo +
+// juros), cada uma com seu PRÓPRIO histórico (ex.: "JUROS S/ PAGAMENTO
+// EMPRESTIMO PRONAMPE 07/48", diferente de "PAGAMENTO EMPRESTIMO
+// PRONAMPE 07/48") — por isso não entram no casamento principal, exato
+// por histórico.
+function dfcDayKey(entry) {
+  return JSON.stringify([entry.companyId || "", entry.data || ""]);
+}
+
+function indexByKey(entries, keyFn) {
   const index = new Map();
   entries.forEach((entry) => {
-    const key = dfcGroupKey(entry);
+    const key = keyFn(entry);
     const list = index.get(key) || [];
     list.push(entry);
     index.set(key, list);
@@ -520,41 +506,72 @@ function indexDfcGroups(entries) {
   return index;
 }
 
-// Retorna uma lista de { counterpart, share } — share é a fração do valor
-// do cashEntry que cabe a cada contrapartida:
-//   - Caso de sempre (um contrapartida só, valor exatamente oposto):
-//     [{ counterpart, share: 1 }] — comportamento idêntico a antes.
-//   - Transferência entre duas contas de caixa (nenhuma contrapartida
-//     "real" achada, só outra entrada de caixa com valor oposto):
-//     [{ counterpart: <a entrada de caixa>, share: 1 }] — quem chama
-//     continua reconhecendo isCashEntry(counterpart) e ignorando, igual
-//     sempre fez.
-//   - Lançamento composto (nenhum casamento exato, mas duas ou mais
-//     contrapartidas do mesmo dia/histórico somam o valor do cashEntry):
-//     uma entrada por contrapartida, share proporcional ao valor de cada
-//     uma — assim cada pedaço (ex.: principal do empréstimo, juros) vai
-//     pra sua própria linha da DFC com o valor certo, em vez do
-//     lançamento inteiro cair em "Sem contrapartida identificada".
-//   - Nada bate de jeito nenhum: [] (mesmo fallback "sem contrapartida"
-//     de sempre, só que agora reservado pro que de fato não tem como
-//     identificar, não mais pra todo lançamento composto).
-function findCashAllocations(cashEntry, counterpartIndex, groupIndex) {
-  const cashValue = Number(cashEntry.debito || 0) - Number(cashEntry.credito || 0);
-  const exactMatches = counterpartIndex.get(dfcCounterpartKey(cashEntry, -cashValue)) || [];
-  const exactNonCash = exactMatches.find((entry) => !isCashEntry(entry));
-  if (exactNonCash) return [{ counterpart: exactNonCash, share: 1 }];
-  if (exactMatches.length) return [{ counterpart: exactMatches[0], share: 1 }];
+function entryValue(entry) {
+  return Number(entry.debito || 0) - Number(entry.credito || 0);
+}
 
-  const group = (groupIndex.get(dfcGroupKey(cashEntry)) || []).filter((entry) => entry !== cashEntry && !isCashEntry(entry));
-  if (!group.length) return [];
-  const total = group.reduce((sum, entry) => sum + (Number(entry.debito || 0) - Number(entry.credito || 0)), 0);
-  if (Math.round(total * 100) !== Math.round(-cashValue * 100)) return [];
-  const totalAbs = group.reduce((sum, entry) => sum + Math.abs(Number(entry.debito || 0) - Number(entry.credito || 0)), 0);
-  if (!totalAbs) return [];
-  return group.map((counterpart) => ({
-    counterpart,
-    share: Math.abs(Number(counterpart.debito || 0) - Number(counterpart.credito || 0)) / totalAbs,
-  }));
+// Uma "peça" pronta pra addDfcValue: mesma data/histórico/empresa do
+// lançamento de caixa original, mas com o valor de UMA contrapartida
+// específica, direto do jeito que está no diário DELA — sem calcular
+// fração nem proporção nenhuma. Inverte débito/crédito porque o valor de
+// quem contrapartida (ex.: um débito que reduz um passivo) precisa virar
+// o equivalente "do lado do caixa" (uma saída) pra addDfcValue somar
+// certo — é a mesma relação que já existia entre um cashEntry e seu
+// counterpart no caso simples de sempre.
+function cashPieceFor(cashEntry, counterpart) {
+  return { ...cashEntry, debito: Number(counterpart.credito || 0), credito: Number(counterpart.debito || 0) };
+}
+
+// Retorna { pieces, leftover }:
+//   - pieces: lista de { counterpart, entry } prontos pra addDfcValue —
+//     um só no caso de sempre (contrapartida exata), dois ou mais quando
+//     é um lançamento composto que fechou certinho (a soma das
+//     contrapartidas bate com o valor do lançamento de caixa).
+//   - leftover: quanto do valor do lançamento de caixa NÃO foi possível
+//     explicar com nenhuma contrapartida — vai pra "Sem contrapartida
+//     identificada" (nunca fica perdido/escondido).
+// Retorna null quando a única contrapartida achada é outra conta de
+// caixa (transferência entre contas do próprio caixa — quem chama ignora
+// esses, igual sempre fez).
+function findCashPieces(cashEntry, groupIndex, dayIndex) {
+  const cashValue = entryValue(cashEntry);
+  const exactCandidates = (groupIndex.get(dfcGroupKey(cashEntry)) || []).filter((entry) => entry !== cashEntry);
+  const primary = exactCandidates.find((entry) => !isCashEntry(entry));
+
+  if (!primary) {
+    if (exactCandidates.some((entry) => isCashEntry(entry))) return null; // transferência entre caixas
+    return { pieces: [], leftover: cashValue };
+  }
+
+  const primaryValue = entryValue(primary);
+  if (Math.round(primaryValue * 100) === Math.round(-cashValue * 100)) {
+    return { pieces: [{ counterpart: primary, entry: cashPieceFor(cashEntry, primary) }], leftover: 0 };
+  }
+
+  // A contrapartida principal sozinha não fecha o valor — procura, no
+  // mesmo dia (qualquer histórico), uma outra conta cuja soma com a
+  // principal feche exatamente o valor do lançamento de caixa.
+  const remainder = -cashValue - primaryValue;
+  const sameDay = (dayIndex.get(dfcDayKey(cashEntry)) || []).filter((entry) => entry !== cashEntry && entry !== primary && !isCashEntry(entry));
+  const extra = sameDay.find((entry) => Math.round(entryValue(entry) * 100) === Math.round(remainder * 100));
+
+  if (extra) {
+    return {
+      pieces: [
+        { counterpart: primary, entry: cashPieceFor(cashEntry, primary) },
+        { counterpart: extra, entry: cashPieceFor(cashEntry, extra) },
+      ],
+      leftover: 0,
+    };
+  }
+
+  // Não achou como fechar a diferença — usa a principal do jeito que ela
+  // é (valor dela mesma, não uma fração) e deixa o restante visível em
+  // "Sem contrapartida identificada" em vez de forçar um número.
+  return {
+    pieces: [{ counterpart: primary, entry: cashPieceFor(cashEntry, primary) }],
+    leftover: cashValue - -primaryValue,
+  };
 }
 
 function prepareDfcConfig() {
