@@ -21,8 +21,23 @@ function formatDate(value) {
   return year && month && day ? `${day}/${month}/${year}` : value || "";
 }
 
+// "Sem contrapartida identificada" não é uma conta de verdade — é um balde
+// (classificacao literal "sem-contrapartida") pra onde vai a PARTE de um
+// lançamento de caixa que não fechou com nenhuma contrapartida (ver
+// findCashPieces/addDfcAnalytic em calculations.js). entriesForAccount não
+// acha nada pra esse código (nenhum lançamento real tem essa classificacao),
+// então esse balde SEMPRE abria um diário vazio — os "71 lançamentos" do
+// cabeçalho existiam, mas não tinha como ver nenhum deles. row.dfcEntries já
+// carrega o pedaço real (data/histórico/valor da SOBRA, não o lançamento
+// inteiro) de cada um — mesma fonte que os "qtd_lancamentos" mostrados na
+// tela. Só entra por esse caminho aqui; contas de verdade continuam usando
+// entriesForAccount (diário completo da conta, não só o pedaço batido na DFC).
+const SEM_CONTRAPARTIDA_CODE = "sem-contrapartida";
+
 export default function LedgerModal({ row, onClose }) {
-  const rawEntries = entriesForAccount(row.classificacao);
+  const rawEntries = row.classificacao === SEM_CONTRAPARTIDA_CODE && Array.isArray(row.dfcEntries)
+    ? row.dfcEntries
+    : entriesForAccount(row.classificacao);
   const showCompany = rawEntries.some((entry) => entry.companyName) && new Set(rawEntries.map((entry) => entry.companyName)).size > 1;
   // Uma linha somada entre empresas (ver mergeGroupRowsByName) mistura o
   // diário de cada uma sob a mesma conta. Intercalar tudo por data só pela
@@ -39,6 +54,7 @@ export default function LedgerModal({ row, onClose }) {
   const totalDebito = entries.reduce((sum, entry) => sum + Number(entry.debito || 0), 0);
   const totalCredito = entries.reduce((sum, entry) => sum + Number(entry.credito || 0), 0);
   const label = row.nome_conta || row.categoria_gerencial;
+  const isSemContrapartida = row.classificacao === SEM_CONTRAPARTIDA_CODE;
   // sameTransactionEntries varre o razão inteiro a cada chamada — ótimo
   // pra conferir uma conta pequena (é exatamente o caso que motivou isso:
   // achar por que só 4 de 6 pagamentos de um empréstimo "casavam"), mas
@@ -75,6 +91,11 @@ export default function LedgerModal({ row, onClose }) {
           </button>
         </div>
 
+        {isSemContrapartida && (
+          <div className="border-b border-line bg-warning-500/10 px-6 py-2.5 text-[12px] text-ink-700">
+            Cada linha abaixo é só a <strong>parte que sobrou</strong> de um lançamento de caixa composto — não achamos, no mesmo dia, nenhuma outra conta cuja soma fechasse o valor todo. Olhe a lista "↔" sob o histórico: ela mostra o que existe no razão no mesmo dia/histórico daquele lançamento, pra você achar manualmente a contrapartida certa.
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3 border-b border-line bg-surface-page px-6 py-4">
           <div className="flex items-center gap-3 rounded-xl bg-surface-card p-3.5 shadow-sm">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-success-50 text-success-600">
