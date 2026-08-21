@@ -3,6 +3,7 @@ import { buildExecutiveDreRows, ebitdaChartData, DRE_RESUMIDA_MAP } from "./exec
 import { accumulatedBalanceValue } from "./reportColumns.js";
 import { activeGroup } from "./groups.js";
 import { buildPerCompanyReports } from "./groupExport.js";
+import { directChildren } from "./reportTree.js";
 
 export function monthLabel(month) {
   const [year, mm] = String(month || "").split("-");
@@ -134,12 +135,21 @@ export function buildDashboardContext() {
 
   // --- Capital de giro (NCG, na definição simples já usada no indicador
   // "Capital de giro" — Ativo circulante − Passivo circulante, não filtrado
-  // só pra itens operacionais) mês a mês, mesmo saldo acumulado acima.
+  // só pra itens operacionais) mês a mês, mesmo saldo acumulado acima. Já
+  // aproveita e traz junto a dívida financeira (empréstimos/financiamentos
+  // CP+LP — grupos sintéticos do plano gerencial, então funciona pra
+  // qualquer empresa independente de quais contas analíticas ela usa por
+  // baixo) pro gráfico "Capital de giro x Dívida financeira".
+  const obrigFinCp = findRow(bp, "02.01.02");
+  const obrigFinLp = findRow(bp, "02.02.01");
   const ncgSeries = months.map((month) => ({
     month: monthLabel(month),
     value:
       (ativoCirculante ? accumulatedBalanceValue(ativoCirculante, month, months) : 0) -
       (passivoCirculante ? accumulatedBalanceValue(passivoCirculante, month, months) : 0),
+    divida:
+      Math.abs(obrigFinCp ? accumulatedBalanceValue(obrigFinCp, month, months) : 0) +
+      Math.abs(obrigFinLp ? accumulatedBalanceValue(obrigFinLp, month, months) : 0),
   }));
 
   // --- Receita x Custo x Despesa mês a mês + margem líquida sobreposta ---
@@ -233,6 +243,90 @@ export function buildDashboardContext() {
     { indicator: "ROE", score: scoreUp(roe, -10, 30), raw: roe, format: "percent" },
   ];
 
+  // --- Margens no tempo: bruta e líquida mês a mês, mesma leitura de
+  // monthValues que series/expenseSeries já usam pras linhas cruas.
+  const marginsSeries = months.map((month) => {
+    const receita = Number(revenueRow?.monthValues?.[month] || 0);
+    const custo = Math.abs(Number(custoRow?.monthValues?.[month] || 0));
+    const resultado = Number(resultRow?.monthValues?.[month] || 0);
+    return {
+      month: monthLabel(month),
+      margemBruta: receita ? ((receita - custo) / receita) * 100 : 0,
+      margemLiquida: receita ? (resultado / receita) * 100 : 0,
+    };
+  });
+
+  // --- Liquidez no tempo: corrente e geral mês a mês, mesmo saldo
+  // acumulado de bpSeries/ncgSeries — só divide os dois lados.
+  const liquidezSeries = months.map((month) => {
+    const ac = ativoCirculante ? accumulatedBalanceValue(ativoCirculante, month, months) : 0;
+    const pc = passivoCirculante ? Math.abs(accumulatedBalanceValue(passivoCirculante, month, months)) : 0;
+    const at = ativoTotal ? accumulatedBalanceValue(ativoTotal, month, months) : 0;
+    const pt = passivoTotal ? Math.abs(accumulatedBalanceValue(passivoTotal, month, months)) : 0;
+    return {
+      month: monthLabel(month),
+      corrente: pc ? ac / pc : null,
+      geral: pt ? at / pt : null,
+    };
+  });
+
+  // --- Rentabilidade no tempo: ROE e ROA mês a mês (resultado do mês sobre
+  // PL/Ativo acumulados naquele mês — mesma base usada nos indicadores
+  // estáticos, só que ponto a ponto no tempo em vez de só no período todo).
+  const rentabilidadeSeries = months.map((month, index) => {
+    const resultado = Number(resultRow?.monthValues?.[month] || 0);
+    const pl = Math.abs(bpSeries[index]?.pl || 0);
+    const ativo = Math.abs(bpSeries[index]?.ativo || 0);
+    return {
+      month: monthLabel(month),
+      roe: pl ? (resultado / pl) * 100 : null,
+      roa: ativo ? (resultado / ativo) * 100 : null,
+    };
+  });
+
+  // --- Cascata do resultado: mesmo mecanismo visual da cascata do DFC
+  // (ver DfcWaterfallChart), aplicado à DRE — da receita bruta ao resultado
+  // líquido, passo a passo. Linhas de fórmula (DRE.03/05/12/15/17) já têm
+  // .saldo pronto; as cruas usam periodValue() (soma de monthValues), igual
+  // ao pareto de despesas logo abaixo.
+  const despesasOpTotal = despesaRows.reduce((sum, row) => sum + periodValue(row), 0);
+  const dreWaterfall = [
+    { name: "Receita bruta", value: periodValue(findRow(dre, "DRE.01")), isTotal: false },
+    { name: "Deduções", value: periodValue(findRow(dre, "DRE.02")), isTotal: false },
+    { name: "Receita líquida", value: Number(findRow(dre, "DRE.03")?.saldo || 0), isTotal: true },
+    { name: "Custos", value: periodValue(findRow(dre, "DRE.04")), isTotal: false },
+    { name: "Lucro bruto", value: Number(findRow(dre, "DRE.05")?.saldo || 0), isTotal: true },
+    { name: "Despesas", value: despesasOpTotal, isTotal: false },
+    { name: "Result. operacional", value: Number(findRow(dre, "DRE.12")?.saldo || 0), isTotal: true },
+    { name: "Result. financeiro", value: periodValue(findRow(dre, "DRE.13")), isTotal: false },
+    { name: "Antes de IR/CSLL", value: Number(findRow(dre, "DRE.15")?.saldo || 0), isTotal: true },
+    { name: "IRPJ/CSLL", value: periodValue(findRow(dre, "DRE.16")), isTotal: false },
+    { name: "Resultado líquido", value: Number(findRow(dre, "DRE.17")?.saldo || 0), isTotal: true },
+  ];
+
+  // --- Composição das despesas operacionais: os 4 grandes grupos da DRE
+  // (Comerciais/Administrativas/Tributos e provisões/Outros resultados
+  // operacionais) num só gráfico — visão mais alta que o pareto de despesas
+  // (que já vai no nível de linha analítica).
+  const DESPESA_GROUP_LABEL = {
+    "DRE.06": "Despesas comerciais",
+    "DRE.07": "Despesas administrativas",
+    "DRE.08": "Tributos e provisões",
+    "DRE.09": "Outros resultados operacionais",
+  };
+  const despesasComposicao = despesaCodes
+    .map((code) => ({ name: DESPESA_GROUP_LABEL[code] || code, value: Math.abs(periodValue(findRow(dre, code))) }))
+    .filter((item) => item.value > 0.005);
+
+  // --- Composição da receita bruta: linhas diretamente abaixo de DRE.01
+  // (Receita bruta) no plano gerencial da empresa — funciona igual pra
+  // qualquer regime de receita (serviços, mercadorias, mensalidades etc.),
+  // já que lê a árvore de verdade em vez de assumir categorias fixas.
+  const receitaComposicao = directChildren(dre, "DRE.01")
+    .map((row) => ({ name: row.categoria_gerencial || row.nome, value: Math.abs(periodValue(row)) }))
+    .filter((item) => item.value > 0.005)
+    .sort((a, b) => b.value - a.value);
+
   return {
     dre,
     bp,
@@ -266,6 +360,12 @@ export function buildDashboardContext() {
     breakEven,
     groupComparison,
     radarIndicators,
+    marginsSeries,
+    liquidezSeries,
+    rentabilidadeSeries,
+    dreWaterfall,
+    despesasComposicao,
+    receitaComposicao,
     destaques,
     checklist,
     missing,
