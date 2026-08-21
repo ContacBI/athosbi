@@ -33,6 +33,22 @@ export function periodLabelPt(start, end) {
   return start && end ? `${formatDatePt(start)} – ${formatDatePt(end)}` : "Período completo";
 }
 
+// "Balanço Patrimonial" é tecnicamente o encerramento do exercício (ano
+// completo, 01/01 a 31/12 do mesmo ano); qualquer outro recorte de período
+// é um "Balancete" — mesma demonstração, nome técnico diferente conforme
+// cobre o ano inteiro ou não. Sem período selecionado (relatório "aberto",
+// sem filtro) trata como parcial — não dá pra confirmar que é o ano
+// fechado.
+export function balanceSheetLabel(periodStart, periodEnd) {
+  const isFullYear =
+    Boolean(periodStart) &&
+    Boolean(periodEnd) &&
+    /^\d{4}-01-01$/.test(periodStart) &&
+    /^\d{4}-12-31$/.test(periodEnd) &&
+    periodStart.slice(0, 4) === periodEnd.slice(0, 4);
+  return isFullYear ? "Balanço Patrimonial" : "Balancete";
+}
+
 export function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")

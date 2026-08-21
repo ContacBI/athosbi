@@ -19,7 +19,7 @@ import { reportColumns, columnLabel, columnValue, isZeroNoMovement, horizontalPe
 import { exportDemonstrativoPdf } from "../lib/reportPdf.js";
 import { exportDemonstrativoExcel } from "../lib/reportExcel.js";
 import { buildExecutiveDreRows, ebitdaChartData } from "../lib/executiveDre.js";
-import { money, moneyOrDash, periodLabelPt } from "../lib/format.js";
+import { money, moneyOrDash, periodLabelPt, balanceSheetLabel } from "../lib/format.js";
 import { useDownloadHandlers } from "../lib/pageActions.jsx";
 import { activeWorkspaceName } from "../lib/groups.js";
 import Placeholder from "../components/Placeholder.jsx";
@@ -510,7 +510,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
   function exportMeta() {
     const company = state.companies.find((item) => item.id === state.activeCompanyId);
     const workspaceName = activeWorkspaceName();
-    const reportName = tab === "BP" ? "Balanço Patrimonial" : mode === "executiva" ? "DRE Ebitda" : "DRE";
+    const reportName = tab === "BP" ? balanceSheetLabel(appState.periodStart, appState.periodEnd) : mode === "executiva" ? "DRE Ebitda" : "DRE";
     const activeRows = mode === "executiva" ? executiveRows : rows;
     const hasAnalytic = activeRows.some((row) => row.kind !== "synthetic");
     const maxLevel = activeRows.reduce((max, row) => Math.max(max, Number(row.nivel || 0)), 0);
@@ -573,12 +573,12 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             {lockedTab ? (
-              <p className="text-[15px] font-medium text-ink-900">{lockedTab === "BP" ? "Balanço patrimonial" : "DRE"}</p>
+              <p className="text-[15px] font-medium text-ink-900">{lockedTab === "BP" ? balanceSheetLabel(appState.periodStart, appState.periodEnd) : "DRE"}</p>
             ) : (
               <SegmentedControl
                 options={[
                   { id: "DRE", label: "DRE" },
-                  { id: "BP", label: "Balanço patrimonial" },
+                  { id: "BP", label: balanceSheetLabel(appState.periodStart, appState.periodEnd) },
                 ]}
                 value={tab}
                 onChange={handleTabChange}

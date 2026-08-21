@@ -78,13 +78,22 @@ export function columnValue(row, column, { tab, bpMonthlyMode, months }) {
   if (column === "credit") return row.periodCredito || 0;
   // "ending" só aparece junto de initial/debit/credit nesse modo compacto do
   // BP (ver reportColumns acima) — precisa fechar a conta do período
-  // selecionado (SI + Entradas − Saídas), não mostrar row.saldo_final, que
-  // é o saldo_atual FIXO do balancete importado (a "foto" mais recente,
-  // não necessariamente do fim do período filtrado na tela). Com um
-  // balancete importado até 06 e o período filtrado até 01, saldo_final
-  // sempre mostrava o saldo de 06 junto de Entradas/Saídas só de 01 — a
-  // conta nunca fechava.
-  if (column === "ending" && tab === "BP") return Number(row.saldo_inicial || 0) + Number(row.periodDebito || 0) - Number(row.periodCredito || 0);
+  // selecionado, não mostrar row.saldo_final, que é o saldo_atual FIXO do
+  // balancete importado (a "foto" mais recente, não necessariamente do fim
+  // do período filtrado na tela). Com um balancete importado até 06 e o
+  // período filtrado até 01, saldo_final sempre mostrava o saldo de 06
+  // junto de Entradas/Saídas só de 01 — a conta nunca fechava.
+  //
+  // SI + row.movimento_periodo, NÃO "SI + Entradas − Saídas" direto:
+  // Entradas/Saídas (periodDebito/periodCredito) são somas CRUAS de
+  // débito/crédito, sem ajuste de sinal — corretas pro Ativo (débito
+  // aumenta), mas invertidas pro Passivo/PL (crédito aumenta, débito
+  // diminui). row.movimento_periodo já vem com o sinal certo por conta
+  // (reportEntryValue/isPassiveOrEquityPlan, a mesma função que já inverte
+  // o saldo pro Passivo aparecer positivo em vez de negativo) — usar ele
+  // fecha os dois lados do balanço com a fórmula certa de cada um, sem
+  // precisar decidir aqui qual é qual.
+  if (column === "ending" && tab === "BP") return Number(row.saldo_inicial || 0) + Number(row.movimento_periodo || 0);
   if (column === "ending") return row.saldo_final || row.saldo || 0;
   if (column === "total" && tab === "DRE") return Number(row.saldo_anterior_balancete || 0) + periodTotal(row);
   if (column === "total") return row.saldo_final || row.saldo || 0;
