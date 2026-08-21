@@ -1413,14 +1413,32 @@ function netValue(entry) {
 // conta de cada vez, e como processa nessa ordem, a primeira combinação
 // que fechar é garantidamente a menor possível (a explicação mais simples
 // sempre vence sobre uma mais complicada do mesmo valor).
-const MAX_COMBINATION_SIZE = 20;
+// O pedido original era permitir até 20 lançamentos numa combinação. No
+// razão real testado (8214 lançamentos da Concent) o maior fechamento
+// genuíno encontrado precisou de só 5 — 8 aqui já sobra margem em cima
+// disso sem pagar o custo de profundidade que 20 exigiria (num dia bem
+// movimentado, cada nível a mais multiplica o trabalho). Se algum dia
+// aparecer um lançamento composto de verdade com mais de 8 pernas e ele
+// cair como "contrapartida não encontrada", é só subir esse número de novo.
+const MAX_COMBINATION_SIZE = 8;
 // Teto de estados (somas parciais distintas) carregados de um nível pro
 // próximo — sem isso, um dia grande sem nenhum fechamento possível faria a
-// busca crescer sem controle até o nível 20. Na prática a imensa maioria
-// dos casos fecha nos primeiros 1-3 níveis (testado no razão real da
-// Concent: 8131 diretos, 75 em par, 4 em trinca, de 8214) — esse teto só
-// entra em ação nos poucos casos que realmente precisam ir mais fundo.
+// busca crescer sem controle até o nível 8. Num dia bem movimentado (100+
+// lançamentos — comum em fechamento de folha/impostos, exatamente o caso
+// que mais interessa aqui) já no nível 1 dá pra passar desse teto: cortar
+// pela ORDEM DE INSERÇÃO (como era antes) descarta estados de forma
+// arbitrária, podendo jogar fora um caminho de 3 lançamentos genuíno só
+// porque ele não coube nos primeiros 4000 gerados. Por isso o corte final
+// de cada nível não é por ordem — é por PROXIMIDADE: sobrevive quem está
+// mais perto da soma que falta fechar, que é justamente quem tem mais
+// chance de fechar em poucos passos a mais.
 const MAX_FRONTIER_STATES = 4000;
+// Teto solto por baixo de MAX_FRONTIER_STATES só pra não gerar o produto
+// cruzado inteiro (estados × candidatos) num dia gigante antes de ordenar —
+// isso sozinho já ficava lento demais. Bem mais folgado que o teto final
+// (o corte por proximidade continua sendo o que decide quem sobrevive de
+// verdade), só evita gerar centenas de milhares de combinações à toa.
+const MAX_RAW_STATES_PER_LEVEL = MAX_FRONTIER_STATES * 3;
 
 function toCents(value) {
   return Math.round(Number(value || 0) * 100);
@@ -1433,13 +1451,17 @@ function findClosingCombination(target, candidates) {
 
   const values = candidates.map((candidate) => toCents(netValue(candidate))).map((cents, index) => ({ cents, index })).filter((item) => item.cents !== 0);
 
-  // frontier: soma parcial (em centavos) -> um caminho (lista de índices em
-  // `candidates`) que alcança essa soma usando só contas ainda não usadas
-  // nesse caminho. Cresce nível por nível (uma conta a mais por vez).
-  let frontier = new Map([[0, []]]);
+  // frontier: lista de estados { sum, usedIndices } — soma parcial (em
+  // centavos) alcançada usando só contas ainda não usadas nesse caminho.
+  // Cresce nível por nível (uma conta a mais por vez). Fica ordenada por
+  // proximidade da soma que falta fechar (ver corte no fim do loop), então
+  // processar nessa ordem já visita primeiro quem tem mais chance de
+  // fechar — o corte de geração abaixo raramente precisa entrar em ação
+  // antes de já ter capturado o caminho certo.
+  let frontier = [{ sum: 0, usedIndices: [] }];
   for (let size = 0; size < MAX_COMBINATION_SIZE; size += 1) {
     const next = new Map();
-    for (const [sum, usedIndices] of frontier) {
+    outer: for (const { sum, usedIndices } of frontier) {
       const usedSet = usedIndices.length ? new Set(usedIndices) : null;
       for (const { cents, index } of values) {
         if (usedSet && usedSet.has(index)) continue;
@@ -1448,12 +1470,16 @@ function findClosingCombination(target, candidates) {
           return [...usedIndices, index].map((i) => candidates[i]);
         }
         if (!next.has(newSum)) next.set(newSum, [...usedIndices, index]);
-        if (next.size >= MAX_FRONTIER_STATES) break;
+        if (next.size >= MAX_RAW_STATES_PER_LEVEL) break outer;
       }
-      if (next.size >= MAX_FRONTIER_STATES) break;
     }
     if (next.size === 0) break; // nada novo alcançável — não adianta continuar
-    frontier = next;
+    let nextStates = Array.from(next, ([sum, usedIndices]) => ({ sum, usedIndices }));
+    if (nextStates.length > MAX_FRONTIER_STATES) {
+      nextStates.sort((a, b) => Math.abs(a.sum - neededCents) - Math.abs(b.sum - neededCents));
+      nextStates = nextStates.slice(0, MAX_FRONTIER_STATES);
+    }
+    frontier = nextStates;
   }
   return [];
 }
