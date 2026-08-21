@@ -339,18 +339,37 @@ function TableWidgetCard({ definition, ctx, maxRows }) {
   const [expandedRows, setExpandedRows] = useState(new Set());
   const tab = definition.table === "bp" ? "BP" : definition.table?.startsWith("dfc_") ? "DFC" : "DRE";
   const isDfc = tab === "DFC";
-  const builtRows =
-    definition.table === "dfc_direta"
-      ? buildDfcDirect()
-      : definition.table === "dfc_indireta"
-        ? buildDfcIndirect()
-        : definition.table === "executiva"
-      ? ctx.executive
-      : definition.table === "dre_resumida"
-        ? ctx.dreResumida
-        : (definition.table === "bp" ? ctx.bp : ctx.dre).filter(
-            (row) => row.kind === "synthetic" && row.hasValue && Number(row.nivel || 0) >= 1 && Number(row.nivel || 0) <= 2
-          );
+  // dfc_direta/dfc_indireta refazem a busca de contrapartida (combinação,
+  // não mais barata) pra cada lançamento de caixa do período — sem memo
+  // isso rodava de novo a cada render, inclusive só de abrir/fechar uma
+  // linha deste próprio card (expandedRows abaixo). Ver mesmo ajuste em
+  // pages/Dfc.jsx.
+  const builtRows = useMemo(() => {
+    if (definition.table === "dfc_direta") return buildDfcDirect();
+    if (definition.table === "dfc_indireta") return buildDfcIndirect();
+    if (definition.table === "executiva") return ctx.executive;
+    if (definition.table === "dre_resumida") return ctx.dreResumida;
+    return (definition.table === "bp" ? ctx.bp : ctx.dre).filter(
+      (row) => row.kind === "synthetic" && row.hasValue && Number(row.nivel || 0) >= 1 && Number(row.nivel || 0) <= 2
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    definition.table,
+    ctx.executive,
+    ctx.dreResumida,
+    ctx.bp,
+    ctx.dre,
+    state.journal,
+    state.periodStart,
+    state.periodEnd,
+    state.mappings,
+    state.accounts,
+    state.plano,
+    state.dfcLinks,
+    state.dfcRules,
+    state.dfcOverrides,
+    state.dfcStructure,
+  ]);
   const rows = state.hideZeroNoMovement
     ? builtRows.filter((row) => row.natureza === "heading" || !isZeroNoMovement(row))
     : builtRows;

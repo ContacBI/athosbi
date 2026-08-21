@@ -220,7 +220,29 @@ export default function Dfc({ lockedMode } = {}) {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(false);
   const columns = useMemo(() => (state.reportCompare ? reportMonths() : ["saldo"]), [state.reportCompare, state.periodStart, state.periodEnd, state.journal]);
-  const builtRows = mode === "direct" ? buildDfcDirect() : buildDfcIndirect();
+  // buildDfcDirect/buildDfcIndirect refazem a busca de contrapartida (agora
+  // uma busca por combinação, não mais barata) pra cada lançamento de caixa
+  // do período inteiro — sem memo, isso rodava de novo a cada render, e o
+  // componente re-renderiza em toda interação que não muda o relatório em
+  // si (abrir/fechar uma linha, digitar na busca, abrir o Diário). Só
+  // recalcula quando algo que de fato entra na conta muda.
+  const builtRows = useMemo(
+    () => (mode === "direct" ? buildDfcDirect() : buildDfcIndirect()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      mode,
+      state.journal,
+      state.periodStart,
+      state.periodEnd,
+      state.mappings,
+      state.accounts,
+      state.plano,
+      state.dfcLinks,
+      state.dfcRules,
+      state.dfcOverrides,
+      state.dfcStructure,
+    ]
+  );
   const rows = state.hideZeroNoMovement
     ? builtRows.filter((row) => row.natureza === "heading" || !isZeroNoMovement(row))
     : builtRows;
