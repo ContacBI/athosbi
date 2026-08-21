@@ -48,3 +48,10 @@ export function deleteRepresentante(id) {
 export function companiesForRepresentante(id) {
   return state.companies.filter((company) => (company.representanteIds || []).includes(id));
 }
+
+// Wholesale replace — used only by the full-backup restore (lib/fullBackup.js).
+export function restoreRepresentantes(representantes) {
+  const next = Array.isArray(representantes) ? representantes : [];
+  persist(next);
+  setData({ representantes: next });
+}

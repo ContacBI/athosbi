@@ -1,21 +1,12 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "../../data/useStore.js";
-import { createCompany, updateCompany, deleteCompany, importBackupFile, exportBackupPayload } from "../../lib/companies.js";
+import { createCompany, updateCompany, deleteCompany, importBackupFile } from "../../lib/companies.js";
+import { exportFullBackup, importFullBackup } from "../../lib/fullBackup.js";
 import CompanyModal from "../../components/CompanyModal.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import PageHeader from "../../components/PageHeader.jsx";
 import { Building2, Users2, FileSpreadsheet, Pencil, Trash2, Repeat, SlidersHorizontal, Download, Upload, ArrowRight } from "lucide-react";
-
-function downloadJson(payload, filename) {
-  const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
 
 export default function CompaniesAdmin() {
   const state = useAppState();
@@ -30,23 +21,53 @@ export default function CompaniesAdmin() {
     setModalCompany(undefined);
   }
 
+  async function handleBackupExport() {
+    setBusy("Gerando backup geral...");
+    try {
+      const result = await exportFullBackup((done, total) => {
+        setBusy(total ? `Gerando backup geral... (${done}/${total} anexos)` : "Gerando backup geral...");
+      });
+      setBusy("");
+      alert(`Backup gerado: ${result.companies} empresa(s), ${result.attachments} anexo(s).`);
+    } catch (error) {
+      console.error("Falha ao gerar backup geral:", error);
+      setBusy("");
+      alert("Não consegui gerar o backup.");
+    }
+  }
+
   async function handleBackupImport(event) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
+    const isZip = file.name.toLowerCase().endsWith(".zip");
+    if (
+      !confirm(
+        "Restaurar esse backup substitui TUDO que está aqui agora (empresas, grupos" +
+          (isZip ? ", plano gerencial, indicadores, representantes e anexos" : "") +
+          ") pelo conteúdo do arquivo. Continuar?"
+      )
+    )
+      return;
     setBusy("Restaurando backup...");
     try {
-      const count = await importBackupFile(file);
-      setBusy("");
-      alert(`Backup restaurado: ${count} empresa(s).`);
-    } catch {
+      if (isZip) {
+        const result = await importFullBackup(file, (done, total) => {
+          setBusy(total ? `Restaurando backup... (${done}/${total} anexos)` : "Restaurando backup...");
+        });
+        setBusy("");
+        alert(`Backup restaurado: ${result.companies} empresa(s), ${result.groups} grupo(s), ${result.attachments} anexo(s).`);
+      } else {
+        // Backups antigos (.json) — só empresas e grupos, sem anexo.
+        const count = await importBackupFile(file);
+        setBusy("");
+        alert(`Backup restaurado: ${count} empresa(s).`);
+      }
+    } catch (error) {
+      console.error("Falha ao restaurar backup:", error);
       setBusy("");
       alert("Não consegui ler esse arquivo de backup.");
     }
-  }
-
-  function handleBackupExport() {
-    downloadJson(exportBackupPayload(), `backup_empresas_portal_${new Date().toISOString().slice(0, 10)}.json`);
   }
 
   function representanteNames(company) {
@@ -160,25 +181,30 @@ export default function CompaniesAdmin() {
           </div>
 
           <div className="rounded-xl bg-surface-card p-3.5 shadow-sm">
-            <p className="mb-2.5 text-[11px] font-medium uppercase tracking-wide text-ink-400">Backup da carteira</p>
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-ink-400">Backup geral</p>
+            <p className="mb-2.5 text-[11px] text-ink-400">
+              Empresas, De/Para, relatórios criados, plano gerencial, indicadores, representantes e os anexos de todo mundo — tudo num arquivo só.
+            </p>
             <div className="flex flex-col gap-1.5">
               <button
                 type="button"
                 onClick={handleBackupExport}
-                className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] text-ink-700 hover:bg-surface-muted"
+                disabled={Boolean(busy)}
+                className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] text-ink-700 hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Download size={14} strokeWidth={1.8} className="text-ink-400" />
-                Exportar carteira
+                Baixar backup geral
               </button>
               <button
                 type="button"
                 onClick={() => backupInput.current?.click()}
-                className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] text-ink-700 hover:bg-surface-muted"
+                disabled={Boolean(busy)}
+                className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] text-ink-700 hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Upload size={14} strokeWidth={1.8} className="text-ink-400" />
                 Restaurar backup
               </button>
-              <input ref={backupInput} type="file" accept=".json" className="hidden" onChange={handleBackupImport} />
+              <input ref={backupInput} type="file" accept=".zip,.json" className="hidden" onChange={handleBackupImport} />
             </div>
             {busy && <p className="px-2.5 pt-1 text-[11px] text-accent-600">{busy}</p>}
           </div>

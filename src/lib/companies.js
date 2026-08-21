@@ -453,17 +453,20 @@ export function deleteCompany(id) {
   }
 }
 
-export async function importBackupFile(file) {
-  const text = await file.text();
-  const payload = JSON.parse(text);
-  const companies = Array.isArray(payload.companies) ? payload.companies : [];
-  const groups = Array.isArray(payload.groups) ? payload.groups : [];
-  // Full replace: any company that exists today but isn't in the backup
-  // needs its row deleted explicitly — writeStoredCompanies only ever
-  // writes rows for what's handed to it, it has no way to know a company
-  // that's simply absent from this list should be removed rather than left
-  // alone (each company is its own row; see companyKey).
-  const incomingIds = new Set(companies.map((company) => company.id));
+// Full replace of every company + group — shared by the plain JSON backup
+// below and the comprehensive zip backup (lib/fullBackup.js). Any company
+// that exists today but isn't in `companies` gets its row deleted
+// explicitly: writeStoredCompanies only ever writes rows for what's handed
+// to it, it has no way to know a company simply absent from this list
+// should be removed rather than left alone (each company is its own row;
+// see companyKey). Every incoming company is force-written regardless of
+// reference tracking — a restore should always land exactly as the backup
+// says, never silently skipped because some unrelated earlier write
+// happened to leave a matching cached reference.
+export async function restoreCompaniesAndGroups({ companies, groups, activeCompanyId: preferredActiveId }) {
+  const nextCompanies = Array.isArray(companies) ? companies : [];
+  const nextGroups = Array.isArray(groups) ? groups : [];
+  const incomingIds = new Set(nextCompanies.map((company) => company.id));
   const staleIds = state.companies.map((company) => company.id).filter((id) => !incomingIds.has(id));
   await Promise.all(
     staleIds.map((id) => {
@@ -472,24 +475,30 @@ export async function importBackupFile(file) {
       return Promise.all([deletePersistent(companyKey(id)), deletePersistent(companyJournalKey(id))]);
     })
   );
-  // Force-write every incoming company regardless of reference tracking —
-  // a restore should always land exactly as the backup says, never skipped
-  // because some unrelated earlier write happened to leave a matching
-  // reference cached.
-  companies.forEach((company) => {
+  nextCompanies.forEach((company) => {
     lastWrittenRecords.delete(company.id);
     lastWrittenJournals.delete(company.id);
   });
-  writeStoredCompanies(companies);
-  writeStoredGroups(groups);
-  const activeCompanyId = payload.activeCompanyId && companies.some((company) => company.id === payload.activeCompanyId)
-    ? payload.activeCompanyId
-    : companies[0]?.id || "";
+  await writeStoredCompanies(nextCompanies);
+  await writeStoredGroups(nextGroups);
+  const activeCompanyId = preferredActiveId && nextCompanies.some((company) => company.id === preferredActiveId)
+    ? preferredActiveId
+    : nextCompanies[0]?.id || "";
   localStorage.setItem(ACTIVE_COMPANY_KEY, activeCompanyId);
   localStorage.removeItem(ACTIVE_GROUP_KEY);
-  setData({ companies, groups, activeCompanyId, activeGroupId: "" });
+  setData({ companies: nextCompanies, groups: nextGroups, activeCompanyId, activeGroupId: "" });
   if (activeCompanyId) selectCompany(activeCompanyId, { skipPersist: true });
-  return companies.length;
+  return nextCompanies.length;
+}
+
+export async function importBackupFile(file) {
+  const text = await file.text();
+  const payload = JSON.parse(text);
+  return restoreCompaniesAndGroups({
+    companies: payload.companies,
+    groups: payload.groups,
+    activeCompanyId: payload.activeCompanyId,
+  });
 }
 
 export function exportBackupPayload() {

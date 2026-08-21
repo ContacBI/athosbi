@@ -107,6 +107,13 @@ function persist(overrides) {
   setData({ indicatorOverrides: overrides });
 }
 
+// Wholesale replace — used only by the full-backup restore (lib/fullBackup.js),
+// which brings back an entire exported set of overrides rather than editing
+// one at a time like every other caller in this file does.
+export function restoreIndicatorOverrides(overrides) {
+  persist(Array.isArray(overrides) ? overrides : []);
+}
+
 // `record`: { id, label, category, icon (name string), defaultSize, formula }.
 // Used both to create a brand-new custom card and to save an edit to a
 // built-in one (which just adds/replaces its override).
