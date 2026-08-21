@@ -1,8 +1,14 @@
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 import { ArrowDownCircle, ArrowUpCircle, X } from "lucide-react";
-import { entriesForAccount } from "../data/calculations.js";
+import { entriesForAccount, journalByCompanyAndDate, counterpartsForEntry } from "../data/calculations.js";
 import { money } from "../lib/format.js";
 import Avatar from "./Avatar.jsx";
+
+// Nome de exibição de uma conta a partir de um lançamento — mesma
+// prioridade de campo usada em vários lugares (descricao_conta primeiro).
+function accountLabel(entry) {
+  return entry.descricao_conta || entry.categoria_gerencial || entry.classificacao || "(sem nome)";
+}
 
 function moneyClass(value) {
   const numeric = Number(value || 0);
@@ -47,6 +53,10 @@ export default function LedgerModal({ row, onClose }) {
     : [...rawEntries].sort((a, b) => String(a.data).localeCompare(String(b.data)));
   const totalDebito = entries.reduce((sum, entry) => sum + Number(entry.debito || 0), 0);
   const totalCredito = entries.reduce((sum, entry) => sum + Number(entry.credito || 0), 0);
+  // Agrupa o razão inteiro por empresa+dia uma vez só (modal acabou de
+  // abrir) — cada linha reaproveita esse mapa em vez de varrer tudo de
+  // novo; ver counterpartsForEntry/journalByCompanyAndDate em calculations.js.
+  const journalByDate = useMemo(() => journalByCompanyAndDate(), []); // eslint-disable-line react-hooks/exhaustive-deps
   const label = row.nome_conta || row.categoria_gerencial;
   const isSemContrapartida = row.classificacao === SEM_CONTRAPARTIDA_CODE;
   // Linha somada entre empresas (ver mergeGroupRowsByName em calculations.js)
@@ -58,7 +68,7 @@ export default function LedgerModal({ row, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8 backdrop-blur-[2px]">
-      <div className="flex h-full max-h-[820px] w-full max-w-4xl flex-col rounded-2xl bg-surface-card shadow-xl">
+      <div className="flex h-full max-h-[820px] w-full max-w-6xl flex-col rounded-2xl bg-surface-card shadow-xl">
         <div className="flex items-start justify-between gap-4 border-b border-line p-6">
           <div className="flex items-center gap-3.5">
             <Avatar name={label} size={44} />
@@ -110,6 +120,7 @@ export default function LedgerModal({ row, onClose }) {
               <tr>
                 <th className="px-6 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Data</th>
                 <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Histórico</th>
+                <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Contrapartida</th>
                 <th className="px-4 py-2.5 text-right text-[11px] font-medium uppercase tracking-wide">Débito</th>
                 <th className="px-6 py-2.5 text-right text-[11px] font-medium uppercase tracking-wide">Crédito</th>
               </tr>
@@ -117,18 +128,33 @@ export default function LedgerModal({ row, onClose }) {
             <tbody>
               {entries.map((entry, index) => {
                 const newCompany = showCompany && entry.companyName !== entries[index - 1]?.companyName;
+                const dayKey = `${entry.companyId || ""}|${entry.data || ""}`;
+                const counterparts = counterpartsForEntry(entry, journalByDate.get(dayKey));
                 return (
                   <Fragment key={`${entry.linha_origem}-${index}`}>
                     {newCompany && (
                       <tr key={`company-${entry.companyName}-${index}`} className="sticky top-9 z-[1]">
-                        <td colSpan={4} className="border-y border-line bg-surface-muted px-6 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
+                        <td colSpan={5} className="border-y border-line bg-surface-muted px-6 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
                           {entry.companyName || "Empresa não identificada"}
                         </td>
                       </tr>
                     )}
                     <tr className={`transition-colors hover:bg-surface-muted ${index % 2 ? "bg-surface-page/60" : "bg-surface-card"}`}>
                       <td className="whitespace-nowrap px-6 py-2 align-top text-ink-600">{formatDate(entry.data)}</td>
-                      <td className="px-4 py-2 text-ink-900">{entry.historico}</td>
+                      <td className="px-4 py-2 align-top text-ink-900">{entry.historico}</td>
+                      <td className="px-4 py-2 align-top text-ink-600">
+                        {counterparts.length === 0 ? (
+                          <span className="text-[11.5px] italic text-warning-600">nenhuma achada</span>
+                        ) : (
+                          <div className="flex flex-col gap-0.5">
+                            {counterparts.map((counterpart, counterpartIndex) => (
+                              <span key={counterpartIndex} className="text-[11.5px]">
+                                {accountLabel(counterpart)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
                       <td className="whitespace-nowrap px-4 py-2 align-top text-right tabular-nums text-success-600">{entry.debito ? money(entry.debito) : ""}</td>
                       <td className="whitespace-nowrap px-6 py-2 align-top text-right tabular-nums text-danger-600">{entry.credito ? money(entry.credito) : ""}</td>
                     </tr>
@@ -137,7 +163,7 @@ export default function LedgerModal({ row, onClose }) {
               })}
               {entries.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-6 py-10 text-center text-ink-400">Nenhum lançamento no período selecionado.</td>
+                  <td colSpan={5} className="px-6 py-10 text-center text-ink-400">Nenhum lançamento no período selecionado.</td>
                 </tr>
               )}
             </tbody>
