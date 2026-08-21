@@ -281,15 +281,22 @@ function ReportsMenu() {
   const group = appState.activeGroupId ? appState.groups.find((item) => item.id === appState.activeGroupId) || null : null;
   if (!hasData) return null;
   const handlers = actions?.downloadHandlers;
-  const canSplit = Boolean(group && handlers?.reportKind);
+  // reportKind é uma FUNÇÃO (não um valor direto) justamente pra sempre
+  // pegar a aba/modo mais recente — ver o comentário grande em
+  // pageActions.jsx sobre por que um valor direto ficava "congelado" na
+  // primeira aba renderizada. Chamar aqui, no corpo do componente, só
+  // decide se o checkbox aparece habilitado; a chamada que importa de
+  // verdade é a de dentro de handleCurrent, sempre lida na hora do clique.
+  const canSplit = Boolean(group && handlers?.reportKind?.());
 
   async function handleCurrent(format) {
     setOpen(false);
-    if (canSplit && consolidatedIndividual) {
+    const reportKind = handlers?.reportKind?.();
+    if (group && reportKind && consolidatedIndividual) {
       setBusy(true);
       try {
-        if (format === "pdf") await downloadConsolidatedAndIndividualPdf(group, handlers.reportKind);
-        else await downloadConsolidatedAndIndividualExcel(group, handlers.reportKind);
+        if (format === "pdf") await downloadConsolidatedAndIndividualPdf(group, reportKind);
+        else await downloadConsolidatedAndIndividualExcel(group, reportKind);
       } finally {
         setBusy(false);
       }
