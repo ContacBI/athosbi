@@ -1459,30 +1459,39 @@ function netValue(entry) {
 // sempre vence sobre uma mais complicada do mesmo valor).
 // O pedido original era permitir até 20 lançamentos numa combinação. No
 // razão real testado (8214 lançamentos da Concent) o maior fechamento
-// genuíno encontrado precisou de só 5 — 8 aqui já sobra margem em cima
-// disso sem pagar o custo de profundidade que 20 exigiria (num dia bem
-// movimentado, cada nível a mais multiplica o trabalho). Se algum dia
-// aparecer um lançamento composto de verdade com mais de 8 pernas e ele
-// cair como "contrapartida não encontrada", é só subir esse número de novo.
-const MAX_COMBINATION_SIZE = 8;
+// genuíno encontrado precisou de só 5 — esse é o teto aqui. findCashPieces
+// (DFC direta/indireta) chama isto pra CADA lançamento de caixa do período
+// inteiro, não só pro que está aberto numa tela — e caixa concentra
+// justamente nos dias mais movimentados (fechamento de folha/impostos),
+// então o custo por chamada aqui pesa muito mais que no Diário da conta.
+// Se algum dia aparecer um lançamento composto de verdade com mais de 5
+// pernas e ele cair como "contrapartida não encontrada"/"sem contrapartida
+// identificada", é só subir esse número de novo (com um olho no tempo de
+// carregamento da DFC).
+const MAX_COMBINATION_SIZE = 5;
 // Teto de estados (somas parciais distintas) carregados de um nível pro
 // próximo — sem isso, um dia grande sem nenhum fechamento possível faria a
-// busca crescer sem controle até o nível 8. Num dia bem movimentado (100+
+// busca crescer sem controle até o nível 5. Num dia bem movimentado (100+
 // lançamentos — comum em fechamento de folha/impostos, exatamente o caso
 // que mais interessa aqui) já no nível 1 dá pra passar desse teto: cortar
 // pela ORDEM DE INSERÇÃO (como era antes) descarta estados de forma
 // arbitrária, podendo jogar fora um caminho de 3 lançamentos genuíno só
-// porque ele não coube nos primeiros 4000 gerados. Por isso o corte final
-// de cada nível não é por ordem — é por PROXIMIDADE: sobrevive quem está
-// mais perto da soma que falta fechar, que é justamente quem tem mais
-// chance de fechar em poucos passos a mais.
-const MAX_FRONTIER_STATES = 4000;
+// porque ele não coube nos primeiros gerados. Por isso o corte final de
+// cada nível não é por ordem — é por PROXIMIDADE: sobrevive quem está mais
+// perto da soma que falta fechar, que é justamente quem tem mais chance de
+// fechar em poucos passos a mais. 1200 foi calibrado contra o razão real
+// da Concent rodando findCashPieces pra TODOS os ~1750 lançamentos de
+// caixa do arquivo (o carregamento inteiro da DFC, não uma conta só): o
+// teto anterior (4000) levava ~11s nesse cenário; 1200 fica em ~1,2s sem
+// perder nenhum dos casos reais já conferidos (inclusive o de 3 pernas —
+// tributos batendo com INSS + IRRF + Salários).
+const MAX_FRONTIER_STATES = 1200;
 // Teto solto por baixo de MAX_FRONTIER_STATES só pra não gerar o produto
 // cruzado inteiro (estados × candidatos) num dia gigante antes de ordenar —
 // isso sozinho já ficava lento demais. Bem mais folgado que o teto final
 // (o corte por proximidade continua sendo o que decide quem sobrevive de
-// verdade), só evita gerar centenas de milhares de combinações à toa.
-const MAX_RAW_STATES_PER_LEVEL = MAX_FRONTIER_STATES * 3;
+// verdade), só evita gerar dezenas de milhares de combinações à toa.
+const MAX_RAW_STATES_PER_LEVEL = MAX_FRONTIER_STATES * 2;
 
 function toCents(value) {
   return Math.round(Number(value || 0) * 100);
