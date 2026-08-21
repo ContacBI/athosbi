@@ -36,7 +36,11 @@ function periodTotal(row) {
   return row.kind === "analytic" ? row.valor_gerencial : row.saldo;
 }
 
-function accumulatedBalanceValue(row, targetMonth, months) {
+// Exportado pra dashboardData.js reusar nas séries mensais de BP dos
+// gráficos (Ativo x Passivo x PL no tempo, NCG) — mesmo saldo acumulado
+// (saldo anterior + movimento até o mês) que a tela de Demonstrativos já
+// usa no modo "Saldo acumulado", só chamado fora do componente da tela.
+export function accumulatedBalanceValue(row, targetMonth, months) {
   let value = Number(row.saldo_anterior_balancete || 0);
   for (const month of months) {
     value += Number(row.monthValues?.[month] || 0);

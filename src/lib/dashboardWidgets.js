@@ -24,6 +24,12 @@ import {
   CircleDollarSign,
   Table2,
   FileBarChart,
+  Waves,
+  BarChartHorizontal,
+  Target,
+  Building,
+  Radar,
+  Network,
 } from "lucide-react";
 import { money } from "./format.js";
 import { evaluateIndicatorFormula, describeIndicatorFormula, indicatorDetailRows, richLineDetail, isSingleLineFormula } from "./indicatorFormula.js";
@@ -209,6 +215,16 @@ export const WIDGET_CATALOG = [
   { id: "chart_lucro_evolucao", label: "Evolução do lucro líquido", category: "Gráficos", icon: BarChart3, defaultSize: "lg", type: "chart", chart: "lucro_evolucao" },
   { id: "chart_margens_comparativo", label: "Comparativo de margens", category: "Gráficos", icon: BarChart3, defaultSize: "md", type: "chart", chart: "margens_comparativo" },
   { id: "chart_estrutura_capital", label: "Estrutura de capital (Passivo x PL)", category: "Gráficos", icon: PieChart, defaultSize: "md", type: "chart", chart: "estrutura_capital" },
+  { id: "chart_dfc_cascata", label: "Cascata do fluxo de caixa (DFC)", category: "Gráficos", icon: Waves, defaultSize: "lg", type: "chart", chart: "dfc_cascata" },
+  { id: "chart_caixa_evolucao", label: "Evolução do saldo de caixa", category: "Gráficos", icon: LineChart, defaultSize: "lg", type: "chart", chart: "caixa_evolucao" },
+  { id: "chart_ativo_passivo_pl", label: "Ativo x Passivo x PL no tempo", category: "Gráficos", icon: Building, defaultSize: "lg", type: "chart", chart: "ativo_passivo_pl" },
+  { id: "chart_receita_custo_despesa", label: "Receita x Custo x Despesa", category: "Gráficos", icon: BarChart3, defaultSize: "lg", type: "chart", chart: "receita_custo_despesa" },
+  { id: "chart_pareto_despesas", label: "Maiores despesas (Pareto)", category: "Gráficos", icon: BarChartHorizontal, defaultSize: "lg", type: "chart", chart: "pareto_despesas" },
+  { id: "chart_ponto_equilibrio", label: "Ponto de equilíbrio", category: "Gráficos", icon: Target, defaultSize: "lg", type: "chart", chart: "ponto_equilibrio" },
+  { id: "chart_ncg_evolucao", label: "Capital de giro no tempo", category: "Gráficos", icon: Coins, defaultSize: "lg", type: "chart", chart: "ncg_evolucao" },
+  { id: "chart_comparativo_empresas", label: "Comparativo entre empresas do grupo", category: "Gráficos", icon: Network, defaultSize: "lg", type: "chart", chart: "comparativo_empresas" },
+  { id: "chart_radar_indicadores", label: "Radar de indicadores", category: "Gráficos", icon: Radar, defaultSize: "md", type: "chart", chart: "radar_indicadores" },
+  { id: "chart_dfc_operacional", label: "Composição do caixa operacional", category: "Gráficos", icon: PieChart, defaultSize: "md", type: "chart", chart: "dfc_operacional" },
 
   // Listas e resumos
   { id: "list_destaques_dre", label: "Destaques da DRE", category: "Listas", icon: ListChecks, defaultSize: "md", type: "list", list: "destaques_dre" },
