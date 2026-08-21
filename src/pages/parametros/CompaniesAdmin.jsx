@@ -8,11 +8,49 @@ import Avatar from "../../components/Avatar.jsx";
 import PageHeader from "../../components/PageHeader.jsx";
 import { Building2, Users2, FileSpreadsheet, Pencil, Trash2, Repeat, SlidersHorizontal, Download, Upload, ArrowRight } from "lucide-react";
 
+// Tempo restante estimado a partir do ritmo médio até agora (tempo
+// decorrido / itens já feitos, projetado pros itens que faltam) — não dá
+// pra saber de antemão quanto cada anexo demora (tamanho varia, rede
+// varia), então a estimativa só fica confiável depois do primeiro item
+// completo, e só melhora conforme mais itens passam.
+function etaLabel({ done, total, startedAt }) {
+  if (!done || !total || done >= total) return null;
+  const elapsed = Date.now() - startedAt;
+  const remaining = (elapsed / done) * (total - done);
+  const totalSeconds = Math.round(remaining / 1000);
+  if (totalSeconds < 1) return null;
+  if (totalSeconds < 60) return `~${totalSeconds}s restantes`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `~${minutes}min ${seconds}s restantes`;
+}
+
+function BackupProgress({ busy }) {
+  if (!busy) return null;
+  const percent = busy.total ? Math.min(100, Math.round((busy.done / busy.total) * 100)) : null;
+  return (
+    <div className="px-2.5 pt-1.5">
+      <div className="flex items-center justify-between gap-2 text-[11px] text-accent-600">
+        <span className="truncate">{busy.label}{busy.total ? ` (${busy.done}/${busy.total} anexos)` : ""}</span>
+        <span className="shrink-0 text-ink-400">{etaLabel(busy)}</span>
+      </div>
+      {/* Sem total (fase de salvar dados, sem contador por item) mostra uma
+          barra cheia e parada — melhor que sumir a barra e parecer travado. */}
+      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
+        <div
+          className={`h-full rounded-full bg-accent-500 ${percent == null ? "w-full animate-pulse" : "transition-[width]"}`}
+          style={percent == null ? undefined : { width: `${percent}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function CompaniesAdmin() {
   const state = useAppState();
   const navigate = useNavigate();
   const [modalCompany, setModalCompany] = useState(undefined); // undefined = fechado, null = criar, objeto = editar
-  const [busy, setBusy] = useState("");
+  const [busy, setBusy] = useState(null); // null | { label, done, total, startedAt }
   const backupInput = useRef(null);
 
   function handleSubmit(fields) {
@@ -22,16 +60,17 @@ export default function CompaniesAdmin() {
   }
 
   async function handleBackupExport() {
-    setBusy("Gerando backup geral...");
+    const startedAt = Date.now();
+    setBusy({ label: "Gerando backup geral...", done: 0, total: 0, startedAt });
     try {
       const result = await exportFullBackup((done, total) => {
-        setBusy(total ? `Gerando backup geral... (${done}/${total} anexos)` : "Gerando backup geral...");
+        setBusy({ label: total && done < total ? "Baixando anexos..." : "Montando o arquivo...", done, total, startedAt });
       });
-      setBusy("");
+      setBusy(null);
       alert(`Backup gerado: ${result.companies} empresa(s), ${result.attachments} anexo(s).`);
     } catch (error) {
       console.error("Falha ao gerar backup geral:", error);
-      setBusy("");
+      setBusy(null);
       alert("Não consegui gerar o backup.");
     }
   }
@@ -49,23 +88,24 @@ export default function CompaniesAdmin() {
       )
     )
       return;
-    setBusy("Restaurando backup...");
+    const startedAt = Date.now();
+    setBusy({ label: "Restaurando backup...", done: 0, total: 0, startedAt });
     try {
       if (isZip) {
         const result = await importFullBackup(file, (done, total) => {
-          setBusy(total ? `Restaurando backup... (${done}/${total} anexos)` : "Restaurando backup...");
+          setBusy({ label: total && done < total ? "Restaurando anexos..." : "Salvando dados...", done, total, startedAt });
         });
-        setBusy("");
+        setBusy(null);
         alert(`Backup restaurado: ${result.companies} empresa(s), ${result.groups} grupo(s), ${result.attachments} anexo(s).`);
       } else {
         // Backups antigos (.json) — só empresas e grupos, sem anexo.
         const count = await importBackupFile(file);
-        setBusy("");
+        setBusy(null);
         alert(`Backup restaurado: ${count} empresa(s).`);
       }
     } catch (error) {
       console.error("Falha ao restaurar backup:", error);
-      setBusy("");
+      setBusy(null);
       alert("Não consegui ler esse arquivo de backup.");
     }
   }
@@ -206,7 +246,7 @@ export default function CompaniesAdmin() {
               </button>
               <input ref={backupInput} type="file" accept=".zip,.json" className="hidden" onChange={handleBackupImport} />
             </div>
-            {busy && <p className="px-2.5 pt-1 text-[11px] text-accent-600">{busy}</p>}
+            <BackupProgress busy={busy} />
           </div>
 
           <div className="rounded-xl bg-surface-card p-3.5 shadow-sm">
