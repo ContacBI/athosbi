@@ -13,7 +13,7 @@ export async function importDiario(file, mappingRows = []) {
 export function accountsFromTrialBalance(rows) {
   const headerIndex = rows.findIndex((row) => row.some((cell) => normalizeText(cell) === "codigo"));
   if (headerIndex < 0) return accountsFromStructuredBalance(rows);
-  const width = Math.max(...rows.map((row) => row.length));
+  const width = rows.reduce((max, row) => Math.max(max, row.length), 0);
   const header = Array.from({ length: width }, (_, index) => normalizeText(rows[headerIndex][index]));
   const findCol = (...patterns) => header.findIndex((item) => patterns.some((pattern) => String(item || "").includes(pattern)));
   const codeCol = findCol("codigo");
@@ -84,7 +84,7 @@ function accountsFromStructuredBalance(rows) {
 export function journalFromRows(rows, mappingRows = []) {
   const headerIndex = rows.findIndex((row) => row.some((cell) => normalizeText(cell) === "data"));
   if (headerIndex < 0) return [];
-  const width = Math.max(...rows.map((row) => row.length));
+  const width = rows.reduce((max, row) => Math.max(max, row.length), 0);
   const header = Array.from({ length: width }, (_, index) => normalizeText(rows[headerIndex][index]));
   const findCol = (...patterns) => header.findIndex((item) => patterns.some((pattern) => String(item || "").includes(pattern)));
   const dateCol = findCol("data");

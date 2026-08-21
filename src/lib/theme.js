@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "biperformance.theme";
+const STORAGE_KEY = "athosbi.theme";
 
 function readStoredTheme() {
   try {
