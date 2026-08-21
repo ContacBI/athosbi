@@ -713,7 +713,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                 <div
                   key={row.codigo_gerencial}
                   style={{ gridTemplateColumns: template }}
-                  className={`grid items-center px-3 py-2 text-[13px] ${index !== executiveRows.length - 1 ? "border-b border-line" : ""} ${
+                  className={`grid items-center px-3 py-[var(--row-py,0.5rem)] text-[13px] ${index !== executiveRows.length - 1 ? "border-b border-line" : ""} ${
                     row.isFormula ? "bg-accent-50/50" : index % 2 ? "bg-surface-page/60" : "bg-surface-card"
                   }`}
                 >
@@ -795,7 +795,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                     onClick={clickHandler}
                     disabled={!clickHandler}
                     style={{ gridTemplateColumns: template }}
-                    className={`grid w-full items-center px-3 py-2 text-left text-[13px] transition-colors enabled:hover:bg-surface-muted disabled:cursor-default ${
+                    className={`grid w-full items-center px-3 py-[var(--row-py,0.5rem)] text-left text-[13px] transition-colors enabled:hover:bg-surface-muted disabled:cursor-default ${
                       index !== rows.length - 1 ? "border-b border-line" : ""
                     } ${isHighlight ? "bg-accent-50/50" : index % 2 ? "bg-surface-page/60" : "bg-surface-card"}`}
                   >

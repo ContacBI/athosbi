@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Settings2 } from "lucide-react";
 import { useAppState, setData } from "../data/useStore.js";
 import { persistActiveCompany } from "../lib/companies.js";
+import { DENSITY_OPTIONS, writeStoredDensity } from "../lib/density.js";
 
 export default function ReportSettingsMenu({ tab }) {
   const state = useAppState();
@@ -27,6 +28,13 @@ export default function ReportSettingsMenu({ tab }) {
   function saveSettings(next) {
     setData(next);
     persistActiveCompany();
+  }
+
+  // Espaçamento das linhas é pessoal deste computador (ver lib/density.js)
+  // — nunca passa por persistActiveCompany, só localStorage local.
+  function setDensity(id) {
+    setData({ reportDensity: id });
+    writeStoredDensity(id);
   }
 
   return (
@@ -124,6 +132,26 @@ export default function ReportSettingsMenu({ tab }) {
                 ))}
               </div>
             )}
+
+            <div className="my-1.5 border-t border-line" />
+            <p className="px-2 pt-1 text-[11px] font-medium uppercase tracking-wide text-ink-400">Espaçamento das linhas</p>
+            <div className="mt-1.5 inline-flex w-full gap-0.5 rounded-full bg-surface-muted p-1">
+              {DENSITY_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setDensity(option.id)}
+                  className={`flex-1 rounded-full px-2 py-1.5 text-[11.5px] font-medium transition-colors ${
+                    (state.reportDensity || "normal") === option.id ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <p className="px-2 pb-1 pt-1.5 text-[10.5px] text-ink-400">
+              Fica salvo só neste computador — ajuste se as linhas aparecerem muito espremidas (ou muito espaçadas) nessa tela.
+            </p>
           </div>
         </>
       )}

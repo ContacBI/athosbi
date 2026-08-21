@@ -1,3 +1,5 @@
+import { readStoredDensity } from "../lib/density.js";
+
 export const state = {
   plano: [],
   // Whether a pre-import snapshot exists to revert a bulk Excel upload —
@@ -16,6 +18,12 @@ export const state = {
   activeCompanyId: "",
   activeGroupId: "",
   mappings: [],
+  // Vínculo DFC por empresa — overrides de qual destino (DFC.OP.CLIENTES
+  // etc.) uma conta gerencial usa nesta empresa, por cima do vínculo global
+  // (vinculo_gerencial_dfc.csv). Um item por código gerencial: [{
+  // codigo_gerencial, destino }]. Ver lib/calculations.js (dfcLinkTarget)
+  // e pages/VinculoDfc.jsx.
+  dfcOverrides: [],
   accounts: [],
   journal: [],
   // Per-company prefix rules that classify a ledger account's classificacao
@@ -67,6 +75,12 @@ export const state = {
   // the user creates/names/orders these tabs themselves; nothing is
   // pre-built. widget id matches WIDGET_CATALOG, size is "sm" | "md" | "lg".
   dashboardTabs: [],
+  // Ajuste pessoal de espaçamento das linhas dos demonstrativos — ver
+  // lib/density.js. Fica só neste navegador (nunca entra em
+  // persistActiveCompany), por isso mora aqui já inicializado do
+  // localStorage, não em selectCompany/createCompany como os campos por
+  // empresa.
+  reportDensity: readStoredDensity(),
 };
 
 export function setData(partial) {

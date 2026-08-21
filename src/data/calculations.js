@@ -644,14 +644,22 @@ function prepareDfcConfig() {
   return {
     links: state.dfcLinks.map((row) => normalizeDfcLink(row, structureByNumber)).filter((link) => link.codigo && link.destino),
     rules: state.dfcRules.map(normalizeDfcRule).filter((rule) => rule.tipo && rule.valor && rule.destino),
+    // Vínculo por empresa (tela "Vínculo DFC") — sempre checado ANTES do
+    // vínculo global (CSV): é uma escolha explícita do usuário pra ESSA
+    // empresa, deve vencer o padrão que vale pra todo mundo.
+    overrides: (state.dfcOverrides || []).map(normalizeDfcOverride).filter((item) => item.codigo && item.destino),
   };
+}
+
+function normalizeDfcOverride(row) {
+  return { codigo: String(row.codigo_gerencial || row.codigo || "").trim(), destino: String(row.destino || "").trim() };
 }
 
 function classifyDfcEntry(cashEntry, counterpart, dfcConfig) {
   const cashValue = Number(cashEntry.debito || 0) - Number(cashEntry.credito || 0);
   const code = gerencialCodeForEntry(counterpart);
   const text = normalize(`${counterpart?.descricao_conta || ""} ${counterpart?.categoria_gerencial || ""} ${counterpart?.grupo_macro || ""} ${counterpart?.historico || cashEntry.historico || ""}`);
-  const linkTarget = dfcLinkTarget(code, cashValue, dfcConfig.links);
+  const linkTarget = dfcLinkTarget(code, cashValue, dfcConfig.links, dfcConfig.overrides);
   if (linkTarget) return linkTarget;
   const manualTarget = dfcRuleTarget(cashEntry, counterpart, code, text, dfcConfig.rules);
   if (manualTarget) {
@@ -660,6 +668,17 @@ function classifyDfcEntry(cashEntry, counterpart, dfcConfig) {
 
   if (text.includes("sinistro") || text.includes("indenizacao") || text.includes("indenizacao")) return "DFC.OP.SEGUROS";
   if (text.includes("dividendo") || text.includes("lucro recebido")) return cashValue >= 0 ? "DFC.OP.LUCROS_DIV_RECEBIDOS" : "DFC.FIN.LUCROS_DIV_PAGOS";
+  return dfcCodeHeuristic(code, cashValue, text);
+}
+
+// Cadeia de heurísticas por PREFIXO do código gerencial (mais duas
+// checagens de texto embutidas nela — juros de empréstimo e
+// salário/folha/fgts/inss) usada como último recurso, quando não há
+// vínculo (nem por empresa, nem o global) e nenhuma regra manual bateu.
+// Extraída em função própria pra também servir resolveDfcDirectDestino
+// (tela de Vínculo DFC), que só tem o código na mão — sem lançamento real,
+// `text` chega vazio lá, então só a parte por código entra em ação.
+function dfcCodeHeuristic(code, cashValue, text = "") {
   if (code.startsWith("03.01")) return "DFC.FIN.CAPITAL";
   if (code.startsWith("02.01.02") || code.startsWith("02.02.01")) return cashValue >= 0 ? "DFC.FIN.EMPRESTIMOS_TOMADOS" : "DFC.FIN.EMPRESTIMOS_PAGOS";
   if (code.startsWith("02.01.07") || code.startsWith("03.02.01.04") || code.startsWith("DRE.09.02.05")) return "DFC.FIN.LUCROS_DIV_PAGOS";
@@ -674,11 +693,55 @@ function classifyDfcEntry(cashEntry, counterpart, dfcConfig) {
   return "DFC.OP.OUTROS";
 }
 
-function dfcLinkTarget(code, cashValue, links) {
+function dfcLinkTarget(code, cashValue, links, overrides = []) {
+  const overrideMatch = overrides
+    .filter((item) => code === item.codigo || code.startsWith(`${item.codigo}.`))
+    .sort((a, b) => b.codigo.length - a.codigo.length)[0];
+  if (overrideMatch) return directionalDfcTarget(overrideMatch.destino, cashValue);
   const match = links
     .filter((link) => code === link.codigo || code.startsWith(`${link.codigo}.`))
     .sort((a, b) => b.codigo.length - a.codigo.length)[0];
   return directionalDfcTarget(match?.destino || "", cashValue);
+}
+
+// Opções válidas de destino da DFC direta (só as folhas "analíticas" da
+// estrutura — cabeçalhos e subtotais não são destino de ninguém) — usadas
+// pelo seletor da tela de Vínculo DFC.
+export function dfcDirectTargetOptions() {
+  return dfcStructure()
+    .filter((item) => item.nature === "analytic")
+    .map((item) => ({ code: item.code, name: item.name, group: item.group }));
+}
+
+// "Pra onde essa conta vai hoje" na DFC direta — mesma cadeia de resolução
+// usada de verdade no cálculo (vínculo desta empresa > vínculo global >
+// heurística por código), sem precisar de um lançamento real: usa
+// cashValue=1 (entrada) como direção neutra só pra exibição — contas
+// bidirecionais (empréstimos, imobilizado) aparecem aqui na variante de
+// ENTRADA; a direção de verdade é decidida por lançamento, não muda o que
+// fica salvo no vínculo.
+export function resolveDfcDirectDestino(codigoGerencial) {
+  const code = String(codigoGerencial || "");
+  if (!code) return "";
+  const dfcConfig = prepareDfcConfig();
+  const linkTarget = dfcLinkTarget(code, 1, dfcConfig.links, dfcConfig.overrides);
+  if (linkTarget) return linkTarget;
+  return dfcCodeHeuristic(code, 1, "");
+}
+
+// Os 4 "baldes" fixos que a DFC indireta soma (ver buildDfcIndirect acima)
+// — diferente da direta, a indireta não classifica lançamento por
+// lançamento: é uma fórmula sobre a VARIAÇÃO de saldo de só essas 4
+// famílias de conta do balanço (mais resultado e depreciação, que não vêm
+// de nenhuma conta). Por isso não existe "vínculo" editável por conta pra
+// indireta — só faz sentido mostrar em qual balde (se algum) a conta cai.
+export function dfcIndirectBucketForCode(codigoGerencial) {
+  const code = String(codigoGerencial || "");
+  if (code.startsWith("01.01.02")) return "Clientes";
+  if (code.startsWith("01.01.03")) return "Estoques";
+  if (code.startsWith("02.01.01")) return "Fornecedores";
+  if (code.startsWith("02.01.03") || code.startsWith("02.01.04")) return "Obrigações";
+  return "";
 }
 
 function normalizeDfcLink(row, structureByNumber = new Map()) {

@@ -98,7 +98,7 @@ function DfcRow({ row, columns, template, isOpen, onToggle, onOpenLedger }) {
         disabled={!children.length}
         onClick={() => onToggle(row.codigo_gerencial)}
         style={{ gridTemplateColumns: template }}
-        className={`grid w-full items-center gap-4 border-b border-line px-4 py-2.5 text-left disabled:cursor-default ${children.length ? "hover:bg-surface-muted" : ""} ${
+        className={`grid w-full items-center gap-4 border-b border-line px-4 py-[var(--row-py,0.625rem)] text-left disabled:cursor-default ${children.length ? "hover:bg-surface-muted" : ""} ${
           subtotal ? "bg-accent-50 font-semibold" : heading ? "bg-surface-muted font-semibold" : ""
         }`}
       >
@@ -127,7 +127,7 @@ function DfcRow({ row, columns, template, isOpen, onToggle, onOpenLedger }) {
             type="button"
             onClick={() => onOpenLedger(child)}
             style={{ gridTemplateColumns: template }}
-            className="grid w-full items-center gap-4 border-b border-line bg-surface-page/60 px-4 py-2 text-left hover:bg-accent-50"
+            className="grid w-full items-center gap-4 border-b border-line bg-surface-page/60 px-4 py-[var(--row-py,0.5rem)] text-left hover:bg-accent-50"
           >
             <span className="truncate pl-7 text-[12px] text-ink-600">
               {child.nome_conta}

@@ -24,6 +24,7 @@ const PersonalizarHub = lazy(() => import("./pages/PersonalizarHub.jsx"));
 const Demonstrativos = lazy(() => import("./pages/Demonstrativos.jsx"));
 const Dfc = lazy(() => import("./pages/Dfc.jsx"));
 const Depara = lazy(() => import("./pages/Depara.jsx"));
+const VinculoDfc = lazy(() => import("./pages/VinculoDfc.jsx"));
 const RelatoriosMensais = lazy(() => import("./pages/RelatoriosMensais.jsx"));
 const CompaniesAdmin = lazy(() => import("./pages/parametros/CompaniesAdmin.jsx"));
 const GruposAdmin = lazy(() => import("./pages/parametros/GruposAdmin.jsx"));
@@ -143,6 +144,7 @@ export default function App() {
           <Route path="demonstrativos" element={<Demonstrativos />} />
           <Route path="dfc" element={<Dfc />} />
           <Route path="de-para" element={<Depara />} />
+          <Route path="vinculo-dfc" element={<VinculoDfc />} />
           <Route path="relatorios" element={<RelatoriosMensais />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
