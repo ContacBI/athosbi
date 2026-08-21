@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Check, RotateCcw, Search, X } from "lucide-react";
 import { useAppState, setData } from "../data/useStore.js";
 import { persistActiveCompany } from "../lib/companies.js";
-import { dfcDirectTargetOptions, resolveDfcDirectDestino, dfcIndirectBucketForCode } from "../data/calculations.js";
+import { dfcDirectTargetOptions, resolveDfcDirectDestino, isCashGerencialCode } from "../data/calculations.js";
 
 const norm = (value) => String(value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -25,13 +25,6 @@ function compareClassification(left, right) {
   return a.length - b.length;
 }
 
-const INDIRECT_BUCKET_STYLE = {
-  Clientes: "bg-accent-50 text-accent-700",
-  Estoques: "bg-accent-50 text-accent-700",
-  Fornecedores: "bg-accent-50 text-accent-700",
-  "Obrigações": "bg-accent-50 text-accent-700",
-};
-
 export default function VinculoDfc() {
   const state = useAppState();
   const [search, setSearch] = useState("");
@@ -53,10 +46,11 @@ export default function VinculoDfc() {
   }, [targetOptions]);
 
   // Recalcula pra cada conta do balancete: vínculo (via De/Para) com o
-  // plano gerencial, destino atual da DFC direta considerando o vínculo
-  // desta empresa (ver resolveDfcDirectDestino em data/calculations.js) e,
-  // se for o caso, o "balde" fixo da DFC indireta (não editável, ver
-  // dfcIndirectBucketForCode).
+  // plano gerencial e destino atual da DFC direta considerando o vínculo
+  // desta empresa (ver resolveDfcDirectDestino em data/calculations.js).
+  // Caixa e equivalentes (código gerencial 01.01.01.*) nunca têm destino
+  // próprio — eles SÃO o caixa, quem é classificado é sempre a
+  // contrapartida deles — por isso ficam sem destino aqui, não clicáveis.
   const rows = useMemo(
     () =>
       state.accounts
@@ -64,14 +58,15 @@ export default function VinculoDfc() {
         .map((account) => {
           const mapping = mappings.get(account.classificacao) || null;
           const codigoGerencial = mapping?.codigo_gerencial || "";
-          const destino = codigoGerencial ? resolveDfcDirectDestino(codigoGerencial) : "";
+          const isCash = isCashGerencialCode(codigoGerencial);
+          const destino = codigoGerencial && !isCash ? resolveDfcDirectDestino(codigoGerencial) : "";
           return {
             account,
             mapping,
             codigoGerencial,
+            isCash,
             destino,
             hasOverride: codigoGerencial ? overrideCodes.has(codigoGerencial) : false,
-            indirectBucket: codigoGerencial ? dfcIndirectBucketForCode(codigoGerencial) : "",
           };
         })
         .sort((a, b) => compareClassification(a.account.classificacao, b.account.classificacao)),
@@ -93,7 +88,7 @@ export default function VinculoDfc() {
   }, [targetGroups, pickerSearch]);
 
   function openPicker(row) {
-    if (!row.codigoGerencial) return;
+    if (!row.codigoGerencial || row.isCash) return;
     setPicker({ codigoGerencial: row.codigoGerencial, current: row.destino, contaLabel: row.account.nome_conta });
     setPickerSearch("");
   }
@@ -131,8 +126,8 @@ export default function VinculoDfc() {
       </div>
 
       <div className="rounded-lg bg-surface-page px-3.5 py-2.5 text-[12px] text-ink-500">
-        Cada conta já vem com um destino padrão de DFC (o mesmo pra toda a carteira). Clique no destino pra trocar só nesta empresa — o padrão continua valendo pras demais.
-        A <strong>DFC indireta</strong> não classifica conta por conta como a direta: é uma fórmula sobre a variação de só 4 grupos do balanço (Clientes, Estoques, Fornecedores, Obrigações), por isso essa coluna é informativa, não editável.
+        Cada conta já vem com um destino padrão de DFC direta (o mesmo pra toda a carteira). Clique no destino pra trocar só nesta empresa — o padrão continua valendo pras demais.
+        Contas de <strong>caixa e equivalentes</strong> ficam sem destino aqui: elas são o próprio caixa, quem é classificado é sempre a contrapartida delas.
       </div>
 
       <div className="rounded-xl bg-surface-card p-3 shadow-sm">
@@ -154,7 +149,6 @@ export default function VinculoDfc() {
               <tr>
                 <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Conta</th>
                 <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">DFC direta</th>
-                <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">DFC indireta</th>
               </tr>
             </thead>
             <tbody>
@@ -167,7 +161,9 @@ export default function VinculoDfc() {
                       <p className="text-[10.5px] text-ink-400">{row.account.classificacao}</p>
                     </td>
                     <td className="px-4 py-2.5 align-top">
-                      {row.codigoGerencial ? (
+                      {row.isCash ? (
+                        <span className="text-[11.5px] text-ink-300">—</span>
+                      ) : row.codigoGerencial ? (
                         <button
                           type="button"
                           onClick={() => openPicker(row)}
@@ -182,21 +178,12 @@ export default function VinculoDfc() {
                         <span className="text-[11.5px] italic text-ink-300">sem vínculo no De/Para</span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 align-top">
-                      {row.indirectBucket ? (
-                        <span className={`inline-block rounded-full px-2.5 py-1 text-[11.5px] font-medium ${INDIRECT_BUCKET_STYLE[row.indirectBucket] || "bg-surface-muted text-ink-600"}`}>
-                          {row.indirectBucket}
-                        </span>
-                      ) : (
-                        <span className="text-[11.5px] text-ink-300">—</span>
-                      )}
-                    </td>
                   </tr>
                 );
               })}
               {!visible.length && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-10 text-center text-ink-400">Nenhuma conta encontrada.</td>
+                  <td colSpan={2} className="px-4 py-10 text-center text-ink-400">Nenhuma conta encontrada.</td>
                 </tr>
               )}
             </tbody>

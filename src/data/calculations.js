@@ -463,7 +463,16 @@ function defaultDfcStructure() {
   ];
 }
 function isCashEntry(entry) {
-  const code = gerencialCodeForEntry(entry);
+  return isCashGerencialCode(gerencialCodeForEntry(entry));
+}
+
+// Mesmo teste de isCashEntry, só que a partir do código gerencial direto —
+// usado pela tela de Vínculo DFC (VinculoDfc.jsx), que não tem um
+// lançamento em mãos, só a conta. Caixa e equivalentes nunca têm destino
+// de DFC próprio: eles SÃO o caixa, quem entra na classificação é sempre a
+// contrapartida deles (ver findCashPieces/classifyDfcEntry acima).
+export function isCashGerencialCode(codigoGerencial) {
+  const code = String(codigoGerencial || "");
   return code === "01.01.01" || code.startsWith("01.01.01.");
 }
 
@@ -594,29 +603,16 @@ function findCashPieces(cashEntry, groupIndex, dayIndex) {
   const daySingle = sameDay.find((entry) => Math.round(entryValue(entry) * 100) === target);
   if (daySingle) return closeCashPieces(cashEntry, [daySingle]);
 
-  for (let i = 0; i < sameDay.length; i += 1) {
-    const first = sameDay[i];
-    const remainder = target - Math.round(entryValue(first) * 100);
-    const second = sameDay.find((entry, index) => index > i && Math.round(entryValue(entry) * 100) === remainder);
-    if (second) return closeCashPieces(cashEntry, [first, second]);
-  }
-
   // Um "vários débitos para vários créditos" real pode ter 3+ contas do
   // outro lado (ex.: um pagamento de tributos com Caixa de um lado e
   // INSS + IRRF + Salários do outro, cada um com histórico próprio) — o
-  // par acima não fecha nesses casos. Tenta trincas antes de desistir; um
-  // teto no tamanho de sameDay evita busca combinatória explosiva num dia
-  // muito cheio (não deveria faltar em nenhum caso real: um lote de
-  // lançamento raramente tem dezenas de contrapartidas).
-  if (sameDay.length <= 80) {
-    for (let i = 0; i < sameDay.length; i += 1) {
-      for (let j = i + 1; j < sameDay.length; j += 1) {
-        const remainder = target - Math.round(entryValue(sameDay[i]) * 100) - Math.round(entryValue(sameDay[j]) * 100);
-        const third = sameDay.find((entry, index) => index > j && Math.round(entryValue(entry) * 100) === remainder);
-        if (third) return closeCashPieces(cashEntry, [sameDay[i], sameDay[j], third]);
-      }
-    }
-  }
+  // single acima sozinho não fecha nesses casos. findClosingCombination é
+  // a mesma busca por combinação (subset-sum, até 8 lançamentos) usada no
+  // Diário da conta — reaproveitada aqui em vez de duplicar uma versão mais
+  // fraca só de par/trinca com teto fixo de candidatos, que ficava sem
+  // achar combinações genuínas em dias muito movimentados.
+  const combination = findClosingCombination(cashEntry, sameDay);
+  if (combination.length) return closeCashPieces(cashEntry, combination);
 
   const transferByHistorico = sameHistoricoAll.some((entry) => isCashEntry(entry));
   const transferByDay = sameDayAll.some((entry) => isCashEntry(entry) && Math.round(entryValue(entry) * 100) === target);
@@ -727,21 +723,6 @@ export function resolveDfcDirectDestino(codigoGerencial) {
   const linkTarget = dfcLinkTarget(code, 1, dfcConfig.links, dfcConfig.overrides);
   if (linkTarget) return linkTarget;
   return dfcCodeHeuristic(code, 1, "");
-}
-
-// Os 4 "baldes" fixos que a DFC indireta soma (ver buildDfcIndirect acima)
-// — diferente da direta, a indireta não classifica lançamento por
-// lançamento: é uma fórmula sobre a VARIAÇÃO de saldo de só essas 4
-// famílias de conta do balanço (mais resultado e depreciação, que não vêm
-// de nenhuma conta). Por isso não existe "vínculo" editável por conta pra
-// indireta — só faz sentido mostrar em qual balde (se algum) a conta cai.
-export function dfcIndirectBucketForCode(codigoGerencial) {
-  const code = String(codigoGerencial || "");
-  if (code.startsWith("01.01.02")) return "Clientes";
-  if (code.startsWith("01.01.03")) return "Estoques";
-  if (code.startsWith("02.01.01")) return "Fornecedores";
-  if (code.startsWith("02.01.03") || code.startsWith("02.01.04")) return "Obrigações";
-  return "";
 }
 
 function normalizeDfcLink(row, structureByNumber = new Map()) {

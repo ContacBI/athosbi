@@ -30,8 +30,9 @@ export default function ReportSettingsMenu({ tab }) {
     persistActiveCompany();
   }
 
-  // Espaçamento das linhas é pessoal deste computador (ver lib/density.js)
-  // — nunca passa por persistActiveCompany, só localStorage local.
+  // Espaçamento entre colunas de mês é pessoal deste computador (ver
+  // lib/density.js) — nunca passa por persistActiveCompany, só
+  // localStorage local.
   function setDensity(id) {
     setData({ reportDensity: id });
     writeStoredDensity(id);
@@ -134,7 +135,7 @@ export default function ReportSettingsMenu({ tab }) {
             )}
 
             <div className="my-1.5 border-t border-line" />
-            <p className="px-2 pt-1 text-[11px] font-medium uppercase tracking-wide text-ink-400">Espaçamento das linhas</p>
+            <p className="px-2 pt-1 text-[11px] font-medium uppercase tracking-wide text-ink-400">Espaçamento entre colunas</p>
             <div className="mt-1.5 inline-flex w-full gap-0.5 rounded-full bg-surface-muted p-1">
               {DENSITY_OPTIONS.map((option) => (
                 <button
@@ -150,7 +151,7 @@ export default function ReportSettingsMenu({ tab }) {
               ))}
             </div>
             <p className="px-2 pb-1 pt-1.5 text-[10.5px] text-ink-400">
-              Fica salvo só neste computador — ajuste se as linhas aparecerem muito espremidas (ou muito espaçadas) nessa tela.
+              Fica salvo só neste computador — ajuste se as colunas de mês aparecerem muito espremidas (ou muito espaçadas) nessa tela.
             </p>
           </div>
         </>
