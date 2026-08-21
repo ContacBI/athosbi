@@ -1,5 +1,5 @@
-import { Fragment, useMemo } from "react";
-import { ArrowDownCircle, ArrowUpCircle, X } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
+import { ArrowDownCircle, ArrowUpCircle, Search, X } from "lucide-react";
 import { entriesForAccount, journalByCompanyAndDate, counterpartsForEntry } from "../data/calculations.js";
 import { money } from "../lib/format.js";
 import Avatar from "./Avatar.jsx";
@@ -21,6 +21,16 @@ function formatDate(value) {
   return year && month && day ? `${day}/${month}/${year}` : value || "";
 }
 
+// Sem acento e minúsculo — usado tanto pra montar o "haystack" de cada
+// lançamento quanto pra normalizar o termo digitado na busca, pra "Fornec"
+// achar "Fornecedores" e "PRONAMPE" achar "Pronampe" sem se importar com caixa.
+function normalizeText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
 // "Sem contrapartida identificada" não é uma conta de verdade — é um balde
 // (classificacao literal "sem-contrapartida") pra onde vai a PARTE de um
 // lançamento de caixa que não fechou com nenhuma contrapartida (ver
@@ -35,6 +45,7 @@ function formatDate(value) {
 const SEM_CONTRAPARTIDA_CODE = "sem-contrapartida";
 
 export default function LedgerModal({ row, onClose }) {
+  const [search, setSearch] = useState("");
   const rawEntries = row.classificacao === SEM_CONTRAPARTIDA_CODE && Array.isArray(row.dfcEntries)
     ? row.dfcEntries
     : entriesForAccount(row.classificacao);
@@ -57,6 +68,39 @@ export default function LedgerModal({ row, onClose }) {
   // abrir) — cada linha reaproveita esse mapa em vez de varrer tudo de
   // novo; ver counterpartsForEntry/journalByCompanyAndDate em calculations.js.
   const journalByDate = useMemo(() => journalByCompanyAndDate(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Contrapartida (e o texto de busca de cada linha) é calculada uma vez só
+  // aqui, junto com o resto — não no render da tabela. Isso é essencial:
+  // digitar na busca reexecuta o componente a cada tecla, e recalcular a
+  // busca de combinação (findClosingCombination) pra cada um dos milhares de
+  // lançamentos a cada tecla travaria a digitação. Filtrar em cima do que já
+  // foi calculado é barato; recalcular contrapartida não é.
+  const entriesWithMeta = useMemo(
+    () =>
+      entries.map((entry) => {
+        const dayKey = `${entry.companyId || ""}|${entry.data || ""}`;
+        const counterparts = counterpartsForEntry(entry, journalByDate.get(dayKey));
+        const counterpartText = counterparts.map(accountLabel).join(" · ");
+        const haystack = normalizeText(
+          [
+            formatDate(entry.data),
+            entry.data,
+            entry.historico,
+            counterpartText,
+            entry.debito,
+            entry.credito,
+            money(entry.debito || 0),
+            money(entry.credito || 0),
+          ].join(" ")
+        );
+        return { entry, counterparts, counterpartText, haystack };
+      }),
+    [entries, journalByDate]
+  );
+  const filtered = useMemo(() => {
+    const term = normalizeText(search.trim());
+    if (!term) return entriesWithMeta;
+    return entriesWithMeta.filter((item) => item.haystack.includes(term));
+  }, [entriesWithMeta, search]);
   const label = row.nome_conta || row.categoria_gerencial;
   const isSemContrapartida = row.classificacao === SEM_CONTRAPARTIDA_CODE;
   // Linha somada entre empresas (ver mergeGroupRowsByName em calculations.js)
@@ -114,46 +158,62 @@ export default function LedgerModal({ row, onClose }) {
           </div>
         </div>
 
+        <div className="border-b border-line px-6 py-2.5">
+          <div className="relative">
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-300" />
+            <input
+              type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar por valor, histórico, contrapartida ou data..."
+              className="w-full rounded-lg border border-line bg-surface-page py-2 pl-8 pr-3 text-[13px] text-ink-900 outline-none placeholder:text-ink-300 focus:border-accent-400"
+            />
+          </div>
+          {search.trim() && (
+            <p className="mt-1.5 text-[11px] text-ink-400">{filtered.length} de {entries.length} lançamentos</p>
+          )}
+        </div>
+
         <div className="overflow-y-auto scrollbar-thin">
-          <table className="w-full text-[13px]">
+          <table className="w-full table-fixed text-[13px]">
+            <colgroup>
+              <col style={{ width: "104px" }} />
+              <col />
+              <col style={{ width: "128px" }} />
+              <col style={{ width: "128px" }} />
+            </colgroup>
             <thead className="sticky top-0 bg-surface-card text-ink-400 shadow-[0_1px_0_var(--color-line)]">
               <tr>
                 <th className="px-6 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Data</th>
                 <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Histórico</th>
-                <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Contrapartida</th>
                 <th className="px-4 py-2.5 text-right text-[11px] font-medium uppercase tracking-wide">Débito</th>
                 <th className="px-6 py-2.5 text-right text-[11px] font-medium uppercase tracking-wide">Crédito</th>
               </tr>
             </thead>
             <tbody>
-              {entries.map((entry, index) => {
-                const newCompany = showCompany && entry.companyName !== entries[index - 1]?.companyName;
-                const dayKey = `${entry.companyId || ""}|${entry.data || ""}`;
-                const counterparts = counterpartsForEntry(entry, journalByDate.get(dayKey));
+              {filtered.map((item, index) => {
+                const { entry, counterparts, counterpartText } = item;
+                const newCompany = showCompany && entry.companyName !== filtered[index - 1]?.entry.companyName;
                 return (
                   <Fragment key={`${entry.linha_origem}-${index}`}>
                     {newCompany && (
                       <tr key={`company-${entry.companyName}-${index}`} className="sticky top-9 z-[1]">
-                        <td colSpan={5} className="border-y border-line bg-surface-muted px-6 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
+                        <td colSpan={4} className="border-y border-line bg-surface-muted px-6 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
                           {entry.companyName || "Empresa não identificada"}
                         </td>
                       </tr>
                     )}
-                    <tr className={`transition-colors hover:bg-surface-muted ${index % 2 ? "bg-surface-page/60" : "bg-surface-card"}`}>
+                    <tr className={`transition-colors hover:bg-accent-50/40 ${index % 2 ? "bg-surface-muted/70" : "bg-surface-card"}`}>
                       <td className="whitespace-nowrap px-6 py-2 align-top text-ink-600">{formatDate(entry.data)}</td>
-                      <td className="px-4 py-2 align-top text-ink-900">{entry.historico}</td>
-                      <td className="px-4 py-2 align-top text-ink-600">
-                        {counterparts.length === 0 ? (
-                          <span className="text-[11.5px] italic text-warning-600">nenhuma achada</span>
-                        ) : (
-                          <div className="flex flex-col gap-0.5">
-                            {counterparts.map((counterpart, counterpartIndex) => (
-                              <span key={counterpartIndex} className="text-[11.5px]">
-                                {accountLabel(counterpart)}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                      <td className="max-w-0 px-4 py-2 align-top text-ink-900">
+                        <p className="truncate" title={entry.historico}>{entry.historico}</p>
+                        <p className="mt-0.5 truncate text-[11px] text-ink-400" title={counterpartText || undefined}>
+                          {counterparts.length === 0 ? (
+                            <span className="italic text-warning-600">contrapartida não encontrada</span>
+                          ) : (
+                            counterpartText
+                          )}
+                        </p>
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 align-top text-right tabular-nums text-success-600">{entry.debito ? money(entry.debito) : ""}</td>
                       <td className="whitespace-nowrap px-6 py-2 align-top text-right tabular-nums text-danger-600">{entry.credito ? money(entry.credito) : ""}</td>
@@ -161,9 +221,11 @@ export default function LedgerModal({ row, onClose }) {
                   </Fragment>
                 );
               })}
-              {entries.length === 0 && (
+              {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-ink-400">Nenhum lançamento no período selecionado.</td>
+                  <td colSpan={4} className="px-6 py-10 text-center text-ink-400">
+                    {entries.length === 0 ? "Nenhum lançamento no período selecionado." : "Nenhum lançamento encontrado para essa busca."}
+                  </td>
                 </tr>
               )}
             </tbody>
