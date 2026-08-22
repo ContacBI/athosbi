@@ -48,9 +48,19 @@ function writeStoredCompanies(companies) {
     // não tem "salvar mesmo assim" seguro aqui: melhor a edição do usuário
     // não persistir agora (ele recarrega a página e tenta de novo) do que
     // arriscar sobrescrever dado real com um array vazio.
-    const journalChanged = !company.journalLoadFailed && lastWrittenJournals.get(company.id) !== company.journal;
-    if (company.journalLoadFailed) {
-      console.error(`Empresa "${company.name}" (${company.id}): razão não carregou direito — pulando a escrita do razão pra não sobrescrever com vazio. Recarregue a página pra tentar de novo.`);
+    //
+    // `!company.journalLoaded` cobre um segundo jeito de chegar no MESMO
+    // problema: o razão agora carrega sob demanda (ensureCompanyJournalLoaded
+    // em selectCompany) — se o usuário troca de empresa de novo ANTES
+    // dessa busca terminar, persistActiveCompany roda pra empresa que ele
+    // está deixando com state.journal ainda no placeholder [] (a busca
+    // real nem voltou ainda). Sem essa trava, isso gravava [] de verdade
+    // por cima do razão real no Supabase — foi o que aconteceu com as
+    // empresas de demonstração ao navegar rápido entre elas.
+    const journalSafeToWrite = company.journalLoaded && !company.journalLoadFailed;
+    const journalChanged = journalSafeToWrite && lastWrittenJournals.get(company.id) !== company.journal;
+    if (!journalSafeToWrite && lastWrittenRecords.get(company.id) !== company) {
+      console.error(`Empresa "${company.name}" (${company.id}): razão ainda não carregou (ou falhou) — pulando a escrita do razão pra não sobrescrever com vazio.`);
     }
     if (!journalChanged && !recordChanged) return null;
     const pending = [];
