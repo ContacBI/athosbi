@@ -40,7 +40,18 @@ function writeStoredCompanies(companies) {
     // reference works because a `.map()` that leaves a given company
     // untouched hands back that exact same object every time.
     const recordChanged = lastWrittenRecords.get(company.id) !== company;
-    const journalChanged = lastWrittenJournals.get(company.id) !== company.journal;
+    // journalLoadFailed (ver loadCompanies) trava a escrita do razão dessa
+    // empresa por completo, mesmo que a referência pareça "mudada" — foi
+    // exatamente essa combinação (leitura falhou -> vira [] -> qualquer
+    // ação de salvar reescreve [] por cima do razão de verdade) que quase
+    // apagou o razão de empresas inteiras. Sem o razão de verdade em mãos,
+    // não tem "salvar mesmo assim" seguro aqui: melhor a edição do usuário
+    // não persistir agora (ele recarrega a página e tenta de novo) do que
+    // arriscar sobrescrever dado real com um array vazio.
+    const journalChanged = !company.journalLoadFailed && lastWrittenJournals.get(company.id) !== company.journal;
+    if (company.journalLoadFailed) {
+      console.error(`Empresa "${company.name}" (${company.id}): razão não carregou direito — pulando a escrita do razão pra não sobrescrever com vazio. Recarregue a página pra tentar de novo.`);
+    }
     if (!journalChanged && !recordChanged) return null;
     const pending = [];
     if (journalChanged) {
@@ -49,7 +60,7 @@ function writeStoredCompanies(companies) {
     }
     if (recordChanged) {
       lastWrittenRecords.set(company.id, company);
-      const { journal, ...record } = company; // stripped only for the write payload
+      const { journal, journalLoadFailed, ...record } = company; // ambos ficam de fora do payload — journal tem write própria, journalLoadFailed é só um sinal local, nunca deve ser persistido
       pending.push(writePersistent(companyKey(company.id), record));
     }
     return Promise.all(pending);
@@ -151,12 +162,27 @@ export async function loadCompanies() {
   }
   const companies = await Promise.all(
     records.map(async (record) => {
-      let journal = await readPersistent(companyJournalKey(record.id));
+      let journal;
+      let journalLoadFailed = false;
+      try {
+        journal = await readPersistent(companyJournalKey(record.id));
+      } catch (error) {
+        // Não dá pra saber se essa empresa realmente não tem lançamento
+        // nenhum ou se a leitura só falhou (rede, timeout — mais comum
+        // quanto maior o razão). Tratar como "vazio" aqui já causou um
+        // susto de perda de dado real: fica marcada como falha, mostra []
+        // só pra não quebrar a tela, e writeStoredCompanies recusa
+        // escrever o razão dela enquanto isso não for corrigido (recarregar
+        // a página tenta de novo).
+        console.error(`Empresa "${record.name}" (${record.id}): não consegui ler o razão do Supabase.`, error);
+        journal = [];
+        journalLoadFailed = true;
+      }
       // `journal` embedded on the legacy record itself is only present for
       // companies saved before the ledger was split into its own key.
       if (journal === undefined) journal = record.journal || [];
       const { journal: _legacyJournal, ...rest } = record;
-      const company = { ...rest, journal };
+      const company = { ...rest, journal, journalLoadFailed };
       // Pre-populate the "already saved" trackers with the exact object
       // this tab is about to hold in state.companies — otherwise every
       // company, not just the one actually edited, would look "changed"
@@ -272,6 +298,11 @@ export function selectCompany(id, { skipPersist = false } = {}) {
     dfcOverrides: company.dfcOverrides || [],
     accounts: company.accounts || [],
     journal: remapJournal(company.journal || [], company.mappings || []),
+    // Ver loadCompanies — true quando a leitura do razão desta empresa
+    // falhou (não confirma "vazia"). CompanyTopBar mostra um aviso; nenhum
+    // save toca no razão dela enquanto isso ficar true (ver
+    // writeStoredCompanies).
+    journalLoadFailed: Boolean(company.journalLoadFailed),
     periodStart: company.periodStart || "",
     periodEnd: company.periodEnd || "",
     hideNonOperatingResults: Boolean(company.hideNonOperatingResults),

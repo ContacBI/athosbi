@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Settings, Building2, Network } from "lucide-react";
+import { ArrowLeft, ArrowRight, Settings, Building2, Network, TriangleAlert } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { selectCompany } from "../lib/companies.js";
 import { selectGroup, groupCompanies } from "../lib/groups.js";
@@ -92,9 +92,16 @@ export default function Empresas() {
                 </div>
                 {company.atividade && <p className="line-clamp-1 text-[12px] text-ink-400">{company.atividade}</p>}
                 <div className="flex items-center justify-between border-t border-line pt-2.5">
-                  <p className="text-[11px] text-ink-400">
-                    {(company.accounts || []).length} contas · {(company.journal || []).length} lançamentos
-                  </p>
+                  {company.journalLoadFailed ? (
+                    <p className="flex items-center gap-1 text-[11px] font-medium text-warning-600">
+                      <TriangleAlert size={12} strokeWidth={2} />
+                      não consegui carregar — recarregue a página
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-ink-400">
+                      {(company.accounts || []).length} contas · {(company.journal || []).length} lançamentos
+                    </p>
+                  )}
                   <span className="flex items-center gap-1 text-[12px] font-medium text-accent-600 transition-transform group-hover:translate-x-0.5">
                     Acessar
                     <ArrowRight size={13} />

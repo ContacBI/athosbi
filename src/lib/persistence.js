@@ -51,16 +51,50 @@ export const COMPANY_KEY_PREFIX = "portalGerencial.company.";
 const writeQueues = new Map();
 const localKey = (key) => `portalGerencial.fallback.${key}`;
 
+// Um único timeout/soluço de rede não pode virar "essa conta está vazia" —
+// foi exatamente isso que fez o razão de empresas inteiras (uma com 85 mil
+// lançamentos) aparecer com 0 lançamentos na lista, sem erro nenhum visível
+// (ver readPersistent/readPersistentByPrefix abaixo). Tenta de novo antes de
+// desistir — cobre a esmagadora maioria dos casos reais (uma falha
+// passageira, mais comum quanto maior o payload, ex. um razão gigante).
+const READ_RETRIES = 2;
+const READ_RETRY_BASE_MS = 400;
+
+async function withReadRetries(run) {
+  let lastError;
+  for (let attempt = 0; attempt <= READ_RETRIES; attempt += 1) {
+    const { data, error } = await run();
+    if (!error) return data;
+    lastError = error;
+    if (attempt < READ_RETRIES) {
+      await new Promise((resolve) => setTimeout(resolve, READ_RETRY_BASE_MS * (attempt + 1)));
+    }
+  }
+  throw lastError;
+}
+
+// Erro distinto (não um valor "vazio" qualquer) pra quem chama conseguir
+// separar "essa conta realmente não tem lançamento nenhum" de "não consegui
+// nem confirmar se tem ou não" — a diferença importa demais pra virar um
+// `|| []` qualquer (ver loadCompanies em lib/companies.js).
+export class PersistenceReadError extends Error {}
+
 export async function readPersistent(key) {
-  const { data, error } = await supabase.from("app_storage").select("value").eq("key", key).maybeSingle();
-  if (error) {
-    console.error(`Falha ao ler "${key}" do Supabase:`, error);
+  let data;
+  try {
+    data = await withReadRetries(() => supabase.from("app_storage").select("value").eq("key", key).maybeSingle());
+  } catch (error) {
+    console.error(`Falha ao ler "${key}" do Supabase (mesmo tentando de novo):`, error);
     try {
       const fallback = localStorage.getItem(localKey(key));
-      return fallback ? JSON.parse(fallback) : undefined;
+      if (fallback) return JSON.parse(fallback);
     } catch {
-      return undefined;
+      /* cache local corrompido — ignora e cai no throw abaixo */
     }
+    // Sem cache local pra usar de respaldo (dispositivo novo, ou essa chave
+    // nunca foi lida aqui antes) — não dá pra saber se a conta existe ou
+    // não. Propaga o erro em vez de fingir "vazio".
+    throw new PersistenceReadError(`Não consegui ler "${key}" do Supabase.`, { cause: error });
   }
   // The local copy is only a safety net for a temporary database/network
   // outage; Supabase remains the source of truth whenever it is reachable.
@@ -98,10 +132,15 @@ export async function readStoredArray(key) {
 // now (one row per company, see companyKey above) instead of one shared
 // array under a single key.
 export async function readPersistentByPrefix(prefix) {
-  const { data, error } = await supabase.from("app_storage").select("value").like("key", `${prefix}%`);
-  if (error) {
-    console.error(`Falha ao listar "${prefix}*" do Supabase:`, error);
-    return [];
+  let data;
+  try {
+    data = await withReadRetries(() => supabase.from("app_storage").select("value").like("key", `${prefix}%`));
+  } catch (error) {
+    console.error(`Falha ao listar "${prefix}*" do Supabase (mesmo tentando de novo):`, error);
+    // Antes voltava [] aqui — pra loadCompanies() isso é indistinguível de
+    // "não existe empresa nenhuma", o que apagava a lista inteira da tela
+    // só por causa de uma falha de rede. Propaga o erro em vez disso.
+    throw new PersistenceReadError(`Não consegui listar "${prefix}*" do Supabase.`, { cause: error });
   }
   return (data || []).map((row) => row.value);
 }

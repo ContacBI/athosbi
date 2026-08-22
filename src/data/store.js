@@ -30,6 +30,10 @@ export const state = {
   // as Ativo/Passivo/PL/Resultado, so De/Para only offers managerial lines
   // of the same nature — see lib/accountNature.js.
   natureRules: null,
+  // true quando o razão da empresa ativa não carregou do Supabase (ver
+  // lib/companies.js loadCompanies/selectCompany) — nunca deve ser tratado
+  // como "essa empresa não tem lançamento".
+  journalLoadFailed: false,
   view: "empresas",
   selectedLine: null,
   selectedAccount: null,
