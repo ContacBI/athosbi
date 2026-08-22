@@ -128,12 +128,14 @@ create policy "app_storage_select_scoped"
 -- scope tipo 'editor' em access_grants e trocar o "false" abaixo pela
 -- mesma checagem de allowed_company_ids() usada no select.
 drop policy if exists "app_storage_insert_authenticated" on app_storage;
+drop policy if exists "app_storage_insert_admin_only" on app_storage;
 create policy "app_storage_insert_admin_only"
   on app_storage for insert
   to authenticated
   with check (is_portal_admin());
 
 drop policy if exists "app_storage_update_authenticated" on app_storage;
+drop policy if exists "app_storage_update_admin_only" on app_storage;
 create policy "app_storage_update_admin_only"
   on app_storage for update
   to authenticated
@@ -141,6 +143,7 @@ create policy "app_storage_update_admin_only"
   with check (is_portal_admin());
 
 drop policy if exists "app_storage_delete_authenticated" on app_storage;
+drop policy if exists "app_storage_delete_admin_only" on app_storage;
 create policy "app_storage_delete_admin_only"
   on app_storage for delete
   to authenticated
@@ -181,6 +184,7 @@ create policy "access_grants_admin_all"
 -- caminho exato do arquivo pra isso, e a UI só mostra o link pra quem tem
 -- acesso à empresa); só admin pode subir/trocar/apagar anexo.
 drop policy if exists "monthly_reports_all_authenticated" on storage.objects;
+drop policy if exists "monthly_reports_read_authenticated" on storage.objects;
 create policy "monthly_reports_read_authenticated"
   on storage.objects for select
   to authenticated
