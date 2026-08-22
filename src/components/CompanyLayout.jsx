@@ -1,15 +1,27 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import CompanyTopBar from "./CompanyTopBar.jsx";
 import { useAppState } from "../data/useStore.js";
 import { PageActionsProvider } from "../lib/pageActions.jsx";
 import { densityColumnGap } from "../lib/density.js";
 
+// Rotas de gestão/edição dentro do workspace da empresa — quem só tem
+// acesso de leitura (não-admin, ver lib/access.js) nunca deveria nem abrir
+// essas telas: o banco já recusa qualquer escrita vinda daqui (RLS em
+// app_storage), mas sem essa trava a pessoa veria um erro cru do Supabase
+// em vez de simplesmente não ter o caminho pra chegar lá.
+const ADMIN_ONLY_PREFIXES = ["/empresa/relatorios", "/empresa/de-para", "/empresa/vinculo-dfc", "/empresa/personalizar"];
+
 export default function CompanyLayout() {
   const state = useAppState();
+  const location = useLocation();
   const company = state.companies.find((item) => item.id === state.activeCompanyId) || null;
 
   if (!company && !state.activeGroupId) {
     return <Navigate to="/empresas" replace />;
+  }
+
+  if (!state.isAdmin && ADMIN_ONLY_PREFIXES.some((prefix) => location.pathname.startsWith(prefix))) {
+    return <Navigate to="/empresa" replace />;
   }
 
   return (

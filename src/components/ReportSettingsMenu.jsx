@@ -27,7 +27,11 @@ export default function ReportSettingsMenu({ tab }) {
 
   function saveSettings(next) {
     setData(next);
-    persistActiveCompany();
+    // Quem só tem acesso de leitura pode mexer nesses toggles à vontade pra
+    // ler o relatório do jeito que quiser — só não persiste no banco (o
+    // Supabase recusaria a escrita mesmo, ver RLS em supabase/schema.sql),
+    // então some ao recarregar a página em vez de tentar salvar e falhar.
+    if (state.isAdmin) persistActiveCompany();
   }
 
   // Espaçamento entre colunas de mês é pessoal deste computador (ver

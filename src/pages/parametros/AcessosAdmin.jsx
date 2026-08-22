@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ShieldCheck, Trash2 } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
-import { listAccessGrants, grantAccess, revokeAccess } from "../../lib/access.js";
+import { listAccessGrants, grantAccess, revokeAccess, inviteUser } from "../../lib/access.js";
 import PageHeader from "../../components/PageHeader.jsx";
 
 // Quem loga aqui e não está em portal_admins (ver supabase/schema.sql) só
@@ -14,6 +14,7 @@ export default function AcessosAdmin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState("");
   const [email, setEmail] = useState("");
   const [scopeType, setScopeType] = useState("company");
   const [scopeId, setScopeId] = useState("");
@@ -44,14 +45,37 @@ export default function AcessosAdmin() {
     if (!email.trim() || !scopeId) return;
     setSaving(true);
     setError("");
+    setNotice("");
     try {
       await grantAccess({ email, scopeType, scopeId });
+      // O convite é best-effort: a concessão acima já vale por si só (a
+      // pessoa enxerga assim que tiver conta, convidada ou não). Se o
+      // e-mail já tinha conta, o backend devolve alreadyExists em vez de
+      // erro — trata como sucesso, só sem reenviar e-mail.
+      try {
+        const result = await inviteUser(email);
+        setNotice(result?.alreadyExists ? "Acesso liberado — esse e-mail já tinha conta." : "Acesso liberado e convite enviado por e-mail.");
+      } catch (inviteErr) {
+        setNotice("Acesso liberado, mas não consegui enviar o e-mail de convite agora.");
+        console.error("Falha ao convidar:", inviteErr);
+      }
       setScopeId("");
       await reload();
     } catch (err) {
       setError(String(err?.message || err));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleReinvite(personEmail) {
+    setError("");
+    setNotice("");
+    try {
+      const result = await inviteUser(personEmail);
+      setNotice(result?.alreadyExists ? `${personEmail} já tem conta — não precisa de convite novo.` : `Convite reenviado pra ${personEmail}.`);
+    } catch (err) {
+      setError(String(err?.message || err));
     }
   }
 
@@ -81,7 +105,7 @@ export default function AcessosAdmin() {
       <PageHeader
         eyebrow="Segurança"
         title="Acessos"
-        description="Libere e-mails específicos para ver (somente leitura) determinadas empresas ou grupos. Quem não estiver aqui e não for admin não enxerga a carteira."
+        description="Libere e-mails específicos para ver (somente leitura) determinadas empresas ou grupos. Quem ainda não tem conta recebe um convite por e-mail pra criar a senha."
         icon={ShieldCheck}
       />
 
@@ -134,11 +158,12 @@ export default function AcessosAdmin() {
           disabled={saving}
           className="rounded-md bg-accent-500 px-4 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {saving ? "Liberando…" : "Liberar acesso"}
+          {saving ? "Liberando…" : "Liberar acesso e convidar"}
         </button>
       </form>
 
       {error && <p className="mt-3 text-[12.5px] text-danger-600">{error}</p>}
+      {notice && <p className="mt-3 text-[12.5px] text-accent-600">{notice}</p>}
 
       <div className="mt-5 flex flex-col gap-3">
         {loading && <p className="text-[13px] text-ink-400">Carregando…</p>}
@@ -153,7 +178,16 @@ export default function AcessosAdmin() {
         )}
         {byEmail.map(([personEmail, personGrants]) => (
           <div key={personEmail} className="rounded-xl bg-surface-card p-4 shadow-sm">
-            <p className="text-[13px] font-medium text-ink-900">{personEmail}</p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[13px] font-medium text-ink-900">{personEmail}</p>
+              <button
+                type="button"
+                onClick={() => handleReinvite(personEmail)}
+                className="shrink-0 text-[12px] text-accent-600 hover:underline"
+              >
+                Reenviar convite
+              </button>
+            </div>
             <div className="mt-2 flex flex-wrap gap-2">
               {personGrants.map((grant) => (
                 <span

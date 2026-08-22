@@ -55,3 +55,14 @@ export async function revokeAccess(id) {
   const { error } = await supabase.from("access_grants").delete().eq("id", id);
   if (error) throw error;
 }
+
+// Dispara o e-mail de convite (ver supabase/functions/invite-user) — a
+// pessoa recebe um link, clica, cai logada em /definir-senha e escolhe a
+// senha ali. Não falha se o e-mail já tiver conta (alreadyExists: true);
+// nesse caso a concessão em access_grants (já criada por grantAccess) é
+// suficiente, não precisa de convite novo.
+export async function inviteUser(email) {
+  const { data, error } = await supabase.functions.invoke("invite-user", { body: { email } });
+  if (error) throw error;
+  return data;
+}

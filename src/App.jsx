@@ -4,6 +4,7 @@ import CompanyLayout from "./components/CompanyLayout.jsx";
 import ParametrosLayout from "./components/ParametrosLayout.jsx";
 import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
+import SetPassword from "./pages/SetPassword.jsx";
 import { supabase } from "./lib/supabaseClient.js";
 import Empresas from "./pages/Empresas.jsx";
 import CompanyHome from "./pages/CompanyHome.jsx";
@@ -130,6 +131,7 @@ export default function App() {
       <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route index element={<Landing />} />
+        <Route path="definir-senha" element={<SetPassword />} />
         <Route path="empresas" element={<Empresas />} />
         <Route path="parametros" element={<ParametrosLayout />}>
           <Route index element={<Navigate to="empresas" replace />} />

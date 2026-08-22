@@ -47,7 +47,7 @@ create table if not exists portal_admins (
   email text primary key
 );
 insert into portal_admins (email)
-values ('izaiasspaulino@gmail.com')
+values ('izaiascontac@gmail.com')
 on conflict (email) do nothing;
 
 -- Quem tem acesso (somente leitura) a quê. scope_type='company' aponta pro id

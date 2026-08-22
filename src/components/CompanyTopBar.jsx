@@ -513,17 +513,19 @@ export default function CompanyTopBar({ company }) {
             />
           )}
           <ReportsMenu />
-          <button
-            type="button"
-            onClick={() => navigate("/empresa/personalizar")}
-            className={`flex h-8 items-center gap-1.5 rounded-md border px-3 text-[12px] font-medium transition-colors ${
-              isPersonalizar ? "border-accent-500 bg-accent-500 text-white" : "border-accent-500/40 bg-accent-500/15 text-accent-100 hover:border-accent-500/70 hover:bg-accent-500/25"
-            }`}
-          >
-            <LayoutGrid size={13} strokeWidth={1.8} />
-            Personalizar
-          </button>
-          {company && <SettingsButton />}
+          {appState.isAdmin && (
+            <button
+              type="button"
+              onClick={() => navigate("/empresa/personalizar")}
+              className={`flex h-8 items-center gap-1.5 rounded-md border px-3 text-[12px] font-medium transition-colors ${
+                isPersonalizar ? "border-accent-500 bg-accent-500 text-white" : "border-accent-500/40 bg-accent-500/15 text-accent-100 hover:border-accent-500/70 hover:bg-accent-500/25"
+              }`}
+            >
+              <LayoutGrid size={13} strokeWidth={1.8} />
+              Personalizar
+            </button>
+          )}
+          {company && appState.isAdmin && <SettingsButton />}
           <ThemeToggle className="h-8 w-8" />
         </div>
       </div>
