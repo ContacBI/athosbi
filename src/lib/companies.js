@@ -17,6 +17,7 @@ import {
 } from "./persistence.js";
 import { DEFAULT_NATURE_RULES } from "./accountNature.js";
 import { supabase, MONTHLY_REPORTS_BUCKET } from "./supabaseClient.js";
+import { isPortalAdmin } from "./access.js";
 
 // Remembers, per company id, the exact array/object reference last sent to
 // Supabase for that company's journal and for the rest of its record — so a
@@ -176,8 +177,11 @@ export async function fetchCompaniesAndGroups() {
   // (COMPANIES_KEY) — read that once, split every company into its own row
   // right away, and never touch the old key again. Safe to run from more
   // than one tab/device at once: it only ever re-writes rows from data it
-  // just read, the same as any other save.
-  if (records.length === 0) {
+  // just read, the same as any other save. This function is only reachable
+  // from admin-only screens (Backup geral), but the isPortalAdmin() check
+  // is repeated here too — see loadCompanies() above for why "0 rows" can
+  // now also mean "no access granted", not just "never migrated".
+  if (records.length === 0 && (await isPortalAdmin())) {
     const legacyLight = await readStoredArray(COMPANIES_KEY);
     if (legacyLight.length > 0) {
       records = legacyLight.map(({ journal, ...rest }) => rest);
@@ -263,7 +267,16 @@ export async function loadCompanies() {
   // Mesma migração de uma vez só que fetchCompaniesAndGroups faz — ver lá
   // em cima. Duplicada aqui (em vez de compartilhada) porque essa versão
   // não carrega razão nenhum, só monta os registros leves.
-  if (records.length === 0) {
+  //
+  // "0 registros" agora pode significar duas coisas bem diferentes desde
+  // que existe controle de acesso (ver supabase/schema.sql): ou esse
+  // projeto nunca foi migrado do formato antigo (só o dono vê isso), ou é
+  // simplesmente um e-mail liberado sem NENHUM acesso ainda — o RLS
+  // devolve 0 de propósito. Sem essa checagem de admin, o segundo caso
+  // caía na migração e tentava reescrever tudo, e o próprio banco recusava
+  // a escrita (RLS de insert é admin-only) — foi exatamente isso que
+  // travou o boot do portal a primeira vez que um e-mail não-admin logou.
+  if (records.length === 0 && (await isPortalAdmin())) {
     const legacyLight = await readStoredArray(COMPANIES_KEY);
     if (legacyLight.length > 0) {
       records = legacyLight.map(({ journal, ...rest }) => rest);
