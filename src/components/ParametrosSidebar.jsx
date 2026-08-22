@@ -19,9 +19,9 @@ export default function ParametrosSidebar() {
     <aside className="flex h-screen w-[232px] shrink-0 flex-col bg-navy-950 text-white">
       <button type="button" onClick={() => navigate("/")} className="flex items-center gap-2.5 px-5 py-5 text-left">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-500 text-sm font-medium">
-          BI
+          A
         </span>
-        <span className="text-[15px] font-medium leading-tight">BIperformance</span>
+        <span className="text-[15px] font-medium leading-tight">AthosBI</span>
       </button>
 
       <button

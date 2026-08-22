@@ -48,7 +48,7 @@ export default function Landing() {
         <span className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-500 text-2xl font-medium shadow-lg shadow-accent-600/30">
           BI
         </span>
-        <h1 className="text-5xl font-medium tracking-tight sm:text-6xl">BIperformance</h1>
+        <h1 className="text-5xl font-medium tracking-tight sm:text-6xl">AthosBI</h1>
         <p className="mt-3 max-w-md text-sm text-white/60">
           Relatórios gerenciais, indicadores e demonstrações financeiras da sua carteira de empresas.
         </p>

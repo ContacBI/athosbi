@@ -35,7 +35,7 @@ export default function Login() {
         <span className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-500 text-2xl font-medium shadow-lg shadow-accent-600/30">
           BI
         </span>
-        <h1 className="text-3xl font-medium tracking-tight">BIperformance</h1>
+        <h1 className="text-3xl font-medium tracking-tight">AthosBI</h1>
         <p className="mt-2 max-w-xs text-sm text-white/60">Entre com o acesso da sua equipe pra ver a carteira de empresas.</p>
 
         <form onSubmit={handleSubmit} className="mt-8 flex w-full flex-col gap-3 text-left">

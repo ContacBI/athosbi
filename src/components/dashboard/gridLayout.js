@@ -2,7 +2,12 @@
 // read-only view (a tab), so what you arrange is pixel-for-pixel what shows
 // up later — both just feed the same layout array into react-grid-layout,
 // one with drag/resize on, the other off.
-export const GRID_COLS = 4;
+// 8 colunas (dobrado de 4) — granularidade maior pra posicionar/redimensionar
+// widgets. Os presets de tamanho abaixo foram dobrados junto (sm/md/lg) pra
+// manter a MESMA aparência de antes; layouts já salvos em cada empresa
+// (`layout.x`/`layout.w`) foram migrados uma única vez (x2) num script
+// separado — não fazem mais sentido lidos contra o valor antigo de 4.
+export const GRID_COLS = 8;
 export const ROW_HEIGHT = 24;
 
 // How much air sits between cards — a per-tab/subtab choice (stored as
@@ -19,9 +24,9 @@ export function marginPxFor(spacing) {
 }
 
 const SIZE_PRESET = {
-  sm: { w: 1, h: 6 },
-  md: { w: 2, h: 8 },
-  lg: { w: 4, h: 12 },
+  sm: { w: 2, h: 6 },
+  md: { w: 4, h: 8 },
+  lg: { w: 8, h: 12 },
 };
 
 // entry: { id, size?, layout? } from a tab's widgets array.

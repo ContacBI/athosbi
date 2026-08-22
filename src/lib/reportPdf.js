@@ -10,15 +10,27 @@ const HEADER = [21, 32, 51];
 const POSITIVE = [15, 110, 86];
 const NEGATIVE = [168, 52, 42];
 const TOTAL_COLUMN = [244, 222, 197];
+// 6 níveis, não 3 — um relatório gerencial de verdade passa fácil de nível
+// 5/6 (Ativo > Ativo circulante > Caixa e equivalentes > Caixa e fundos
+// fixos > Caixa físico...), e travar em 3 tons deixava tudo do nível 3 pra
+// baixo com a MESMA cor — nenhuma pista visual de que "Serviços prestados
+// a prazo" está 4 níveis mais fundo que "Receita bruta". Cada nível
+// desbota mais um pouco, do tom mais forte (nível 1) até quase branco.
 const LEVEL_BG = [
+  [239, 214, 186],
   [243, 224, 202],
+  [246, 232, 216],
   [248, 238, 227],
-  [246, 236, 224],
+  [250, 243, 235],
+  [252, 248, 244],
 ];
 const LEVEL_BAR = [
   [198, 74, 18],
+  [212, 120, 68],
   [222, 158, 128],
-  [233, 199, 175],
+  [230, 179, 154],
+  [238, 199, 179],
+  [244, 216, 200],
 ];
 const ANALYTIC_TEXT = [140, 137, 133];
 const BODY_TEXT = [35, 30, 26];
@@ -47,7 +59,7 @@ function drawPageLabel(doc, label) {
 }
 
 function levelIndex(row) {
-  return Math.min(Math.max(Number(row.nivel || 1), 1), 3) - 1;
+  return Math.min(Math.max(Number(row.nivel || 1), 1), LEVEL_BG.length) - 1;
 }
 
 // Recuo pela esquerda proporcional ao nível da conta — sem isso, todas as

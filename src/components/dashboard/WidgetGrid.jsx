@@ -10,6 +10,12 @@ import {
   Line,
   Pie,
   PieChart,
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Radar as RechartsRadar,
+  RadarChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -268,6 +274,150 @@ function renderLineOrBarChart(kind, ctx) {
       </ComposedChart>
     );
   }
+  if (kind === "caixa_evolucao") {
+    return (
+      <ComposedChart data={ctx.cashSeries} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+        {grid}
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
+        {moneyAxis}
+        {tooltipMoney}
+        <Line dataKey="saldo" name="Saldo de caixa" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
+      </ComposedChart>
+    );
+  }
+  if (kind === "ativo_passivo_pl") {
+    return (
+      <ComposedChart data={ctx.bpSeries} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+        {grid}
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
+        {moneyAxis}
+        {tooltipMoney}
+        <Line dataKey="ativo" name="Ativo" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
+        <Line dataKey="passivo" name="Passivo" stroke="var(--color-danger-500)" strokeWidth={2} dot={{ r: 2 }} />
+        <Line dataKey="pl" name="Patrimônio líquido" stroke="var(--color-navy-700)" strokeWidth={2} dot={{ r: 2 }} />
+      </ComposedChart>
+    );
+  }
+  if (kind === "receita_custo_despesa") {
+    return (
+      <ComposedChart data={ctx.expenseSeries} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+        {grid}
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
+        <YAxis yAxisId="money" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={compactMoney} axisLine={false} tickLine={false} width={48} />
+        <YAxis yAxisId="pct" orientation="right" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={(v) => `${v.toFixed(0)}%`} axisLine={false} tickLine={false} width={40} />
+        <Tooltip formatter={(value, name) => (name === "Margem líquida" ? `${Number(value).toFixed(1).replace(".", ",")}%` : money(value))} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+        <Bar yAxisId="money" dataKey="receita" name="Receita" fill="var(--color-accent-500)" radius={[3, 3, 0, 0]} />
+        <Bar yAxisId="money" dataKey="custo" name="Custo" fill="var(--color-danger-500)" radius={[3, 3, 0, 0]} />
+        <Bar yAxisId="money" dataKey="despesa" name="Despesa" fill="var(--color-warning-500)" radius={[3, 3, 0, 0]} />
+        <Line yAxisId="pct" dataKey="margem" name="Margem líquida" stroke="var(--color-navy-700)" strokeWidth={2.5} dot={{ r: 3 }} />
+      </ComposedChart>
+    );
+  }
+  if (kind === "ncg_evolucao") {
+    return (
+      <ComposedChart data={ctx.ncgSeries} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+        {grid}
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
+        {moneyAxis}
+        {tooltipMoney}
+        <ReferenceLine y={0} stroke="var(--color-line-strong)" />
+        <Line dataKey="value" name="Capital de giro" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
+      </ComposedChart>
+    );
+  }
+  if (kind === "margens_evolucao") {
+    return (
+      <ComposedChart data={ctx.marginsSeries} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+        {grid}
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
+        <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={(v) => `${v.toFixed(0)}%`} axisLine={false} tickLine={false} width={44} />
+        <Tooltip formatter={(value) => `${Number(value).toFixed(1).replace(".", ",")}%`} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+        <Line dataKey="margemBruta" name="Margem bruta" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
+        <Line dataKey="margemLiquida" name="Margem líquida" stroke="var(--color-navy-700)" strokeWidth={2} dot={{ r: 2 }} />
+      </ComposedChart>
+    );
+  }
+  if (kind === "liquidez_evolucao") {
+    return (
+      <ComposedChart data={ctx.liquidezSeries} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+        {grid}
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
+        <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={(v) => v.toFixed(1)} axisLine={false} tickLine={false} width={36} />
+        <Tooltip formatter={(value) => (value == null ? "—" : Number(value).toFixed(2).replace(".", ","))} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+        <ReferenceLine y={1} stroke="var(--color-line-strong)" strokeDasharray="3 3" />
+        <Line dataKey="corrente" name="Liquidez corrente" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+        <Line dataKey="geral" name="Liquidez geral" stroke="var(--color-navy-700)" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+      </ComposedChart>
+    );
+  }
+  if (kind === "endividamento_evolucao") {
+    const data = (ctx.bpSeries || []).map((row) => ({ month: row.month, ratio: row.pl ? Math.abs(row.passivo) / Math.abs(row.pl) : null }));
+    return (
+      <ComposedChart data={data} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+        {grid}
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
+        <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={(v) => v.toFixed(1)} axisLine={false} tickLine={false} width={36} />
+        <Tooltip formatter={(value) => (value == null ? "—" : Number(value).toFixed(2).replace(".", ","))} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+        <Line dataKey="ratio" name="Passivo / PL" stroke="var(--color-danger-500)" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+      </ComposedChart>
+    );
+  }
+  if (kind === "dre_percentual_tempo") {
+    const data = (ctx.expenseSeries || []).map((row) => ({
+      month: row.month,
+      custoPct: row.receita ? (Math.abs(row.custo) / row.receita) * 100 : 0,
+      despesaPct: row.receita ? (Math.abs(row.despesa) / row.receita) * 100 : 0,
+      resultadoPct: Math.max(row.margem, 0),
+    }));
+    return (
+      <ComposedChart data={data} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+        {grid}
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
+        <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={(v) => `${v.toFixed(0)}%`} axisLine={false} tickLine={false} width={44} />
+        <Tooltip formatter={(value) => `${Number(value).toFixed(1).replace(".", ",")}%`} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+        <Bar dataKey="custoPct" name="Custo" stackId="dre" fill="var(--color-danger-500)" />
+        <Bar dataKey="despesaPct" name="Despesa" stackId="dre" fill="var(--color-warning-500)" />
+        <Bar dataKey="resultadoPct" name="Resultado" stackId="dre" fill="var(--color-success-500)" radius={[3, 3, 0, 0]} />
+      </ComposedChart>
+    );
+  }
+  if (kind === "capital_giro_vs_divida") {
+    return (
+      <ComposedChart data={ctx.ncgSeries} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+        {grid}
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
+        {moneyAxis}
+        {tooltipMoney}
+        <ReferenceLine y={0} stroke="var(--color-line-strong)" />
+        <Bar dataKey="divida" name="Dívida financeira" fill="var(--color-danger-500)" radius={[3, 3, 0, 0]} />
+        <Line dataKey="value" name="Capital de giro" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
+      </ComposedChart>
+    );
+  }
+  if (kind === "pl_evolucao") {
+    return (
+      <ComposedChart data={ctx.bpSeries} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+        {grid}
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
+        {moneyAxis}
+        {tooltipMoney}
+        <Bar dataKey="pl" name="Patrimônio líquido" fill="var(--color-accent-500)" radius={[3, 3, 0, 0]} />
+      </ComposedChart>
+    );
+  }
+  if (kind === "rentabilidade_evolucao") {
+    return (
+      <ComposedChart data={ctx.rentabilidadeSeries} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+        {grid}
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
+        <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={(v) => `${v.toFixed(0)}%`} axisLine={false} tickLine={false} width={44} />
+        <Tooltip formatter={(value) => (value == null ? "—" : `${Number(value).toFixed(1).replace(".", ",")}%`)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+        <ReferenceLine y={0} stroke="var(--color-line-strong)" />
+        <Line dataKey="roe" name="ROE" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+        <Line dataKey="roa" name="ROA" stroke="var(--color-navy-700)" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+      </ComposedChart>
+    );
+  }
   // resultado (default)
   return (
     <ComposedChart data={ctx.series} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
@@ -315,12 +465,299 @@ function CapitalStructureChart({ ctx }) {
   );
 }
 
+// Cascata do fluxo de caixa: recharts não tem um tipo "waterfall" pronto —
+// o truque de sempre é uma barra empilhada com uma base INVISÍVEL (o
+// "chão" de onde a barra visível começa a subir/descer) por baixo da barra
+// de verdade. Saldo inicial/final têm base 0 (começam do chão) e cor
+// própria; Operacional/Investimento/Financiamento sobem ou descem a partir
+// de onde o caixa parou no passo anterior.
+function DfcWaterfallChart({ ctx }) {
+  const items = ctx.dfcWaterfall || [];
+  let running = 0;
+  const data = items.map((item) => {
+    if (item.isTotal) {
+      running = item.value;
+      return { name: item.name, base: 0, value: item.value, isTotal: true, raw: item.value };
+    }
+    const start = running;
+    running += item.value;
+    return { name: item.name, base: Math.min(start, running), value: Math.abs(item.value), isTotal: false, raw: item.value };
+  });
+  return (
+    <div className="flex h-full flex-col">
+      <p className="mb-2 text-[13px] font-medium text-ink-900">Cascata do fluxo de caixa</p>
+      <div className="h-64 flex-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={data} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+            <CartesianGrid vertical={false} stroke="var(--color-line)" />
+            <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={compactMoney} axisLine={false} tickLine={false} width={48} />
+            <Tooltip formatter={(value, name, props) => money(props?.payload?.raw ?? value)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+            <Bar dataKey="base" stackId="wf" fill="transparent" isAnimationActive={false} />
+            <Bar dataKey="value" stackId="wf" radius={[3, 3, 0, 0]}>
+              {data.map((entry, index) => (
+                <Cell key={index} fill={entry.isTotal ? "var(--color-navy-700)" : entry.raw < 0 ? "var(--color-danger-500)" : "var(--color-success-500)"} />
+              ))}
+            </Bar>
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+function ParetoDespesasChart({ ctx }) {
+  const data = ctx.paretoDespesas || [];
+  return (
+    <div className="flex h-full flex-col">
+      <p className="mb-2 text-[13px] font-medium text-ink-900">Maiores despesas</p>
+      <div className="h-64 flex-1">
+        {data.length ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={data} layout="vertical" margin={{ top: 6, right: 16, left: 8, bottom: 0 }}>
+              <CartesianGrid horizontal={false} stroke="var(--color-line)" />
+              <XAxis type="number" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={compactMoney} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11, fill: "var(--color-ink-600)" }} axisLine={false} tickLine={false} />
+              <Tooltip formatter={(value) => money(value)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+              <Bar dataKey="value" name="Despesa" radius={[0, 3, 3, 0]} fill="var(--color-danger-500)" />
+            </ComposedChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-full items-center justify-center text-[12px] text-ink-400">Sem despesas no período.</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Convenção usada aqui (ver dashboardData.js): Custos diretos como
+// variável, as 4 linhas de despesas operacionais como fixo — não existe
+// uma classificação fixo/variável configurável no app hoje.
+function BreakEvenChart({ ctx }) {
+  const breakEven = ctx.breakEven || {};
+  const { fixedCosts = 0, variableCostRatio = 0, breakEvenRevenue, series = [] } = breakEven;
+  return (
+    <div className="flex h-full flex-col">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-[13px] font-medium text-ink-900">Ponto de equilíbrio</p>
+        <p className="text-[11px] text-ink-400">
+          Custo fixo {money(fixedCosts)} · Margem de contribuição {((1 - variableCostRatio) * 100).toFixed(1).replace(".", ",")}%
+        </p>
+      </div>
+      <div className="h-56 flex-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={series} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+            <CartesianGrid vertical={false} stroke="var(--color-line)" />
+            <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={compactMoney} axisLine={false} tickLine={false} width={48} />
+            <Tooltip formatter={(value) => money(value)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+            <Line dataKey="receita" name="Receita" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
+            <Line dataKey="custoTotal" name="Custo + despesa" stroke="var(--color-danger-500)" strokeWidth={2} dot={{ r: 2 }} strokeDasharray="4 3" />
+            {Number.isFinite(breakEvenRevenue) && (
+              <ReferenceLine y={breakEvenRevenue} stroke="var(--color-navy-700)" strokeDasharray="3 3" label={{ value: "Equilíbrio", position: "insideTopLeft", fontSize: 10, fill: "var(--color-navy-700)" }} />
+            )}
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="mt-1 text-[11px] text-ink-400">
+        {Number.isFinite(breakEvenRevenue) ? `Receita de equilíbrio no período: ${money(breakEvenRevenue)}` : "Margem de contribuição insuficiente pra calcular o ponto de equilíbrio."}
+      </p>
+    </div>
+  );
+}
+
+function GroupComparisonChart({ ctx }) {
+  const data = ctx.groupComparison;
+  return (
+    <div className="flex h-full flex-col">
+      <p className="mb-2 text-[13px] font-medium text-ink-900">Comparativo entre empresas</p>
+      <div className="h-64 flex-1">
+        {data ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={data} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid vertical={false} stroke="var(--color-line)" />
+              <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={compactMoney} axisLine={false} tickLine={false} width={48} />
+              <Tooltip formatter={(value) => money(value)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+              <Bar dataKey="receita" name="Receita" fill="var(--color-accent-500)" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="ebitda" name="EBITDA" fill="var(--color-navy-700)" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="lucro" name="Lucro líquido" fill="var(--color-success-500)" radius={[3, 3, 0, 0]} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-full items-center justify-center text-[12px] text-ink-400">Disponível só em modo grupo.</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function IndicatorRadarChart({ ctx }) {
+  const data = ctx.radarIndicators || [];
+  return (
+    <div className="flex h-full flex-col">
+      <p className="mb-2 text-[13px] font-medium text-ink-900">Radar de indicadores</p>
+      <div className="h-56 flex-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <RadarChart data={data} outerRadius="75%">
+            <PolarGrid stroke="var(--color-line)" />
+            <PolarAngleAxis dataKey="indicator" tick={{ fontSize: 11, fill: "var(--color-ink-500)" }} />
+            <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+            <RechartsRadar name="Score" dataKey="score" stroke="var(--color-accent-500)" fill="var(--color-accent-500)" fillOpacity={0.35} />
+            <Tooltip
+              formatter={(value, name, props) => {
+                const raw = props?.payload?.raw;
+                if (raw == null) return "—";
+                return formatWidgetValue(raw, props?.payload?.format);
+              }}
+              contentStyle={{ fontSize: 12, borderRadius: 8 }}
+            />
+          </RadarChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="mt-1 text-center text-[10.5px] text-ink-400">Posição relativa a uma faixa de referência (0–100), não uma meta da empresa.</p>
+    </div>
+  );
+}
+
+function DfcOperationalChart({ ctx }) {
+  const data = ctx.dfcOperationalComposition || [];
+  return (
+    <div className="flex h-full flex-col items-center">
+      <p className="mb-2 self-start text-[13px] font-medium text-ink-900">Composição do caixa operacional</p>
+      <div className="h-48 w-full">
+        {data.length ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={data} dataKey="value" nameKey="name" innerRadius={50} outerRadius={78} paddingAngle={2}>
+                {data.map((entry, index) => (
+                  <Cell key={entry.name} fill={PALETTE[index % PALETTE.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value) => money(value)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-full items-center justify-center text-[12px] text-ink-400">Sem movimento operacional no período.</div>
+        )}
+      </div>
+      <div className="mt-1 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-ink-600">
+        {data.map((entry, index) => (
+          <span key={entry.name} className="flex items-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: PALETTE[index % PALETTE.length] }} />
+            {entry.name}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Cascata do resultado (DRE): mesmíssima técnica da cascata do DFC acima
+// (barra empilhada com base invisível) — só troca a fonte dos passos.
+function ResultWaterfallChart({ ctx }) {
+  const items = ctx.dreWaterfall || [];
+  let running = 0;
+  const data = items.map((item) => {
+    if (item.isTotal) {
+      running = item.value;
+      return { name: item.name, base: 0, value: item.value, isTotal: true, raw: item.value };
+    }
+    const start = running;
+    running += item.value;
+    return { name: item.name, base: Math.min(start, running), value: Math.abs(item.value), isTotal: false, raw: item.value };
+  });
+  return (
+    <div className="flex h-full flex-col">
+      <p className="mb-2 text-[13px] font-medium text-ink-900">Cascata do resultado</p>
+      <div className="h-64 flex-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={data} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+            <CartesianGrid vertical={false} stroke="var(--color-line)" />
+            <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} interval={0} angle={-25} textAnchor="end" height={54} />
+            <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={compactMoney} axisLine={false} tickLine={false} width={48} />
+            <Tooltip formatter={(value, name, props) => money(props?.payload?.raw ?? value)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+            <Bar dataKey="base" stackId="wf" fill="transparent" isAnimationActive={false} />
+            <Bar dataKey="value" stackId="wf" radius={[3, 3, 0, 0]}>
+              {data.map((entry, index) => (
+                <Cell key={index} fill={entry.isTotal ? "var(--color-navy-700)" : entry.raw < 0 ? "var(--color-danger-500)" : "var(--color-success-500)"} />
+              ))}
+            </Bar>
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+// Pizza de composição genérica — mesmo padrão visual de CapitalStructureChart
+// e DfcOperationalChart, parametrizada por título+dados pra não repetir o
+// bloco inteiro pras duas novas composições (despesas e receita).
+function CompositionPieChart({ title, data, emptyLabel }) {
+  return (
+    <div className="flex h-full flex-col items-center">
+      <p className="mb-2 self-start text-[13px] font-medium text-ink-900">{title}</p>
+      <div className="h-48 w-full">
+        {data.length ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={data} dataKey="value" nameKey="name" innerRadius={50} outerRadius={78} paddingAngle={2}>
+                {data.map((entry, index) => (
+                  <Cell key={entry.name} fill={PALETTE[index % PALETTE.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value) => money(value)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-full items-center justify-center text-[12px] text-ink-400">{emptyLabel}</div>
+        )}
+      </div>
+      <div className="mt-1 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-ink-600">
+        {data.map((entry, index) => (
+          <span key={entry.name} className="flex items-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: PALETTE[index % PALETTE.length] }} />
+            {entry.name}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ChartWidgetCard({ definition, ctx }) {
   if (definition.chart === "balanco") {
     return <BalanceChartWidget ctx={ctx} />;
   }
   if (definition.chart === "estrutura_capital") {
     return <CapitalStructureChart ctx={ctx} />;
+  }
+  if (definition.chart === "dfc_cascata") {
+    return <DfcWaterfallChart ctx={ctx} />;
+  }
+  if (definition.chart === "pareto_despesas") {
+    return <ParetoDespesasChart ctx={ctx} />;
+  }
+  if (definition.chart === "ponto_equilibrio") {
+    return <BreakEvenChart ctx={ctx} />;
+  }
+  if (definition.chart === "comparativo_empresas") {
+    return <GroupComparisonChart ctx={ctx} />;
+  }
+  if (definition.chart === "radar_indicadores") {
+    return <IndicatorRadarChart ctx={ctx} />;
+  }
+  if (definition.chart === "dfc_operacional") {
+    return <DfcOperationalChart ctx={ctx} />;
+  }
+  if (definition.chart === "dre_cascata") {
+    return <ResultWaterfallChart ctx={ctx} />;
+  }
+  if (definition.chart === "despesas_composicao") {
+    return <CompositionPieChart title="Composição das despesas operacionais" data={ctx.despesasComposicao || []} emptyLabel="Sem despesas no período." />;
+  }
+  if (definition.chart === "receita_composicao") {
+    return <CompositionPieChart title="Composição da receita bruta" data={ctx.receitaComposicao || []} emptyLabel="Sem receita no período." />;
   }
   return (
     <div className="flex h-full flex-col">

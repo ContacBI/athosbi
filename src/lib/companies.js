@@ -145,7 +145,13 @@ export function invalidateMappingsForPlanoCodes(codes) {
 // finishes restoring it via groups.js's selectGroup (kept out of this file
 // to avoid a circular import, since selectGroup itself calls back into
 // persistActiveCompany above).
-export async function loadCompanies() {
+// Leitura pura (sem tocar em state.activeCompanyId/activeGroupId nem nos
+// caches de "já salvo") do que loadCompanies também faz — extraído pra
+// exportFullBackup (lib/fullBackup.js) poder buscar companies+groups
+// FRESCOS do banco na hora do backup, sem os efeitos colaterais de
+// loadCompanies (que reseta a empresa/grupo ativo — errado no meio de um
+// export, expulsaria o usuário da tela que ele está vendo).
+export async function fetchCompaniesAndGroups() {
   let records = await readPersistentByPrefix(COMPANY_KEY_PREFIX);
   // One-time migration: nothing under the new per-company keys yet means
   // this account still has its companies under the old shared-array key
@@ -194,6 +200,11 @@ export async function loadCompanies() {
     })
   );
   const groups = await readStoredArray(GROUPS_KEY);
+  return { companies, groups };
+}
+
+export async function loadCompanies() {
+  const { companies, groups } = await fetchCompaniesAndGroups();
   const storedGroupId = localStorage.getItem(ACTIVE_GROUP_KEY);
   const groupValid = Boolean(storedGroupId) && groups.some((group) => group.id === storedGroupId);
   setData({ companies, groups, activeCompanyId: "", activeGroupId: "" });

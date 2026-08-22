@@ -1,7 +1,7 @@
 import { state } from "../data/useStore.js";
 import { visibleReportRows, reportMonths } from "../data/calculations.js";
 import { reportColumns, columnLabel, columnValue, isZeroNoMovement } from "./reportColumns.js";
-import { moneyOrDash, periodLabelPt } from "./format.js";
+import { moneyOrDash, periodLabelPt, balanceSheetLabel } from "./format.js";
 import { activeWorkspaceName } from "./groups.js";
 
 function formatPercent(value) {
@@ -51,7 +51,7 @@ export function buildFullReportExport(tab) {
     ),
   }));
 
-  const reportName = tab === "BP" ? "Balanço Patrimonial" : "DRE";
+  const reportName = tab === "BP" ? balanceSheetLabel(state.periodStart, state.periodEnd) : "DRE";
   const hasAnalytic = rows.some((row) => row.kind !== "synthetic");
   const maxLevel = rows.reduce((max, row) => Math.max(max, Number(row.nivel || 0)), 0);
   const depthLabel = hasAnalytic ? "Analítico" : maxLevel ? `Sintético até nível ${maxLevel}` : "";

@@ -47,12 +47,21 @@ export function useDownloadHandlers(handlers) {
       pdf: handlersRef.current?.pdf ? () => handlersRef.current.pdf() : undefined,
       excel: handlersRef.current?.excel ? () => handlersRef.current.excel() : undefined,
       // Descreve QUAL relatório está montado ({ type: "dfc", mode } ou
-      // { type: "demonstrativo", tab }) — não uma função, só um objeto —
-      // pro export "Consolidado + Individual" do grupo saber qual função
-      // pura (buildFullDfcExport/buildFullReportExport) chamar pra gerar o
+      // { type: "demonstrativo", tab }) — pro export "Consolidado +
+      // Individual" do grupo saber qual função pura
+      // (buildFullDfcExport/buildFullReportExport) chamar pra gerar o
       // mesmo tipo de relatório de cada empresa-membro. Ausente em telas
       // sem um construtor "cheio" equivalente (ex.: o Resumo com widgets).
-      reportKind: handlersRef.current?.reportKind,
+      // Função, igual pdf/excel acima — NUNCA um valor direto: esse efeito
+      // só roda de novo quando hasHandlers troca de false pra true (ver
+      // comentário grande acima), então um valor direto (ex.: BP na
+      // primeira renderização de Demonstrativos, quando Balanço é a
+      // subaba padrão) ficava CONGELADO nesse valor pra sempre — trocar
+      // pra DRE/Ebitda depois nunca atualizava, e "Consolidado +
+      // Individual" sempre baixava o Balanço não importa a aba ativa. Uma
+      // função lida através do ref sempre pega o valor mais recente na
+      // hora da chamada, igual pdf/excel já faziam.
+      reportKind: () => handlersRef.current?.reportKind,
     };
     setDownloadHandlers(proxy);
     return () => setDownloadHandlers((current) => (current === proxy ? null : current));

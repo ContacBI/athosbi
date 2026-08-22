@@ -1,9 +1,9 @@
 import JSZip from "jszip";
 import { state } from "../data/useStore.js";
-import { persistActiveCompany, fetchMonthlyReportBlob, restoreCompaniesAndGroups } from "./companies.js";
-import { savePlanoSnapshot } from "./planoStore.js";
-import { restoreIndicatorOverrides } from "./indicators.js";
-import { restoreRepresentantes } from "./representantes.js";
+import { persistActiveCompany, fetchMonthlyReportBlob, restoreCompaniesAndGroups, fetchCompaniesAndGroups } from "./companies.js";
+import { savePlanoSnapshot, loadPlano } from "./planoStore.js";
+import { restoreIndicatorOverrides, loadIndicatorOverrides } from "./indicators.js";
+import { restoreRepresentantes, loadRepresentantes } from "./representantes.js";
 import { supabase, MONTHLY_REPORTS_BUCKET } from "./supabaseClient.js";
 
 // The plain JSON backup (lib/companies.js exportBackupPayload) only ever
@@ -42,6 +42,25 @@ function collectAttachmentJobs(companies) {
 // from Storage).
 export async function exportFullBackup(onProgress) {
   persistActiveCompany();
+
+  // Busca tudo FRESCO do banco antes de montar o manifesto, em vez de
+  // confiar no que já está na memória desta aba. state.companies/groups/
+  // plano/indicatorOverrides/representantes só são carregados UMA vez, no
+  // primeiro carregamento da página — se essa aba ficou aberta um tempo e
+  // um grupo ou uma conta do plano gerencial foi criada nesse meio tempo
+  // (nesta mesma aba noutra tela, ou em outra aba/dispositivo), o que está
+  // na memória fica desatualizado e o backup saía incompleto sem avisar
+  // nada. fetchCompaniesAndGroups() é a leitura pura (sem mexer em
+  // activeCompanyId/activeGroupId, que resetaria a tela que o usuário está
+  // vendo); loadPlano/loadIndicatorOverrides/loadRepresentantes já buscam
+  // fresco e atualizam state sozinhos.
+  const [{ companies, groups }] = await Promise.all([
+    fetchCompaniesAndGroups(),
+    loadPlano(),
+    loadIndicatorOverrides(),
+    loadRepresentantes(),
+  ]);
+
   const zip = new JSZip();
 
   const manifest = {
@@ -49,15 +68,15 @@ export async function exportFullBackup(onProgress) {
     exportedAt: new Date().toISOString(),
     activeCompanyId: state.activeCompanyId,
     activeGroupId: state.activeGroupId,
-    companies: state.companies,
-    groups: state.groups,
+    companies,
+    groups,
     plano: state.plano,
     indicatorOverrides: state.indicatorOverrides,
     representantes: state.representantes,
   };
   zip.file("backup.json", JSON.stringify(manifest));
 
-  const jobs = collectAttachmentJobs(state.companies);
+  const jobs = collectAttachmentJobs(companies);
   let done = 0;
   onProgress?.(done, jobs.length);
   for (const job of jobs) {
@@ -83,7 +102,7 @@ export async function exportFullBackup(onProgress) {
   link.click();
   URL.revokeObjectURL(url);
 
-  return { companies: state.companies.length, attachments: jobs.length };
+  return { companies: companies.length, attachments: jobs.length };
 }
 
 // Restores everything a exportFullBackup() zip carries: companies (with
