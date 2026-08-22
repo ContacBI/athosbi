@@ -47,99 +47,79 @@ function sortCompanies(companies, sort) {
   return sorted;
 }
 
-function CompanyCard({ company, isActive, onSelect }) {
+// Linha compacta (não mais um card grande) — cada empresa/grupo é uma
+// linha só, tudo alinhado horizontalmente, pra dar pra escanear a carteira
+// inteira olhando pra baixo em vez de ler bloco por bloco.
+function CompanyRow({ company, isActive, onSelect }) {
   const contas = (company.accounts || []).length;
   const lancamentos = journalCountOf(company);
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`group relative flex flex-col gap-3.5 overflow-hidden rounded-2xl border bg-surface-card p-4 text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg ${
-        isActive ? "border-accent-500 ring-1 ring-accent-100" : "border-line hover:border-accent-400"
+      className={`group flex w-full items-center gap-4 border-l-2 px-4 py-3 text-left transition-colors ${
+        isActive ? "border-accent-500 bg-accent-50/50" : "border-transparent hover:bg-surface-muted"
       }`}
     >
-      <span
-        className={`pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-accent-500 transition-opacity ${
-          isActive ? "opacity-100" : "opacity-0 group-hover:opacity-60"
-        }`}
-      />
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <Avatar name={company.name} size={40} />
-          <div className="min-w-0">
-            <p className="line-clamp-2 text-[14px] font-medium leading-tight text-ink-900">
-              {company.codigo && <span className="mr-1.5 text-ink-400">{company.codigo}</span>}
-              {company.name}
-            </p>
-            <p className="mt-0.5 text-[11.5px] text-ink-400">{company.cnpj || "CNPJ não informado"}</p>
-          </div>
+      <Avatar name={company.name} size={36} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13.5px] font-medium leading-tight text-ink-900">
+          {company.codigo && <span className="mr-1.5 font-normal text-ink-400">{company.codigo}</span>}
+          {company.name}
+          {isActive && <span className="ml-2 rounded-full bg-accent-100 px-1.5 py-0.5 align-middle text-[10px] font-medium text-accent-700">ativa</span>}
+        </p>
+        <p className="truncate text-[11.5px] text-ink-400">{company.cnpj || "CNPJ não informado"}{company.atividade ? ` · ${company.atividade}` : ""}</p>
+      </div>
+      {company.journalLoadFailed ? (
+        <p className="hidden shrink-0 items-center gap-1 text-[11px] font-medium text-warning-600 sm:flex">
+          <TriangleAlert size={12} strokeWidth={2} />
+          não carregou
+        </p>
+      ) : (
+        <div className="hidden shrink-0 items-center gap-3 text-[11.5px] text-ink-400 sm:flex">
+          <span className="w-20 text-right">{contas.toLocaleString("pt-BR")} contas</span>
+          <span className="w-28 text-right">{lancamentos.toLocaleString("pt-BR")} lanç.</span>
         </div>
-        {isActive && <span className="shrink-0 rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-medium text-accent-600">ativa</span>}
-      </div>
-      {company.atividade && <p className="line-clamp-1 text-[12px] text-ink-400">{company.atividade}</p>}
-      <div className="flex items-center justify-between gap-2 border-t border-line pt-2.5">
-        {company.journalLoadFailed ? (
-          <p className="flex items-center gap-1 text-[11px] font-medium text-warning-600">
-            <TriangleAlert size={12} strokeWidth={2} />
-            não consegui carregar — recarregue a página
-          </p>
-        ) : (
-          <div className="flex items-center gap-2.5 text-[11px] text-ink-400">
-            <span>{contas.toLocaleString("pt-BR")} contas</span>
-            <span className="h-0.5 w-0.5 rounded-full bg-ink-300" />
-            <span>{lancamentos.toLocaleString("pt-BR")} lançamentos</span>
-          </div>
-        )}
-        <span className="flex shrink-0 items-center gap-1 text-[12px] font-medium text-accent-600 transition-transform group-hover:translate-x-0.5">
-          Acessar
-          <ArrowRight size={13} />
-        </span>
-      </div>
+      )}
+      <span className="flex shrink-0 items-center gap-1 text-[12px] font-medium text-accent-600 transition-transform group-hover:translate-x-0.5">
+        Acessar
+        <ArrowRight size={13} />
+      </span>
     </button>
   );
 }
 
-function GroupCard({ group, members, isActive, onSelect }) {
+function GroupRow({ group, members, isActive, onSelect }) {
+  const lancamentos = members.reduce((sum, company) => sum + journalCountOf(company), 0);
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`group relative flex flex-col gap-3.5 overflow-hidden rounded-2xl border bg-gradient-to-br from-surface-card to-accent-50/40 p-4 text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg ${
-        isActive ? "border-accent-500 ring-1 ring-accent-100" : "border-line hover:border-accent-400"
+      className={`group flex w-full items-center gap-4 border-l-2 px-4 py-3 text-left transition-colors ${
+        isActive ? "border-accent-500 bg-accent-50/50" : "border-transparent hover:bg-surface-muted"
       }`}
     >
-      <span
-        className={`pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-accent-500 transition-opacity ${
-          isActive ? "opacity-100" : "opacity-0 group-hover:opacity-60"
-        }`}
-      />
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-500 text-white">
-            <Network size={17} strokeWidth={1.9} />
-          </span>
-          <div>
-            <p className="text-[14px] font-medium leading-tight text-ink-900">{group.name}</p>
-            <p className="mt-0.5 text-[11.5px] text-ink-400">{members.length} empresa{members.length === 1 ? "" : "s"}</p>
-          </div>
-        </div>
-        {isActive && <span className="shrink-0 rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-medium text-accent-600">ativo</span>}
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-500 text-white">
+        <Network size={15} strokeWidth={1.9} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13.5px] font-medium leading-tight text-ink-900">
+          {group.name}
+          {isActive && <span className="ml-2 rounded-full bg-accent-100 px-1.5 py-0.5 align-middle text-[10px] font-medium text-accent-700">ativo</span>}
+        </p>
+        <p className="truncate text-[11.5px] text-ink-400">{members.length} empresa{members.length === 1 ? "" : "s"}</p>
       </div>
-      <div className="flex flex-wrap items-center gap-1">
+      <div className="hidden items-center gap-1 sm:flex">
         {members.slice(0, 4).map((company) => (
-          <Avatar key={company.id} name={company.name} size={22} className="ring-2 ring-white -ml-1.5 first:ml-0" />
+          <Avatar key={company.id} name={company.name} size={22} className="ring-2 ring-surface-card -ml-1.5 first:ml-0" />
         ))}
         {members.length > 4 && <span className="ml-0.5 text-[11px] text-ink-400">+{members.length - 4}</span>}
       </div>
-      <div className="flex items-center justify-between border-t border-line/70 pt-2.5">
-        <p className="text-[11px] text-ink-400">
-          {members.reduce((sum, company) => sum + journalCountOf(company), 0).toLocaleString("pt-BR")} lançamentos
-        </p>
-        <span className="flex items-center gap-1 text-[12px] font-medium text-accent-600 transition-transform group-hover:translate-x-0.5">
-          Acessar
-          <ArrowRight size={13} />
-        </span>
-      </div>
+      <span className="hidden w-28 shrink-0 text-right text-[11.5px] text-ink-400 sm:block">{lancamentos.toLocaleString("pt-BR")} lanç.</span>
+      <span className="flex shrink-0 items-center gap-1 text-[12px] font-medium text-accent-600 transition-transform group-hover:translate-x-0.5">
+        Acessar
+        <ArrowRight size={13} />
+      </span>
     </button>
   );
 }
@@ -286,44 +266,45 @@ export default function Empresas() {
         </div>
 
         {effectiveTab === "empresas" ? (
-          <section className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
-            {state.companies.length === 0 && (
-              <div className="col-span-full flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line-strong bg-surface-card px-6 py-16 text-center shadow-sm">
-                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
-                  <Building2 size={26} strokeWidth={1.6} />
-                </span>
-                <p className="text-[15px] font-medium text-ink-900">Nenhuma empresa cadastrada</p>
-                <p className="max-w-xs text-[13px] text-ink-400">
-                  Vá em Parâmetros para cadastrar a primeira empresa da sua carteira.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => navigate("/parametros")}
-                  className="mt-1 rounded-full bg-accent-500 px-5 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md"
-                >
-                  Cadastrar / editar empresas
-                </button>
-              </div>
-            )}
-            {state.companies.length > 0 && visibleCompanies.length === 0 && (
-              <p className="col-span-full py-12 text-center text-[13px] text-ink-400">Nenhuma empresa bate com essa busca.</p>
-            )}
-            {visibleCompanies.map((company) => (
-              <CompanyCard
-                key={company.id}
-                company={company}
-                isActive={company.id === state.activeCompanyId && !state.activeGroupId}
-                onSelect={() => handleAccess(company.id)}
-              />
-            ))}
-          </section>
+          state.companies.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line-strong bg-surface-card px-6 py-16 text-center shadow-sm">
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
+                <Building2 size={26} strokeWidth={1.6} />
+              </span>
+              <p className="text-[15px] font-medium text-ink-900">Nenhuma empresa cadastrada</p>
+              <p className="max-w-xs text-[13px] text-ink-400">
+                Vá em Parâmetros para cadastrar a primeira empresa da sua carteira.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/parametros")}
+                className="mt-1 rounded-full bg-accent-500 px-5 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md"
+              >
+                Cadastrar / editar empresas
+              </button>
+            </div>
+          ) : (
+            <section className="divide-y divide-line overflow-hidden rounded-xl bg-surface-card shadow-sm">
+              {visibleCompanies.length === 0 && (
+                <p className="py-12 text-center text-[13px] text-ink-400">Nenhuma empresa bate com essa busca.</p>
+              )}
+              {visibleCompanies.map((company) => (
+                <CompanyRow
+                  key={company.id}
+                  company={company}
+                  isActive={company.id === state.activeCompanyId && !state.activeGroupId}
+                  onSelect={() => handleAccess(company.id)}
+                />
+              ))}
+            </section>
+          )
         ) : (
-          <section className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+          <section className="divide-y divide-line overflow-hidden rounded-xl bg-surface-card shadow-sm">
             {visibleGroups.length === 0 && (
-              <p className="col-span-full py-12 text-center text-[13px] text-ink-400">Nenhum grupo bate com essa busca.</p>
+              <p className="py-12 text-center text-[13px] text-ink-400">Nenhum grupo bate com essa busca.</p>
             )}
             {visibleGroups.map((group) => (
-              <GroupCard
+              <GroupRow
                 key={group.id}
                 group={group}
                 members={groupCompanies(group)}

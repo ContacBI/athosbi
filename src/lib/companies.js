@@ -263,12 +263,17 @@ export async function loadCompanies() {
     // esse já está "carregado" de graça, sem precisar de busca nenhuma.
     const hasEmbeddedJournal = Array.isArray(record.journal);
     const { journal: embeddedJournal, ...rest } = record;
+    // `journalCount` é um campo novo — todo registro já existente antes
+    // dessa mudança não tem ele salvo ainda. `null` aqui (não 0!) marca
+    // "ainda não sei", pra distinguir de uma empresa que realmente não tem
+    // nenhum lançamento — backfillMissingJournalCounts (chamado logo
+    // abaixo) descobre e preenche isso sozinho em segundo plano.
     const company = {
       ...rest,
       journal: hasEmbeddedJournal ? embeddedJournal : [],
       journalLoaded: hasEmbeddedJournal,
       journalLoadFailed: false,
-      journalCount: record.journalCount ?? (hasEmbeddedJournal ? embeddedJournal.length : 0),
+      journalCount: record.journalCount ?? (hasEmbeddedJournal ? embeddedJournal.length : null),
     };
     if (hasEmbeddedJournal) lastWrittenJournals.set(record.id, company.journal);
     lastWrittenRecords.set(record.id, company);
@@ -278,10 +283,39 @@ export async function loadCompanies() {
   const storedGroupId = localStorage.getItem(ACTIVE_GROUP_KEY);
   const groupValid = Boolean(storedGroupId) && groups.some((group) => group.id === storedGroupId);
   setData({ companies, groups, activeCompanyId: "", activeGroupId: "" });
+  // Não trava o carregamento por causa disso — cada empresa que ainda não
+  // tem journalCount salvo é resolvida em paralelo, em segundo plano, e a
+  // tela vai se corrigindo sozinha conforme cada uma resolve. Só acontece
+  // de verdade uma vez por empresa (depois disso journalCount já fica
+  // salvo e loadCompanies nunca mais precisa buscar o razão dela à toa).
+  backfillMissingJournalCounts().catch((error) => console.error("Falha ao recalcular contagens de lançamentos:", error));
   if (groupValid) return { groupId: storedGroupId };
   const activeCompanyId = localStorage.getItem(ACTIVE_COMPANY_KEY) || companies[0]?.id || "";
   if (activeCompanyId) selectCompany(activeCompanyId, { skipPersist: true });
   return { groupId: null };
+}
+
+// Migração de uma vez só, por empresa: quem ainda não tem journalCount
+// salvo (todo registro de antes dessa mudança) tem o razão buscado uma
+// única vez pra descobrir o tamanho de verdade, e esse número é gravado de
+// volta — sem reescrever o razão em si, só o registro leve da empresa.
+// Depois disso, loadCompanies nunca mais precisa tocar no razão dela.
+async function backfillMissingJournalCounts() {
+  const targets = state.companies.filter((company) => company.journalCount == null && !company.journalLoaded);
+  await Promise.all(
+    targets.map(async (company) => {
+      const loaded = await ensureCompanyJournalLoaded(company);
+      if (loaded.journalLoadFailed) return;
+      const current = state.companies.find((item) => item.id === company.id);
+      if (!current) return;
+      const { journal, journalLoadFailed, journalLoaded, ...record } = current;
+      try {
+        await writePersistent(companyKey(company.id), { ...record, journalCount: loaded.journal.length });
+      } catch (error) {
+        console.error(`Não consegui salvar a contagem de lançamentos de "${company.name}":`, error);
+      }
+    })
+  );
 }
 
 export function createCompany({
