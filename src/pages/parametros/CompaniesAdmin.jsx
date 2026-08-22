@@ -115,7 +115,11 @@ export default function CompaniesAdmin() {
     return state.representantes.filter((representante) => ids.includes(representante.id)).map((representante) => representante.nome);
   }
 
-  const totalLancamentos = state.companies.reduce((sum, company) => sum + (company.journal || []).length, 0);
+  // journalCount (não company.journal.length) — o razão de cada empresa só
+  // carrega de verdade quando ela é aberta (ver ensureCompanyJournalLoaded
+  // em lib/companies.js); essa contagem vem do registro leve, sem baixar
+  // nada.
+  const totalLancamentos = state.companies.reduce((sum, company) => sum + (company.journalCount ?? (company.journal || []).length), 0);
 
   return (
     <div>

@@ -75,7 +75,7 @@ export default function GruposAdmin() {
 
             {state.groups.map((group) => {
               const members = groupCompanies(group);
-              const totalLancamentos = members.reduce((sum, company) => sum + (company.journal || []).length, 0);
+              const totalLancamentos = members.reduce((sum, company) => sum + (company.journalCount ?? (company.journal || []).length), 0);
               const isActive = group.id === state.activeGroupId;
               return (
                 <div

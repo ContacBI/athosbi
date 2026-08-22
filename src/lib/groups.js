@@ -1,6 +1,6 @@
 import { state, setData } from "../data/useStore.js";
 import { ACTIVE_COMPANY_KEY, ACTIVE_GROUP_KEY, GROUPS_KEY, writePersistent } from "./persistence.js";
-import { persistActiveCompany, replicateTabsToCompanies } from "./companies.js";
+import { persistActiveCompany, replicateTabsToCompanies, ensureCompanyJournalLoaded } from "./companies.js";
 
 function writeStoredGroups(groups) {
   return writePersistent(GROUPS_KEY, groups);
@@ -192,13 +192,21 @@ function buildGroupDataset(companies) {
 // mensais / De/Para stay off the group's nav; only its own Resumo/
 // Demonstrativos workspace (period, tabs) is editable and saved back onto
 // the group record itself (see persistActiveGroupWorkspace in companies.js).
-export function selectGroup(id, { skipPersist = false } = {}) {
+export async function selectGroup(id, { skipPersist = false } = {}) {
   if (!skipPersist) persistActiveCompany();
   const group = state.groups.find((item) => item.id === id);
   if (!group) return;
   localStorage.setItem(ACTIVE_GROUP_KEY, id);
   localStorage.removeItem(ACTIVE_COMPANY_KEY);
-  const companies = groupCompanies(group);
+  // Um grupo precisa do razão de TODOS os membros pra consolidar de
+  // verdade (buildGroupDataset abaixo) — diferente de abrir uma empresa só,
+  // aqui não dá pra adiar: busca (em paralelo) o de qualquer membro que
+  // `loadCompanies()` ainda não tinha carregado. ensureCompanyJournalLoaded
+  // é no-op pra quem já está carregado.
+  const companies = await Promise.all(groupCompanies(group).map((company) => ensureCompanyJournalLoaded(company)));
+  // Grupo pode ter mudado de novo (outro selectGroup já rodou e reescreveu
+  // essa chave) enquanto essas buscas ainda estavam em andamento.
+  if (localStorage.getItem(ACTIVE_GROUP_KEY) !== id) return;
   const { accounts, journal, mappings } = buildGroupDataset(companies);
   setData({
     activeGroupId: id,

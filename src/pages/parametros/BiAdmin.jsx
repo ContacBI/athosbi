@@ -62,7 +62,7 @@ export default function BiAdmin() {
   const [editorTarget, setEditorTarget] = useState(undefined);
   const [newItemCategory, setNewItemCategory] = useState("Indicadores");
 
-  const hasAnyData = appState.companies.some((company) => (company.accounts || []).length || (company.journal || []).length);
+  const hasAnyData = appState.companies.some((company) => (company.accounts || []).length || (company.journalCount ?? (company.journal || []).length));
 
   // Preview data = every company in the wallet merged together, since B.I.
   // isn't scoped to one client — it's the library every workspace draws from.

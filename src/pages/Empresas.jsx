@@ -1,5 +1,6 @@
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Settings, Building2, Network, Layers, TriangleAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpDown, Building2, Layers, Network, Search, Settings, TriangleAlert } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { selectCompany } from "../lib/companies.js";
 import { selectGroup, groupCompanies } from "../lib/groups.js";
@@ -14,9 +15,141 @@ function StatPill({ label, value }) {
   );
 }
 
+const norm = (value) => String(value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+// journalCount (não company.journal.length) — o razão de cada empresa só
+// carrega de verdade quando ela é aberta (ver ensureCompanyJournalLoaded em
+// lib/companies.js); essa contagem vem do registro leve, sem baixar nada,
+// o que é exatamente o que essa tela precisa mostrar (nunca o razão
+// inteiro).
+function journalCountOf(company) {
+  return company.journalCount ?? (company.journal || []).length;
+}
+
+const SORT_OPTIONS = [
+  { id: "nome", label: "Nome (A-Z)" },
+  { id: "codigo", label: "Código" },
+  { id: "lancamentos", label: "Mais lançamentos" },
+];
+
+function sortCompanies(companies, sort) {
+  const sorted = [...companies];
+  if (sort === "codigo") {
+    sorted.sort((a, b) => {
+      const code = String(a.codigo || "").localeCompare(String(b.codigo || ""), "pt-BR", { numeric: true });
+      return code || String(a.name || "").localeCompare(String(b.name || ""), "pt-BR");
+    });
+  } else if (sort === "lancamentos") {
+    sorted.sort((a, b) => journalCountOf(b) - journalCountOf(a));
+  } else {
+    sorted.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR"));
+  }
+  return sorted;
+}
+
+function CompanyCard({ company, isActive, onSelect }) {
+  const contas = (company.accounts || []).length;
+  const lancamentos = journalCountOf(company);
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`group relative flex flex-col gap-3.5 overflow-hidden rounded-2xl border bg-surface-card p-4 text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg ${
+        isActive ? "border-accent-500 ring-1 ring-accent-100" : "border-line hover:border-accent-400"
+      }`}
+    >
+      <span
+        className={`pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-accent-500 transition-opacity ${
+          isActive ? "opacity-100" : "opacity-0 group-hover:opacity-60"
+        }`}
+      />
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <Avatar name={company.name} size={40} />
+          <div className="min-w-0">
+            <p className="line-clamp-2 text-[14px] font-medium leading-tight text-ink-900">
+              {company.codigo && <span className="mr-1.5 text-ink-400">{company.codigo}</span>}
+              {company.name}
+            </p>
+            <p className="mt-0.5 text-[11.5px] text-ink-400">{company.cnpj || "CNPJ não informado"}</p>
+          </div>
+        </div>
+        {isActive && <span className="shrink-0 rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-medium text-accent-600">ativa</span>}
+      </div>
+      {company.atividade && <p className="line-clamp-1 text-[12px] text-ink-400">{company.atividade}</p>}
+      <div className="flex items-center justify-between gap-2 border-t border-line pt-2.5">
+        {company.journalLoadFailed ? (
+          <p className="flex items-center gap-1 text-[11px] font-medium text-warning-600">
+            <TriangleAlert size={12} strokeWidth={2} />
+            não consegui carregar — recarregue a página
+          </p>
+        ) : (
+          <div className="flex items-center gap-2.5 text-[11px] text-ink-400">
+            <span>{contas.toLocaleString("pt-BR")} contas</span>
+            <span className="h-0.5 w-0.5 rounded-full bg-ink-300" />
+            <span>{lancamentos.toLocaleString("pt-BR")} lançamentos</span>
+          </div>
+        )}
+        <span className="flex shrink-0 items-center gap-1 text-[12px] font-medium text-accent-600 transition-transform group-hover:translate-x-0.5">
+          Acessar
+          <ArrowRight size={13} />
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function GroupCard({ group, members, isActive, onSelect }) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`group relative flex flex-col gap-3.5 overflow-hidden rounded-2xl border bg-gradient-to-br from-surface-card to-accent-50/40 p-4 text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg ${
+        isActive ? "border-accent-500 ring-1 ring-accent-100" : "border-line hover:border-accent-400"
+      }`}
+    >
+      <span
+        className={`pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-accent-500 transition-opacity ${
+          isActive ? "opacity-100" : "opacity-0 group-hover:opacity-60"
+        }`}
+      />
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-500 text-white">
+            <Network size={17} strokeWidth={1.9} />
+          </span>
+          <div>
+            <p className="text-[14px] font-medium leading-tight text-ink-900">{group.name}</p>
+            <p className="mt-0.5 text-[11.5px] text-ink-400">{members.length} empresa{members.length === 1 ? "" : "s"}</p>
+          </div>
+        </div>
+        {isActive && <span className="shrink-0 rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-medium text-accent-600">ativo</span>}
+      </div>
+      <div className="flex flex-wrap items-center gap-1">
+        {members.slice(0, 4).map((company) => (
+          <Avatar key={company.id} name={company.name} size={22} className="ring-2 ring-white -ml-1.5 first:ml-0" />
+        ))}
+        {members.length > 4 && <span className="ml-0.5 text-[11px] text-ink-400">+{members.length - 4}</span>}
+      </div>
+      <div className="flex items-center justify-between border-t border-line/70 pt-2.5">
+        <p className="text-[11px] text-ink-400">
+          {members.reduce((sum, company) => sum + journalCountOf(company), 0).toLocaleString("pt-BR")} lançamentos
+        </p>
+        <span className="flex items-center gap-1 text-[12px] font-medium text-accent-600 transition-transform group-hover:translate-x-0.5">
+          Acessar
+          <ArrowRight size={13} />
+        </span>
+      </div>
+    </button>
+  );
+}
+
 export default function Empresas() {
   const state = useAppState();
   const navigate = useNavigate();
+  const [tab, setTab] = useState("empresas");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("nome");
 
   function handleAccess(id) {
     selectCompany(id);
@@ -28,7 +161,24 @@ export default function Empresas() {
     navigate("/empresa");
   }
 
-  const totalLancamentos = state.companies.reduce((sum, company) => sum + (company.journal || []).length, 0);
+  const totalLancamentos = state.companies.reduce((sum, company) => sum + journalCountOf(company), 0);
+
+  const visibleCompanies = useMemo(() => {
+    const term = norm(search);
+    const filtered = term
+      ? state.companies.filter((company) => norm(`${company.name} ${company.codigo || ""} ${company.cnpj || ""}`).includes(term))
+      : state.companies;
+    return sortCompanies(filtered, sort);
+  }, [state.companies, search, sort]);
+
+  const visibleGroups = useMemo(() => {
+    const term = norm(search);
+    const groups = term ? state.groups.filter((group) => norm(group.name).includes(term)) : state.groups;
+    return [...groups].sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR"));
+  }, [state.groups, search]);
+
+  const showTabs = state.groups.length > 0;
+  const effectiveTab = showTabs ? tab : "empresas";
 
   return (
     <div className="min-h-screen bg-surface-page pb-16">
@@ -79,145 +229,108 @@ export default function Empresas() {
         </div>
       </div>
 
-      <div className="mx-auto -mt-4 flex max-w-[1100px] flex-col gap-8 px-6">
-        <section className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
-          {state.companies.length === 0 && (
-            <div className="col-span-full flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line-strong bg-surface-card px-6 py-16 text-center shadow-sm">
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
-                <Building2 size={26} strokeWidth={1.6} />
-              </span>
-              <p className="text-[15px] font-medium text-ink-900">Nenhuma empresa cadastrada</p>
-              <p className="max-w-xs text-[13px] text-ink-400">
-                Vá em Parâmetros para cadastrar a primeira empresa da sua carteira.
-              </p>
+      <div className="mx-auto -mt-4 flex max-w-[1100px] flex-col gap-5 px-6">
+        {/* Barra de controle: abas Empresas/Grupos (só aparece se existir
+            algum grupo — senão é só ruído) + busca + ordenação, tudo junto
+            pra achar uma empresa numa carteira grande ser rápido em vez de
+            rolar a página inteira procurando. */}
+        <div className="flex flex-wrap items-center gap-2.5 rounded-xl bg-surface-card p-2.5 shadow-sm">
+          {showTabs && (
+            <div className="inline-flex gap-0.5 rounded-full bg-surface-muted p-1">
               <button
                 type="button"
-                onClick={() => navigate("/parametros")}
-                className="mt-1 rounded-full bg-accent-500 px-5 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md"
+                onClick={() => setTab("empresas")}
+                className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-medium transition-colors ${
+                  effectiveTab === "empresas" ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"
+                }`}
               >
-                Cadastrar / editar empresas
+                <Building2 size={13} strokeWidth={2} />
+                Empresas
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("grupos")}
+                className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-medium transition-colors ${
+                  effectiveTab === "grupos" ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"
+                }`}
+              >
+                <Layers size={13} strokeWidth={2} />
+                Grupos
               </button>
             </div>
           )}
-          {state.companies.map((company) => {
-            const isActive = company.id === state.activeCompanyId && !state.activeGroupId;
-            const contas = (company.accounts || []).length;
-            const lancamentos = (company.journal || []).length;
-            return (
-              <button
-                type="button"
-                key={company.id}
-                onClick={() => handleAccess(company.id)}
-                className={`group relative flex flex-col gap-3.5 overflow-hidden rounded-2xl border bg-surface-card p-4 text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg ${
-                  isActive ? "border-accent-500 ring-1 ring-accent-100" : "border-line hover:border-accent-400"
-                }`}
+          <div className="relative min-w-[220px] flex-1">
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-300" />
+            <input
+              type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={effectiveTab === "grupos" ? "Buscar grupo..." : "Buscar por nome, código ou CNPJ..."}
+              className="w-full rounded-lg border border-line bg-surface-page py-2 pl-8 pr-3 text-[13px] text-ink-900 outline-none placeholder:text-ink-300 focus:border-accent-400"
+            />
+          </div>
+          {effectiveTab === "empresas" && (
+            <div className="relative">
+              <ArrowUpDown size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-400" />
+              <select
+                value={sort}
+                onChange={(event) => setSort(event.target.value)}
+                className="appearance-none rounded-lg border border-line bg-surface-page py-2 pl-7 pr-7 text-[12.5px] text-ink-700 outline-none focus:border-accent-400"
               >
-                <span
-                  className={`pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-accent-500 transition-opacity ${
-                    isActive ? "opacity-100" : "opacity-0 group-hover:opacity-60"
-                  }`}
-                />
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <Avatar name={company.name} size={40} />
-                    <div className="min-w-0">
-                      <p className="line-clamp-2 text-[14px] font-medium leading-tight text-ink-900">
-                        {company.codigo && <span className="mr-1.5 text-ink-400">{company.codigo}</span>}
-                        {company.name}
-                      </p>
-                      <p className="mt-0.5 text-[11.5px] text-ink-400">{company.cnpj || "CNPJ não informado"}</p>
-                    </div>
-                  </div>
-                  {isActive && <span className="shrink-0 rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-medium text-accent-600">ativa</span>}
-                </div>
-                {company.atividade && <p className="line-clamp-1 text-[12px] text-ink-400">{company.atividade}</p>}
-                <div className="flex items-center justify-between gap-2 border-t border-line pt-2.5">
-                  {company.journalLoadFailed ? (
-                    <p className="flex items-center gap-1 text-[11px] font-medium text-warning-600">
-                      <TriangleAlert size={12} strokeWidth={2} />
-                      não consegui carregar — recarregue a página
-                    </p>
-                  ) : (
-                    <div className="flex items-center gap-2.5 text-[11px] text-ink-400">
-                      <span>{contas.toLocaleString("pt-BR")} contas</span>
-                      <span className="h-0.5 w-0.5 rounded-full bg-ink-300" />
-                      <span>{lancamentos.toLocaleString("pt-BR")} lançamentos</span>
-                    </div>
-                  )}
-                  <span className="flex shrink-0 items-center gap-1 text-[12px] font-medium text-accent-600 transition-transform group-hover:translate-x-0.5">
-                    Acessar
-                    <ArrowRight size={13} />
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </section>
+                {SORT_OPTIONS.map((option) => (
+                  <option key={option.id} value={option.id}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
 
-        {state.groups.length > 0 && (
-          <section>
-            <div className="mb-3 flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-50 text-accent-500">
-                <Layers size={14} strokeWidth={2} />
-              </span>
-              <div>
-                <span className="text-[11.5px] font-medium uppercase tracking-wide text-accent-600">Consolidado</span>
-                <h2 className="text-[16px] font-medium leading-tight text-ink-900">Grupos</h2>
+        {effectiveTab === "empresas" ? (
+          <section className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+            {state.companies.length === 0 && (
+              <div className="col-span-full flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line-strong bg-surface-card px-6 py-16 text-center shadow-sm">
+                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
+                  <Building2 size={26} strokeWidth={1.6} />
+                </span>
+                <p className="text-[15px] font-medium text-ink-900">Nenhuma empresa cadastrada</p>
+                <p className="max-w-xs text-[13px] text-ink-400">
+                  Vá em Parâmetros para cadastrar a primeira empresa da sua carteira.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate("/parametros")}
+                  className="mt-1 rounded-full bg-accent-500 px-5 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md"
+                >
+                  Cadastrar / editar empresas
+                </button>
               </div>
-            </div>
-            <p className="mb-3 text-[13px] text-ink-400">Veja o relatório de várias empresas somado num só lugar.</p>
-
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
-              {state.groups.map((group) => {
-                const members = groupCompanies(group);
-                const isActive = group.id === state.activeGroupId;
-                return (
-                  <button
-                    type="button"
-                    key={group.id}
-                    onClick={() => handleAccessGroup(group.id)}
-                    className={`group relative flex flex-col gap-3.5 overflow-hidden rounded-2xl border bg-gradient-to-br from-surface-card to-accent-50/40 p-4 text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg ${
-                      isActive ? "border-accent-500 ring-1 ring-accent-100" : "border-line hover:border-accent-400"
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-accent-500 transition-opacity ${
-                        isActive ? "opacity-100" : "opacity-0 group-hover:opacity-60"
-                      }`}
-                    />
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-500 text-white">
-                          <Network size={17} strokeWidth={1.9} />
-                        </span>
-                        <div>
-                          <p className="text-[14px] font-medium leading-tight text-ink-900">{group.name}</p>
-                          <p className="mt-0.5 text-[11.5px] text-ink-400">{members.length} empresas</p>
-                        </div>
-                      </div>
-                      {isActive && <span className="shrink-0 rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-medium text-accent-600">ativo</span>}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1">
-                      {members.slice(0, 4).map((company) => (
-                        <Avatar key={company.id} name={company.name} size={22} className="ring-2 ring-white -ml-1.5 first:ml-0" />
-                      ))}
-                      {members.length > 4 && (
-                        <span className="ml-0.5 text-[11px] text-ink-400">+{members.length - 4}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between border-t border-line/70 pt-2.5">
-                      <p className="text-[11px] text-ink-400">
-                        {members.reduce((sum, company) => sum + (company.journal || []).length, 0).toLocaleString("pt-BR")} lançamentos
-                      </p>
-                      <span className="flex items-center gap-1 text-[12px] font-medium text-accent-600 transition-transform group-hover:translate-x-0.5">
-                        Acessar
-                        <ArrowRight size={13} />
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            )}
+            {state.companies.length > 0 && visibleCompanies.length === 0 && (
+              <p className="col-span-full py-12 text-center text-[13px] text-ink-400">Nenhuma empresa bate com essa busca.</p>
+            )}
+            {visibleCompanies.map((company) => (
+              <CompanyCard
+                key={company.id}
+                company={company}
+                isActive={company.id === state.activeCompanyId && !state.activeGroupId}
+                onSelect={() => handleAccess(company.id)}
+              />
+            ))}
+          </section>
+        ) : (
+          <section className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+            {visibleGroups.length === 0 && (
+              <p className="col-span-full py-12 text-center text-[13px] text-ink-400">Nenhum grupo bate com essa busca.</p>
+            )}
+            {visibleGroups.map((group) => (
+              <GroupCard
+                key={group.id}
+                group={group}
+                members={groupCompanies(group)}
+                isActive={group.id === state.activeGroupId}
+                onSelect={() => handleAccessGroup(group.id)}
+              />
+            ))}
           </section>
         )}
       </div>

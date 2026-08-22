@@ -58,10 +58,16 @@ function writeStoredCompanies(companies) {
       lastWrittenJournals.set(company.id, company.journal);
       pending.push(writePersistent(companyJournalKey(company.id), company.journal || []));
     }
-    if (recordChanged) {
+    // Grava o registro sempre que o razão mudou também (mesmo se mais nada
+    // mudou) — é onde `journalCount` fica atualizado. loadCompanies() lê só
+    // esse número pra mostrar "X lançamentos" na lista, sem baixar o razão
+    // inteiro de cada empresa — sem isso aqui, o contador ficaria
+    // desatualizado toda vez que o razão muda sozinho (ex.: importar um
+    // mês novo de diário).
+    if (recordChanged || journalChanged) {
       lastWrittenRecords.set(company.id, company);
-      const { journal, journalLoadFailed, ...record } = company; // ambos ficam de fora do payload — journal tem write própria, journalLoadFailed é só um sinal local, nunca deve ser persistido
-      pending.push(writePersistent(companyKey(company.id), record));
+      const { journal, journalLoadFailed, journalLoaded, ...record } = company; // nenhum dos 3 é persistido — journal tem write própria, os outros dois são só sinal local desta aba
+      pending.push(writePersistent(companyKey(company.id), { ...record, journalCount: (company.journal || []).length }));
     }
     return Promise.all(pending);
   });
@@ -188,7 +194,7 @@ export async function fetchCompaniesAndGroups() {
       // companies saved before the ledger was split into its own key.
       if (journal === undefined) journal = record.journal || [];
       const { journal: _legacyJournal, ...rest } = record;
-      const company = { ...rest, journal, journalLoadFailed };
+      const company = { ...rest, journal, journalLoadFailed, journalLoaded: !journalLoadFailed };
       // Pre-populate the "already saved" trackers with the exact object
       // this tab is about to hold in state.companies — otherwise every
       // company, not just the one actually edited, would look "changed"
@@ -203,8 +209,72 @@ export async function fetchCompaniesAndGroups() {
   return { companies, groups };
 }
 
+// Carrega o razão de UMA empresa sob demanda — chamado só quando ela é de
+// fato aberta (selectCompany) ou entra num grupo (selectGroup/
+// buildGroupDataset). `loadCompanies()` (abaixo) NUNCA baixa o razão de
+// ninguém — só o `journalCount` já salvo no registro da empresa — porque
+// a tela "Escolha uma empresa" só precisa mostrar a contagem, não o razão
+// inteiro. Antes dessa mudança, logar com 10 empresas somando 200 mil+
+// lançamentos baixava TUDO isso de uma vez só pra montar aquela lista.
+// Idempotente: chamar de novo numa empresa já carregada é um no-op.
+export async function ensureCompanyJournalLoaded(company) {
+  if (!company || company.journalLoaded) return company;
+  let journal;
+  let journalLoadFailed = false;
+  try {
+    journal = await readPersistent(companyJournalKey(company.id));
+  } catch (error) {
+    console.error(`Empresa "${company.name}" (${company.id}): não consegui ler o razão do Supabase.`, error);
+    journalLoadFailed = true;
+  }
+  if (journal === undefined) journal = [];
+  const updated = {
+    ...company,
+    journal,
+    journalLoaded: !journalLoadFailed,
+    journalLoadFailed,
+    journalCount: journalLoadFailed ? company.journalCount : journal.length,
+  };
+  // Só sincroniza os caches de "já salvo" quando a leitura deu certo — numa
+  // falha, updated.journal fica [] só pra não quebrar a tela (ver
+  // writeStoredCompanies, que recusa escrever o razão dela enquanto
+  // journalLoadFailed for true, exatamente pra não deixar esse [] de
+  // exibição vazar pro banco de dados).
+  if (!journalLoadFailed) lastWrittenJournals.set(company.id, journal);
+  lastWrittenRecords.set(company.id, updated);
+  setData({ companies: state.companies.map((item) => (item.id === company.id ? updated : item)) });
+  return updated;
+}
+
 export async function loadCompanies() {
-  const { companies, groups } = await fetchCompaniesAndGroups();
+  let records = await readPersistentByPrefix(COMPANY_KEY_PREFIX);
+  // Mesma migração de uma vez só que fetchCompaniesAndGroups faz — ver lá
+  // em cima. Duplicada aqui (em vez de compartilhada) porque essa versão
+  // não carrega razão nenhum, só monta os registros leves.
+  if (records.length === 0) {
+    const legacyLight = await readStoredArray(COMPANIES_KEY);
+    if (legacyLight.length > 0) {
+      records = legacyLight.map(({ journal, ...rest }) => rest);
+      await Promise.all(records.map((record) => writePersistent(companyKey(record.id), record)));
+    }
+  }
+  const companies = records.map((record) => {
+    // Registro de antes da separação do razão ainda carrega ele embutido —
+    // esse já está "carregado" de graça, sem precisar de busca nenhuma.
+    const hasEmbeddedJournal = Array.isArray(record.journal);
+    const { journal: embeddedJournal, ...rest } = record;
+    const company = {
+      ...rest,
+      journal: hasEmbeddedJournal ? embeddedJournal : [],
+      journalLoaded: hasEmbeddedJournal,
+      journalLoadFailed: false,
+      journalCount: record.journalCount ?? (hasEmbeddedJournal ? embeddedJournal.length : 0),
+    };
+    if (hasEmbeddedJournal) lastWrittenJournals.set(record.id, company.journal);
+    lastWrittenRecords.set(record.id, company);
+    return company;
+  });
+  const groups = await readStoredArray(GROUPS_KEY);
   const storedGroupId = localStorage.getItem(ACTIVE_GROUP_KEY);
   const groupValid = Boolean(storedGroupId) && groups.some((group) => group.id === storedGroupId);
   setData({ companies, groups, activeCompanyId: "", activeGroupId: "" });
@@ -296,23 +366,29 @@ export function migrateDashboardTabs(company) {
   return [];
 }
 
-export function selectCompany(id, { skipPersist = false } = {}) {
+export async function selectCompany(id, { skipPersist = false } = {}) {
   if (!skipPersist) persistActiveCompany();
   const company = state.companies.find((item) => item.id === id);
   if (!company) return;
   localStorage.setItem(ACTIVE_COMPANY_KEY, id);
   localStorage.removeItem(ACTIVE_GROUP_KEY);
+  // Tudo que já está disponível sem buscar nada no Supabase (registro leve
+  // de loadCompanies — contas, mappings, configurações) entra já, síncrono:
+  // trocar de empresa não pode esperar o razão pra sequer navegar pra tela
+  // certa (o CompanyLayout chuta de volta pra /empresas se activeCompanyId
+  // ainda não tiver sido setado). O razão em si só chega depois, na
+  // continuação abaixo, e atualiza a tela sozinho quando terminar.
   setData({
     activeCompanyId: id,
     activeGroupId: "",
     mappings: company.mappings || [],
     dfcOverrides: company.dfcOverrides || [],
     accounts: company.accounts || [],
-    journal: remapJournal(company.journal || [], company.mappings || []),
-    // Ver loadCompanies — true quando a leitura do razão desta empresa
-    // falhou (não confirma "vazia"). CompanyTopBar mostra um aviso; nenhum
-    // save toca no razão dela enquanto isso ficar true (ver
-    // writeStoredCompanies).
+    journal: company.journalLoaded ? remapJournal(company.journal || [], company.mappings || []) : [],
+    // Ver loadCompanies/ensureCompanyJournalLoaded — true quando a leitura
+    // do razão desta empresa falhou (não confirma "vazia"). CompanyTopBar
+    // mostra um aviso; nenhum save toca no razão dela enquanto isso ficar
+    // true (ver writeStoredCompanies).
     journalLoadFailed: Boolean(company.journalLoadFailed),
     periodStart: company.periodStart || "",
     periodEnd: company.periodEnd || "",
@@ -330,6 +406,15 @@ export function selectCompany(id, { skipPersist = false } = {}) {
     selectedLine: null,
     selectedAccount: null,
     expandedLines: new Set(),
+  });
+  if (company.journalLoaded) return;
+  const loaded = await ensureCompanyJournalLoaded(company);
+  // O usuário pode ter trocado de empresa de novo enquanto essa busca
+  // ainda estava em andamento — não pisa no que já é outra tela agora.
+  if (state.activeCompanyId !== id) return;
+  setData({
+    journal: remapJournal(loaded.journal || [], state.mappings || []),
+    journalLoadFailed: Boolean(loaded.journalLoadFailed),
   });
 }
 
