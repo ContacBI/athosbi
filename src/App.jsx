@@ -62,19 +62,7 @@ export default function App() {
   // políticas de RLS do banco exigem usuário autenticado pra tudo (ver
   // supabase/schema.sql), então sem isso as leituras só voltariam vazias.
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) { setSession(data.session); return; }
-      // TEMPORÁRIO (login de e-mail/senha travado por falta de acesso ao
-      // primeiro usuário — ver conversa) — entra com sessão anônima
-      // automática em vez de mostrar a tela de login, só pra destravar o
-      // teste. Exige "Allow anonymous sign-ins" habilitado no projeto
-      // Supabase. REVERTER assim que o login normal estiver funcionando:
-      // trocar essa chamada de volta por `setSession(null)`.
-      supabase.auth.signInAnonymously().then(({ data: anonData, error: anonError }) => {
-        if (anonError) { console.error("Falha no login anônimo temporário:", anonError); setSession(null); return; }
-        setSession(anonData.session);
-      });
-    });
+    supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null));
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       if (!nextSession) {

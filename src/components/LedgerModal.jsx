@@ -1,7 +1,9 @@
 import { Fragment, useMemo, useState } from "react";
-import { ArrowDownCircle, ArrowUpCircle, Search, X } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Download, Search, X } from "lucide-react";
 import { entriesForAccount, journalByCompanyAndDate, counterpartsForEntry } from "../data/calculations.js";
 import { money } from "../lib/format.js";
+import { exportLedgerPdf } from "../lib/ledgerPdf.js";
+import { slug } from "../lib/demonstrativoExport.js";
 import Avatar from "./Avatar.jsx";
 
 // Nome de exibição de uma conta a partir de um lançamento — mesma
@@ -110,6 +112,30 @@ export default function LedgerModal({ row, onClose }) {
     ? `${row.classificacao.length} contas somadas (mesmo nome, empresas diferentes)`
     : row.classificacao;
 
+  // Imprime exatamente o que está na tela no momento (respeitando a busca,
+  // se houver uma ativa) — mesmo padrão dos outros exports do portal.
+  // Quando showCompany, as linhas já chegam ordenadas empresa-a-empresa
+  // (ver `entries` acima); exportLedgerPdf usa isso pra intercalar um
+  // cabeçalho com o nome da empresa antes do primeiro lançamento dela, em
+  // vez de misturar tudo só por data.
+  function handleDownloadPdf() {
+    exportLedgerPdf({
+      label,
+      classificacaoLabel,
+      totalLabel: `${filtered.length} lançamento${filtered.length === 1 ? "" : "s"} · Saldo ${money(totalDebito - totalCredito)}`,
+      showCompany,
+      rows: filtered.map(({ entry, counterpartText }) => ({
+        data: entry.data,
+        historico: entry.historico,
+        counterpartText,
+        debito: entry.debito,
+        credito: entry.credito,
+        companyName: entry.companyName,
+      })),
+      fileLabel: `diario_${slug(label)}`,
+    });
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8 backdrop-blur-[2px]">
       <div className="flex h-full max-h-[820px] w-full max-w-6xl flex-col rounded-2xl bg-surface-card shadow-xl">
@@ -122,14 +148,26 @@ export default function LedgerModal({ row, onClose }) {
               <p className="mt-0.5 text-[13px] text-ink-400">{classificacaoLabel} · {entries.length} lançamentos</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fechar"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-400 hover:bg-surface-muted hover:text-ink-900"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={!filtered.length}
+              title="Baixar PDF"
+              className="flex h-8 items-center gap-1.5 rounded-md border border-line-strong px-3 text-[12px] font-medium text-ink-600 hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download size={14} />
+              Baixar PDF
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fechar"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-ink-400 hover:bg-surface-muted hover:text-ink-900"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {isSemContrapartida && (
