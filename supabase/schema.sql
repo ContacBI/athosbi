@@ -47,7 +47,7 @@ create table if not exists portal_admins (
   email text primary key
 );
 insert into portal_admins (email)
-values ('contac@gmail.com')
+values ('contac@gmail.com'), ('izaiascontac@gmail.com')
 on conflict (email) do nothing;
 
 -- Quem tem acesso (somente leitura) a quê. scope_type='company' aponta pro id
@@ -205,8 +205,8 @@ create policy "monthly_reports_delete_admin_only"
   to authenticated
   using (bucket_id = 'monthly-reports' and is_portal_admin());
 
--- Depois de rodar isso, crie seu login em:
--- Authentication > Users > Add user (email + senha) — é por aí, não por
--- aqui, que a conta de acesso ao portal é criada. Quem não for admin cria a
--- própria conta pela tela de login do app (self-signup) e fica sem
--- enxergar nada até você liberar em Parâmetros > Acessos.
+-- Depois de rodar isso, crie seu próprio login (se ainda não tiver) em:
+-- Authentication > Users > Add user (email + senha). Qualquer outra pessoa
+-- entra por convite: Parâmetros > Acessos, no app, dispara um e-mail (via
+-- supabase/functions/invite-user) com um link pra ela criar a senha —
+-- ninguém mais se auto-cadastra pela tela de login.
