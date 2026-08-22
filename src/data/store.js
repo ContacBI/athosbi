@@ -17,6 +17,11 @@ export const state = {
   indicatorOverrides: [],
   activeCompanyId: "",
   activeGroupId: "",
+  // true só pro(s) e-mail(s) cadastrados em portal_admins (ver lib/access.js
+  // isPortalAdmin) — controla se o menu Parâmetros aparece e se as telas de
+  // cadastro ficam editáveis. Todo o resto de fato é aplicado pela RLS do
+  // Supabase; esta flag é só pra UI não nem oferecer o que o banco recusaria.
+  isAdmin: false,
   mappings: [],
   // Vínculo DFC por empresa — overrides de qual destino (DFC.OP.CLIENTES
   // etc.) uma conta gerencial usa nesta empresa, por cima do vínculo global

@@ -12,6 +12,8 @@ import { loadCompanies } from "./lib/companies.js";
 import { selectGroup } from "./lib/groups.js";
 import { loadRepresentantes } from "./lib/representantes.js";
 import { loadIndicatorOverrides } from "./lib/indicators.js";
+import { isPortalAdmin } from "./lib/access.js";
+import { setData } from "./data/useStore.js";
 
 // Carregadas sob demanda (React.lazy) em vez de no pacote inicial — são as
 // telas que só entram depois que a pessoa já navegou pra dentro de uma
@@ -31,6 +33,7 @@ const GruposAdmin = lazy(() => import("./pages/parametros/GruposAdmin.jsx"));
 const DeParaAdmin = lazy(() => import("./pages/parametros/DeParaAdmin.jsx"));
 const Representantes = lazy(() => import("./pages/parametros/Representantes.jsx"));
 const BiAdmin = lazy(() => import("./pages/parametros/BiAdmin.jsx"));
+const AcessosAdmin = lazy(() => import("./pages/parametros/AcessosAdmin.jsx"));
 const Sistema = lazy(() => import("./pages/parametros/Sistema.jsx"));
 const PlanoGerencial = lazy(() => import("./pages/parametros/PlanoGerencial.jsx"));
 
@@ -81,8 +84,9 @@ export default function App() {
     if (!session) return;
     if (bootedForUserRef.current === session.user.id) return; // já carregado pra esse usuário — token só renovou
     bootedForUserRef.current = session.user.id;
-    Promise.all([loadPlan(), loadCompanies(), loadRepresentantes(), loadIndicatorOverrides()])
-      .then(([, companiesResult]) => {
+    Promise.all([loadPlan(), loadCompanies(), loadRepresentantes(), loadIndicatorOverrides(), isPortalAdmin()])
+      .then(([, companiesResult, , , adminFlag]) => {
+        setData({ isAdmin: adminFlag });
         if (companiesResult?.groupId) selectGroup(companiesResult.groupId, { skipPersist: true });
       })
       .catch((error) => {
@@ -134,6 +138,7 @@ export default function App() {
           <Route path="de-para" element={<DeParaAdmin />} />
           <Route path="representantes" element={<Representantes />} />
           <Route path="bi" element={<BiAdmin />} />
+          <Route path="acessos" element={<AcessosAdmin />} />
           <Route path="sistema" element={<Sistema />} />
           <Route path="sistema/plano-gerencial" element={<PlanoGerencial />} />
         </Route>

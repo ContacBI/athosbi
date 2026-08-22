@@ -183,14 +183,16 @@ export default function Empresas() {
               <ArrowLeft size={15} />
               Início
             </button>
-            <button
-              type="button"
-              onClick={() => navigate("/parametros")}
-              className="flex items-center gap-1.5 rounded-full border border-white/15 px-3.5 py-1.5 text-[13px] text-white/80 transition-colors hover:border-white/30 hover:bg-white/5 hover:text-white"
-            >
-              <Settings size={15} />
-              Cadastrar / editar empresas
-            </button>
+            {state.isAdmin && (
+              <button
+                type="button"
+                onClick={() => navigate("/parametros")}
+                className="flex items-center gap-1.5 rounded-full border border-white/15 px-3.5 py-1.5 text-[13px] text-white/80 transition-colors hover:border-white/30 hover:bg-white/5 hover:text-white"
+              >
+                <Settings size={15} />
+                Cadastrar / editar empresas
+              </button>
+            )}
           </div>
 
           <div>
@@ -271,17 +273,23 @@ export default function Empresas() {
               <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
                 <Building2 size={26} strokeWidth={1.6} />
               </span>
-              <p className="text-[15px] font-medium text-ink-900">Nenhuma empresa cadastrada</p>
-              <p className="max-w-xs text-[13px] text-ink-400">
-                Vá em Parâmetros para cadastrar a primeira empresa da sua carteira.
+              <p className="text-[15px] font-medium text-ink-900">
+                {state.isAdmin ? "Nenhuma empresa cadastrada" : "Nenhum acesso liberado pra você ainda"}
               </p>
-              <button
-                type="button"
-                onClick={() => navigate("/parametros")}
-                className="mt-1 rounded-full bg-accent-500 px-5 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md"
-              >
-                Cadastrar / editar empresas
-              </button>
+              <p className="max-w-xs text-[13px] text-ink-400">
+                {state.isAdmin
+                  ? "Vá em Parâmetros para cadastrar a primeira empresa da sua carteira."
+                  : "Fale com quem administra o portal pra liberar as empresas ou grupos que você precisa ver."}
+              </p>
+              {state.isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => navigate("/parametros")}
+                  className="mt-1 rounded-full bg-accent-500 px-5 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md"
+                >
+                  Cadastrar / editar empresas
+                </button>
+              )}
             </div>
           ) : (
             <section className="divide-y divide-line overflow-hidden rounded-xl bg-surface-card shadow-sm">
