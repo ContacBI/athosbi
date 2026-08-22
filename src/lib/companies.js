@@ -10,7 +10,9 @@ import {
   readPersistentByPrefix,
   deletePersistent,
   companyKey,
-  companyJournalKey,
+  readCompanyJournal,
+  writeCompanyJournal,
+  deleteCompanyJournal,
   COMPANY_KEY_PREFIX,
 } from "./persistence.js";
 import { DEFAULT_NATURE_RULES } from "./accountNature.js";
@@ -66,7 +68,7 @@ function writeStoredCompanies(companies) {
     const pending = [];
     if (journalChanged) {
       lastWrittenJournals.set(company.id, company.journal);
-      pending.push(writePersistent(companyJournalKey(company.id), company.journal || []));
+      pending.push(writeCompanyJournal(company.id, company.journal || []));
     }
     // Grava o registro sempre que o razão mudou também (mesmo se mais nada
     // mudou) — é onde `journalCount` fica atualizado. loadCompanies() lê só
@@ -187,7 +189,7 @@ export async function fetchCompaniesAndGroups() {
       let journal;
       let journalLoadFailed = false;
       try {
-        journal = await readPersistent(companyJournalKey(record.id));
+        journal = await readCompanyJournal(record.id);
       } catch (error) {
         // Não dá pra saber se essa empresa realmente não tem lançamento
         // nenhum ou se a leitura só falhou (rede, timeout — mais comum
@@ -232,7 +234,7 @@ export async function ensureCompanyJournalLoaded(company) {
   let journal;
   let journalLoadFailed = false;
   try {
-    journal = await readPersistent(companyJournalKey(company.id));
+    journal = await readCompanyJournal(company.id);
   } catch (error) {
     console.error(`Empresa "${company.name}" (${company.id}): não consegui ler o razão do Supabase.`, error);
     journalLoadFailed = true;
@@ -617,7 +619,7 @@ export function deleteCompany(id) {
   // out of a future write no longer removes it, its row has to be deleted
   // explicitly.
   deletePersistent(companyKey(id));
-  deletePersistent(companyJournalKey(id));
+  deleteCompanyJournal(id);
   lastWrittenRecords.delete(id);
   lastWrittenJournals.delete(id);
   const nextActive = state.activeCompanyId === id ? companies[0]?.id || "" : state.activeCompanyId;
@@ -647,7 +649,7 @@ export async function restoreCompaniesAndGroups({ companies, groups, activeCompa
     staleIds.map((id) => {
       lastWrittenRecords.delete(id);
       lastWrittenJournals.delete(id);
-      return Promise.all([deletePersistent(companyKey(id)), deletePersistent(companyJournalKey(id))]);
+      return Promise.all([deletePersistent(companyKey(id)), deleteCompanyJournal(id)]);
     })
   );
   nextCompanies.forEach((company) => {

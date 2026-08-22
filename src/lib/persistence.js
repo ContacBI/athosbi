@@ -105,15 +105,30 @@ export async function readPersistent(key) {
   return undefined;
 }
 
+const WRITE_RETRIES = 2;
+const WRITE_RETRY_BASE_MS = 500;
+
+async function upsertWithRetries(key, value) {
+  let lastError;
+  for (let attempt = 0; attempt <= WRITE_RETRIES; attempt += 1) {
+    const { error } = await supabase.from("app_storage").upsert({ key, value, updated_at: new Date().toISOString() });
+    if (!error) return;
+    lastError = error;
+    if (attempt < WRITE_RETRIES) await new Promise((resolve) => setTimeout(resolve, WRITE_RETRY_BASE_MS * (attempt + 1)));
+  }
+  throw lastError;
+}
+
 export function writePersistent(key, value) {
   try { localStorage.setItem(localKey(key), JSON.stringify(value)); } catch { /* storage can be unavailable */ }
   const previous = writeQueues.get(key) || Promise.resolve();
   const next = previous
     .catch(() => undefined) // a failed older save must not block later edits
     .then(async () => {
-      const { error } = await supabase.from("app_storage").upsert({ key, value, updated_at: new Date().toISOString() });
-      if (error) {
-        console.error(`Falha ao salvar "${key}" no Supabase:`, error);
+      try {
+        await upsertWithRetries(key, value);
+      } catch (error) {
+        console.error(`Falha ao salvar "${key}" no Supabase (mesmo tentando de novo):`, error);
         throw error;
       }
     });
@@ -121,6 +136,42 @@ export function writePersistent(key, value) {
   return next.finally(() => {
     if (writeQueues.get(key) === next) writeQueues.delete(key);
   });
+}
+
+// Um razão de dezenas de milhares de lançamentos (uma linha JSONB só) às
+// vezes falha ao gravar de uma vez, mesmo com retry — confirmado com um
+// caso real de 85 mil lançamentos (~32MB) que falhava sempre como blob
+// único mas gravava certinho em pedaços de ~20 mil. Journals menores (a
+// esmagadora maioria das empresas) continuam gravando como uma linha só,
+// sem nenhuma mudança de comportamento.
+const JOURNAL_CHUNK_SIZE = 20000;
+
+export async function writeCompanyJournal(companyId, journal) {
+  const list = Array.isArray(journal) ? journal : [];
+  const baseKey = companyJournalKey(companyId);
+  if (list.length <= JOURNAL_CHUNK_SIZE) {
+    await writePersistent(baseKey, list);
+    return;
+  }
+  const parts = [];
+  for (let i = 0; i < list.length; i += JOURNAL_CHUNK_SIZE) parts.push(list.slice(i, i + JOURNAL_CHUNK_SIZE));
+  // As partes primeiro, o manifesto por último — se cair no meio (rede
+  // caiu, aba fechou), uma leitura ainda vê o manifesto ANTIGO (ou
+  // nenhum), nunca um manifesto novo apontando pra partes que não existem.
+  await Promise.all(parts.map((part, index) => writePersistent(`${baseKey}.part${index}`, part)));
+  await writePersistent(baseKey, { __chunked: true, parts: parts.length });
+}
+
+export async function readCompanyJournal(companyId) {
+  const baseKey = companyJournalKey(companyId);
+  const value = await readPersistent(baseKey);
+  if (value && typeof value === "object" && !Array.isArray(value) && value.__chunked) {
+    const pieces = await Promise.all(
+      Array.from({ length: value.parts }, (_, index) => readPersistent(`${baseKey}.part${index}`))
+    );
+    return pieces.flatMap((piece) => (Array.isArray(piece) ? piece : []));
+  }
+  return Array.isArray(value) ? value : [];
 }
 
 export async function readStoredArray(key) {
@@ -143,6 +194,25 @@ export async function readPersistentByPrefix(prefix) {
     throw new PersistenceReadError(`Não consegui listar "${prefix}*" do Supabase.`, { cause: error });
   }
   return (data || []).map((row) => row.value);
+}
+
+// Apaga o razão da empresa por completo — a linha única (caso comum) ou o
+// manifesto + todas as partes (caso uma empresa grande tenha sido dividida
+// por writeCompanyJournal). Lê o manifesto primeiro só pra saber quantas
+// partes existem; se não for chunked, isso não custa nada além da leitura
+// normal que já aconteceria de qualquer jeito.
+export async function deleteCompanyJournal(companyId) {
+  const baseKey = companyJournalKey(companyId);
+  let value;
+  try {
+    value = await readPersistent(baseKey);
+  } catch {
+    value = undefined;
+  }
+  await deletePersistent(baseKey);
+  if (value && typeof value === "object" && !Array.isArray(value) && value.__chunked) {
+    await Promise.all(Array.from({ length: value.parts }, (_, index) => deletePersistent(`${baseKey}.part${index}`)));
+  }
 }
 
 export async function deletePersistent(key) {
