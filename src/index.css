@@ -33,7 +33,15 @@
   --color-danger-500: #d8493a;
   --color-danger-600: #a8342a;
 
+  /* warning-50/600/700 estavam faltando aqui — só warning-500 tinha valor
+     real, então todo `bg-warning-50`/`text-warning-600`/`text-warning-700`
+     já usado pelo app (De/Para, LedgerModal, PlanoGerencial etc.) nunca
+     pintava nada, ficava sem cor nenhuma. Completando a escala igual às
+     outras (success/danger). */
+  --color-warning-50: #fbf1de;
   --color-warning-500: #d99a2b;
+  --color-warning-600: #96660f;
+  --color-warning-700: #7a530c;
 
   --color-surface-page: #f4f6f9;
   --color-surface-card: #ffffff;
@@ -98,7 +106,10 @@
   --color-danger-500: #e2695c;
   --color-danger-600: #e88378;
 
+  --color-warning-50: #2c2312;
   --color-warning-500: #e0ac52;
+  --color-warning-600: #f3c988;
+  --color-warning-700: #f7d7a3;
 
   --color-navy-800: #2f5488;
   --color-navy-700: #5c8fd6;

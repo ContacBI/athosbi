@@ -390,7 +390,7 @@ export default function PlanoPadraoAdmin() {
         )}
       </div>
 
-      <div className="mt-3 flex flex-col gap-2">
+      <div className="mt-3 flex flex-col gap-1.5">
         {state.planosPadrao.length === 0 && (
           <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-card px-6 py-12 text-center shadow-sm">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
@@ -403,14 +403,14 @@ export default function PlanoPadraoAdmin() {
         {state.planosPadrao.map((plano) => {
           const companies = companiesUsingPlano(plano.id);
           return (
-            <div key={plano.id} className="flex items-center justify-between gap-3 rounded-xl bg-surface-card p-3.5 shadow-sm transition-shadow hover:shadow-md">
-              <button type="button" onClick={() => setOpenId(plano.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-50 text-accent-600">
-                  <Layers size={16} strokeWidth={1.8} />
+            <div key={plano.id} className="flex items-center justify-between gap-3 rounded-lg bg-surface-card px-3 py-2 shadow-sm transition-shadow hover:shadow-md">
+              <button type="button" onClick={() => setOpenId(plano.id)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-50 text-accent-600">
+                  <Layers size={14} strokeWidth={1.8} />
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-[13px] font-medium text-ink-900">{plano.nome}</p>
-                  <p className="text-[12px] text-ink-400">
+                  <p className="truncate text-[12.5px] font-medium text-ink-900">{plano.nome}</p>
+                  <p className="text-[11px] text-ink-400">
                     {plano.extraAccounts.length} conta{plano.extraAccounts.length === 1 ? "" : "s"} extra · {companies.length} empresa{companies.length === 1 ? "" : "s"}
                   </p>
                 </div>
@@ -426,9 +426,9 @@ export default function PlanoPadraoAdmin() {
                     if (confirm(`Apagar "${plano.nome}"?`)) deletePlanoPadrao(plano.id);
                   }}
                   aria-label={`Apagar ${plano.nome}`}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-line-strong text-danger-600 hover:bg-danger-50"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-line-strong text-danger-600 hover:bg-danger-50"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={13} />
                 </button>
               )}
             </div>

@@ -4,7 +4,6 @@ import { Network, Pencil, Trash2, Building2, ArrowRight, Layers } from "lucide-r
 import { useAppState } from "../../data/useStore.js";
 import { createGroup, updateGroup, deleteGroup, groupCompanies } from "../../lib/groups.js";
 import GroupModal from "../../components/GroupModal.jsx";
-import Avatar from "../../components/Avatar.jsx";
 import PageHeader from "../../components/PageHeader.jsx";
 
 export default function GruposAdmin() {
@@ -82,15 +81,15 @@ export default function GruposAdmin() {
               return (
                 <div
                   key={group.id}
-                  className={`rounded-xl bg-surface-card p-3.5 shadow-sm transition-shadow hover:shadow-md ${isActive ? "ring-1 ring-accent-300" : ""}`}
+                  className={`rounded-lg bg-surface-card px-3 py-2 shadow-sm transition-shadow hover:shadow-md ${isActive ? "ring-1 ring-accent-300" : ""}`}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-50 text-accent-600">
-                        <Network size={17} strokeWidth={1.8} />
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-50 text-accent-600">
+                        <Network size={14} strokeWidth={1.8} />
                       </span>
                       <div className="min-w-0">
-                        <p className="flex items-center gap-1.5 text-[13px] font-medium text-ink-900">
+                        <p className="flex items-center gap-1.5 text-[12.5px] font-medium text-ink-900">
                           <span className="truncate">{group.name}</span>
                           {isActive && (
                             <span className="shrink-0 rounded-full bg-accent-50 px-1.5 py-0.5 text-[10px] font-medium text-accent-600">
@@ -98,20 +97,21 @@ export default function GruposAdmin() {
                             </span>
                           )}
                         </p>
-                        <p className="text-[12px] text-ink-400">
+                        <p className="truncate text-[11px] text-ink-400">
                           {members.length} empresa{members.length === 1 ? "" : "s"} · {totalLancamentos.toLocaleString("pt-BR")} lançamentos
+                          {members.length > 0 && ` · ${members.map((company) => company.name).join(", ")}`}
                         </p>
                       </div>
                     </div>
                     {(state.isAdmin || state.isColaborador) && (
-                      <div className="flex shrink-0 gap-2">
+                      <div className="flex shrink-0 gap-1.5">
                         <button
                           type="button"
                           onClick={() => setModalGroup(group)}
                           aria-label={`Editar ${group.name}`}
-                          className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-ink-600 hover:bg-surface-muted"
+                          className="flex h-7 w-7 items-center justify-center rounded-md border border-line-strong text-ink-600 hover:bg-surface-muted"
                         >
-                          <Pencil size={14} />
+                          <Pencil size={13} />
                         </button>
                         <button
                           type="button"
@@ -119,27 +119,13 @@ export default function GruposAdmin() {
                             if (confirm(`Remover o grupo "${group.name}"? As empresas continuam na carteira.`)) deleteGroup(group.id);
                           }}
                           aria-label={`Remover ${group.name}`}
-                          className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-danger-600 hover:bg-danger-50"
+                          className="flex h-7 w-7 items-center justify-center rounded-md border border-line-strong text-danger-600 hover:bg-danger-50"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                         </button>
                       </div>
                     )}
                   </div>
-
-                  {members.length > 0 && (
-                    <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-line pt-2.5">
-                      {members.map((company) => (
-                        <span
-                          key={company.id}
-                          className="flex items-center gap-1.5 rounded-full bg-surface-muted py-1 pl-1 pr-2.5 text-[11.5px] text-ink-700"
-                        >
-                          <Avatar name={company.name} size={18} />
-                          {company.name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
               );
             })}

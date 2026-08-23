@@ -139,24 +139,24 @@ export default function AcessosAdmin() {
           </div>
         )}
         {byEmail.map(([personEmail, personGrants]) => (
-          <div key={personEmail} className="rounded-xl bg-surface-card p-4 shadow-sm">
+          <div key={personEmail} className="rounded-lg bg-surface-card px-3 py-2.5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-[13px] font-medium text-ink-900">{personEmail}</p>
+              <p className="text-[12.5px] font-medium text-ink-900">{personEmail}</p>
               {canEdit && (
                 <button
                   type="button"
                   onClick={() => handleReinvite(personEmail)}
-                  className="shrink-0 text-[12px] text-accent-600 hover:underline"
+                  className="shrink-0 text-[11.5px] text-accent-600 hover:underline"
                 >
                   Reenviar convite
                 </button>
               )}
             </div>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
               {personGrants.map((grant) => (
                 <span
                   key={grant.id}
-                  className="flex items-center gap-2 rounded-full border border-line-strong bg-surface-page px-3 py-1 text-[12px] text-ink-700"
+                  className="flex items-center gap-1.5 rounded-full border border-line-strong bg-surface-page px-2.5 py-0.5 text-[11.5px] text-ink-700"
                 >
                   {grant.scope_type === "company" ? "Empresa" : "Grupo"}: {grant.scope_type === "company" ? companyName(grant.scope_id) : groupName(grant.scope_id)}
                   {canEdit && (
@@ -166,7 +166,7 @@ export default function AcessosAdmin() {
                       aria-label="Remover acesso"
                       className="text-ink-400 hover:text-danger-600"
                     >
-                      <Trash2 size={12} />
+                      <Trash2 size={11} />
                     </button>
                   )}
                 </span>

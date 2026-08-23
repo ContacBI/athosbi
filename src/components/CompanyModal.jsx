@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, Loader2, Plus } from "lucide-react";
+import { X, Loader2, Plus, IdCard, PenTool } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { formatCnpj, cnpjDigits, lookupCnpj } from "../lib/cnpj.js";
 import { DEFAULT_NATURE_RULES, NATURE_LABELS, NATURE_ORDER, formatPrefixList, parsePrefixList } from "../lib/accountNature.js";
@@ -23,6 +23,7 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
   const [pessoas, setPessoas] = useState([]); // Total + Restrito, pra escolher responsável
   const [lookupState, setLookupState] = useState(company?.atividade ? "done" : "idle");
   const [error, setError] = useState("");
+  const [tab, setTab] = useState("dados");
   const [natureText, setNatureText] = useState(() => {
     const rules = company?.natureRules || DEFAULT_NATURE_RULES;
     return Object.fromEntries(NATURE_ORDER.map((nature) => [nature, formatPrefixList(rules[nature])]));
@@ -85,6 +86,7 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
     event.preventDefault();
     if (!name.trim()) {
       setError("Informe o nome da empresa.");
+      setTab("dados");
       return;
     }
     // Só obrigatório pra empresa NOVA — as já existentes ainda não têm
@@ -92,28 +94,34 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
     // e isso não pode travar quem só quer editar outro campo delas.
     if (!isEditing && !planoPadraoId) {
       setError("Escolha um plano de contas pra essa empresa.");
+      setTab("dados");
       return;
     }
     // Sem pelo menos um responsável, nenhum colaborador Restrito jamais
     // conseguiria editar essa empresa — sempre obrigatório, criando ou
-    // editando (ver is_responsavel em supabase/schema.sql).
+    // editando (ver is_responsavel em supabase/schema.sql). Fica na aba
+    // Assinaturas, então o erro precisa levar pra lá se a pessoa estiver
+    // vendo Dados gerais.
     if (!responsaveis.length) {
-      setError("Marque pelo menos um responsável pela empresa.");
+      setError("Marque pelo menos um responsável pela empresa (aba Assinaturas).");
+      setTab("assinaturas");
       return;
     }
     const natureRules = Object.fromEntries(NATURE_ORDER.map((nature) => [nature, parsePrefixList(natureText[nature])]));
     onSubmit({ codigo, cnpj, name, atividade, municipio, uf, representanteIds, natureRules, planoPadraoId: planoPadraoId || null, responsaveis });
   }
 
+  const responsaveisMissing = tab === "assinaturas" && responsaveis.length === 0;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-[2px]">
-      <form onSubmit={handleSubmit} className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-surface-card p-6 shadow-xl">
-        <div className="flex items-start justify-between">
+      <form onSubmit={handleSubmit} className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-surface-card shadow-xl">
+        <div className="flex items-start justify-between px-8 pt-7">
           <div>
             <span className="text-[11px] font-medium uppercase tracking-wide text-accent-600">
               {isEditing ? "Editar cadastro" : "Novo cadastro"}
             </span>
-            <h2 className="mt-1 text-lg font-medium text-ink-900">{isEditing ? "Editar empresa" : "Cadastrar empresa"}</h2>
+            <h2 className="mt-1 text-[22px] font-medium leading-tight text-ink-900">{isEditing ? name || "Editar empresa" : "Cadastrar empresa"}</h2>
           </div>
           <button
             type="button"
@@ -121,11 +129,42 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
             aria-label="Fechar"
             className="rounded-md p-1 text-ink-400 hover:bg-surface-muted hover:text-ink-900"
           >
-            <X size={18} />
+            <X size={20} />
           </button>
         </div>
 
-        <div className="mt-5 grid grid-cols-3 gap-3">
+        {/* Duas abas em vez de tudo empilhado numa tela só: Dados gerais é
+            o que qualquer colaborador cadastra rápido (código, CNPJ, plano
+            de contas); Assinaturas é quem responde pela empresa — contador/
+            sócio vinculado e quem no portal pode editá-la — informação de
+            outra natureza, que só quem já tem a empresa em mãos costuma
+            preencher com calma. */}
+        <div className="mt-5 flex gap-1 border-b border-line px-8">
+          {[
+            { id: "dados", label: "Dados gerais", icon: IdCard },
+            { id: "assinaturas", label: "Assinaturas", icon: PenTool },
+          ].map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setTab(item.id)}
+              className={`flex items-center gap-1.5 border-b-2 px-3 pb-2.5 text-[13px] font-medium transition-colors ${
+                tab === item.id ? "border-accent-500 text-ink-900" : "border-transparent text-ink-400 hover:text-ink-700"
+              }`}
+            >
+              <item.icon size={14} strokeWidth={1.8} />
+              {item.label}
+              {item.id === "assinaturas" && responsaveis.length === 0 && (
+                <span className="h-1.5 w-1.5 rounded-full bg-danger-500" title="Falta marcar um responsável" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-8 py-6">
+        {tab === "dados" ? (
+        <>
+        <div className="grid grid-cols-3 gap-3">
           <label className="text-[13px] text-ink-600">
             Código
             <input
@@ -168,149 +207,155 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
           </div>
         )}
 
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-[13px] text-ink-600">Representantes vinculados</p>
-            {state.representantes.length === 0 ? (
-              <p className="mt-1.5 text-[12px] text-ink-400">
-                Nenhum representante cadastrado ainda. Cadastre em Parâmetros → Representantes.
-              </p>
-            ) : (
-              <div className="mt-1.5 flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-lg border border-line-strong p-2">
-                {state.representantes.map((representante) => (
-                  <label key={representante.id} className="flex items-center gap-2 rounded-md px-1.5 py-1 text-[13px] text-ink-900 hover:bg-surface-muted">
-                    <input
-                      type="checkbox"
-                      checked={representanteIds.includes(representante.id)}
-                      onChange={() => toggleRepresentante(representante.id)}
-                    />
-                    {representante.nome}
-                    <span className="text-[11px] text-ink-400">{representante.email}</span>
-                  </label>
-                ))}
-              </div>
+        <div className="mt-5">
+          <p className="text-[13px] text-ink-600">Plano de contas {!isEditing && "*"}</p>
+          <p className="mt-0.5 text-[11.5px] text-ink-400">
+            Empresas no mesmo plano compartilham as contas extras dele e o De/Para se propaga entre elas.
+          </p>
+          <div className="mt-1.5 flex max-h-32 flex-col gap-0.5 overflow-y-auto rounded-lg border border-line-strong p-2">
+            {state.planosPadrao.length === 0 && !novoPlanoOpen && (
+              <p className="px-1.5 py-1 text-[12px] text-ink-400">Nenhum plano padrão criado ainda.</p>
             )}
-          </div>
-
-          <div>
-            <p className="text-[13px] text-ink-600">Plano de contas {!isEditing && "*"}</p>
-            <p className="mt-0.5 text-[11.5px] text-ink-400">
-              Empresas no mesmo plano compartilham as contas extras dele e o De/Para se propaga entre elas.
-            </p>
-            <div className="mt-1.5 flex max-h-32 flex-col gap-0.5 overflow-y-auto rounded-lg border border-line-strong p-2">
-              {state.planosPadrao.length === 0 && !novoPlanoOpen && (
-                <p className="px-1.5 py-1 text-[12px] text-ink-400">Nenhum plano padrão criado ainda.</p>
-              )}
-              {state.planosPadrao.map((plano) => (
-                <label key={plano.id} className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5 text-[13px] text-ink-900 hover:bg-surface-muted">
-                  <input
-                    type="radio"
-                    name="planoPadraoId"
-                    checked={planoPadraoId === plano.id}
-                    onChange={() => setPlanoPadraoId(plano.id)}
-                  />
-                  {plano.nome}
-                </label>
-              ))}
-              {novoPlanoOpen ? (
-                <div className="mt-1 flex items-center gap-1.5 border-t border-line pt-1.5">
-                  <input
-                    autoFocus
-                    value={novoPlanoNome}
-                    onChange={(event) => setNovoPlanoNome(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        handleCreatePlano();
-                      }
-                    }}
-                    placeholder="Nome do plano padrão"
-                    className="flex-1 rounded-md border border-line-strong px-2 py-1.5 text-[12.5px] outline-none focus:border-accent-500"
-                  />
-                  <button type="button" onClick={handleCreatePlano} className="rounded-md bg-accent-500 px-2.5 py-1.5 text-[12px] font-medium text-white hover:bg-accent-600">
-                    Criar
-                  </button>
-                  <button type="button" onClick={() => setNovoPlanoOpen(false)} className="rounded-md px-2 py-1.5 text-[12px] text-ink-500 hover:bg-surface-muted">
-                    Cancelar
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setNovoPlanoOpen(true)}
-                  className="mt-1 flex items-center gap-1.5 rounded-md border-t border-line px-1.5 pt-2 text-left text-[12.5px] font-medium text-accent-600 hover:text-accent-700"
-                >
-                  <Plus size={13} strokeWidth={2.2} />
-                  Criar plano padrão
+            {state.planosPadrao.map((plano) => (
+              <label key={plano.id} className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5 text-[13px] text-ink-900 hover:bg-surface-muted">
+                <input
+                  type="radio"
+                  name="planoPadraoId"
+                  checked={planoPadraoId === plano.id}
+                  onChange={() => setPlanoPadraoId(plano.id)}
+                />
+                {plano.nome}
+              </label>
+            ))}
+            {novoPlanoOpen ? (
+              <div className="mt-1 flex items-center gap-1.5 border-t border-line pt-1.5">
+                <input
+                  autoFocus
+                  value={novoPlanoNome}
+                  onChange={(event) => setNovoPlanoNome(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      handleCreatePlano();
+                    }
+                  }}
+                  placeholder="Nome do plano padrão"
+                  className="flex-1 rounded-md border border-line-strong px-2 py-1.5 text-[12.5px] outline-none focus:border-accent-500"
+                />
+                <button type="button" onClick={handleCreatePlano} className="rounded-md bg-accent-500 px-2.5 py-1.5 text-[12px] font-medium text-white hover:bg-accent-600">
+                  Criar
                 </button>
-              )}
-            </div>
+                <button type="button" onClick={() => setNovoPlanoOpen(false)} className="rounded-md px-2 py-1.5 text-[12px] text-ink-500 hover:bg-surface-muted">
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setNovoPlanoOpen(true)}
+                className="mt-1 flex items-center gap-1.5 rounded-md border-t border-line px-1.5 pt-2 text-left text-[12.5px] font-medium text-accent-600 hover:text-accent-700"
+              >
+                <Plus size={13} strokeWidth={2.2} />
+                Criar plano padrão
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-[13px] text-ink-600">Responsáveis pela empresa *</p>
-            <p className="mt-0.5 text-[11.5px] text-ink-400">
-              Só quem estiver marcado aqui (além de você) consegue editar essa empresa — De/Para, dados, etc. Os
-              demais colaboradores só visualizam, como um cliente.
-            </p>
-            {pessoas.length === 0 ? (
-              <p className="mt-1.5 text-[12px] text-ink-400">
-                Nenhum colaborador cadastrado ainda. Cadastre em Parâmetros → Colaborar.
-              </p>
-            ) : (
-              <div className="mt-1.5 flex max-h-32 flex-col gap-1.5 overflow-y-auto rounded-lg border border-line-strong p-2">
-                {pessoas.map((pessoa) => (
-                  <label key={pessoa.email} className="flex items-center gap-2 rounded-md px-1.5 py-1 text-[13px] text-ink-900 hover:bg-surface-muted">
-                    <input
-                      type="checkbox"
-                      checked={responsaveis.includes(pessoa.email)}
-                      onChange={() => toggleResponsavel(pessoa.email)}
-                    />
-                    <span className="min-w-0 flex-1 truncate">{pessoa.nome || pessoa.email}</span>
-                    <span className="shrink-0 text-[10px] text-ink-400">{pessoa.categoria}</span>
-                  </label>
-                ))}
-              </div>
-            )}
+        <div className="mt-5">
+          <p className="text-[13px] text-ink-600">Faixas de classificação do De/Para</p>
+          <p className="mt-0.5 text-[11.5px] text-ink-400">
+            Prefixos da classificação contábil pra cada natureza — separe vários por vírgula.
+          </p>
+          <div className="mt-2 grid grid-cols-4 gap-2.5">
+            {NATURE_ORDER.map((nature) => (
+              <label key={nature} className="text-[12.5px] text-ink-600">
+                {NATURE_LABELS[nature]}
+                <input
+                  value={natureText[nature]}
+                  onChange={(event) => setNatureText((prev) => ({ ...prev, [nature]: event.target.value }))}
+                  placeholder={formatPrefixList(DEFAULT_NATURE_RULES[nature])}
+                  className="mt-1 w-full rounded-md border border-line-strong px-2.5 py-1.5 text-[13px] outline-none focus:border-accent-500"
+                />
+              </label>
+            ))}
           </div>
-
-          <div>
-            <p className="text-[13px] text-ink-600">Faixas de classificação do De/Para</p>
-            <p className="mt-0.5 text-[11.5px] text-ink-400">
-              Prefixos da classificação contábil pra cada natureza — o De/Para só vincula uma conta a uma linha
-              gerencial da mesma natureza. Separe vários prefixos por vírgula.
+        </div>
+        </>
+        ) : (
+        <>
+        {/* Assinaturas: quem responde pela empresa — o contador/sócio
+            vinculado (Representantes) e quem, dentro do portal, pode de
+            fato editá-la (Responsáveis). Separado de Dados gerais porque é
+            informação de outra natureza, normalmente preenchida com mais
+            calma do que o cadastro rápido inicial. */}
+        <div>
+          <p className="text-[13px] text-ink-600">Contador / representante vinculado</p>
+          <p className="mt-0.5 text-[11.5px] text-ink-400">Sócios e contadores cadastrados em Parâmetros → Representantes.</p>
+          {state.representantes.length === 0 ? (
+            <p className="mt-1.5 text-[12px] text-ink-400">
+              Nenhum representante cadastrado ainda. Cadastre em Parâmetros → Representantes.
             </p>
-            <div className="mt-2 grid grid-cols-2 gap-2.5">
-              {NATURE_ORDER.map((nature) => (
-                <label key={nature} className="text-[12.5px] text-ink-600">
-                  {NATURE_LABELS[nature]}
+          ) : (
+            <div className="mt-1.5 flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-lg border border-line-strong p-2">
+              {state.representantes.map((representante) => (
+                <label key={representante.id} className="flex items-center gap-2 rounded-md px-1.5 py-1 text-[13px] text-ink-900 hover:bg-surface-muted">
                   <input
-                    value={natureText[nature]}
-                    onChange={(event) => setNatureText((prev) => ({ ...prev, [nature]: event.target.value }))}
-                    placeholder={formatPrefixList(DEFAULT_NATURE_RULES[nature])}
-                    className="mt-1 w-full rounded-md border border-line-strong px-2.5 py-1.5 text-[13px] outline-none focus:border-accent-500"
+                    type="checkbox"
+                    checked={representanteIds.includes(representante.id)}
+                    onChange={() => toggleRepresentante(representante.id)}
                   />
+                  {representante.nome}
+                  <span className="text-[11px] text-ink-400">{representante.email}</span>
                 </label>
               ))}
             </div>
-          </div>
+          )}
         </div>
 
-        {error && <p className="mt-3 text-[12px] text-danger-600">{error}</p>}
+        <div className="mt-5">
+          <p className={`text-[13px] ${responsaveisMissing ? "text-danger-600" : "text-ink-600"}`}>Responsáveis pela empresa *</p>
+          <p className="mt-0.5 text-[11.5px] text-ink-400">
+            Só quem estiver marcado aqui (além de você) edita essa empresa — os demais só visualizam, como um cliente.
+          </p>
+          {pessoas.length === 0 ? (
+            <p className="mt-1.5 text-[12px] text-ink-400">
+              Nenhum colaborador cadastrado ainda. Cadastre em Parâmetros → Colaborar.
+            </p>
+          ) : (
+            <div className={`mt-1.5 flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-lg border p-2 ${responsaveisMissing ? "border-danger-500/40" : "border-line-strong"}`}>
+              {pessoas.map((pessoa) => (
+                <label key={pessoa.email} className="flex items-center gap-2 rounded-md px-1.5 py-1 text-[13px] text-ink-900 hover:bg-surface-muted">
+                  <input
+                    type="checkbox"
+                    checked={responsaveis.includes(pessoa.email)}
+                    onChange={() => toggleResponsavel(pessoa.email)}
+                  />
+                  <span className="min-w-0 flex-1 truncate">{pessoa.nome || pessoa.email}</span>
+                  <span className="shrink-0 text-[10px] text-ink-400">{pessoa.categoria}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+        </>
+        )}
+        </div>
 
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md border border-line-strong px-3.5 py-2 text-[13px] text-ink-600 hover:bg-surface-muted"
-          >
-            Cancelar
-          </button>
-          <button type="submit" className="rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-accent-600">
-            {isEditing ? "Salvar alterações" : "Cadastrar empresa"}
-          </button>
+        <div className="flex items-center justify-between gap-3 border-t border-line px-8 py-4">
+          <p className="min-h-[1em] text-[12px] text-danger-600">{error}</p>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border border-line-strong px-3.5 py-2 text-[13px] text-ink-600 hover:bg-surface-muted"
+            >
+              Cancelar
+            </button>
+            <button type="submit" className="rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-accent-600">
+              {isEditing ? "Salvar alterações" : "Cadastrar empresa"}
+            </button>
+          </div>
         </div>
       </form>
     </div>

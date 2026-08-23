@@ -1,8 +1,9 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "../../data/useStore.js";
 import { createCompany, updateCompany, deleteCompany, importBackupFile } from "../../lib/companies.js";
 import { exportFullBackup, importFullBackup } from "../../lib/fullBackup.js";
+import { listAdmins, listColaboradores } from "../../lib/colaboradores.js";
 import CompanyModal from "../../components/CompanyModal.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import PageHeader from "../../components/PageHeader.jsx";
@@ -51,7 +52,21 @@ export default function CompaniesAdmin() {
   const navigate = useNavigate();
   const [modalCompany, setModalCompany] = useState(undefined); // undefined = fechado, null = criar, objeto = editar
   const [busy, setBusy] = useState(null); // null | { label, done, total, startedAt }
+  const [pessoasByEmail, setPessoasByEmail] = useState({}); // email -> nome, pra listar responsáveis pelo nome
   const backupInput = useRef(null);
+
+  // Só pra traduzir e-mail → nome na lista de responsáveis abaixo — os
+  // dados de verdade (quem pode editar o quê) continuam vivendo só no
+  // array de e-mails salvo em cada empresa (ver CompanyModal.jsx).
+  useEffect(() => {
+    Promise.all([listAdmins(), listColaboradores()])
+      .then(([admins, colaboradores]) => {
+        const map = {};
+        [...admins, ...colaboradores].forEach((pessoa) => { map[pessoa.email] = pessoa.nome || pessoa.email; });
+        setPessoasByEmail(map);
+      })
+      .catch((err) => console.error("Falha ao carregar colaboradores pra lista de responsáveis:", err));
+  }, []);
 
   function handleSubmit(fields) {
     if (modalCompany) updateCompany(modalCompany.id, fields);
@@ -110,11 +125,6 @@ export default function CompaniesAdmin() {
     }
   }
 
-  function representanteNames(company) {
-    const ids = company.representanteIds || [];
-    return state.representantes.filter((representante) => ids.includes(representante.id)).map((representante) => representante.nome);
-  }
-
   // Admin edita qualquer empresa; colaborador Restrito só a(s) onde está
   // listado em `responsaveis` (ver CompanyModal.jsx e supabase/schema.sql
   // is_responsavel) — nas demais, é só leitura, igual um cliente.
@@ -154,7 +164,7 @@ export default function CompaniesAdmin() {
             )}
           </div>
 
-          <div className="mt-3 flex flex-col gap-2">
+          <div className="mt-3 flex flex-col gap-1.5">
             {state.companies.length === 0 && (
               <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-card px-6 py-12 text-center shadow-sm">
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
@@ -165,29 +175,31 @@ export default function CompaniesAdmin() {
               </div>
             )}
             {state.companies.map((company) => {
-              const names = representanteNames(company);
+              const responsavelNames = (company.responsaveis || []).map((email) => pessoasByEmail[email] || email);
               return (
-                <div key={company.id} className="flex items-center justify-between gap-3 rounded-xl bg-surface-card p-3.5 shadow-sm transition-shadow hover:shadow-md">
-                  <div className="flex items-center gap-3">
-                    <Avatar name={company.name} size={36} />
-                    <div>
-                      <p className="text-[13px] font-medium text-ink-900">
+                <div key={company.id} className="flex items-center justify-between gap-3 rounded-lg bg-surface-card px-3 py-2 shadow-sm transition-shadow hover:shadow-md">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <Avatar name={company.name} size={28} />
+                    <div className="min-w-0">
+                      <p className="truncate text-[12.5px] font-medium text-ink-900">
                         {company.codigo && <span className="mr-1.5 text-ink-400">{company.codigo}</span>}
                         {company.name}
                       </p>
-                      <p className="text-[12px] text-ink-400">{company.cnpj || "CNPJ não informado"}</p>
-                      {names.length > 0 && <p className="mt-0.5 text-[11px] text-ink-400">Representantes: {names.join(", ")}</p>}
+                      <p className="truncate text-[11px] text-ink-400">
+                        {company.cnpj || "CNPJ não informado"}
+                        {responsavelNames.length > 0 && ` · Responsáveis: ${responsavelNames.join(", ")}`}
+                      </p>
                     </div>
                   </div>
                   {canEditCompany(company) && (
-                    <div className="flex shrink-0 gap-2">
+                    <div className="flex shrink-0 gap-1.5">
                       <button
                         type="button"
                         onClick={() => setModalCompany(company)}
                         aria-label={`Editar ${company.name}`}
-                        className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-ink-600 hover:bg-surface-muted"
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-line-strong text-ink-600 hover:bg-surface-muted"
                       >
-                        <Pencil size={14} />
+                        <Pencil size={13} />
                       </button>
                       {state.isAdmin && (
                         <button
@@ -196,9 +208,9 @@ export default function CompaniesAdmin() {
                             if (confirm(`Remover ${company.name} da carteira?`)) deleteCompany(company.id);
                           }}
                           aria-label={`Remover ${company.name}`}
-                          className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-danger-600 hover:bg-danger-50"
+                          className="flex h-7 w-7 items-center justify-center rounded-md border border-line-strong text-danger-600 hover:bg-danger-50"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                         </button>
                       )}
                     </div>

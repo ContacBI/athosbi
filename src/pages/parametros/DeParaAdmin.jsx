@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Building2, Repeat } from "lucide-react";
+import { ArrowLeft, Building2, CircleCheck, Repeat } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { selectCompany } from "../../lib/companies.js";
 import { companiesResponsavel } from "../../lib/colaboradores.js";
@@ -7,6 +7,17 @@ import PageHeader from "../../components/PageHeader.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import { RESET_SECTION_EVENT } from "../../components/ParametrosSidebar.jsx";
 import Depara from "../Depara.jsx";
+
+// `accounts` e `mappings` (diferente de `journal`) já vêm inteiros no
+// registro leve de cada empresa (ver loadCompanies em lib/companies.js) —
+// então dá pra contar pendências de TODAS as empresas aqui na lista, sem
+// precisar entrar em cada uma pra saber. Mesma regra do Depara.jsx: só
+// conta analítica (sintética não recebe vínculo).
+function pendingCount(company) {
+  const analytic = (company.accounts || []).filter((account) => account.tipo_sintetica === "nao");
+  const linked = new Set((company.mappings || []).map((mapping) => mapping.classificacao));
+  return analytic.filter((account) => !linked.has(account.classificacao)).length;
+}
 
 // Reuses the exact same editor as /empresa/de-para — it only ever reads and
 // writes through the global store (no route params, no navigation of its
@@ -77,11 +88,22 @@ export default function DeParaAdmin() {
         icon={Repeat}
       />
 
-      <p className="mb-3 text-[13px] font-medium text-ink-900">
-        {companyOptions.length} empresa{companyOptions.length === 1 ? "" : "s"}
-      </p>
+      {companyOptions.length > 0 && (() => {
+        const totalPending = companyOptions.reduce((sum, company) => sum + pendingCount(company), 0);
+        return (
+          <p className="mb-3 text-[13px] font-medium text-ink-900">
+            {companyOptions.length} empresa{companyOptions.length === 1 ? "" : "s"}
+            {" · "}
+            {totalPending ? (
+              <span className="font-medium text-warning-600">{totalPending} conta{totalPending === 1 ? "" : "s"} sem de/para na carteira</span>
+            ) : (
+              <span className="font-medium text-success-600">tudo vinculado na carteira</span>
+            )}
+          </p>
+        );
+      })()}
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         {companyOptions.length === 0 && (
           <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-card px-6 py-12 text-center shadow-sm">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
@@ -95,20 +117,33 @@ export default function DeParaAdmin() {
             </p>
           </div>
         )}
-        {companyOptions.map((company) => (
-          <button
-            key={company.id}
-            type="button"
-            onClick={() => handleSelect(company.id)}
-            className="flex items-center gap-3 rounded-xl bg-surface-card p-3.5 text-left shadow-sm transition-shadow hover:shadow-md"
-          >
-            <Avatar name={company.name} size={36} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-medium text-ink-900">{company.name}</p>
-              {company.codigo && <p className="text-[12px] text-ink-400">Código {company.codigo}</p>}
-            </div>
-          </button>
-        ))}
+        {companyOptions.map((company) => {
+          const pending = pendingCount(company);
+          return (
+            <button
+              key={company.id}
+              type="button"
+              onClick={() => handleSelect(company.id)}
+              className="flex items-center gap-2.5 rounded-lg bg-surface-card px-3 py-2 text-left shadow-sm transition-shadow hover:shadow-md"
+            >
+              <Avatar name={company.name} size={28} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[12.5px] font-medium text-ink-900">{company.name}</p>
+                {company.codigo && <p className="truncate text-[11px] text-ink-400">Código {company.codigo}</p>}
+              </div>
+              {pending ? (
+                <span className="shrink-0 rounded-full bg-warning-50 px-2 py-0.5 text-[11px] font-medium text-warning-700">
+                  {pending} pendente{pending === 1 ? "" : "s"}
+                </span>
+              ) : (
+                <span className="flex shrink-0 items-center gap-1 rounded-full bg-success-50 px-2 py-0.5 text-[11px] font-medium text-success-600">
+                  <CircleCheck size={11} strokeWidth={2} />
+                  vinculado
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
