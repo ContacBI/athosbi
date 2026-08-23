@@ -15,6 +15,11 @@ export const INDICATORS_KEY = "portalGerencial.indicatorOverrides.v1";
 export const PLANO_OVERRIDES_KEY = "portalGerencial.planoOverrides.v1";
 export const PLANO_SNAPSHOT_KEY = "portalGerencial.planoSnapshot.v1";
 export const PLANO_BACKUP_KEY = "portalGerencial.planoBackup.v1";
+// Planos padrão (ago/2026) — cada empresa usa o Plano gerencial global MAIS
+// as contas extras do plano padrão que ela segue (ver lib/planosPadrao.js).
+// Uma linha só, array pequeno (poucos planos, não uma por empresa), sem
+// precisar de chunking como o razão.
+export const PLANOS_PADRAO_KEY = "portalGerencial.planosPadrao.v1";
 
 // A company's "journal" (monthly ledger entries) is the one piece of data
 // that can run into the tens of thousands of rows — everything else in a

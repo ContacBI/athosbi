@@ -67,7 +67,7 @@ function styleForRow(row) {
 // what each column expects, since there's no cell-level dropdown
 // validation available either way.
 export async function exportPlanoExcel() {
-  const rows = sortForExport(state.plano);
+  const rows = sortForExport(state.planoGlobal);
 
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Plano gerencial", {

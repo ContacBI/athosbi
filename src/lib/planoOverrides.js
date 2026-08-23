@@ -9,13 +9,13 @@ import { savePlanoSnapshot, fetchBasePlano } from "./planoStore.js";
 // instead — see lib/planoExcel.js.
 
 export function isCustomPlanoCode(code) {
-  const row = state.plano.find((item) => item.codigo_gerencial === code);
+  const row = state.planoGlobal.find((item) => item.codigo_gerencial === code);
   return Boolean(row?.custom);
 }
 
 function directChildCodes(parentCode) {
   const prefix = `${parentCode}.`;
-  return state.plano
+  return state.planoGlobal
     .map((row) => row.codigo_gerencial)
     .filter((code) => code.startsWith(prefix) && !code.slice(prefix.length).includes("."));
 }
@@ -41,7 +41,7 @@ function nextChildCode(parentCode) {
 }
 
 export function previewNewAccount(parentCode, natureza) {
-  const parent = state.plano.find((row) => row.codigo_gerencial === parentCode);
+  const parent = state.planoGlobal.find((row) => row.codigo_gerencial === parentCode);
   if (!parent) return null;
   return {
     codigo_gerencial: nextChildCode(parentCode),
@@ -73,14 +73,14 @@ export function addPlanoAccount({ parentCode, nome, natureza }) {
     custom: true,
     createdAt: new Date().toISOString(),
   };
-  savePlanoSnapshot([...state.plano, row]);
+  savePlanoSnapshot([...state.planoGlobal, row]);
   return row;
 }
 
 // Only ever called with a code that isCustomPlanoCode() already confirmed —
 // removing one of the standard rows isn't offered anywhere in the UI.
 export function removePlanoAccount(code) {
-  savePlanoSnapshot(state.plano.filter((row) => row.codigo_gerencial !== code));
+  savePlanoSnapshot(state.planoGlobal.filter((row) => row.codigo_gerencial !== code));
 }
 
 export function hasChildren(code) {

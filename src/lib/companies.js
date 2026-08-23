@@ -18,6 +18,7 @@ import {
 import { DEFAULT_NATURE_RULES } from "./accountNature.js";
 import { supabase, MONTHLY_REPORTS_BUCKET } from "./supabaseClient.js";
 import { isPortalAdmin } from "./access.js";
+import { refreshEffectivePlano } from "./planosPadrao.js";
 
 // Remembers, per company id, the exact array/object reference last sent to
 // Supabase for that company's journal and for the rest of its record — so a
@@ -80,7 +81,20 @@ function writeStoredCompanies(companies) {
     if (recordChanged || journalChanged) {
       lastWrittenRecords.set(company.id, company);
       const { journal, journalLoadFailed, journalLoaded, ...record } = company; // nenhum dos 3 é persistido — journal tem write própria, os outros dois são só sinal local desta aba
-      pending.push(writePersistent(companyKey(company.id), { ...record, journalCount: (company.journal || []).length }));
+      // Só recalcula journalCount a partir de company.journal quando ele é
+      // o razão DE VERDADE (journalSafeToWrite) — senão, uma empresa com o
+      // razão ainda não carregado (placeholder []) mas com o REGISTRO
+      // mudando por outro motivo (ex.: um De/Para propagado por
+      // applySiblingMapping, ou invalidateMappingsForPlanoCodes tocando
+      // várias empresas de uma vez) gravaria journalCount: 0 por cima do
+      // valor real, mesmo sem tocar no razão em si — ficaria "0
+      // lançamentos" na lista até alguém descobrir e corrigir na mão.
+      pending.push(
+        writePersistent(companyKey(company.id), {
+          ...record,
+          journalCount: journalSafeToWrite ? (company.journal || []).length : company.journalCount,
+        })
+      );
     }
     return Promise.all(pending);
   });
@@ -158,6 +172,58 @@ export function invalidateMappingsForPlanoCodes(codes) {
   });
   writeStoredCompanies(companies);
   return removed;
+}
+
+function normalizeName(value) {
+  return String(value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+// Empresas que compartilham o mesmo Plano padrão (ver lib/planosPadrao.js)
+// tendem a ter a mesma classificação contábil pras mesmas contas reais —
+// times de contabilidade que atendem grupos parecidos costumam usar o
+// mesmo plano de contas no sistema deles. Vincular uma conta na primeira
+// empresa do plano já aplica o mesmo destino nas outras, casando por
+// classificação+nome — a mesma regra segura do "Replicar de outra empresa"
+// do De/Para (Depara.jsx replicateFrom): NUNCA sobrescreve um vínculo que
+// a empresa já tinha, só preenche o que estava pendente. Quem abrir a
+// empresa depois pode entrar no De/Para dela e mudar/desfazer normalmente
+// — isso aqui é só o ponto de partida, não uma trava.
+export function applySiblingMappings(sourceCompanyId, newMappings) {
+  const source = state.companies.find((company) => company.id === sourceCompanyId);
+  if (!source?.planoPadraoId || !newMappings?.length) return 0;
+  const bySignature = new Map(newMappings.map((row) => [`${row.classificacao}||${normalizeName(row.nome_conta)}`, row]));
+  let totalApplied = 0;
+  const companies = state.companies.map((company) => {
+    if (company.id === sourceCompanyId || company.planoPadraoId !== source.planoPadraoId) return company;
+    const already = new Set((company.mappings || []).map((row) => row.classificacao));
+    const additions = (company.accounts || [])
+      .filter((account) => !already.has(account.classificacao))
+      .map((account) => {
+        const match = bySignature.get(`${account.classificacao}||${normalizeName(account.nome_conta)}`);
+        if (!match) return null;
+        return {
+          codigo_conta: account.codigo,
+          classificacao: account.classificacao,
+          nome_conta: account.nome_conta,
+          tipo_conta: "",
+          codigo_gerencial: match.codigo_gerencial,
+          categoria_gerencial: match.categoria_gerencial,
+          demonstrativo: match.demonstrativo,
+          grupo_macro: match.grupo_macro,
+          observacao: "",
+        };
+      })
+      .filter(Boolean);
+    if (!additions.length) return company;
+    totalApplied += additions.length;
+    const mappings = [...(company.mappings || []), ...additions];
+    return { ...company, mappings, journal: remapJournal(company.journal || [], mappings), updatedAt: new Date().toISOString() };
+  });
+  if (!totalApplied) return 0;
+  const active = companies.find((company) => company.id === state.activeCompanyId && company.id !== sourceCompanyId);
+  setData({ companies, ...(active ? { mappings: active.mappings, journal: active.journal } : {}) });
+  writeStoredCompanies(companies);
+  return totalApplied;
 }
 
 // Returns { groupId } when a group was the last active workspace — App.jsx
@@ -352,6 +418,7 @@ export function createCompany({
   uf = "",
   representanteIds = [],
   natureRules = DEFAULT_NATURE_RULES,
+  planoPadraoId = null,
 }) {
   const companyName = String(name || "").trim();
   if (!companyName) return null;
@@ -366,6 +433,11 @@ export function createCompany({
     uf,
     representanteIds,
     natureRules,
+    // Plano gerencial global + as contas extras deste plano (ver
+    // lib/planosPadrao.js). null = empresa antiga ainda não migrada —
+    // usa só o global, igual sempre foi, até alguém escolher um plano
+    // pra ela em Parâmetros > Empresas.
+    planoPadraoId,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     mappings: [],
@@ -394,22 +466,42 @@ export function createCompany({
     periodEnd: "",
     natureRules,
   });
+  refreshEffectivePlano();
   return company;
 }
 
 export function updateCompany(
   id,
-  { name, cnpj = "", codigo = "", atividade = "", municipio = "", uf = "", representanteIds = [], natureRules = DEFAULT_NATURE_RULES }
+  { name, cnpj = "", codigo = "", atividade = "", municipio = "", uf = "", representanteIds = [], natureRules = DEFAULT_NATURE_RULES, planoPadraoId }
 ) {
   const companyName = String(name || "").trim();
   if (!companyName) return null;
   const companies = state.companies.map((company) =>
     company.id === id
-      ? { ...company, name: companyName, cnpj, codigo, atividade, municipio, uf, representanteIds, natureRules, updatedAt: new Date().toISOString() }
+      ? {
+          ...company,
+          name: companyName,
+          cnpj,
+          codigo,
+          atividade,
+          municipio,
+          uf,
+          representanteIds,
+          natureRules,
+          // undefined (campo nem passado) preserva o valor atual — só troca
+          // quando o formulário realmente enviar um planoPadraoId, inclusive
+          // null explícito pra "voltar a usar só o global".
+          ...(planoPadraoId !== undefined ? { planoPadraoId } : {}),
+          updatedAt: new Date().toISOString(),
+        }
       : company
   );
   writeStoredCompanies(companies);
   setData({ companies, ...(id === state.activeCompanyId ? { natureRules } : {}) });
+  // Editou o plano padrão da empresa que já está aberta agora — os
+  // relatórios na tela precisam refletir isso na hora, sem esperar um
+  // reselect (ver refreshEffectivePlano em lib/planosPadrao.js).
+  if (id === state.activeCompanyId && planoPadraoId !== undefined) refreshEffectivePlano();
   return companies.find((company) => company.id === id) || null;
 }
 
@@ -466,6 +558,10 @@ export async function selectCompany(id, { skipPersist = false } = {}) {
     selectedAccount: null,
     expandedLines: new Set(),
   });
+  // state.plano vira o efetivo desta empresa (global + as contas extras do
+  // plano padrão dela, se tiver um — ver lib/planosPadrao.js). Depois do
+  // setData acima, não antes: refreshEffectivePlano lê state.activeCompanyId.
+  refreshEffectivePlano();
   if (company.journalLoaded) return;
   const loaded = await ensureCompanyJournalLoaded(company);
   // O usuário pode ter trocado de empresa de novo enquanto essa busca

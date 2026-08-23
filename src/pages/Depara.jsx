@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
-import { Check, Copy, Download, Link2, Search, Upload, X } from "lucide-react";
+import { Check, Download, Link2, Search, Upload, X } from "lucide-react";
 import { useAppState, setData } from "../data/useStore.js";
-import { persistActiveCompany, remapJournal } from "../lib/companies.js";
+import { persistActiveCompany, remapJournal, applySiblingMappings } from "../lib/companies.js";
 import { parseCsv } from "../importers/csv.js";
 import { NATURE_LABELS, accountNature, planoNature } from "../lib/accountNature.js";
 
@@ -37,7 +37,6 @@ export default function Depara() {
   const [selected, setSelected] = useState([]);
   const [target, setTarget] = useState(null);
   const [notice, setNotice] = useState("");
-  const [replicateOpen, setReplicateOpen] = useState(false);
   const inputRef = useRef(null);
   const mappings = useMemo(() => new Map(state.mappings.map((row) => [row.classificacao, row])), [state.mappings]);
   const accounts = useMemo(() => state.accounts.filter((a) => a.tipo_sintetica === "nao").map((account) => ({ account, mapping: mappings.get(account.classificacao) || null })).sort((a, b) => compareClassification(a.account.classificacao, b.account.classificacao)), [state.accounts, mappings]);
@@ -48,10 +47,6 @@ export default function Depara() {
     return values.length === 1 ? values[0] : null;
   }, [selectedRows, state.natureRules]);
   const pending = accounts.filter((row) => !row.mapping).length;
-  const replicateSources = useMemo(
-    () => state.companies.filter((company) => company.id !== state.activeCompanyId && (company.mappings || []).length > 0),
-    [state.companies, state.activeCompanyId],
-  );
   const mapGroups = useMemo(() => {
     const groups = new Map();
     state.mappings.forEach((mapping) => {
@@ -91,45 +86,17 @@ export default function Depara() {
     if (!selectedRows.length || !target) return;
     const set = new Set(selected);
     const next = state.mappings.filter((item) => !set.has(item.classificacao));
-    selectedRows.forEach(({ account }) => next.push({ codigo_conta: account.codigo, classificacao: account.classificacao, nome_conta: account.nome_conta, tipo_conta: "", codigo_gerencial: target.codigo_gerencial, categoria_gerencial: target.nome, demonstrativo: target.demonstrativo, grupo_macro: target.grupo_macro, observacao: "" }));
+    const added = selectedRows.map(({ account }) => ({ codigo_conta: account.codigo, classificacao: account.classificacao, nome_conta: account.nome_conta, tipo_conta: "", codigo_gerencial: target.codigo_gerencial, categoria_gerencial: target.nome, demonstrativo: target.demonstrativo, grupo_macro: target.grupo_macro, observacao: "" }));
+    added.forEach((row) => next.push(row));
     save(next, `${selectedRows.length} ${selectedRows.length === 1 ? "conta vinculada" : "contas vinculadas"} a “${target.nome}”.`);
-    setTarget(null);
-  }
-  // Só preenche contas AINDA SEM vínculo desta empresa — nunca sobrescreve
-  // um vínculo já feito (evita atropelar trabalho manual em andamento,
-  // inclusive de outra pessoa mexendo na mesma tela ao mesmo tempo). Casa
-  // pela classificação E pelo nome da conta juntos, pra maior segurança:
-  // só replica quando a empresa-fonte tem uma conta com o MESMO código E
-  // o MESMO nome, já vinculada.
-  function replicateFrom(sourceCompanyId) {
-    const source = state.companies.find((company) => company.id === sourceCompanyId);
-    if (!source) return;
-    const sourceMap = new Map((source.mappings || []).map((row) => [`${row.classificacao}||${norm(row.nome_conta)}`, row]));
-    const next = [...state.mappings];
-    let matched = 0;
-    accounts.forEach(({ account, mapping }) => {
-      if (mapping) return;
-      const sourceMapping = sourceMap.get(`${account.classificacao}||${norm(account.nome_conta)}`);
-      if (!sourceMapping) return;
-      next.push({
-        codigo_conta: account.codigo,
-        classificacao: account.classificacao,
-        nome_conta: account.nome_conta,
-        tipo_conta: "",
-        codigo_gerencial: sourceMapping.codigo_gerencial,
-        categoria_gerencial: sourceMapping.categoria_gerencial,
-        demonstrativo: sourceMapping.demonstrativo,
-        grupo_macro: sourceMapping.grupo_macro,
-        observacao: "",
-      });
-      matched += 1;
-    });
-    setReplicateOpen(false);
-    if (!matched) {
-      flash(`Nenhuma conta pendente bateu (código + nome) com o de-para de "${source.name}".`);
-      return;
+    // Mesmo plano padrão que esta empresa → mesmo destino já aplicado nas
+    // outras (ver applySiblingMappings em lib/companies.js) — só nas contas
+    // delas que baterem código+nome E ainda estiverem pendentes.
+    const propagated = applySiblingMappings(state.activeCompanyId, added);
+    if (propagated > 0) {
+      flash(`${selectedRows.length} ${selectedRows.length === 1 ? "conta vinculada" : "contas vinculadas"} a “${target.nome}” — e ${propagated} ${propagated === 1 ? "conta" : "contas"} do mesmo plano padrão em outras empresas já aplicadas junto.`);
     }
-    save(next, `${matched} ${matched === 1 ? "conta vinculada" : "contas vinculadas"} a partir do de-para de "${source.name}".`);
+    setTarget(null);
   }
   function unlink() {
     if (!selectedRows.length) return;
@@ -152,19 +119,6 @@ export default function Depara() {
 
   return <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-4">
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-card p-4 shadow-sm"><div><span className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Dados</span><h1 className="mt-1 text-[20px] font-semibold text-ink-900">De/Para</h1><p className="mt-0.5 text-[13px] text-ink-400">{accounts.length} contas contábeis · {pending ? <span className="font-medium text-warning-600">{pending} sem vínculo</span> : <span className="font-medium text-success-600">todas vinculadas</span>}</p></div><div className="flex gap-2">
-      {pending > 0 && replicateSources.length > 0 && (
-        <div className="relative">
-          <button type="button" onClick={() => setReplicateOpen((open) => !open)} className="flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-[12px] text-ink-600 hover:bg-surface-muted"><Copy size={14} />Replicar de outra empresa</button>
-          {replicateOpen && (
-            <div className="absolute right-0 top-full z-30 mt-1.5 w-64 rounded-lg border border-line bg-surface-card p-1.5 shadow-lg">
-              <p className="px-2 py-1.5 text-[11px] text-ink-400">Preenche só as {pending} contas ainda sem vínculo, casando por código + nome com a empresa escolhida.</p>
-              {replicateSources.map((company) => (
-                <button key={company.id} type="button" onClick={() => replicateFrom(company.id)} className="block w-full truncate rounded-md px-2 py-1.5 text-left text-[12.5px] text-ink-700 hover:bg-surface-muted">{company.name}</button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
       <button type="button" onClick={exportCsv} className="flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-[12px] text-ink-600 hover:bg-surface-muted"><Download size={14} />Exportar CSV</button><button type="button" onClick={() => inputRef.current?.click()} className="flex items-center gap-1.5 rounded-md bg-accent-500 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-accent-600"><Upload size={14} />Importar CSV</button></div></div>
     {notice && <p className="rounded-lg bg-accent-50 px-3 py-2 text-[12px] text-accent-700">{notice}</p>}
     <div className="flex flex-wrap items-center gap-2 rounded-xl bg-surface-card p-3 shadow-sm"><div className="inline-flex gap-0.5 rounded-full bg-surface-muted p-1">{[{ id: "todos", label: "Todos" }, { id: "BP", label: "Balanço" }, { id: "DRE", label: "DRE" }].map((item) => <button key={item.id} type="button" onClick={() => setReport(item.id)} className={`rounded-full px-3 py-1.5 text-[12.5px] font-medium ${report === item.id ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"}`}>{item.label}</button>)}</div><label className="flex items-center gap-1.5 text-[12.5px] text-ink-600"><input type="checkbox" checked={onlyPending} onChange={(event) => setOnlyPending(event.target.checked)} />Só pendentes</label>{selectedRows.length > 0 && <div className="ml-auto flex items-center gap-2 text-[12px]"><span className="rounded-full bg-accent-50 px-2.5 py-1 text-accent-700">{selectedRows.length} selecionada{selectedRows.length > 1 ? "s" : ""}{selectedNature && ` · ${NATURE_LABELS[selectedNature]}`}</span><button type="button" onClick={unlink} className="flex items-center gap-1 text-danger-600"><X size={14} />Remover vínculos</button></div>}</div>

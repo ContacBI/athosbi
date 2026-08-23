@@ -14,6 +14,7 @@ import { selectGroup } from "./lib/groups.js";
 import { loadRepresentantes } from "./lib/representantes.js";
 import { loadIndicatorOverrides } from "./lib/indicators.js";
 import { isPortalAdmin } from "./lib/access.js";
+import { loadPlanosPadrao, refreshEffectivePlano } from "./lib/planosPadrao.js";
 import { setData } from "./data/useStore.js";
 
 // Carregadas sob demanda (React.lazy) em vez de no pacote inicial — são as
@@ -37,6 +38,7 @@ const BiAdmin = lazy(() => import("./pages/parametros/BiAdmin.jsx"));
 const AcessosAdmin = lazy(() => import("./pages/parametros/AcessosAdmin.jsx"));
 const Sistema = lazy(() => import("./pages/parametros/Sistema.jsx"));
 const PlanoGerencial = lazy(() => import("./pages/parametros/PlanoGerencial.jsx"));
+const PlanoPadraoAdmin = lazy(() => import("./pages/parametros/PlanoPadraoAdmin.jsx"));
 
 function RouteFallback() {
   return (
@@ -85,10 +87,18 @@ export default function App() {
     if (!session) return;
     if (bootedForUserRef.current === session.user.id) return; // já carregado pra esse usuário — token só renovou
     bootedForUserRef.current = session.user.id;
-    Promise.all([loadPlan(), loadCompanies(), loadRepresentantes(), loadIndicatorOverrides(), isPortalAdmin()])
+    Promise.all([loadPlan(), loadCompanies(), loadRepresentantes(), loadIndicatorOverrides(), isPortalAdmin(), loadPlanosPadrao()])
       .then(([, companiesResult, , , adminFlag]) => {
         setData({ isAdmin: adminFlag });
         if (companiesResult?.groupId) selectGroup(companiesResult.groupId, { skipPersist: true });
+        // loadCompanies() já chama selectCompany() internamente, que por
+        // sua vez chama refreshEffectivePlano() — mas isso roda em
+        // paralelo com loadPlanosPadrao() aqui em cima (mesmo Promise.all),
+        // sem garantia de ordem. Se planosPadrao ainda não tinha chegado
+        // naquele momento, as contas extras ficariam de fora até a próxima
+        // troca de empresa. Chamar de novo aqui, já com tudo resolvido,
+        // garante que a primeira tela já sai certa.
+        refreshEffectivePlano();
       })
       .catch((error) => {
         console.error("Falha ao iniciar o portal:", error);
@@ -143,6 +153,7 @@ export default function App() {
           <Route path="acessos" element={<AcessosAdmin />} />
           <Route path="sistema" element={<Sistema />} />
           <Route path="sistema/plano-gerencial" element={<PlanoGerencial />} />
+          <Route path="sistema/planos-padrao" element={<PlanoPadraoAdmin />} />
         </Route>
         <Route path="empresa" element={<CompanyLayout />}>
           <Route index element={<CompanyHome />} />

@@ -4,6 +4,7 @@ import { persistActiveCompany, fetchMonthlyReportBlob, restoreCompaniesAndGroups
 import { savePlanoSnapshot, loadPlano } from "./planoStore.js";
 import { restoreIndicatorOverrides, loadIndicatorOverrides } from "./indicators.js";
 import { restoreRepresentantes, loadRepresentantes } from "./representantes.js";
+import { restorePlanosPadrao, loadPlanosPadrao } from "./planosPadrao.js";
 import { supabase, MONTHLY_REPORTS_BUCKET } from "./supabaseClient.js";
 
 // The plain JSON backup (lib/companies.js exportBackupPayload) only ever
@@ -59,18 +60,23 @@ export async function exportFullBackup(onProgress) {
     loadPlano(),
     loadIndicatorOverrides(),
     loadRepresentantes(),
+    loadPlanosPadrao(),
   ]);
 
   const zip = new JSZip();
 
   const manifest = {
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     activeCompanyId: state.activeCompanyId,
     activeGroupId: state.activeGroupId,
     companies,
     groups,
-    plano: state.plano,
+    // Sempre o global puro — nunca state.plano, que é o efetivo (global +
+    // extras) de quem estiver ativo no momento do backup, não uma "gaveta"
+    // de verdade (ver data/store.js).
+    plano: state.planoGlobal,
+    planosPadrao: state.planosPadrao,
     indicatorOverrides: state.indicatorOverrides,
     representantes: state.representantes,
   };
@@ -157,6 +163,9 @@ export async function importFullBackup(file, onProgress) {
   if (Array.isArray(manifest.plano) && manifest.plano.length) savePlanoSnapshot(manifest.plano);
   restoreIndicatorOverrides(manifest.indicatorOverrides);
   restoreRepresentantes(manifest.representantes);
+  // Só existe a partir da v3 do backup — versões antigas simplesmente não
+  // tinham plano padrão nenhum ainda, restaura lista vazia nesse caso.
+  restorePlanosPadrao(manifest.planosPadrao);
 
   return {
     companies: companies.length,

@@ -24,6 +24,22 @@ export default function GroupModal({ onClose, onSubmit, group = null }) {
       setError("Escolha pelo menos 2 empresas — com 1 só não tem o que consolidar.");
       return;
     }
+    // Empresas de planos padrão diferentes podem ter o MESMO código
+    // gerencial significando coisas diferentes (ou o De/Para de uma
+    // acabar propagando pra outra sem fazer sentido, ver
+    // applySiblingMappings em lib/companies.js) — exigir o mesmo plano
+    // evita esse tipo de conflito silencioso no consolidado.
+    const selectedCompanies = companyIds.map((id) => state.companies.find((company) => company.id === id)).filter(Boolean);
+    const semPlano = selectedCompanies.find((company) => !company.planoPadraoId);
+    if (semPlano) {
+      setError(`"${semPlano.name}" ainda não tem um Plano padrão definido — edite o cadastro dela em Empresas primeiro.`);
+      return;
+    }
+    const planos = new Set(selectedCompanies.map((company) => company.planoPadraoId));
+    if (planos.size > 1) {
+      setError("Todas as empresas do grupo precisam usar o mesmo Plano padrão.");
+      return;
+    }
     onSubmit({ name, companyIds });
   }
 

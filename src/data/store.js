@@ -1,7 +1,17 @@
 import { readStoredDensity } from "../lib/density.js";
 
 export const state = {
+  // O plano "efetivo" de quem está ativo agora (uma empresa ou grupo) —
+  // igual journal/mappings/accounts, troca a cada selectCompany/selectGroup
+  // (ver refreshEffectivePlano em lib/planosPadrao.js). É nele que
+  // calculations.js, Depara.jsx etc. mexem — nunca editem direto: quem
+  // edita de verdade é o plano gerencial global, abaixo.
   plano: [],
+  // O Plano gerencial de verdade (compartilhado por todo mundo) — só ele é
+  // lido/escrito por planoStore.js, planoOverrides.js, planoExcel.js e pela
+  // tela Parâmetros > Sistema > Plano gerencial. `plano` acima é sempre
+  // derivado dele (+ as contas extras do plano padrão de quem está ativo).
+  planoGlobal: [],
   // Whether a pre-import snapshot exists to revert a bulk Excel upload —
   // see lib/planoStore.js.
   planoBackupAvailable: false,
@@ -10,6 +20,11 @@ export const state = {
   dfcLinks: [],
   companies: [],
   groups: [],
+  // Planos padrão (ver lib/planosPadrao.js) — cada empresa segue um deles
+  // opcionalmente (company.planoPadraoId); o que uma empresa "enxerga" de
+  // plano de contas é sempre o Plano gerencial global + as contas extras
+  // do plano padrão dela.
+  planosPadrao: [],
   representantes: [],
   // User-edited/created "Indicadores" catalog entries — see lib/indicators.js.
   // Each record either overrides a built-in indicator's id (its formula

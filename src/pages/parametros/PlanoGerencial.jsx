@@ -1,12 +1,52 @@
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, ArrowLeft, ChevronRight, Download, ListTree, Pencil, Plus, RotateCcw, Search, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ChevronRight, Download, Layers, ListTree, Pencil, Plus, RotateCcw, Search, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { addPlanoAccount, hasChildren, previewNewAccount, removePlanoAccount } from "../../lib/planoOverrides.js";
 import { exportPlanoExcel, parsePlanoExcelFile } from "../../lib/planoExcel.js";
 import { savePlanoSnapshot, restorePreviousPlano } from "../../lib/planoStore.js";
 import { invalidateMappingsForPlanoCodes } from "../../lib/companies.js";
+import { extraAccountsSummary } from "../../lib/planosPadrao.js";
 import PageHeader from "../../components/PageHeader.jsx";
+
+// Resumo de tudo que foi criado nos Planos padrão (ver
+// lib/planosPadrao.js) — pensado pro admin bater o olho de vez em quando e
+// decidir se alguma conta "pegou" o suficiente pra merecer virar conta do
+// Plano gerencial global de verdade (nesse caso, é só recriar ela aqui e
+// apagar a extra de lá — não existe um botão de "promover" automático de
+// propósito, essa é uma decisão que vale olhar caso a caso).
+function NewAccountsSummary() {
+  const state = useAppState();
+  const summary = useMemo(() => extraAccountsSummary(), [state.planosPadrao, state.companies]);
+  if (!summary.length) return null;
+  return (
+    <div className="mb-4 rounded-2xl bg-surface-card p-4 shadow-sm">
+      <div className="flex items-center gap-2">
+        <Layers size={15} strokeWidth={1.8} className="text-accent-500" />
+        <p className="text-[13px] font-medium text-ink-900">Contas novas nos planos padrão</p>
+      </div>
+      <p className="mt-0.5 text-[11.5px] text-ink-400">
+        Criadas fora daqui, dentro de um plano padrão específico — não afetam o plano gerencial global até você decidir trazer alguma pra cá.
+      </p>
+      <div className="mt-3 flex flex-col gap-2.5">
+        {summary.map(({ plano, companies }) => (
+          <div key={plano.id} className="rounded-xl border border-line p-3">
+            <p className="text-[12.5px] font-medium text-ink-800">
+              {plano.nome} <span className="font-normal text-ink-400">· {companies.map((c) => c.name).join(", ") || "nenhuma empresa usando ainda"}</span>
+            </p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {plano.extraAccounts.map((row) => (
+                <span key={row.codigo_gerencial} className="rounded-full bg-accent-50 px-2.5 py-1 text-[11px] text-accent-700">
+                  {row.codigo_gerencial} · {row.nome}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function normalize(value) {
   return String(value || "")
@@ -336,12 +376,12 @@ export default function PlanoGerencial() {
   const [busy, setBusy] = useState("");
   const importInputRef = useRef(null);
 
-  const demonstrativos = useMemo(() => [...new Set(state.plano.map((row) => row.demonstrativo))].sort(), [state.plano]);
-  const rows = useMemo(() => state.plano.filter((row) => row.demonstrativo === tab), [state.plano, tab]);
+  const demonstrativos = useMemo(() => [...new Set(state.planoGlobal.map((row) => row.demonstrativo))].sort(), [state.planoGlobal]);
+  const rows = useMemo(() => state.planoGlobal.filter((row) => row.demonstrativo === tab), [state.planoGlobal, tab]);
   const tree = useMemo(() => buildTree(rows), [rows]);
   const visibleCodes = useMemo(() => matchingCodes(rows, search), [rows, search]);
   const levels = useMemo(() => [...new Set(rows.map((row) => Number(row.nivel) || 1))].sort((a, b) => a - b), [rows]);
-  const customCount = useMemo(() => state.plano.filter((row) => row.custom).length, [state.plano]);
+  const customCount = useMemo(() => state.planoGlobal.filter((row) => row.custom).length, [state.planoGlobal]);
 
   function toggle(code) {
     setActiveLevel(null);
@@ -376,11 +416,11 @@ export default function PlanoGerencial() {
   }
 
   function handleSaveEdit(nextValues) {
-    if (state.plano.some((row) => row.codigo_gerencial === nextValues.codigo_gerencial && row.codigo_gerencial !== editing.codigo_gerencial)) {
+    if (state.planoGlobal.some((row) => row.codigo_gerencial === nextValues.codigo_gerencial && row.codigo_gerencial !== editing.codigo_gerencial)) {
       alert("Já existe uma conta com este código gerencial.");
       return;
     }
-    const nextPlano = state.plano.map((row) => row.codigo_gerencial === editing.codigo_gerencial ? { ...row, ...nextValues } : row);
+    const nextPlano = state.planoGlobal.map((row) => row.codigo_gerencial === editing.codigo_gerencial ? { ...row, ...nextValues } : row);
     savePlanoSnapshot(nextPlano);
     const count = invalidateMappingsForPlanoCodes(editing.codigo_gerencial);
     setEditing(null);
@@ -409,7 +449,7 @@ export default function PlanoGerencial() {
 
   function handleConfirmImport() {
     const incomingByCode = new Map(importResult.rows.map((row) => [row.codigo_gerencial, row]));
-    const changedCodes = state.plano.filter((oldRow) => {
+    const changedCodes = state.planoGlobal.filter((oldRow) => {
       const incoming = incomingByCode.get(oldRow.codigo_gerencial);
       return !incoming || ["nome", "demonstrativo", "grupo_macro", "nivel", "natureza", "aceita_depara"].some((key) => String(oldRow[key] ?? "") !== String(incoming[key] ?? ""));
     }).map((row) => row.codigo_gerencial);
@@ -474,6 +514,8 @@ export default function PlanoGerencial() {
           <input ref={importInputRef} type="file" accept=".xlsx" className="hidden" onChange={handleImportFile} />
         </div>
       </div>
+
+      <NewAccountsSummary />
 
       <div className="rounded-2xl bg-surface-card p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">

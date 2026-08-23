@@ -1,6 +1,7 @@
 import { state, setData } from "../data/useStore.js";
 import { PLANO_SNAPSHOT_KEY, PLANO_BACKUP_KEY, readStoredArray, writePersistent } from "./persistence.js";
 import { parseCsv } from "../importers/csv.js";
+import { refreshEffectivePlano } from "./planosPadrao.js";
 
 // The plano gerencial used to be purely static (one CSV, fetched fresh on
 // every boot, never written back). Now that it's editable — one account at
@@ -28,10 +29,10 @@ export async function fetchBasePlano() {
 export async function loadPlano() {
   const saved = await readStoredArray(PLANO_SNAPSHOT_KEY);
   if (saved.length) {
-    setData({ plano: saved });
+    setData({ planoGlobal: saved, plano: saved });
   } else {
     const base = await fetchBasePlano();
-    setData({ plano: base });
+    setData({ planoGlobal: base, plano: base });
     writePersistent(PLANO_SNAPSHOT_KEY, base); // adopt the base CSV as the first saved snapshot
   }
   const backup = await readStoredArray(PLANO_BACKUP_KEY);
@@ -45,11 +46,16 @@ export async function loadPlano() {
 // and instantly reversible from the UI itself.
 export function savePlanoSnapshot(newPlano, { backupCurrent = false } = {}) {
   if (backupCurrent) {
-    writePersistent(PLANO_BACKUP_KEY, state.plano);
+    // O backup é do GLOBAL puro — nunca de state.plano, que a essa altura
+    // já pode ser o efetivo (global + extras) de qualquer empresa/grupo
+    // ativo no momento. Restaurar isso por cima do global corromperia o
+    // plano de todo mundo com contas que só faziam sentido pra uma empresa.
+    writePersistent(PLANO_BACKUP_KEY, state.planoGlobal);
     setData({ planoBackupAvailable: true });
   }
   writePersistent(PLANO_SNAPSHOT_KEY, newPlano);
-  setData({ plano: newPlano });
+  setData({ planoGlobal: newPlano });
+  refreshEffectivePlano();
 }
 
 // One-shot undo for the Excel import — consumes the backup so restoring
@@ -59,6 +65,7 @@ export async function restorePreviousPlano() {
   if (!backup.length) return false;
   writePersistent(PLANO_SNAPSHOT_KEY, backup);
   writePersistent(PLANO_BACKUP_KEY, []);
-  setData({ plano: backup, planoBackupAvailable: false });
+  setData({ planoGlobal: backup, planoBackupAvailable: false });
+  refreshEffectivePlano();
   return true;
 }

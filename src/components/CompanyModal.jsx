@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Plus } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { formatCnpj, cnpjDigits, lookupCnpj } from "../lib/cnpj.js";
 import { DEFAULT_NATURE_RULES, NATURE_LABELS, NATURE_ORDER, formatPrefixList, parsePrefixList } from "../lib/accountNature.js";
+import { createPlanoPadrao } from "../lib/planosPadrao.js";
 
 export default function CompanyModal({ onClose, onSubmit, company = null }) {
   const state = useAppState();
@@ -14,6 +15,9 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
   const [municipio, setMunicipio] = useState(company?.municipio || "");
   const [uf, setUf] = useState(company?.uf || "");
   const [representanteIds, setRepresentanteIds] = useState(company?.representanteIds || []);
+  const [planoPadraoId, setPlanoPadraoId] = useState(company?.planoPadraoId || "");
+  const [novoPlanoOpen, setNovoPlanoOpen] = useState(false);
+  const [novoPlanoNome, setNovoPlanoNome] = useState("");
   const [lookupState, setLookupState] = useState(company?.atividade ? "done" : "idle");
   const [error, setError] = useState("");
   const [natureText, setNatureText] = useState(() => {
@@ -47,14 +51,29 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
     setRepresentanteIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : current.concat(id)));
   }
 
+  function handleCreatePlano() {
+    const created = createPlanoPadrao(novoPlanoNome);
+    if (!created) return;
+    setPlanoPadraoId(created.id);
+    setNovoPlanoNome("");
+    setNovoPlanoOpen(false);
+  }
+
   function handleSubmit(event) {
     event.preventDefault();
     if (!name.trim()) {
       setError("Informe o nome da empresa.");
       return;
     }
+    // Só obrigatório pra empresa NOVA — as já existentes ainda não têm
+    // plano padrão nenhum (ver lib/companies.js createCompany/updateCompany)
+    // e isso não pode travar quem só quer editar outro campo delas.
+    if (!isEditing && !planoPadraoId) {
+      setError("Escolha um plano de contas pra essa empresa.");
+      return;
+    }
     const natureRules = Object.fromEntries(NATURE_ORDER.map((nature) => [nature, parsePrefixList(natureText[nature])]));
-    onSubmit({ codigo, cnpj, name, atividade, municipio, uf, representanteIds, natureRules });
+    onSubmit({ codigo, cnpj, name, atividade, municipio, uf, representanteIds, natureRules, planoPadraoId: planoPadraoId || null });
   }
 
   return (
@@ -142,6 +161,64 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
               ))}
             </div>
           )}
+        </div>
+
+        <div className="mt-4">
+          <p className="text-[13px] text-ink-600">
+            Plano de contas {!isEditing && "*"}
+          </p>
+          <p className="mt-0.5 text-[11.5px] text-ink-400">
+            Empresas no mesmo plano padrão compartilham as contas extras dele e o De/Para se propaga automaticamente
+            entre elas.
+          </p>
+          <div className="mt-1.5 flex max-h-40 flex-col gap-0.5 overflow-y-auto rounded-lg border border-line-strong p-2">
+            {state.planosPadrao.length === 0 && !novoPlanoOpen && (
+              <p className="px-1.5 py-1 text-[12px] text-ink-400">Nenhum plano padrão criado ainda.</p>
+            )}
+            {state.planosPadrao.map((plano) => (
+              <label key={plano.id} className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5 text-[13px] text-ink-900 hover:bg-surface-muted">
+                <input
+                  type="radio"
+                  name="planoPadraoId"
+                  checked={planoPadraoId === plano.id}
+                  onChange={() => setPlanoPadraoId(plano.id)}
+                />
+                {plano.nome}
+              </label>
+            ))}
+            {novoPlanoOpen ? (
+              <div className="mt-1 flex items-center gap-1.5 border-t border-line pt-1.5">
+                <input
+                  autoFocus
+                  value={novoPlanoNome}
+                  onChange={(event) => setNovoPlanoNome(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      handleCreatePlano();
+                    }
+                  }}
+                  placeholder="Nome do plano padrão"
+                  className="flex-1 rounded-md border border-line-strong px-2 py-1.5 text-[12.5px] outline-none focus:border-accent-500"
+                />
+                <button type="button" onClick={handleCreatePlano} className="rounded-md bg-accent-500 px-2.5 py-1.5 text-[12px] font-medium text-white hover:bg-accent-600">
+                  Criar
+                </button>
+                <button type="button" onClick={() => setNovoPlanoOpen(false)} className="rounded-md px-2 py-1.5 text-[12px] text-ink-500 hover:bg-surface-muted">
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setNovoPlanoOpen(true)}
+                className="mt-1 flex items-center gap-1.5 rounded-md border-t border-line px-1.5 pt-2 text-left text-[12.5px] font-medium text-accent-600 hover:text-accent-700"
+              >
+                <Plus size={13} strokeWidth={2.2} />
+                Criar plano padrão
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="mt-4">

@@ -1,4 +1,4 @@
-import { ListTree, GitBranch, SlidersHorizontal } from "lucide-react";
+import { ListTree, Layers, GitBranch, SlidersHorizontal } from "lucide-react";
 import PageHeader from "../../components/PageHeader.jsx";
 import FeaturePreviewCard from "../../components/FeaturePreviewCard.jsx";
 
@@ -8,6 +8,12 @@ const ITEMS = [
     title: "Plano gerencial",
     description: "Estrutura de códigos, contas e demonstrativos usada por todas as empresas.",
     to: "/parametros/sistema/plano-gerencial",
+  },
+  {
+    icon: Layers,
+    title: "Planos padrão",
+    description: "Contas extras por empresa (ou grupo de empresas parecidas), por cima do plano gerencial global.",
+    to: "/parametros/sistema/planos-padrao",
   },
   {
     icon: GitBranch,

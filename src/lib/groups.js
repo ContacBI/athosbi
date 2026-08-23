@@ -1,6 +1,7 @@
 import { state, setData } from "../data/useStore.js";
 import { ACTIVE_COMPANY_KEY, ACTIVE_GROUP_KEY, GROUPS_KEY, writePersistent } from "./persistence.js";
 import { persistActiveCompany, replicateTabsToCompanies, ensureCompanyJournalLoaded } from "./companies.js";
+import { refreshEffectivePlano } from "./planosPadrao.js";
 
 function writeStoredGroups(groups) {
   return writePersistent(GROUPS_KEY, groups);
@@ -223,4 +224,9 @@ export async function selectGroup(id, { skipPersist = false } = {}) {
     selectedAccount: null,
     expandedLines: new Set(),
   });
+  // Ver mesmo ajuste em selectCompany (lib/companies.js) — state.plano vira
+  // o efetivo de quem está ativo, agora considerando o plano padrão
+  // compartilhado pelos membros do grupo (GroupModal.jsx já garante que
+  // todos usam o mesmo).
+  refreshEffectivePlano();
 }
