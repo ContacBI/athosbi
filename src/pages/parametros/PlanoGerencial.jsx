@@ -6,7 +6,7 @@ import { addPlanoAccount, hasChildren, previewNewAccount, removePlanoAccount } f
 import { exportPlanoExcel, parsePlanoExcelFile } from "../../lib/planoExcel.js";
 import { savePlanoSnapshot, restorePreviousPlano } from "../../lib/planoStore.js";
 import { invalidateMappingsForPlanoCodes } from "../../lib/companies.js";
-import { extraAccountsSummary, moveGlobalAccountToPlano } from "../../lib/planosPadrao.js";
+import { extraAccountsSummary, moveGlobalAccountToPlanos } from "../../lib/planosPadrao.js";
 import PageHeader from "../../components/PageHeader.jsx";
 
 // Resumo de tudo que foi criado nos Planos padrão (ver
@@ -48,16 +48,26 @@ function NewAccountsSummary() {
   );
 }
 
-// Todo código que hoje é `custom: true` no global — inclusive os de antes
-// dessa funcionalidade existir, sem nenhuma pista de qual empresa pediu —
-// mais quem, na carteira de hoje, tem De/Para apontando pra cada um. É a
-// "listagem" pra decidir se alguma merece sair do global e virar exclusiva
-// de um plano padrão (ver moveGlobalAccountToPlano em lib/planosPadrao.js)
-// — mover NUNCA desfaz o vínculo que já existe, só limita quem mais pode
-// usar esse código dali pra frente.
+// Todo código ANALÍTICO que hoje é `custom: true` no global — inclusive os
+// de antes dessa funcionalidade existir, sem nenhuma pista de qual empresa
+// pediu — mais quem, na carteira de hoje, tem De/Para apontando pra cada
+// um. Só analíticas: uma sintética nunca recebe vínculo de De/Para direto
+// (só serve de categoria-mãe), então listá-la aqui seria só ruído — mover
+// a folha já leva a cadeia de sintéticas-mãe custom dela junto (ver
+// moveGlobalAccountToPlanos em lib/planosPadrao.js). Aceita mover pra MAIS
+// DE UM plano padrão de uma vez, porque a mesma conta pode já estar em uso
+// por empresas de grupos diferentes — mover pra só um quebraria a
+// visibilidade dela nos relatórios de quem ficasse de fora. Mover NUNCA
+// desfaz um vínculo de De/Para que já existe.
 function CustomAccountsAudit() {
   const state = useAppState();
-  const customRows = useMemo(() => state.planoGlobal.filter((row) => row.custom), [state.planoGlobal]);
+  const [movingCode, setMovingCode] = useState(null);
+  const [selectedPlanoIds, setSelectedPlanoIds] = useState([]);
+
+  const customRows = useMemo(
+    () => state.planoGlobal.filter((row) => row.custom && row.natureza === "Analitica"),
+    [state.planoGlobal]
+  );
   const usageByCode = useMemo(() => {
     const map = new Map(customRows.map((row) => [row.codigo_gerencial, []]));
     state.companies.forEach((company) => {
@@ -70,11 +80,21 @@ function CustomAccountsAudit() {
 
   if (!customRows.length) return null;
 
-  function handleMove(code, planoPadraoId) {
-    if (!planoPadraoId) return;
-    const plano = state.planosPadrao.find((item) => item.id === planoPadraoId);
-    if (!confirm(`Mover "${code}" pro plano "${plano?.nome}"? Ela sai do plano gerencial global e passa a valer só pra quem usa esse plano — os vínculos de De/Para que já existem continuam funcionando.`)) return;
-    moveGlobalAccountToPlano(code, planoPadraoId);
+  function openMove(code) {
+    setMovingCode(code);
+    setSelectedPlanoIds([]);
+  }
+
+  function togglePlano(id) {
+    setSelectedPlanoIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : current.concat(id)));
+  }
+
+  function confirmMove(code) {
+    if (!selectedPlanoIds.length) return;
+    const names = state.planosPadrao.filter((plano) => selectedPlanoIds.includes(plano.id)).map((plano) => plano.nome).join(", ");
+    if (!confirm(`Mover "${code}" (e as sintéticas-mãe dela criadas manualmente) pra: ${names}? Sai do plano gerencial global; os vínculos de De/Para que já existem continuam funcionando.`)) return;
+    moveGlobalAccountToPlanos(code, selectedPlanoIds);
+    setMovingCode(null);
   }
 
   return (
@@ -84,32 +104,52 @@ function CustomAccountsAudit() {
         <p className="text-[13px] font-medium text-ink-900">Contas adicionadas manualmente no global</p>
       </div>
       <p className="mt-0.5 text-[11.5px] text-ink-400">
-        {customRows.length} conta{customRows.length === 1 ? "" : "s"} · veja quais empresas já têm De/Para vinculado a cada uma e, se fizer mais sentido, mova pra um plano padrão específico — o código não muda, os vínculos existentes não quebram.
+        {customRows.length} conta{customRows.length === 1 ? "" : "s"} analítica{customRows.length === 1 ? "" : "s"} · veja quais empresas já têm De/Para vinculado a cada uma e, se fizer mais sentido, mova pra um ou mais planos padrão — o código não muda, os vínculos existentes não quebram.
       </p>
       <div className="mt-3 flex flex-col gap-2">
         {customRows.map((row) => {
           const companies = usageByCode.get(row.codigo_gerencial) || [];
+          const isMoving = movingCode === row.codigo_gerencial;
           return (
-            <div key={row.codigo_gerencial} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line p-3">
-              <div className="min-w-0">
-                <p className="text-[12.5px] font-medium text-ink-800 font-mono">{row.codigo_gerencial} <span className="font-sans font-normal">· {row.nome}</span></p>
-                <p className="mt-0.5 text-[11.5px] text-ink-400">
-                  {companies.length ? `Usada por: ${companies.map((c) => c.name).join(", ")}` : "Nenhuma empresa com De/Para vinculado a ela ainda"}
-                </p>
+            <div key={row.codigo_gerencial} className="rounded-xl border border-line p-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[12.5px] font-medium text-ink-800">
+                    <span className="font-mono">{row.codigo_gerencial}</span> <span className="font-normal">· {row.nome}</span>
+                  </p>
+                  <p className="mt-0.5 text-[11.5px] text-ink-400">
+                    {companies.length ? `Usada por: ${companies.map((c) => c.name).join(", ")}` : "Nenhuma empresa com De/Para vinculado a ela ainda"}
+                  </p>
+                </div>
+                {state.planosPadrao.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => (isMoving ? setMovingCode(null) : openMove(row.codigo_gerencial))}
+                    className="shrink-0 rounded-md border border-line-strong px-2.5 py-1.5 text-[12px] text-ink-600 hover:bg-surface-muted"
+                  >
+                    {isMoving ? "Cancelar" : "Mover pra plano(s) padrão…"}
+                  </button>
+                ) : (
+                  <span className="shrink-0 text-[11px] text-ink-300">Crie um plano padrão pra poder mover</span>
+                )}
               </div>
-              {state.planosPadrao.length > 0 ? (
-                <select
-                  value=""
-                  onChange={(event) => handleMove(row.codigo_gerencial, event.target.value)}
-                  className="shrink-0 rounded-md border border-line-strong px-2 py-1.5 text-[12px] outline-none focus:border-accent-500"
-                >
-                  <option value="" disabled>Mover pra plano padrão…</option>
+              {isMoving && (
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-line pt-2.5">
                   {state.planosPadrao.map((plano) => (
-                    <option key={plano.id} value={plano.id}>{plano.nome}</option>
+                    <label key={plano.id} className="flex items-center gap-1.5 rounded-full border border-line-strong px-2.5 py-1 text-[11.5px] text-ink-700">
+                      <input type="checkbox" checked={selectedPlanoIds.includes(plano.id)} onChange={() => togglePlano(plano.id)} />
+                      {plano.nome}
+                    </label>
                   ))}
-                </select>
-              ) : (
-                <span className="shrink-0 text-[11px] text-ink-300">Crie um plano padrão pra poder mover</span>
+                  <button
+                    type="button"
+                    disabled={!selectedPlanoIds.length}
+                    onClick={() => confirmMove(row.codigo_gerencial)}
+                    className="rounded-md bg-accent-500 px-3 py-1.5 text-[11.5px] font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Confirmar
+                  </button>
+                </div>
               )}
             </div>
           );

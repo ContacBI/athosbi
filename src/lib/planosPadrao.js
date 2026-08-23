@@ -187,23 +187,48 @@ export function removeExtraAccount(planoPadraoId, codigoGerencial) {
   persist(planos);
 }
 
-// Move uma conta que hoje vive no Plano gerencial global pra dentro de um
-// plano padrão — SEM trocar o código. Diferente de removePlanoAccount (que
-// desfaz todo mundo que apontava pra ela, ver invalidateMappingsForPlanoCodes
-// em companies.js), aqui os vínculos de De/Para que já existiam continuam
-// valendo do jeito que estavam: a conta só passa a existir pra quem usa
-// esse plano padrão, em vez de pra toda a carteira. Pensado pro fluxo
-// "essa conta foi criada manual pensando numa empresa só/grupo só, não
-// devia ter poluído o global" (ver PlanoGerencial.jsx CustomAccountsAudit).
-export function moveGlobalAccountToPlano(codigoGerencial, planoPadraoId) {
-  const row = state.planoGlobal.find((item) => item.codigo_gerencial === codigoGerencial);
-  if (!row) return false;
-  const movedRow = { ...row, movedFromGlobalAt: new Date().toISOString() };
-  const planos = state.planosPadrao.map((plano) =>
-    plano.id === planoPadraoId ? { ...plano, extraAccounts: [...plano.extraAccounts, movedRow], updatedAt: new Date().toISOString() } : plano
-  );
+// Sobe a cadeia de pais de um código, devolvendo só os ancestrais que
+// TAMBÉM são custom — uma sintética "de verdade" do plano padrão original
+// nunca entra aqui, só as sintéticas que foram criadas manualmente pra
+// abrigar essa conta analítica (o caso comum: alguém criou uma categoria
+// nova do zero, com a folha lá no fundo dela).
+function customAncestors(codigoGerencial) {
+  const parts = codigoGerencial.split(".");
+  const ancestors = [];
+  for (let i = parts.length - 1; i >= 1; i -= 1) {
+    const parentCode = parts.slice(0, i).join(".");
+    const parentRow = state.planoGlobal.find((row) => row.codigo_gerencial === parentCode);
+    if (parentRow?.custom) ancestors.push(parentRow);
+  }
+  return ancestors;
+}
+
+// Move uma conta (analítica) que hoje vive no Plano gerencial global — e
+// qualquer sintética-mãe dela que também seja custom — pra dentro de um ou
+// mais planos padrão, SEM trocar código nenhum. Diferente de
+// removePlanoAccount (que desfaz todo mundo que apontava pra ela, ver
+// invalidateMappingsForPlanoCodes em companies.js), aqui os vínculos de
+// De/Para que já existiam continuam valendo do jeito que estavam: a conta
+// só passa a existir pra quem usa um desses planos, em vez de pra toda a
+// carteira. Aceita vários planos de uma vez porque a mesma conta custom
+// pode já estar em uso por empresas de grupos diferentes (ver
+// PlanoGerencial.jsx CustomAccountsAudit) — mover pra só um quebraria a
+// visibilidade dela nos relatórios de quem ficou de fora.
+export function moveGlobalAccountToPlanos(codigoGerencial, planoPadraoIds) {
+  const leaf = state.planoGlobal.find((item) => item.codigo_gerencial === codigoGerencial);
+  if (!leaf || !planoPadraoIds?.length) return false;
+  const movedAt = new Date().toISOString();
+  const chain = [...customAncestors(codigoGerencial), leaf].map((row) => ({ ...row, movedFromGlobalAt: movedAt }));
+  const targetIds = new Set(planoPadraoIds);
+  const planos = state.planosPadrao.map((plano) => {
+    if (!targetIds.has(plano.id)) return plano;
+    const existingCodes = new Set(plano.extraAccounts.map((row) => row.codigo_gerencial));
+    const toAdd = chain.filter((row) => !existingCodes.has(row.codigo_gerencial));
+    return toAdd.length ? { ...plano, extraAccounts: [...plano.extraAccounts, ...toAdd], updatedAt: movedAt } : plano;
+  });
   writePersistent(PLANOS_PADRAO_KEY, planos);
-  const nextGlobal = state.planoGlobal.filter((item) => item.codigo_gerencial !== codigoGerencial);
+  const movedCodes = new Set(chain.map((row) => row.codigo_gerencial));
+  const nextGlobal = state.planoGlobal.filter((item) => !movedCodes.has(item.codigo_gerencial));
   writePersistent(PLANO_SNAPSHOT_KEY, nextGlobal);
   setData({ planosPadrao: planos, planoGlobal: nextGlobal });
   refreshEffectivePlano();
