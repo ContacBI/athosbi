@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Building2, Network, Repeat, Users, SlidersHorizontal, ChevronLeft, BarChart3, LogOut, ShieldCheck, Layers, UserCog } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
 import { useAppState } from "../data/useStore.js";
@@ -21,10 +21,27 @@ const ADMIN_ONLY_ITEMS = [
   { to: "/parametros/sistema", label: "Sistema", icon: SlidersHorizontal },
 ];
 
+// Telas como Planos padrão e De/Para guardam "estou vendo o quê" (qual
+// plano aberto, qual empresa escolhida) num useState local, não na URL —
+// clicar de novo no mesmo item da barra lateral não muda de rota, então o
+// React Router nem re-renderiza a página. Pra voltar pra lista sem precisar
+// do botão "< Voltar" de dentro da tela, a barra dispara este evento global
+// quando o clique é no item já ativo; cada página que tem essa navegação
+// interna escuta e zera o próprio estado (ver PlanoPadraoAdmin.jsx e
+// DeParaAdmin.jsx).
+export const RESET_SECTION_EVENT = "parametros:reset-secao";
+
 export default function ParametrosSidebar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const state = useAppState();
   const items = state.isAdmin ? [...ITEMS, ...ADMIN_ONLY_ITEMS] : ITEMS;
+
+  function handleNavClick(to) {
+    if (location.pathname === to) {
+      window.dispatchEvent(new CustomEvent(RESET_SECTION_EVENT, { detail: { path: to } }));
+    }
+  }
 
   return (
     <aside className="flex h-screen w-[232px] shrink-0 flex-col bg-navy-950 text-white">
@@ -49,6 +66,7 @@ export default function ParametrosSidebar() {
           <NavLink
             key={to}
             to={to}
+            onClick={() => handleNavClick(to)}
             className={({ isActive }) =>
               `flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13px] transition-colors ${
                 isActive ? "bg-accent-500 font-medium text-white" : "text-white/65 hover:bg-white/5 hover:text-white"

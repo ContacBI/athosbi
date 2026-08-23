@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ChevronRight, Layers, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
+import { RESET_SECTION_EVENT } from "../../components/ParametrosSidebar.jsx";
 import {
   createPlanoPadrao,
   deletePlanoPadrao,
@@ -351,6 +352,16 @@ export default function PlanoPadraoAdmin() {
   const [openId, setOpenId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const canEdit = state.isAdmin || (state.isColaborador && hasAnyResponsibility(state));
+
+  // Clicar de novo em "Planos padrão" na barra lateral enquanto já se está
+  // aqui dentro de um plano volta pra lista, sem precisar do "< Voltar".
+  useEffect(() => {
+    function handleReset(event) {
+      if (event.detail?.path === "/parametros/planos-padrao") setOpenId(null);
+    }
+    window.addEventListener(RESET_SECTION_EVENT, handleReset);
+    return () => window.removeEventListener(RESET_SECTION_EVENT, handleReset);
+  }, []);
 
   const openPlano = openId ? state.planosPadrao.find((plano) => plano.id === openId) : null;
   if (openPlano) return <PlanoEditor plano={openPlano} onBack={() => setOpenId(null)} />;

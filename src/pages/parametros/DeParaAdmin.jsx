@@ -1,9 +1,11 @@
-import { useState } from "react";
-import { Building2, Repeat } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, Building2, Repeat } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { selectCompany } from "../../lib/companies.js";
+import { companiesResponsavel } from "../../lib/colaboradores.js";
 import PageHeader from "../../components/PageHeader.jsx";
 import Avatar from "../../components/Avatar.jsx";
+import { RESET_SECTION_EVENT } from "../../components/ParametrosSidebar.jsx";
 import Depara from "../Depara.jsx";
 
 // Reuses the exact same editor as /empresa/de-para — it only ever reads and
@@ -18,10 +20,52 @@ export default function DeParaAdmin() {
   // be active — landing on this screen should always show just the picker
   // first, even if a company was left active from browsing elsewhere.
   const [selectedId, setSelectedId] = useState("");
+  // Admin escolhe de toda a carteira; colaborador Restrito só das empresas
+  // onde ele é responsável — é a mesma trava que já existe pra entrar em
+  // /empresa/de-para de dentro da empresa (ver CompanyLayout.jsx); essa
+  // tela só tinha ficado de fora por engano, já que é um caminho separado
+  // que reaproveita o mesmo editor sem passar por lá.
+  const companyOptions = state.isAdmin ? state.companies : companiesResponsavel(state);
+
+  // Clicar de novo em "De/Para" na barra lateral enquanto já se está dentro
+  // de uma empresa volta pro picker, sem precisar do botão de voltar (que
+  // essa tela nem tem — o picker some assim que uma empresa é escolhida).
+  useEffect(() => {
+    function handleReset(event) {
+      if (event.detail?.path === "/parametros/de-para") setSelectedId("");
+    }
+    window.addEventListener(RESET_SECTION_EVENT, handleReset);
+    return () => window.removeEventListener(RESET_SECTION_EVENT, handleReset);
+  }, []);
 
   function handleSelect(id) {
     if (id !== state.activeCompanyId) selectCompany(id);
     setSelectedId(id);
+  }
+
+  const selectedCompany = selectedId ? companyOptions.find((company) => company.id === selectedId) : null;
+
+  // Mesmo padrão de Planos padrão: lista cheia primeiro, e ao escolher um
+  // item a lista some de vez, dando lugar à tela de detalhe com um "<
+  // Voltar" no topo (além do próprio clique de novo em "De/Para" na barra
+  // lateral, que faz a mesma coisa — ver o listener acima).
+  if (selectedCompany) {
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => setSelectedId("")}
+          className="mb-4 flex items-center gap-1.5 text-[13px] text-ink-600 hover:text-ink-900"
+        >
+          <ArrowLeft size={15} />
+          De/Para
+        </button>
+
+        <PageHeader eyebrow="De/Para" title={selectedCompany.name} description={selectedCompany.codigo ? `Código ${selectedCompany.codigo}` : undefined} icon={Repeat} />
+
+        <Depara />
+      </div>
+    );
   }
 
   return (
@@ -33,49 +77,39 @@ export default function DeParaAdmin() {
         icon={Repeat}
       />
 
-      {state.companies.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-card px-6 py-12 text-center shadow-sm">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
-            <Building2 size={22} strokeWidth={1.6} />
-          </span>
-          <p className="text-[13px] font-medium text-ink-900">Nenhuma empresa cadastrada ainda</p>
-          <p className="text-[12px] text-ink-400">Cadastre uma empresa em "Empresas" pra poder editar o de/para dela.</p>
-        </div>
-      ) : (
-        <>
-          <div className="mb-4 flex flex-wrap gap-2">
-            {state.companies.map((company) => {
-              const active = selectedId === company.id;
-              return (
-                <button
-                  key={company.id}
-                  type="button"
-                  onClick={() => handleSelect(company.id)}
-                  className={`flex items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-3.5 text-[13px] transition-colors ${
-                    active ? "border-accent-500 bg-accent-50 font-medium text-accent-700" : "border-line-strong bg-surface-card text-ink-700 hover:border-accent-400"
-                  }`}
-                >
-                  <Avatar name={company.name} size={24} />
-                  {company.codigo && <span className="text-ink-400">{company.codigo}</span>}
-                  {company.name}
-                </button>
-              );
-            })}
-          </div>
+      <p className="mb-3 text-[13px] font-medium text-ink-900">
+        {companyOptions.length} empresa{companyOptions.length === 1 ? "" : "s"}
+      </p>
 
-          {selectedId ? (
-            <Depara />
-          ) : (
-            <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-card px-6 py-12 text-center shadow-sm">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
-                <Repeat size={22} strokeWidth={1.6} />
-              </span>
-              <p className="text-[13px] font-medium text-ink-900">Escolha uma empresa acima</p>
-              <p className="text-[12px] text-ink-400">O de/para dela aparece aqui, editável na hora.</p>
+      <div className="flex flex-col gap-2">
+        {companyOptions.length === 0 && (
+          <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-card px-6 py-12 text-center shadow-sm">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
+              <Building2 size={22} strokeWidth={1.6} />
+            </span>
+            <p className="text-[13px] font-medium text-ink-900">
+              {state.isAdmin ? "Nenhuma empresa cadastrada ainda" : "Você não é responsável por nenhuma empresa ainda"}
+            </p>
+            <p className="text-[12px] text-ink-400">
+              {state.isAdmin ? "Cadastre uma empresa em \"Empresas\" pra poder editar o de/para dela." : "Fale com o admin pra ser marcado como responsável nas empresas que você cuida."}
+            </p>
+          </div>
+        )}
+        {companyOptions.map((company) => (
+          <button
+            key={company.id}
+            type="button"
+            onClick={() => handleSelect(company.id)}
+            className="flex items-center gap-3 rounded-xl bg-surface-card p-3.5 text-left shadow-sm transition-shadow hover:shadow-md"
+          >
+            <Avatar name={company.name} size={36} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-medium text-ink-900">{company.name}</p>
+              {company.codigo && <p className="text-[12px] text-ink-400">Código {company.codigo}</p>}
             </div>
-          )}
-        </>
-      )}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
