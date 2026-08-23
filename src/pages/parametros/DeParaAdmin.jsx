@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ArrowLeft, Building2, CircleCheck, Lock, Repeat } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Building2, CircleCheck, Lock, Repeat, Search } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { selectCompany } from "../../lib/companies.js";
 import { listAdmins, listColaboradores } from "../../lib/colaboradores.js";
@@ -7,6 +7,8 @@ import PageHeader from "../../components/PageHeader.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import { RESET_SECTION_EVENT } from "../../components/ParametrosSidebar.jsx";
 import Depara from "../Depara.jsx";
+
+const norm = (value) => String(value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 // `accounts` e `mappings` (diferente de `journal`) já vêm inteiros no
 // registro leve de cada empresa (ver loadCompanies em lib/companies.js) —
@@ -17,6 +19,27 @@ function pendingCount(company) {
   const analytic = (company.accounts || []).filter((account) => account.tipo_sintetica === "nao");
   const linked = new Set((company.mappings || []).map((mapping) => mapping.classificacao));
   return analytic.filter((account) => !linked.has(account.classificacao)).length;
+}
+
+const SORTS = [
+  { id: "nome", label: "Nome" },
+  { id: "codigo", label: "Código" },
+  { id: "pendencias", label: "Pendências" },
+];
+
+function sortCompanies(companies, sort) {
+  const sorted = [...companies];
+  if (sort === "codigo") {
+    sorted.sort((a, b) => {
+      const code = String(a.codigo || "").localeCompare(String(b.codigo || ""), "pt-BR", { numeric: true });
+      return code || String(a.name || "").localeCompare(String(b.name || ""), "pt-BR");
+    });
+  } else if (sort === "pendencias") {
+    sorted.sort((a, b) => pendingCount(b) - pendingCount(a));
+  } else {
+    sorted.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR"));
+  }
+  return sorted;
 }
 
 // Reuses the exact same editor as /empresa/de-para — it only ever reads and
@@ -32,6 +55,8 @@ export default function DeParaAdmin() {
   // first, even if a company was left active from browsing elsewhere.
   const [selectedId, setSelectedId] = useState("");
   const [pessoasByEmail, setPessoasByEmail] = useState({}); // email -> nome, pra "Solicite acesso a:"
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("nome");
 
   // Todo mundo vê a carteira inteira aqui (já era assim em quase toda tela
   // de Parâmetros) — só quem NÃO é responsável não consegue clicar pra
@@ -39,7 +64,13 @@ export default function DeParaAdmin() {
   // escondia de vez as empresas onde a pessoa não era responsável; ficou
   // mais claro mostrar todas com quem procurar em vez de simplesmente
   // sumir com elas.
-  const companyOptions = state.companies;
+  const allCompanies = state.companies;
+
+  const companyOptions = useMemo(() => {
+    const term = norm(search);
+    const filtered = term ? allCompanies.filter((company) => norm(`${company.name} ${company.codigo || ""}`).includes(term)) : allCompanies;
+    return sortCompanies(filtered, sort);
+  }, [allCompanies, search, sort]);
 
   useEffect(() => {
     Promise.all([listAdmins(), listColaboradores()])
@@ -71,7 +102,7 @@ export default function DeParaAdmin() {
     setSelectedId(id);
   }
 
-  const selectedCompany = selectedId ? companyOptions.find((company) => company.id === selectedId) : null;
+  const selectedCompany = selectedId ? allCompanies.find((company) => company.id === selectedId) : null;
 
   // Mesmo padrão de Planos padrão: lista cheia primeiro, e ao escolher um
   // item a lista some de vez, dando lugar à tela de detalhe com um "<
@@ -96,6 +127,13 @@ export default function DeParaAdmin() {
     );
   }
 
+  // Só conta pendência do que a pessoa consegue de fato abrir e corrigir
+  // — somar a carteira inteira (inclusive empresas trancadas pra ela) só
+  // deixava o número maior sem servir pra nada prático. Admin continua
+  // vendo a carteira toda de qualquer forma (canOpen sempre true).
+  const editableCompanies = allCompanies.filter(canOpen);
+  const totalPending = editableCompanies.reduce((sum, company) => sum + pendingCount(company), 0);
+
   return (
     <div>
       <PageHeader
@@ -105,23 +143,54 @@ export default function DeParaAdmin() {
         icon={Repeat}
       />
 
-      {companyOptions.length > 0 && (() => {
-        const totalPending = companyOptions.reduce((sum, company) => sum + pendingCount(company), 0);
-        return (
-          <p className="mb-3 text-[13px] font-medium text-ink-900">
-            {companyOptions.length} empresa{companyOptions.length === 1 ? "" : "s"}
-            {" · "}
-            {totalPending ? (
-              <span className="font-medium text-warning-600">{totalPending} conta{totalPending === 1 ? "" : "s"} sem de/para na carteira</span>
-            ) : (
-              <span className="font-medium text-success-600">tudo vinculado na carteira</span>
-            )}
-          </p>
-        );
-      })()}
+      {allCompanies.length > 0 && (
+        <p className="mb-3 text-[13px] font-medium text-ink-900">
+          {allCompanies.length} empresa{allCompanies.length === 1 ? "" : "s"}
+          {editableCompanies.length > 0 && (
+            <>
+              {" · "}
+              {totalPending ? (
+                <span className="font-medium text-warning-600">
+                  {totalPending} conta{totalPending === 1 ? "" : "s"} sem de/para {state.isAdmin ? "na carteira" : "nas suas"}
+                </span>
+              ) : (
+                <span className="font-medium text-success-600">tudo vinculado {state.isAdmin ? "na carteira" : "nas suas"}</span>
+              )}
+            </>
+          )}
+        </p>
+      )}
+
+      {allCompanies.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2.5">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-400" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar por nome ou código..."
+              className="w-full rounded-md border border-line-strong bg-surface-card py-1.5 pl-8 pr-3 text-[13px] outline-none focus:border-accent-400"
+            />
+          </div>
+          <div className="inline-flex items-center gap-0.5 rounded-full bg-surface-muted p-1">
+            {SORTS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setSort(option.id)}
+                className={`rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                  sort === option.id ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-800"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5">
-        {companyOptions.length === 0 && (
+        {allCompanies.length === 0 && (
           <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-card px-6 py-12 text-center shadow-sm">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
               <Building2 size={22} strokeWidth={1.6} />
@@ -129,6 +198,9 @@ export default function DeParaAdmin() {
             <p className="text-[13px] font-medium text-ink-900">Nenhuma empresa cadastrada ainda</p>
             {state.isAdmin && <p className="text-[12px] text-ink-400">Cadastre uma empresa em "Empresas" pra poder editar o de/para dela.</p>}
           </div>
+        )}
+        {allCompanies.length > 0 && companyOptions.length === 0 && (
+          <p className="py-8 text-center text-[13px] text-ink-400">Nenhuma empresa bate com essa busca.</p>
         )}
         {companyOptions.map((company) => {
           const pending = pendingCount(company);

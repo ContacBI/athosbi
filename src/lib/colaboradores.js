@@ -89,3 +89,18 @@ export function groupsResponsavel(state) {
     })
   );
 }
+
+// Mesmo crivo de groupsResponsavel, mas pra UM grupo só — espelha
+// is_responsavel_for_group() do banco (supabase/schema.sql): responsável
+// em QUALQUER empresa-membro já basta pra editar o workspace consolidado
+// do grupo, sem precisar ser responsável pelas outras também. Usado onde
+// só interessa "esse grupo específico dá pra editar?" (CompanyLayout.jsx,
+// CompanyTopBar.jsx, PersonalizarHub.jsx).
+export function isResponsavelForGroup(state, groupId) {
+  const group = (state.groups || []).find((item) => item.id === groupId);
+  if (!group) return false;
+  return (group.companyIds || []).some((id) => {
+    const company = (state.companies || []).find((item) => item.id === id);
+    return company && (company.responsaveis || []).includes(state.userEmail);
+  });
+}

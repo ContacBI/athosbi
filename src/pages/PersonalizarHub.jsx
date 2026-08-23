@@ -5,6 +5,7 @@ import { useAppState } from "../data/useStore.js";
 import { createTab, updateTab, deleteTab, createSubTab, updateSubTab, deleteSubTab } from "../lib/dashboardTabs.js";
 import { replicateDashboardTabs } from "../lib/companies.js";
 import { replicateGroupDashboardTabs, replicateGroupDashboardTabsToCompanies } from "../lib/groups.js";
+import { companiesResponsavel, groupsResponsavel, isResponsavelForGroup } from "../lib/colaboradores.js";
 import { buildDashboardContext } from "../lib/dashboardData.js";
 import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
 import { DEFAULT_SPACING } from "../components/dashboard/gridLayout.js";
@@ -143,7 +144,7 @@ const SUGGESTED_DEFAULT = [
   { id: "chart_balanco", size: "md" },
 ];
 
-function TabPill({ item, active, small, onSelect, onRename, onDelete }) {
+function TabPill({ item, active, small, canEdit = true, onSelect, onRename, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(item.name);
 
@@ -184,29 +185,33 @@ function TabPill({ item, active, small, onSelect, onRename, onDelete }) {
         active ? "bg-accent-500 font-medium text-white" : "bg-surface-muted text-ink-600 hover:bg-line"
       }`}
     >
-      <button type="button" onClick={onSelect} onDoubleClick={() => setEditing(true)} className="py-0.5">
+      <button type="button" onClick={onSelect} onDoubleClick={() => canEdit && setEditing(true)} className="py-0.5">
         {item.name}
       </button>
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        title="Renomear"
-        className={`rounded-full px-1 text-[10px] opacity-0 transition-opacity group-hover:opacity-100 ${
-          active ? "hover:bg-white/20" : "hover:bg-surface-card"
-        }`}
-      >
-        ✎
-      </button>
-      <button
-        type="button"
-        onClick={onDelete}
-        title="Excluir"
-        className={`flex h-5 w-5 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100 ${
-          active ? "hover:bg-white/20" : "hover:bg-surface-card"
-        }`}
-      >
-        <X size={12} />
-      </button>
+      {canEdit && (
+        <>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            title="Renomear"
+            className={`rounded-full px-1 text-[10px] opacity-0 transition-opacity group-hover:opacity-100 ${
+              active ? "hover:bg-white/20" : "hover:bg-surface-card"
+            }`}
+          >
+            ✎
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            title="Excluir"
+            className={`flex h-5 w-5 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100 ${
+              active ? "hover:bg-white/20" : "hover:bg-surface-card"
+            }`}
+          >
+            <X size={12} />
+          </button>
+        </>
+      )}
     </div>
   );
 }
@@ -228,15 +233,27 @@ export default function PersonalizarHub() {
   const activeCompany = appState.companies.find((company) => company.id === appState.activeCompanyId) || null;
   const activeGroupItem = appState.groups.find((group) => group.id === appState.activeGroupId) || null;
   const replicateSource = isGroupMode ? activeGroupItem : activeCompany;
-  // From a group, "outro grupo" and "empresa avulsa" are both valid targets —
-  // a group's consolidated workspace is just as good a model for one
-  // client's own dashboard as it is for another group's.
+  // Ver o mesmo em CompanyTopBar.jsx/CompanyLayout.jsx: entrar aqui não
+  // exige ser responsável (dá pra usar QUALQUER empresa/grupo como
+  // modelo pra "Replicar relatórios"), mas editar o workspace em si —
+  // abas, subabas, espaçamento, widgets — continua só pra quem responde
+  // por ele.
+  const canEdit =
+    appState.isAdmin ||
+    (activeCompany && (activeCompany.responsaveis || []).includes(appState.userEmail)) ||
+    (isGroupMode && isResponsavelForGroup(appState, appState.activeGroupId));
+  // Só pra ONDE copiar, não pra qual empresa/grupo usar como fonte — o
+  // destino precisa ser algo que a pessoa realmente edita, senão a
+  // gravação nem passaria na RLS. Admin continua vendo a carteira
+  // inteira como destino possível.
   const replicateTargets = isGroupMode
     ? [
-        ...appState.groups.filter((group) => group.id !== appState.activeGroupId).map((group) => ({ ...group, kind: "grupo" })),
-        ...appState.companies.map((company) => ({ ...company, kind: "empresa" })),
+        ...(appState.isAdmin ? appState.groups : groupsResponsavel(appState))
+          .filter((group) => group.id !== appState.activeGroupId)
+          .map((group) => ({ ...group, kind: "grupo" })),
+        ...(appState.isAdmin ? appState.companies : companiesResponsavel(appState)).map((company) => ({ ...company, kind: "empresa" })),
       ]
-    : appState.companies.filter((company) => company.id !== appState.activeCompanyId);
+    : (appState.isAdmin ? appState.companies : companiesResponsavel(appState)).filter((company) => company.id !== appState.activeCompanyId);
   function replicateFromGroup(sourceId, targetIds) {
     const groupIds = targetIds.filter((id) => appState.groups.some((group) => group.id === id));
     const companyIds = targetIds.filter((id) => appState.companies.some((company) => company.id === id));
@@ -375,6 +392,7 @@ export default function PersonalizarHub() {
             key={tab.id}
             item={tab}
             active={activeId === tab.id}
+            canEdit={canEdit}
             onSelect={() => {
               setActiveId(tab.id);
               setActiveSubId(null);
@@ -383,18 +401,20 @@ export default function PersonalizarHub() {
             onDelete={() => handleDeleteTab(tab)}
           />
         ))}
-        <button
-          type="button"
-          onClick={handleCreateTab}
-          title="Criar nova aba"
-          className="flex shrink-0 items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1.5 text-[12px] text-ink-500 transition-colors hover:border-accent-400 hover:text-accent-600"
-        >
-          <Plus size={13} strokeWidth={2} />
-          Nova aba
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={handleCreateTab}
+            title="Criar nova aba"
+            className="flex shrink-0 items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1.5 text-[12px] text-ink-500 transition-colors hover:border-accent-400 hover:text-accent-600"
+          >
+            <Plus size={13} strokeWidth={2} />
+            Nova aba
+          </button>
+        )}
       </div>
 
-      {activeTab && (
+      {activeTab && (subTabs.length > 0 || canEdit) && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl bg-surface-muted/60 p-2 pl-3">
           <span className="text-[11px] font-medium uppercase tracking-wide text-ink-400">Subabas</span>
           {subTabs.map((sub) => (
@@ -403,20 +423,23 @@ export default function PersonalizarHub() {
               item={sub}
               active={activeSubId === sub.id}
               small
+              canEdit={canEdit}
               onSelect={() => setActiveSubId(sub.id)}
               onRename={(name) => updateSubTab(activeTab.id, sub.id, { name })}
               onDelete={() => handleDeleteSubTab(sub)}
             />
           ))}
-          <button
-            type="button"
-            onClick={handleCreateSubTab}
-            title="Criar subaba"
-            className="flex shrink-0 items-center gap-1 rounded-full border border-dashed border-line-strong px-2.5 py-1 text-[11.5px] text-ink-500 transition-colors hover:border-accent-400 hover:text-accent-600"
-          >
-            <Plus size={12} strokeWidth={2} />
-            {subTabs.length === 0 ? "Criar subabas" : "Nova subaba"}
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={handleCreateSubTab}
+              title="Criar subaba"
+              className="flex shrink-0 items-center gap-1 rounded-full border border-dashed border-line-strong px-2.5 py-1 text-[11.5px] text-ink-500 transition-colors hover:border-accent-400 hover:text-accent-600"
+            >
+              <Plus size={12} strokeWidth={2} />
+              {subTabs.length === 0 ? "Criar subabas" : "Nova subaba"}
+            </button>
+          )}
         </div>
       )}
 
@@ -437,6 +460,7 @@ export default function PersonalizarHub() {
         </div>
       ) : (
         <>
+          {canEdit && (
           <div className="flex flex-wrap items-center justify-between gap-2">
             {!isSoleReportLink ? (
               <div className="flex items-center gap-1.5 rounded-md bg-surface-muted p-1">
@@ -481,10 +505,13 @@ export default function PersonalizarHub() {
               </button>
             </div>
           </div>
+          )}
 
           {editWidgets.length === 0 && (
             <p className="text-[12px] text-ink-400">
-              {subTabs.length > 0 ? "Esta subaba" : "Esta aba"} está vazia — clique em "Adicionar" abaixo pra escolher o que aparece aqui.
+              {canEdit
+                ? `${subTabs.length > 0 ? "Esta subaba" : "Esta aba"} está vazia — clique em "Adicionar" abaixo pra escolher o que aparece aqui.`
+                : `${subTabs.length > 0 ? "Esta subaba" : "Esta aba"} está vazia.`}
             </p>
           )}
 
@@ -500,6 +527,7 @@ export default function PersonalizarHub() {
               onLayoutChange={handleLayoutChange}
               onRemove={removeWidget}
               onAddClick={() => setCatalogOpen(true)}
+              readOnly={!canEdit}
             />
           )}
         </>

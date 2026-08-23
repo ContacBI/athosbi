@@ -4,6 +4,7 @@ import { ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, LayoutG
 import { useAppState, setData, state } from "../data/useStore.js";
 import { missingMappingAccounts } from "../data/calculations.js";
 import { groupCompanies, activeWorkspaceName } from "../lib/groups.js";
+import { isResponsavelForGroup } from "../lib/colaboradores.js";
 import { usePageActions } from "../lib/pageActions.jsx";
 import { buildDashboardContext } from "../lib/dashboardData.js";
 import { buildSummaryExportRows } from "../lib/dashboardExport.js";
@@ -436,9 +437,12 @@ export default function CompanyTopBar({ company }) {
   const group = appState.activeGroupId ? appState.groups.find((item) => item.id === appState.activeGroupId) || null : null;
   const groupMembers = group ? groupCompanies(group) : [];
   // Mesma regra do CompanyLayout.jsx: admin sempre edita; colaborador
-  // Restrito só se estiver em company.responsaveis DESTA empresa (grupo
-  // não tem "responsável", fica admin-only mesmo pra ele).
-  const canEdit = appState.isAdmin || (company && (company.responsaveis || []).includes(appState.userEmail));
+  // Restrito só se estiver em company.responsaveis DESTA empresa, ou —
+  // em modo grupo — responsável por ALGUMA empresa-membro.
+  const canEdit =
+    appState.isAdmin ||
+    (company && (company.responsaveis || []).includes(appState.userEmail)) ||
+    (group && isResponsavelForGroup(appState, group.id));
   // Personalizar is its own self-contained editor with its own tab strip —
   // the normal site nav underneath would just be noise there.
   const isPersonalizar = location.pathname.startsWith("/empresa/personalizar");
@@ -517,10 +521,15 @@ export default function CompanyTopBar({ company }) {
             />
           )}
           <ReportsMenu />
-          {canEdit && (
+          {/* Visível pra qualquer colaborador, responsável ou não — dá pra
+              ENTRAR sem poder editar (útil pra usar como modelo em
+              "Replicar relatórios"); quem não é responsável só não vê os
+              controles de edição lá dentro (ver PersonalizarHub.jsx). */}
+          {(appState.isAdmin || appState.isColaborador) && (
             <button
               type="button"
               onClick={() => navigate("/empresa/personalizar")}
+              title={canEdit ? undefined : "Só visualização — você não é responsável por esta empresa/grupo"}
               className={`flex h-8 items-center gap-1.5 rounded-md border px-3 text-[12px] font-medium transition-colors ${
                 isPersonalizar ? "border-accent-500 bg-accent-500 text-white" : "border-accent-500/40 bg-accent-500/15 text-accent-100 hover:border-accent-500/70 hover:bg-accent-500/25"
               }`}

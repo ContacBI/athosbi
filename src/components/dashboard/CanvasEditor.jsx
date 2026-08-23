@@ -12,7 +12,7 @@ const GridLayout = WidthProvider(RGL);
 // The tab's canvas in edit mode: the real widgets, rendered live, free to
 // drag anywhere and resize from any corner — react-grid-layout handles the
 // collision/compaction math, we just persist whatever layout it settles on.
-export default function CanvasEditor({ widgets, ctx, spacing = DEFAULT_SPACING, onLayoutChange, onRemove, onAddClick }) {
+export default function CanvasEditor({ widgets, ctx, spacing = DEFAULT_SPACING, onLayoutChange, onRemove, onAddClick, readOnly = false }) {
   const [detailFor, setDetailFor] = useState(null);
   const navigate = useNavigate();
   const appState = useAppState();
@@ -44,6 +44,8 @@ export default function CanvasEditor({ widgets, ctx, spacing = DEFAULT_SPACING, 
         margin={[marginPx, marginPx]}
         containerPadding={[0, 0]}
         draggableHandle=".widget-drag-handle"
+        isDraggable={!readOnly}
+        isResizable={!readOnly}
         onLayoutChange={onLayoutChange}
       >
         {widgets.map((entry) => {
@@ -51,22 +53,24 @@ export default function CanvasEditor({ widgets, ctx, spacing = DEFAULT_SPACING, 
           if (!definition) return null;
           return (
             <div key={entry.id} className="group relative overflow-hidden rounded-xl bg-surface-card p-4 shadow-sm ring-1 ring-transparent transition-shadow hover:shadow-md">
-              <div className="pointer-events-none absolute inset-x-2 top-2 z-10 flex items-center justify-between opacity-0 transition-opacity group-hover:opacity-100">
-                <span
-                  className="widget-drag-handle pointer-events-auto flex h-6 w-6 cursor-move items-center justify-center rounded-md bg-white/95 text-ink-400 shadow ring-1 ring-line hover:text-accent-600"
-                  title="Arrastar"
-                >
-                  <GripVertical size={13} />
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onRemove(entry.id)}
-                  className="pointer-events-auto flex h-6 w-6 items-center justify-center rounded-md bg-white/95 text-danger-600 shadow ring-1 ring-line hover:bg-danger-50"
-                  aria-label={`Remover ${definition.label}`}
-                >
-                  <X size={13} />
-                </button>
-              </div>
+              {!readOnly && (
+                <div className="pointer-events-none absolute inset-x-2 top-2 z-10 flex items-center justify-between opacity-0 transition-opacity group-hover:opacity-100">
+                  <span
+                    className="widget-drag-handle pointer-events-auto flex h-6 w-6 cursor-move items-center justify-center rounded-md bg-white/95 text-ink-400 shadow ring-1 ring-line hover:text-accent-600"
+                    title="Arrastar"
+                  >
+                    <GripVertical size={13} />
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onRemove(entry.id)}
+                    className="pointer-events-auto flex h-6 w-6 items-center justify-center rounded-md bg-white/95 text-danger-600 shadow ring-1 ring-line hover:bg-danger-50"
+                    aria-label={`Remover ${definition.label}`}
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              )}
               <div className="h-full overflow-hidden">
                 <WidgetBody definition={definition} ctx={ctx} onOpenDetail={handleOpenDetail} onNavigate={navigate} />
               </div>
@@ -75,14 +79,16 @@ export default function CanvasEditor({ widgets, ctx, spacing = DEFAULT_SPACING, 
         })}
       </GridLayout>
 
-      <button
-        type="button"
-        onClick={onAddClick}
-        className="mt-3 flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-line-strong py-6 text-ink-400 transition-colors hover:border-accent-400 hover:text-accent-600"
-      >
-        <Plus size={20} strokeWidth={1.8} />
-        <span className="text-[12px] font-medium">Adicionar</span>
-      </button>
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={onAddClick}
+          className="mt-3 flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-line-strong py-6 text-ink-400 transition-colors hover:border-accent-400 hover:text-accent-600"
+        >
+          <Plus size={20} strokeWidth={1.8} />
+          <span className="text-[12px] font-medium">Adicionar</span>
+        </button>
+      )}
 
       <DetailModal detail={detailFor} onClose={() => setDetailFor(null)} />
     </>
