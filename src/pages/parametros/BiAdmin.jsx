@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { BarChart3, ChevronDown, Pencil, Plus, X } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { WIDGET_CATALOG } from "../../lib/dashboardWidgets.js";
@@ -56,6 +56,9 @@ function PreviewModal({ definition, ctx, onNavigate, onClose }) {
 export default function BiAdmin() {
   const appState = useAppState();
   const navigate = useNavigate();
+  // Admin-only mesmo pra colaborador Restrito, que entra no resto de
+  // Parâmetros — ver ParametrosLayout.jsx.
+  if (!appState.isAdmin) return <Navigate to="/parametros/empresas" replace />;
   const [openCategories, setOpenCategories] = useState({ Indicadores: true });
   const [previewItem, setPreviewItem] = useState(null);
   // undefined = closed, null = creating a new indicator, a definition = editing one.

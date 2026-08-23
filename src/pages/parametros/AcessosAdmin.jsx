@@ -107,13 +107,15 @@ export default function AcessosAdmin() {
         <p className="text-[13px] font-medium text-ink-900">
           {byEmail.length} pessoa{byEmail.length === 1 ? "" : "s"} com acesso liberado
         </p>
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          className="rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md"
-        >
-          + Novo acesso
-        </button>
+        {state.isAdmin && (
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md"
+          >
+            + Novo acesso
+          </button>
+        )}
       </div>
 
       {error && <p className="mt-3 text-[12.5px] text-danger-600">{error}</p>}
@@ -134,13 +136,15 @@ export default function AcessosAdmin() {
           <div key={personEmail} className="rounded-xl bg-surface-card p-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <p className="text-[13px] font-medium text-ink-900">{personEmail}</p>
-              <button
-                type="button"
-                onClick={() => handleReinvite(personEmail)}
-                className="shrink-0 text-[12px] text-accent-600 hover:underline"
-              >
-                Reenviar convite
-              </button>
+              {state.isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => handleReinvite(personEmail)}
+                  className="shrink-0 text-[12px] text-accent-600 hover:underline"
+                >
+                  Reenviar convite
+                </button>
+              )}
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
               {personGrants.map((grant) => (
@@ -149,14 +153,16 @@ export default function AcessosAdmin() {
                   className="flex items-center gap-2 rounded-full border border-line-strong bg-surface-page px-3 py-1 text-[12px] text-ink-700"
                 >
                   {grant.scope_type === "company" ? "Empresa" : "Grupo"}: {grant.scope_type === "company" ? companyName(grant.scope_id) : groupName(grant.scope_id)}
-                  <button
-                    type="button"
-                    onClick={() => handleRevoke(grant.id)}
-                    aria-label="Remover acesso"
-                    className="text-ink-400 hover:text-danger-600"
-                  >
-                    <Trash2 size={12} />
-                  </button>
+                  {state.isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => handleRevoke(grant.id)}
+                      aria-label="Remover acesso"
+                      className="text-ink-400 hover:text-danger-600"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
                 </span>
               ))}
             </div>

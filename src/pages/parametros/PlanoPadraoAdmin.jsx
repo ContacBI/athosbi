@@ -29,7 +29,7 @@ function buildTree(rows) {
 // Nome novo pra tela nova: "adicionada" (badge do Plano gerencial) fica
 // "extra deste plano" aqui — deixa claro que essa conta só existe pra quem
 // usa ESTE plano padrão, não é uma conta nova no plano gerencial global.
-function TreeNode({ node, depth, expanded, toggle, onAddChild, onDeleteExtra }) {
+function TreeNode({ node, depth, expanded, toggle, onAddChild, onDeleteExtra, canEdit }) {
   const isOpen = expanded.has(node.codigo_gerencial);
   const hasChildren = node.children.length > 0;
   return (
@@ -56,31 +56,33 @@ function TreeNode({ node, depth, expanded, toggle, onAddChild, onDeleteExtra }) 
             </span>
           )}
         </button>
-        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-          <button
-            type="button"
-            onClick={() => onAddChild(node)}
-            title="Adicionar conta extra aqui dentro"
-            className="flex h-6 w-6 items-center justify-center rounded-md text-ink-400 hover:bg-accent-50 hover:text-accent-600"
-          >
-            <Plus size={13} strokeWidth={2} />
-          </button>
-          {node.extra && (
+        {canEdit && (
+          <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
             <button
               type="button"
-              onClick={() => onDeleteExtra(node)}
-              title="Excluir esta conta extra"
-              className="flex h-6 w-6 items-center justify-center rounded-md text-ink-400 hover:bg-danger-50 hover:text-danger-600"
+              onClick={() => onAddChild(node)}
+              title="Adicionar conta extra aqui dentro"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-ink-400 hover:bg-accent-50 hover:text-accent-600"
             >
-              <Trash2 size={13} strokeWidth={2} />
+              <Plus size={13} strokeWidth={2} />
             </button>
-          )}
-        </div>
+            {node.extra && (
+              <button
+                type="button"
+                onClick={() => onDeleteExtra(node)}
+                title="Excluir esta conta extra"
+                className="flex h-6 w-6 items-center justify-center rounded-md text-ink-400 hover:bg-danger-50 hover:text-danger-600"
+              >
+                <Trash2 size={13} strokeWidth={2} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
       {hasChildren && isOpen && (
         <div>
           {node.children.map((child) => (
-            <TreeNode key={child.codigo_gerencial} node={child} depth={depth + 1} expanded={expanded} toggle={toggle} onAddChild={onAddChild} onDeleteExtra={onDeleteExtra} />
+            <TreeNode key={child.codigo_gerencial} node={child} depth={depth + 1} expanded={expanded} toggle={toggle} onAddChild={onAddChild} onDeleteExtra={onDeleteExtra} canEdit={canEdit} />
           ))}
         </div>
       )}
@@ -331,7 +333,7 @@ function PlanoEditor({ plano, onBack }) {
 
         <div className="mt-2 max-h-[560px] overflow-y-auto scrollbar-thin">
           {tree.map((node) => (
-            <TreeNode key={node.codigo_gerencial} node={node} depth={0} expanded={expanded} toggle={toggle} onAddChild={setAddingUnder} onDeleteExtra={handleDeleteExtra} />
+            <TreeNode key={node.codigo_gerencial} node={node} depth={0} expanded={expanded} toggle={toggle} onAddChild={setAddingUnder} onDeleteExtra={handleDeleteExtra} canEdit={state.isAdmin} />
           ))}
           {tree.length === 0 && <p className="px-3 py-6 text-center text-[13px] text-ink-400">Nenhum código carregado.</p>}
         </div>
@@ -363,13 +365,15 @@ export default function PlanoPadraoAdmin() {
         <p className="text-[13px] font-medium text-ink-900">
           {state.planosPadrao.length} plano{state.planosPadrao.length === 1 ? "" : "s"} criado{state.planosPadrao.length === 1 ? "" : "s"}
         </p>
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          className="rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md"
-        >
-          + Novo plano padrão
-        </button>
+        {state.isAdmin && (
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md"
+          >
+            + Novo plano padrão
+          </button>
+        )}
       </div>
 
       <div className="mt-3 flex flex-col gap-2">
@@ -397,20 +401,22 @@ export default function PlanoPadraoAdmin() {
                   </p>
                 </div>
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (companies.length > 0) {
-                    alert(`Esse plano está em uso por ${companies.length} empresa${companies.length === 1 ? "" : "s"} — troque o plano delas primeiro.`);
-                    return;
-                  }
-                  if (confirm(`Apagar "${plano.nome}"?`)) deletePlanoPadrao(plano.id);
-                }}
-                aria-label={`Apagar ${plano.nome}`}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-line-strong text-danger-600 hover:bg-danger-50"
-              >
-                <Trash2 size={14} />
-              </button>
+              {state.isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (companies.length > 0) {
+                      alert(`Esse plano está em uso por ${companies.length} empresa${companies.length === 1 ? "" : "s"} — troque o plano delas primeiro.`);
+                      return;
+                    }
+                    if (confirm(`Apagar "${plano.nome}"?`)) deletePlanoPadrao(plano.id);
+                  }}
+                  aria-label={`Apagar ${plano.nome}`}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-line-strong text-danger-600 hover:bg-danger-50"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
             </div>
           );
         })}

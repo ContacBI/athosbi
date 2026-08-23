@@ -13,7 +13,8 @@ import { loadCompanies } from "./lib/companies.js";
 import { selectGroup } from "./lib/groups.js";
 import { loadRepresentantes } from "./lib/representantes.js";
 import { loadIndicatorOverrides } from "./lib/indicators.js";
-import { isPortalAdmin } from "./lib/access.js";
+import { isPortalAdmin, currentUserEmail } from "./lib/access.js";
+import { isColaborador } from "./lib/colaboradores.js";
 import { loadPlanosPadrao, refreshEffectivePlano } from "./lib/planosPadrao.js";
 import { setData } from "./data/useStore.js";
 
@@ -39,6 +40,7 @@ const AcessosAdmin = lazy(() => import("./pages/parametros/AcessosAdmin.jsx"));
 const Sistema = lazy(() => import("./pages/parametros/Sistema.jsx"));
 const PlanoGerencial = lazy(() => import("./pages/parametros/PlanoGerencial.jsx"));
 const PlanoPadraoAdmin = lazy(() => import("./pages/parametros/PlanoPadraoAdmin.jsx"));
+const ColaborarAdmin = lazy(() => import("./pages/parametros/ColaborarAdmin.jsx"));
 
 function RouteFallback() {
   return (
@@ -87,9 +89,18 @@ export default function App() {
     if (!session) return;
     if (bootedForUserRef.current === session.user.id) return; // já carregado pra esse usuário — token só renovou
     bootedForUserRef.current = session.user.id;
-    Promise.all([loadPlan(), loadCompanies(), loadRepresentantes(), loadIndicatorOverrides(), isPortalAdmin(), loadPlanosPadrao()])
-      .then(([, companiesResult, , , adminFlag]) => {
-        setData({ isAdmin: adminFlag });
+    Promise.all([
+      loadPlan(),
+      loadCompanies(),
+      loadRepresentantes(),
+      loadIndicatorOverrides(),
+      isPortalAdmin(),
+      loadPlanosPadrao(),
+      isColaborador(),
+      currentUserEmail(),
+    ])
+      .then(([, companiesResult, , , adminFlag, , colaboradorFlag, email]) => {
+        setData({ isAdmin: adminFlag, isColaborador: colaboradorFlag, userEmail: email });
         if (companiesResult?.groupId) selectGroup(companiesResult.groupId, { skipPersist: true });
         // loadCompanies() já chama selectCompany() internamente, que por
         // sua vez chama refreshEffectivePlano() — mas isso roda em
@@ -154,6 +165,7 @@ export default function App() {
           <Route path="sistema" element={<Sistema />} />
           <Route path="sistema/plano-gerencial" element={<PlanoGerencial />} />
           <Route path="planos-padrao" element={<PlanoPadraoAdmin />} />
+          <Route path="colaborar" element={<ColaborarAdmin />} />
         </Route>
         <Route path="empresa" element={<CompanyLayout />}>
           <Route index element={<CompanyHome />} />

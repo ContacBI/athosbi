@@ -115,6 +115,13 @@ export default function CompaniesAdmin() {
     return state.representantes.filter((representante) => ids.includes(representante.id)).map((representante) => representante.nome);
   }
 
+  // Admin edita qualquer empresa; colaborador Restrito só a(s) onde está
+  // listado em `responsaveis` (ver CompanyModal.jsx e supabase/schema.sql
+  // is_responsavel) — nas demais, é só leitura, igual um cliente.
+  function canEditCompany(company) {
+    return state.isAdmin || (company.responsaveis || []).includes(state.userEmail);
+  }
+
   // journalCount (não company.journal.length) — o razão de cada empresa só
   // carrega de verdade quando ela é aberta (ver ensureCompanyJournalLoaded
   // em lib/companies.js); essa contagem vem do registro leve, sem baixar
@@ -136,13 +143,15 @@ export default function CompaniesAdmin() {
             <p className="text-[13px] font-medium text-ink-900">
               {state.companies.length} empresa{state.companies.length === 1 ? "" : "s"} na carteira
             </p>
-            <button
-              type="button"
-              onClick={() => setModalCompany(null)}
-              className="rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md"
-            >
-              + Nova empresa
-            </button>
+            {state.isAdmin && (
+              <button
+                type="button"
+                onClick={() => setModalCompany(null)}
+                className="rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md"
+              >
+                + Nova empresa
+              </button>
+            )}
           </div>
 
           <div className="mt-3 flex flex-col gap-2">
@@ -170,26 +179,30 @@ export default function CompaniesAdmin() {
                       {names.length > 0 && <p className="mt-0.5 text-[11px] text-ink-400">Representantes: {names.join(", ")}</p>}
                     </div>
                   </div>
-                  <div className="flex shrink-0 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setModalCompany(company)}
-                      aria-label={`Editar ${company.name}`}
-                      className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-ink-600 hover:bg-surface-muted"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (confirm(`Remover ${company.name} da carteira?`)) deleteCompany(company.id);
-                      }}
-                      aria-label={`Remover ${company.name}`}
-                      className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-danger-600 hover:bg-danger-50"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
+                  {canEditCompany(company) && (
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setModalCompany(company)}
+                        aria-label={`Editar ${company.name}`}
+                        className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-ink-600 hover:bg-surface-muted"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      {state.isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Remover ${company.name} da carteira?`)) deleteCompany(company.id);
+                          }}
+                          aria-label={`Remover ${company.name}`}
+                          className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-danger-600 hover:bg-danger-50"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -224,6 +237,7 @@ export default function CompaniesAdmin() {
             </div>
           </div>
 
+          {state.isAdmin && (
           <div className="rounded-xl bg-surface-card p-3.5 shadow-sm">
             <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-ink-400">Backup geral</p>
             <p className="mb-2.5 text-[11px] text-ink-400">
@@ -252,6 +266,7 @@ export default function CompaniesAdmin() {
             </div>
             <BackupProgress busy={busy} />
           </div>
+          )}
 
           <div className="rounded-xl bg-surface-card p-3.5 shadow-sm">
             <p className="mb-2.5 text-[11px] font-medium uppercase tracking-wide text-ink-400">Atalhos</p>

@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, Loader2, Plus } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { formatCnpj, cnpjDigits, lookupCnpj } from "../lib/cnpj.js";
 import { DEFAULT_NATURE_RULES, NATURE_LABELS, NATURE_ORDER, formatPrefixList, parsePrefixList } from "../lib/accountNature.js";
 import { createPlanoPadrao } from "../lib/planosPadrao.js";
+import { listAdmins, listColaboradores } from "../lib/colaboradores.js";
 
 export default function CompanyModal({ onClose, onSubmit, company = null }) {
   const state = useAppState();
@@ -18,12 +19,29 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
   const [planoPadraoId, setPlanoPadraoId] = useState(company?.planoPadraoId || "");
   const [novoPlanoOpen, setNovoPlanoOpen] = useState(false);
   const [novoPlanoNome, setNovoPlanoNome] = useState("");
+  const [responsaveis, setResponsaveis] = useState(company?.responsaveis || []);
+  const [pessoas, setPessoas] = useState([]); // Total + Restrito, pra escolher responsável
   const [lookupState, setLookupState] = useState(company?.atividade ? "done" : "idle");
   const [error, setError] = useState("");
   const [natureText, setNatureText] = useState(() => {
     const rules = company?.natureRules || DEFAULT_NATURE_RULES;
     return Object.fromEntries(NATURE_ORDER.map((nature) => [nature, formatPrefixList(rules[nature])]));
   });
+
+  // Quem pode ser marcado responsável — todo mundo cadastrado em
+  // Parâmetros > Colaborar (Total + Restrito), ver lib/colaboradores.js.
+  // Buscado uma vez ao abrir o modal, não precisa reatividade em tempo real.
+  useEffect(() => {
+    Promise.all([listAdmins(), listColaboradores()])
+      .then(([admins, colaboradores]) => {
+        const merged = [
+          ...admins.map((item) => ({ ...item, categoria: "Total" })),
+          ...colaboradores.map((item) => ({ ...item, categoria: "Restrito" })),
+        ];
+        setPessoas(merged);
+      })
+      .catch((err) => console.error("Falha ao carregar colaboradores pro seletor de responsáveis:", err));
+  }, []);
 
   async function handleCnpjChange(event) {
     const formatted = formatCnpj(event.target.value);
@@ -51,6 +69,10 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
     setRepresentanteIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : current.concat(id)));
   }
 
+  function toggleResponsavel(email) {
+    setResponsaveis((current) => (current.includes(email) ? current.filter((item) => item !== email) : current.concat(email)));
+  }
+
   function handleCreatePlano() {
     const created = createPlanoPadrao(novoPlanoNome);
     if (!created) return;
@@ -72,13 +94,20 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
       setError("Escolha um plano de contas pra essa empresa.");
       return;
     }
+    // Sem pelo menos um responsável, nenhum colaborador Restrito jamais
+    // conseguiria editar essa empresa — sempre obrigatório, criando ou
+    // editando (ver is_responsavel em supabase/schema.sql).
+    if (!responsaveis.length) {
+      setError("Marque pelo menos um responsável pela empresa.");
+      return;
+    }
     const natureRules = Object.fromEntries(NATURE_ORDER.map((nature) => [nature, parsePrefixList(natureText[nature])]));
-    onSubmit({ codigo, cnpj, name, atividade, municipio, uf, representanteIds, natureRules, planoPadraoId: planoPadraoId || null });
+    onSubmit({ codigo, cnpj, name, atividade, municipio, uf, representanteIds, natureRules, planoPadraoId: planoPadraoId || null, responsaveis });
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-[2px]">
-      <form onSubmit={handleSubmit} className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-surface-card p-6 shadow-xl">
+      <form onSubmit={handleSubmit} className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-surface-card p-6 shadow-xl">
         <div className="flex items-start justify-between">
           <div>
             <span className="text-[11px] font-medium uppercase tracking-wide text-accent-600">
@@ -96,7 +125,7 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
           </button>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
+        <div className="mt-5 grid grid-cols-3 gap-3">
           <label className="text-[13px] text-ink-600">
             Código
             <input
@@ -121,17 +150,16 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
               )}
             </div>
           </label>
+          <label className="text-[13px] text-ink-600">
+            Nome da empresa *
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Preenche a partir do CNPJ"
+              className="mt-1 w-full rounded-md border border-line-strong px-3 py-2 text-sm outline-none focus:border-accent-500"
+            />
+          </label>
         </div>
-
-        <label className="mt-3 block text-[13px] text-ink-600">
-          Nome da empresa *
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Preenche sozinho a partir do CNPJ"
-            className="mt-1 w-full rounded-md border border-line-strong px-3 py-2 text-sm outline-none focus:border-accent-500"
-          />
-        </label>
 
         {lookupState === "done" && (
           <div className="mt-3 rounded-lg bg-surface-muted p-3 text-[12px] text-ink-600">
@@ -140,105 +168,133 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
           </div>
         )}
 
-        <div className="mt-4">
-          <p className="text-[13px] text-ink-600">Representantes vinculados</p>
-          {state.representantes.length === 0 ? (
-            <p className="mt-1.5 text-[12px] text-ink-400">
-              Nenhum representante cadastrado ainda. Cadastre em Parâmetros → Representantes.
+        <div className="mt-4 grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-[13px] text-ink-600">Representantes vinculados</p>
+            {state.representantes.length === 0 ? (
+              <p className="mt-1.5 text-[12px] text-ink-400">
+                Nenhum representante cadastrado ainda. Cadastre em Parâmetros → Representantes.
+              </p>
+            ) : (
+              <div className="mt-1.5 flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-lg border border-line-strong p-2">
+                {state.representantes.map((representante) => (
+                  <label key={representante.id} className="flex items-center gap-2 rounded-md px-1.5 py-1 text-[13px] text-ink-900 hover:bg-surface-muted">
+                    <input
+                      type="checkbox"
+                      checked={representanteIds.includes(representante.id)}
+                      onChange={() => toggleRepresentante(representante.id)}
+                    />
+                    {representante.nome}
+                    <span className="text-[11px] text-ink-400">{representante.email}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <p className="text-[13px] text-ink-600">Plano de contas {!isEditing && "*"}</p>
+            <p className="mt-0.5 text-[11.5px] text-ink-400">
+              Empresas no mesmo plano compartilham as contas extras dele e o De/Para se propaga entre elas.
             </p>
-          ) : (
-            <div className="mt-1.5 flex flex-col gap-1.5 rounded-lg border border-line-strong p-2">
-              {state.representantes.map((representante) => (
-                <label key={representante.id} className="flex items-center gap-2 rounded-md px-1.5 py-1 text-[13px] text-ink-900 hover:bg-surface-muted">
+            <div className="mt-1.5 flex max-h-32 flex-col gap-0.5 overflow-y-auto rounded-lg border border-line-strong p-2">
+              {state.planosPadrao.length === 0 && !novoPlanoOpen && (
+                <p className="px-1.5 py-1 text-[12px] text-ink-400">Nenhum plano padrão criado ainda.</p>
+              )}
+              {state.planosPadrao.map((plano) => (
+                <label key={plano.id} className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5 text-[13px] text-ink-900 hover:bg-surface-muted">
                   <input
-                    type="checkbox"
-                    checked={representanteIds.includes(representante.id)}
-                    onChange={() => toggleRepresentante(representante.id)}
+                    type="radio"
+                    name="planoPadraoId"
+                    checked={planoPadraoId === plano.id}
+                    onChange={() => setPlanoPadraoId(plano.id)}
                   />
-                  {representante.nome}
-                  <span className="text-[11px] text-ink-400">{representante.email}</span>
+                  {plano.nome}
                 </label>
               ))}
+              {novoPlanoOpen ? (
+                <div className="mt-1 flex items-center gap-1.5 border-t border-line pt-1.5">
+                  <input
+                    autoFocus
+                    value={novoPlanoNome}
+                    onChange={(event) => setNovoPlanoNome(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        handleCreatePlano();
+                      }
+                    }}
+                    placeholder="Nome do plano padrão"
+                    className="flex-1 rounded-md border border-line-strong px-2 py-1.5 text-[12.5px] outline-none focus:border-accent-500"
+                  />
+                  <button type="button" onClick={handleCreatePlano} className="rounded-md bg-accent-500 px-2.5 py-1.5 text-[12px] font-medium text-white hover:bg-accent-600">
+                    Criar
+                  </button>
+                  <button type="button" onClick={() => setNovoPlanoOpen(false)} className="rounded-md px-2 py-1.5 text-[12px] text-ink-500 hover:bg-surface-muted">
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setNovoPlanoOpen(true)}
+                  className="mt-1 flex items-center gap-1.5 rounded-md border-t border-line px-1.5 pt-2 text-left text-[12.5px] font-medium text-accent-600 hover:text-accent-700"
+                >
+                  <Plus size={13} strokeWidth={2.2} />
+                  Criar plano padrão
+                </button>
+              )}
             </div>
-          )}
-        </div>
-
-        <div className="mt-4">
-          <p className="text-[13px] text-ink-600">
-            Plano de contas {!isEditing && "*"}
-          </p>
-          <p className="mt-0.5 text-[11.5px] text-ink-400">
-            Empresas no mesmo plano padrão compartilham as contas extras dele e o De/Para se propaga automaticamente
-            entre elas.
-          </p>
-          <div className="mt-1.5 flex max-h-40 flex-col gap-0.5 overflow-y-auto rounded-lg border border-line-strong p-2">
-            {state.planosPadrao.length === 0 && !novoPlanoOpen && (
-              <p className="px-1.5 py-1 text-[12px] text-ink-400">Nenhum plano padrão criado ainda.</p>
-            )}
-            {state.planosPadrao.map((plano) => (
-              <label key={plano.id} className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5 text-[13px] text-ink-900 hover:bg-surface-muted">
-                <input
-                  type="radio"
-                  name="planoPadraoId"
-                  checked={planoPadraoId === plano.id}
-                  onChange={() => setPlanoPadraoId(plano.id)}
-                />
-                {plano.nome}
-              </label>
-            ))}
-            {novoPlanoOpen ? (
-              <div className="mt-1 flex items-center gap-1.5 border-t border-line pt-1.5">
-                <input
-                  autoFocus
-                  value={novoPlanoNome}
-                  onChange={(event) => setNovoPlanoNome(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      handleCreatePlano();
-                    }
-                  }}
-                  placeholder="Nome do plano padrão"
-                  className="flex-1 rounded-md border border-line-strong px-2 py-1.5 text-[12.5px] outline-none focus:border-accent-500"
-                />
-                <button type="button" onClick={handleCreatePlano} className="rounded-md bg-accent-500 px-2.5 py-1.5 text-[12px] font-medium text-white hover:bg-accent-600">
-                  Criar
-                </button>
-                <button type="button" onClick={() => setNovoPlanoOpen(false)} className="rounded-md px-2 py-1.5 text-[12px] text-ink-500 hover:bg-surface-muted">
-                  Cancelar
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setNovoPlanoOpen(true)}
-                className="mt-1 flex items-center gap-1.5 rounded-md border-t border-line px-1.5 pt-2 text-left text-[12.5px] font-medium text-accent-600 hover:text-accent-700"
-              >
-                <Plus size={13} strokeWidth={2.2} />
-                Criar plano padrão
-              </button>
-            )}
           </div>
         </div>
 
-        <div className="mt-4">
-          <p className="text-[13px] text-ink-600">Faixas de classificação do De/Para</p>
-          <p className="mt-0.5 text-[11.5px] text-ink-400">
-            Prefixos da classificação contábil desta empresa pra cada natureza — o De/Para só deixa vincular uma
-            conta a uma linha gerencial da mesma natureza. Separe vários prefixos por vírgula.
-          </p>
-          <div className="mt-2 grid grid-cols-2 gap-2.5">
-            {NATURE_ORDER.map((nature) => (
-              <label key={nature} className="text-[12.5px] text-ink-600">
-                {NATURE_LABELS[nature]}
-                <input
-                  value={natureText[nature]}
-                  onChange={(event) => setNatureText((prev) => ({ ...prev, [nature]: event.target.value }))}
-                  placeholder={formatPrefixList(DEFAULT_NATURE_RULES[nature])}
-                  className="mt-1 w-full rounded-md border border-line-strong px-2.5 py-1.5 text-[13px] outline-none focus:border-accent-500"
-                />
-              </label>
-            ))}
+        <div className="mt-4 grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-[13px] text-ink-600">Responsáveis pela empresa *</p>
+            <p className="mt-0.5 text-[11.5px] text-ink-400">
+              Só quem estiver marcado aqui (além de você) consegue editar essa empresa — De/Para, dados, etc. Os
+              demais colaboradores só visualizam, como um cliente.
+            </p>
+            {pessoas.length === 0 ? (
+              <p className="mt-1.5 text-[12px] text-ink-400">
+                Nenhum colaborador cadastrado ainda. Cadastre em Parâmetros → Colaborar.
+              </p>
+            ) : (
+              <div className="mt-1.5 flex max-h-32 flex-col gap-1.5 overflow-y-auto rounded-lg border border-line-strong p-2">
+                {pessoas.map((pessoa) => (
+                  <label key={pessoa.email} className="flex items-center gap-2 rounded-md px-1.5 py-1 text-[13px] text-ink-900 hover:bg-surface-muted">
+                    <input
+                      type="checkbox"
+                      checked={responsaveis.includes(pessoa.email)}
+                      onChange={() => toggleResponsavel(pessoa.email)}
+                    />
+                    <span className="min-w-0 flex-1 truncate">{pessoa.nome || pessoa.email}</span>
+                    <span className="shrink-0 text-[10px] text-ink-400">{pessoa.categoria}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <p className="text-[13px] text-ink-600">Faixas de classificação do De/Para</p>
+            <p className="mt-0.5 text-[11.5px] text-ink-400">
+              Prefixos da classificação contábil pra cada natureza — o De/Para só vincula uma conta a uma linha
+              gerencial da mesma natureza. Separe vários prefixos por vírgula.
+            </p>
+            <div className="mt-2 grid grid-cols-2 gap-2.5">
+              {NATURE_ORDER.map((nature) => (
+                <label key={nature} className="text-[12.5px] text-ink-600">
+                  {NATURE_LABELS[nature]}
+                  <input
+                    value={natureText[nature]}
+                    onChange={(event) => setNatureText((prev) => ({ ...prev, [nature]: event.target.value }))}
+                    placeholder={formatPrefixList(DEFAULT_NATURE_RULES[nature])}
+                    className="mt-1 w-full rounded-md border border-line-strong px-2.5 py-1.5 text-[13px] outline-none focus:border-accent-500"
+                  />
+                </label>
+              ))}
+            </div>
           </div>
         </div>
 

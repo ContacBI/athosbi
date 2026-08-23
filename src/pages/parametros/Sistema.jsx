@@ -1,4 +1,6 @@
+import { Navigate } from "react-router-dom";
 import { ListTree, GitBranch, SlidersHorizontal } from "lucide-react";
+import { useAppState } from "../../data/useStore.js";
 import PageHeader from "../../components/PageHeader.jsx";
 import FeaturePreviewCard from "../../components/FeaturePreviewCard.jsx";
 
@@ -17,6 +19,10 @@ const ITEMS = [
 ];
 
 export default function Sistema() {
+  const state = useAppState();
+  // Admin-only mesmo pra colaborador Restrito, que entra no resto de
+  // Parâmetros — ver ParametrosLayout.jsx.
+  if (!state.isAdmin) return <Navigate to="/parametros/empresas" replace />;
   return (
     <div>
       <PageHeader

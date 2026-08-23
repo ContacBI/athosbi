@@ -435,6 +435,10 @@ export default function CompanyTopBar({ company }) {
   const tabs = appState.dashboardTabs || [];
   const group = appState.activeGroupId ? appState.groups.find((item) => item.id === appState.activeGroupId) || null : null;
   const groupMembers = group ? groupCompanies(group) : [];
+  // Mesma regra do CompanyLayout.jsx: admin sempre edita; colaborador
+  // Restrito só se estiver em company.responsaveis DESTA empresa (grupo
+  // não tem "responsável", fica admin-only mesmo pra ele).
+  const canEdit = appState.isAdmin || (company && (company.responsaveis || []).includes(appState.userEmail));
   // Personalizar is its own self-contained editor with its own tab strip —
   // the normal site nav underneath would just be noise there.
   const isPersonalizar = location.pathname.startsWith("/empresa/personalizar");
@@ -513,7 +517,7 @@ export default function CompanyTopBar({ company }) {
             />
           )}
           <ReportsMenu />
-          {appState.isAdmin && (
+          {canEdit && (
             <button
               type="button"
               onClick={() => navigate("/empresa/personalizar")}
@@ -525,7 +529,7 @@ export default function CompanyTopBar({ company }) {
               Personalizar
             </button>
           )}
-          {company && appState.isAdmin && <SettingsButton />}
+          {company && canEdit && <SettingsButton />}
           <ThemeToggle className="h-8 w-8" />
         </div>
       </div>

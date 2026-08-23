@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, ChevronRight, Download, Layers, ListTree, Pencil, Plus, RotateCcw, Search, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { addPlanoAccount, hasChildren, previewNewAccount, removePlanoAccount } from "../../lib/planoOverrides.js";
@@ -490,6 +490,9 @@ function ImportPlanoModal({ result, onClose, onConfirm }) {
 export default function PlanoGerencial() {
   const state = useAppState();
   const navigate = useNavigate();
+  // Admin-only mesmo pra colaborador Restrito, que entra no resto de
+  // Parâmetros — ver ParametrosLayout.jsx.
+  if (!state.isAdmin) return <Navigate to="/parametros/empresas" replace />;
   const [tab, setTab] = useState("DRE");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(() => new Set());

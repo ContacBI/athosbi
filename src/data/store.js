@@ -37,6 +37,14 @@ export const state = {
   // cadastro ficam editáveis. Todo o resto de fato é aplicado pela RLS do
   // Supabase; esta flag é só pra UI não nem oferecer o que o banco recusaria.
   isAdmin: false,
+  // Colaborador Restrito (ver lib/colaboradores.js e supabase/schema.sql) —
+  // enxerga a carteira inteira e entra em Parâmetros como um admin, mas só
+  // edita de fato as empresas onde o próprio e-mail (userEmail abaixo) está
+  // em company.responsaveis. Nunca vê Sistema/Colaborar/B.I.
+  isColaborador: false,
+  // E-mail de quem está logado agora — usado só pra comparar contra
+  // company.responsaveis na hora de mostrar/esconder botão de editar.
+  userEmail: "",
   mappings: [],
   // Vínculo DFC por empresa — overrides de qual destino (DFC.OP.CLIENTES
   // etc.) uma conta gerencial usa nesta empresa, por cima do vínculo global

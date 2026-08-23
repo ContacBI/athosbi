@@ -35,14 +35,16 @@ export default function GruposAdmin() {
             <p className="text-[13px] font-medium text-ink-900">
               {state.groups.length} grupo{state.groups.length === 1 ? "" : "s"} criado{state.groups.length === 1 ? "" : "s"}
             </p>
-            <button
-              type="button"
-              onClick={() => setModalGroup(null)}
-              disabled={state.companies.length < 2}
-              className="rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-sm"
-            >
-              + Novo grupo
-            </button>
+            {state.isAdmin && (
+              <button
+                type="button"
+                onClick={() => setModalGroup(null)}
+                disabled={state.companies.length < 2}
+                className="rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-sm"
+              >
+                + Novo grupo
+              </button>
+            )}
           </div>
 
           <div className="mt-3 flex flex-col gap-2">
@@ -101,26 +103,28 @@ export default function GruposAdmin() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex shrink-0 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setModalGroup(group)}
-                        aria-label={`Editar ${group.name}`}
-                        className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-ink-600 hover:bg-surface-muted"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (confirm(`Remover o grupo "${group.name}"? As empresas continuam na carteira.`)) deleteGroup(group.id);
-                        }}
-                        aria-label={`Remover ${group.name}`}
-                        className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-danger-600 hover:bg-danger-50"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                    {state.isAdmin && (
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setModalGroup(group)}
+                          aria-label={`Editar ${group.name}`}
+                          className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-ink-600 hover:bg-surface-muted"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Remover o grupo "${group.name}"? As empresas continuam na carteira.`)) deleteGroup(group.id);
+                          }}
+                          aria-label={`Remover ${group.name}`}
+                          className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-danger-600 hover:bg-danger-50"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {members.length > 0 && (

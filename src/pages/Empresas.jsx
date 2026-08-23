@@ -212,7 +212,7 @@ export default function Empresas() {
               <ArrowLeft size={15} />
               Início
             </button>
-            {state.isAdmin && (
+            {(state.isAdmin || state.isColaborador) && (
               <button
                 type="button"
                 onClick={() => navigate("/parametros")}
@@ -313,14 +313,14 @@ export default function Empresas() {
                 <Building2 size={26} strokeWidth={1.6} />
               </span>
               <p className="text-[15px] font-medium text-ink-900">
-                {state.isAdmin ? "Nenhuma empresa cadastrada" : "Nenhum acesso liberado pra você ainda"}
+                {(state.isAdmin || state.isColaborador) ? "Nenhuma empresa cadastrada" : "Nenhum acesso liberado pra você ainda"}
               </p>
               <p className="max-w-xs text-[13px] text-ink-400">
-                {state.isAdmin
+                {(state.isAdmin || state.isColaborador)
                   ? "Vá em Parâmetros para cadastrar a primeira empresa da sua carteira."
                   : "Fale com quem administra o portal pra liberar as empresas ou grupos que você precisa ver."}
               </p>
-              {state.isAdmin && (
+              {(state.isAdmin || state.isColaborador) && (
                 <button
                   type="button"
                   onClick={() => navigate("/parametros")}

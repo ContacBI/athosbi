@@ -5,11 +5,14 @@ import { PageActionsProvider } from "../lib/pageActions.jsx";
 import { densityColumnGap } from "../lib/density.js";
 
 // Rotas de gestão/edição dentro do workspace da empresa — quem só tem
-// acesso de leitura (não-admin, ver lib/access.js) nunca deveria nem abrir
-// essas telas: o banco já recusa qualquer escrita vinda daqui (RLS em
-// app_storage), mas sem essa trava a pessoa veria um erro cru do Supabase
-// em vez de simplesmente não ter o caminho pra chegar lá.
-const ADMIN_ONLY_PREFIXES = ["/empresa/relatorios", "/empresa/de-para", "/empresa/vinculo-dfc", "/empresa/personalizar"];
+// acesso de leitura nunca deveria nem abrir essas telas: o banco já recusa
+// qualquer escrita vinda daqui (RLS em app_storage), mas sem essa trava a
+// pessoa veria um erro cru do Supabase em vez de simplesmente não ter o
+// caminho pra chegar lá. Admin (Total) sempre passa; um colaborador
+// Restrito só passa se estiver em company.responsaveis DESTA empresa — em
+// modo grupo, não existe "responsável" (várias empresas juntas), então
+// fica admin-only mesmo pra ele.
+const EDIT_ONLY_PREFIXES = ["/empresa/relatorios", "/empresa/de-para", "/empresa/vinculo-dfc", "/empresa/personalizar"];
 
 export default function CompanyLayout() {
   const state = useAppState();
@@ -20,7 +23,8 @@ export default function CompanyLayout() {
     return <Navigate to="/empresas" replace />;
   }
 
-  if (!state.isAdmin && ADMIN_ONLY_PREFIXES.some((prefix) => location.pathname.startsWith(prefix))) {
+  const canEditHere = state.isAdmin || (company && (company.responsaveis || []).includes(state.userEmail));
+  if (!canEditHere && EDIT_ONLY_PREFIXES.some((prefix) => location.pathname.startsWith(prefix))) {
     return <Navigate to="/empresa" replace />;
   }
 

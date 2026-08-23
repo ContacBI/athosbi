@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { Building2, Network, Repeat, Users, SlidersHorizontal, ChevronLeft, BarChart3, LogOut, ShieldCheck, Layers } from "lucide-react";
+import { Building2, Network, Repeat, Users, SlidersHorizontal, ChevronLeft, BarChart3, LogOut, ShieldCheck, Layers, UserCog } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
+import { useAppState } from "../data/useStore.js";
 import ThemeToggle from "./ThemeToggle.jsx";
 
 const ITEMS = [
@@ -9,13 +10,21 @@ const ITEMS = [
   { to: "/parametros/de-para", label: "De/Para", icon: Repeat },
   { to: "/parametros/planos-padrao", label: "Planos padrão", icon: Layers },
   { to: "/parametros/representantes", label: "Representantes", icon: Users },
-  { to: "/parametros/bi", label: "B.I.", icon: BarChart3 },
   { to: "/parametros/acessos", label: "Acessos", icon: ShieldCheck },
+];
+
+// Só Total (admin) enxerga essas 3 — Restrito nunca, mesmo entrando no
+// resto de Parâmetros (ver ParametrosLayout.jsx).
+const ADMIN_ONLY_ITEMS = [
+  { to: "/parametros/bi", label: "B.I.", icon: BarChart3 },
+  { to: "/parametros/colaborar", label: "Colaborar", icon: UserCog },
   { to: "/parametros/sistema", label: "Sistema", icon: SlidersHorizontal },
 ];
 
 export default function ParametrosSidebar() {
   const navigate = useNavigate();
+  const state = useAppState();
+  const items = state.isAdmin ? [...ITEMS, ...ADMIN_ONLY_ITEMS] : ITEMS;
 
   return (
     <aside className="flex h-screen w-[232px] shrink-0 flex-col bg-navy-950 text-white">
@@ -36,7 +45,7 @@ export default function ParametrosSidebar() {
       </button>
 
       <nav className="mt-1 flex flex-1 flex-col gap-0.5 px-3">
-        {ITEMS.map(({ to, label, icon: Icon }) => (
+        {items.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

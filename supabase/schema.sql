@@ -98,6 +98,69 @@ language sql stable security definer set search_path = public as $$
   );
 $$;
 
+-- ============================================================================
+-- Colaboradores internos (ago/2026) — dois níveis, além do dono (Total é na
+-- prática só um apelido pra portal_admins, já existente):
+--   Total    — mesma coisa que já era: acesso e edição de tudo, sem crivo
+--              nenhum. contac@gmail.com e izaiascontac@gmail.com já estão
+--              seedados ali em cima; a tela Parâmetros > Colaborar deixa
+--              adicionar mais.
+--   Restrito — enxerga a carteira INTEIRA (como um Total, só que sem poder
+--              editar por padrão) e só consegue de fato criar/editar/apagar
+--              o registro/razão das empresas onde está listado como
+--              responsável (campo `responsaveis` dentro do próprio registro
+--              da empresa — não é tabela separada). Nunca vê Sistema,
+--              Colaborar ou B.I., mesmo enxergando o resto de Parâmetros.
+-- ============================================================================
+
+alter table portal_admins add column if not exists nome text;
+
+create table if not exists colaboradores (
+  email text primary key,
+  nome text,
+  created_at timestamptz not null default now()
+);
+alter table colaboradores enable row level security;
+
+drop policy if exists "colaboradores_self_read" on colaboradores;
+create policy "colaboradores_self_read"
+  on colaboradores for select
+  to authenticated
+  using (email = lower(coalesce(auth.jwt()->>'email', '')));
+
+drop policy if exists "colaboradores_admin_all" on colaboradores;
+create policy "colaboradores_admin_all"
+  on colaboradores for all
+  to authenticated
+  using (is_portal_admin())
+  with check (is_portal_admin());
+
+create or replace function is_colaborador()
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from colaboradores where email = lower(coalesce(auth.jwt()->>'email', ''))
+  );
+$$;
+
+-- Lê o registro da PRÓPRIA empresa (security definer — não importa se quem
+-- chama teria permissão de ver essa linha ou não) e confere se o e-mail de
+-- quem está logado está no array `responsaveis` dela. NULL (empresa antiga,
+-- campo nem existe ainda) vira `false` — sem responsável definido, ninguém
+-- Restrito edita, só o dono.
+create or replace function is_responsavel(company_id text)
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce(
+    (
+      select (value->'responsaveis') ? lower(coalesce(auth.jwt()->>'email', ''))
+      from app_storage
+      where key = 'portalGerencial.company.' || company_id
+    ),
+    false
+  );
+$$;
+
 drop policy if exists "app_storage_select_authenticated" on app_storage;
 drop policy if exists "app_storage_select_scoped" on app_storage;
 create policy "app_storage_select_scoped"
@@ -105,6 +168,9 @@ create policy "app_storage_select_scoped"
   to authenticated
   using (
     is_portal_admin()
+    -- Restrito enxerga a carteira inteira igual o dono — só a ESCRITA que
+    -- fica limitada mais abaixo.
+    or is_colaborador()
     -- Gavetas que não são o razão/registro de uma empresa específica (lista
     -- de grupos, plano gerencial, representantes, indicadores...) continuam
     -- visíveis pra qualquer e-mail com acesso a ALGUMA empresa — são dados
@@ -122,26 +188,51 @@ create policy "app_storage_select_scoped"
     )
   );
 
--- Escrita (insert/update/delete) fica só com o dono — todo mundo liberado
--- via access_grants é sempre somente-leitura, mesmo nas empresas que
--- enxerga. Se um dia precisar de gente que também edita, criar um
--- scope tipo 'editor' em access_grants e trocar o "false" abaixo pela
--- mesma checagem de allowed_company_ids() usada no select.
+-- Escrita (insert/update): o dono pode tudo; um colaborador Restrito só
+-- pode mexer no registro/razão de uma empresa (nunca em outra gaveta —
+-- grupo, plano padrão, representantes, acessos continuam só do dono) e só
+-- se estiver listado em `responsaveis` dela. Quem é só liberado via
+-- access_grants (cliente externo) continua sempre somente-leitura.
 drop policy if exists "app_storage_insert_authenticated" on app_storage;
 drop policy if exists "app_storage_insert_admin_only" on app_storage;
-create policy "app_storage_insert_admin_only"
+drop policy if exists "app_storage_insert_scoped" on app_storage;
+create policy "app_storage_insert_scoped"
   on app_storage for insert
   to authenticated
-  with check (is_portal_admin());
+  with check (
+    is_portal_admin()
+    or (
+      is_colaborador()
+      and (key like 'portalGerencial.company.%' or key like 'portalGerencial.companyJournal.%')
+      and is_responsavel(split_part(key, '.', 3))
+    )
+  );
 
 drop policy if exists "app_storage_update_authenticated" on app_storage;
 drop policy if exists "app_storage_update_admin_only" on app_storage;
-create policy "app_storage_update_admin_only"
+drop policy if exists "app_storage_update_scoped" on app_storage;
+create policy "app_storage_update_scoped"
   on app_storage for update
   to authenticated
-  using (is_portal_admin())
-  with check (is_portal_admin());
+  using (
+    is_portal_admin()
+    or (
+      is_colaborador()
+      and (key like 'portalGerencial.company.%' or key like 'portalGerencial.companyJournal.%')
+      and is_responsavel(split_part(key, '.', 3))
+    )
+  )
+  with check (
+    is_portal_admin()
+    or (
+      is_colaborador()
+      and (key like 'portalGerencial.company.%' or key like 'portalGerencial.companyJournal.%')
+      and is_responsavel(split_part(key, '.', 3))
+    )
+  );
 
+-- Apagar continua só do dono — excluir empresa/razão é destrutivo demais
+-- pra delegar pra um colaborador Restrito.
 drop policy if exists "app_storage_delete_authenticated" on app_storage;
 drop policy if exists "app_storage_delete_admin_only" on app_storage;
 create policy "app_storage_delete_admin_only"

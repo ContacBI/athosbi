@@ -419,6 +419,7 @@ export function createCompany({
   representanteIds = [],
   natureRules = DEFAULT_NATURE_RULES,
   planoPadraoId = null,
+  responsaveis = [],
 }) {
   const companyName = String(name || "").trim();
   if (!companyName) return null;
@@ -438,6 +439,10 @@ export function createCompany({
     // usa só o global, igual sempre foi, até alguém escolher um plano
     // pra ela em Parâmetros > Empresas.
     planoPadraoId,
+    // E-mails de colaboradores Restrito que podem editar esta empresa (ver
+    // is_responsavel em supabase/schema.sql) — admin (Total) sempre pode,
+    // independente do que estiver aqui.
+    responsaveis,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     mappings: [],
@@ -472,7 +477,7 @@ export function createCompany({
 
 export function updateCompany(
   id,
-  { name, cnpj = "", codigo = "", atividade = "", municipio = "", uf = "", representanteIds = [], natureRules = DEFAULT_NATURE_RULES, planoPadraoId }
+  { name, cnpj = "", codigo = "", atividade = "", municipio = "", uf = "", representanteIds = [], natureRules = DEFAULT_NATURE_RULES, planoPadraoId, responsaveis }
 ) {
   const companyName = String(name || "").trim();
   if (!companyName) return null;
@@ -492,6 +497,7 @@ export function updateCompany(
           // quando o formulário realmente enviar um planoPadraoId, inclusive
           // null explícito pra "voltar a usar só o global".
           ...(planoPadraoId !== undefined ? { planoPadraoId } : {}),
+          ...(responsaveis !== undefined ? { responsaveis } : {}),
           updatedAt: new Date().toISOString(),
         }
       : company

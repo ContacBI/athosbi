@@ -25,13 +25,15 @@ export default function Representantes() {
         icon={Users}
       />
 
-      <button
-        type="button"
-        onClick={() => setModalRepresentante(null)}
-        className="rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md"
-      >
-        + Novo representante
-      </button>
+      {state.isAdmin && (
+        <button
+          type="button"
+          onClick={() => setModalRepresentante(null)}
+          className="rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md"
+        >
+          + Novo representante
+        </button>
+      )}
 
       <div className="mt-4 flex flex-col gap-2">
         {state.representantes.length === 0 && (
@@ -59,26 +61,28 @@ export default function Representantes() {
                   </p>
                 </div>
               </div>
-              <div className="flex shrink-0 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setModalRepresentante(representante)}
-                  aria-label={`Editar ${representante.nome}`}
-                  className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-ink-600 hover:bg-surface-muted"
-                >
-                  <Pencil size={14} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (confirm(`Remover ${representante.nome}?`)) deleteRepresentante(representante.id);
-                  }}
-                  aria-label={`Remover ${representante.nome}`}
-                  className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-danger-600 hover:bg-danger-50"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
+              {state.isAdmin && (
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setModalRepresentante(representante)}
+                    aria-label={`Editar ${representante.nome}`}
+                    className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-ink-600 hover:bg-surface-muted"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`Remover ${representante.nome}?`)) deleteRepresentante(representante.id);
+                    }}
+                    aria-label={`Remover ${representante.nome}`}
+                    className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong text-danger-600 hover:bg-danger-50"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
