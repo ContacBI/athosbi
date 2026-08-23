@@ -10,8 +10,10 @@ import { pruneUnusedExtraAccounts } from "../../lib/planosPadrao.js";
 import PageHeader from "../../components/PageHeader.jsx";
 import Avatar from "../../components/Avatar.jsx";
 
-const normalize = (value) =>
-  String(value || "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+// `normalize()` usada aqui é a mesma função declarada mais abaixo neste
+// arquivo (hoisted — `function normalize` fica disponível em todo o
+// módulo independente de onde é declarada) — evita duplicar a mesma
+// lógica de novo aqui em cima.
 
 // Por empresa (não por plano padrão) as contas extras que ela enxerga —
 // via o planoPadraoId dela. Uma empresa sem plano padrão, ou cujo plano
