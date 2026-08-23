@@ -2,6 +2,11 @@
 
 @theme {
   --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
+  /* Só pros números/códigos que precisam alinhar em coluna de verdade
+     (carteira de empresas, tabelas de valores) — nenhuma fonte baixada,
+     só a pilha de monoespaçadas que cada SO já traz, então não pesa nada
+     nem destoa do resto do app (que também não baixa fonte nenhuma hoje). */
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
 
   /* navy-950/900 are the fixed dark "brand identity" surface — Login,
      Landing, the Parâmetros sidebar, the company top bar — deliberately the
