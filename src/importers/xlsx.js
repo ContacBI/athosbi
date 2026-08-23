@@ -110,8 +110,17 @@ async function firstSheetPath(entries) {
     const relId = firstSheet?.getAttribute("r:id");
     const rels = new DOMParser().parseFromString(await zipText(entries, "xl/_rels/workbook.xml.rels"), "application/xml");
     const rel = Array.from(rels.getElementsByTagNameNS("*", "Relationship")).find((item) => item.getAttribute("Id") === relId);
+    // O Target de uma relationship pode vir de dois jeitos, os dois válidos
+    // pela spec OOXML: relativo à pasta xl/ (ex.: "worksheets/sheet1.xml" —
+    // o que o Excel de verdade sempre escreve) OU absoluto dentro do pacote,
+    // começando com "/" (ex.: "/xl/worksheets/sheet1.xml" — é assim que o
+    // openpyxl grava especificamente a planilha principal). Sempre prefixar
+    // "xl/" incondicionalmente quebrava esse segundo caso, virando
+    // "xl/xl/worksheets/sheet1.xml" — um caminho que não existe dentro do
+    // zip — e todo balancete gerado com openpyxl (ex.: os arquivos deste
+    // chat) caía direto no "Não consegui ler esse arquivo de balancete."
     const target = rel?.getAttribute("Target");
-    if (target) return `xl/${target.replace(/^\/+/, "")}`;
+    if (target) return target.startsWith("/") ? target.replace(/^\/+/, "") : `xl/${target}`;
   }
   return "xl/worksheets/sheet1.xml";
 }
