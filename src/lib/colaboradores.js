@@ -90,6 +90,29 @@ export function groupsResponsavel(state) {
   );
 }
 
+// Contas usadas só pra administrar/testar o próprio portal — não fazem
+// sentido como opção de "responsável" numa empresa de cliente de verdade,
+// então saem da lista de escolha (ver CompanyModal.jsx e
+// ResponsaveisAdmin.jsx). izaiascontac@gmail.com/contac@gmail.com são
+// Total (já editam tudo de qualquer jeito, não precisam estar marcados
+// responsável em lugar nenhum). izaiasspaulino@gmail.com é caso à parte —
+// segue em uso ativo pra testar o crivo de responsável nas empresas
+// modelo, então só some da lista de opções NOVAS: se já estiver marcado
+// responsável em alguma empresa, continua aparecendo lá normalmente (pra
+// não sumir um vínculo que já existe e ainda está sendo testado).
+const PESSOAS_OCULTAS_SEMPRE = new Set(["izaiascontac@gmail.com", "contac@gmail.com"]);
+const PESSOAS_OCULTAS_SALVO_JA_MARCADAS = new Set(["izaiasspaulino@gmail.com"]);
+
+export function pickablePessoas(pessoas, jaMarcados = []) {
+  const marcados = new Set(jaMarcados);
+  return (pessoas || []).filter((pessoa) => {
+    const email = pessoa.email;
+    if (PESSOAS_OCULTAS_SEMPRE.has(email)) return false;
+    if (PESSOAS_OCULTAS_SALVO_JA_MARCADAS.has(email) && !marcados.has(email)) return false;
+    return true;
+  });
+}
+
 // Mesmo crivo de groupsResponsavel, mas pra UM grupo só — espelha
 // is_responsavel_for_group() do banco (supabase/schema.sql): responsável
 // em QUALQUER empresa-membro já basta pra editar o workspace consolidado

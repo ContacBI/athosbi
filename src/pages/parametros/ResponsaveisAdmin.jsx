@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Building2, TriangleAlert, UserCheck } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { updateCompany } from "../../lib/companies.js";
-import { companiesResponsavel, listAdmins, listColaboradores } from "../../lib/colaboradores.js";
+import { companiesResponsavel, listAdmins, listColaboradores, pickablePessoas } from "../../lib/colaboradores.js";
 import PageHeader from "../../components/PageHeader.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import SelectField from "../../components/SelectField.jsx";
@@ -98,7 +98,7 @@ export default function ResponsaveisAdmin() {
           <div className="mt-2">
             <SelectField
               placeholder="Selecione os responsáveis"
-              options={pessoas.map((pessoa) => ({ value: pessoa.email, label: pessoa.nome || pessoa.email }))}
+              options={pickablePessoas(pessoas, responsaveis).map((pessoa) => ({ value: pessoa.email, label: pessoa.nome || pessoa.email }))}
               values={responsaveis}
               onToggle={(email) => toggleResponsavel(selectedCompany, email)}
               emptyText="Nenhum colaborador cadastrado ainda. Cadastre em Parâmetros → Colaborar."
