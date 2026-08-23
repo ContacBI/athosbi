@@ -11,7 +11,12 @@ export async function loadRepresentantes() {
   setData({ representantes });
 }
 
-export function createRepresentante({ nome, email = "", cpf = "" }) {
+// `tipo` distingue sócio de contador — são papéis diferentes (um contador
+// não é necessariamente sócio, e vice-versa), mas continuam num cadastro
+// só porque a mecânica de "vincular gente a uma empresa" é idêntica pros
+// dois. Registro sem `tipo` (todo cadastro anterior a essa distinção) é
+// tratado como "socio" — não muda nada pra quem já usava a tela.
+export function createRepresentante({ nome, email = "", cpf = "", tipo = "socio" }) {
   const name = String(nome || "").trim();
   if (!name) return null;
   const representante = {
@@ -19,6 +24,7 @@ export function createRepresentante({ nome, email = "", cpf = "" }) {
     nome: name,
     email,
     cpf,
+    tipo,
     createdAt: new Date().toISOString(),
   };
   const representantes = state.representantes.concat(representante);
@@ -27,11 +33,11 @@ export function createRepresentante({ nome, email = "", cpf = "" }) {
   return representante;
 }
 
-export function updateRepresentante(id, { nome, email = "", cpf = "" }) {
+export function updateRepresentante(id, { nome, email = "", cpf = "", tipo = "socio" }) {
   const name = String(nome || "").trim();
   if (!name) return null;
   const representantes = state.representantes.map((item) =>
-    item.id === id ? { ...item, nome: name, email, cpf } : item
+    item.id === id ? { ...item, nome: name, email, cpf, tipo } : item
   );
   persist(representantes);
   setData({ representantes });

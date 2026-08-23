@@ -7,6 +7,7 @@ export default function RepresentanteModal({ onClose, onSubmit, representante = 
   const [nome, setNome] = useState(representante?.nome || "");
   const [email, setEmail] = useState(representante?.email || "");
   const [cpf, setCpf] = useState(representante?.cpf || "");
+  const [tipo, setTipo] = useState(representante?.tipo || "socio");
   const [error, setError] = useState("");
 
   function handleSubmit(event) {
@@ -15,7 +16,7 @@ export default function RepresentanteModal({ onClose, onSubmit, representante = 
       setError("Informe o nome do representante.");
       return;
     }
-    onSubmit({ nome, email, cpf });
+    onSubmit({ nome, email, cpf, tipo });
   }
 
   return (
@@ -38,7 +39,29 @@ export default function RepresentanteModal({ onClose, onSubmit, representante = 
           </button>
         </div>
 
-        <label className="mt-5 block text-[13px] text-ink-600">
+        <div className="mt-5 text-[13px] text-ink-600">
+          Tipo
+          <div className="mt-1 flex rounded-md border border-line-strong p-0.5">
+            {[
+              { value: "socio", label: "Sócio", hint: "Representante/sócio da empresa" },
+              { value: "contador", label: "Contador", hint: "Responsável contábil da empresa" },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setTipo(option.value)}
+                title={option.hint}
+                className={`flex-1 rounded px-3 py-1.5 text-[12.5px] transition-colors ${
+                  tipo === option.value ? "bg-accent-500 text-white" : "text-ink-600 hover:bg-surface-muted"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <label className="mt-4 block text-[13px] text-ink-600">
           Nome *
           <input
             autoFocus

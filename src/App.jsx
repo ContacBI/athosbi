@@ -35,6 +35,7 @@ const CompaniesAdmin = lazy(() => import("./pages/parametros/CompaniesAdmin.jsx"
 const GruposAdmin = lazy(() => import("./pages/parametros/GruposAdmin.jsx"));
 const DeParaAdmin = lazy(() => import("./pages/parametros/DeParaAdmin.jsx"));
 const Representantes = lazy(() => import("./pages/parametros/Representantes.jsx"));
+const ResponsaveisAdmin = lazy(() => import("./pages/parametros/ResponsaveisAdmin.jsx"));
 const BiAdmin = lazy(() => import("./pages/parametros/BiAdmin.jsx"));
 const AcessosAdmin = lazy(() => import("./pages/parametros/AcessosAdmin.jsx"));
 const Sistema = lazy(() => import("./pages/parametros/Sistema.jsx"));
@@ -160,6 +161,7 @@ export default function App() {
           <Route path="grupo" element={<GruposAdmin />} />
           <Route path="de-para" element={<DeParaAdmin />} />
           <Route path="representantes" element={<Representantes />} />
+          <Route path="responsaveis" element={<ResponsaveisAdmin />} />
           <Route path="bi" element={<BiAdmin />} />
           <Route path="acessos" element={<AcessosAdmin />} />
           <Route path="sistema" element={<Sistema />} />

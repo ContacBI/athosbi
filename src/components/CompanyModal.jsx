@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { X, Loader2, Plus, IdCard, PenTool } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { formatCnpj, cnpjDigits, lookupCnpj } from "../lib/cnpj.js";
 import { DEFAULT_NATURE_RULES, NATURE_LABELS, NATURE_ORDER, formatPrefixList, parsePrefixList } from "../lib/accountNature.js";
 import { createPlanoPadrao } from "../lib/planosPadrao.js";
-import { listAdmins, listColaboradores } from "../lib/colaboradores.js";
+import SelectField from "./SelectField.jsx";
 
 export default function CompanyModal({ onClose, onSubmit, company = null }) {
   const state = useAppState();
@@ -19,8 +19,6 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
   const [planoPadraoId, setPlanoPadraoId] = useState(company?.planoPadraoId || "");
   const [novoPlanoOpen, setNovoPlanoOpen] = useState(false);
   const [novoPlanoNome, setNovoPlanoNome] = useState("");
-  const [responsaveis, setResponsaveis] = useState(company?.responsaveis || []);
-  const [pessoas, setPessoas] = useState([]); // Total + Restrito, pra escolher responsável
   const [lookupState, setLookupState] = useState(company?.atividade ? "done" : "idle");
   const [error, setError] = useState("");
   const [tab, setTab] = useState("dados");
@@ -28,21 +26,6 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
     const rules = company?.natureRules || DEFAULT_NATURE_RULES;
     return Object.fromEntries(NATURE_ORDER.map((nature) => [nature, formatPrefixList(rules[nature])]));
   });
-
-  // Quem pode ser marcado responsável — todo mundo cadastrado em
-  // Parâmetros > Colaborar (Total + Restrito), ver lib/colaboradores.js.
-  // Buscado uma vez ao abrir o modal, não precisa reatividade em tempo real.
-  useEffect(() => {
-    Promise.all([listAdmins(), listColaboradores()])
-      .then(([admins, colaboradores]) => {
-        const merged = [
-          ...admins.map((item) => ({ ...item, categoria: "Total" })),
-          ...colaboradores.map((item) => ({ ...item, categoria: "Restrito" })),
-        ];
-        setPessoas(merged);
-      })
-      .catch((err) => console.error("Falha ao carregar colaboradores pro seletor de responsáveis:", err));
-  }, []);
 
   async function handleCnpjChange(event) {
     const formatted = formatCnpj(event.target.value);
@@ -70,10 +53,6 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
     setRepresentanteIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : current.concat(id)));
   }
 
-  function toggleResponsavel(email) {
-    setResponsaveis((current) => (current.includes(email) ? current.filter((item) => item !== email) : current.concat(email)));
-  }
-
   function handleCreatePlano() {
     const created = createPlanoPadrao(novoPlanoNome);
     if (!created) return;
@@ -97,21 +76,31 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
       setTab("dados");
       return;
     }
-    // Sem pelo menos um responsável, nenhum colaborador Restrito jamais
-    // conseguiria editar essa empresa — sempre obrigatório, criando ou
-    // editando (ver is_responsavel em supabase/schema.sql). Fica na aba
-    // Assinaturas, então o erro precisa levar pra lá se a pessoa estiver
-    // vendo Dados gerais.
-    if (!responsaveis.length) {
-      setError("Marque pelo menos um responsável pela empresa (aba Assinaturas).");
-      setTab("assinaturas");
-      return;
-    }
     const natureRules = Object.fromEntries(NATURE_ORDER.map((nature) => [nature, parsePrefixList(natureText[nature])]));
-    onSubmit({ codigo, cnpj, name, atividade, municipio, uf, representanteIds, natureRules, planoPadraoId: planoPadraoId || null, responsaveis });
+    onSubmit({
+      codigo,
+      cnpj,
+      name,
+      atividade,
+      municipio,
+      uf,
+      representanteIds,
+      natureRules,
+      planoPadraoId: planoPadraoId || null,
+      // Responsáveis (quem edita a empresa no portal) não é mais escolhido
+      // aqui — vive em Parâmetros → Responsáveis agora (ver
+      // ResponsaveisAdmin.jsx). Mas a empresa continua chegando com pelo
+      // menos UM responsável ao ser criada: quem está criando, senão a
+      // trava de RLS (is_responsavel) travaria a própria pessoa pra
+      // sempre fora da empresa que ela acabou de cadastrar. Editando,
+      // `undefined` preserva o que já estava salvo (ver updateCompany).
+      responsaveis: isEditing ? undefined : [state.userEmail],
+    });
   }
 
-  const responsaveisMissing = tab === "assinaturas" && responsaveis.length === 0;
+  const socios = state.representantes.filter((representante) => representante.tipo !== "contador");
+  const contadores = state.representantes.filter((representante) => representante.tipo === "contador");
+  const planoOptions = state.planosPadrao.map((plano) => ({ value: plano.id, label: plano.nome }));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-[2px]">
@@ -135,10 +124,10 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
 
         {/* Duas abas em vez de tudo empilhado numa tela só: Dados gerais é
             o que qualquer colaborador cadastra rápido (código, CNPJ, plano
-            de contas); Assinaturas é quem responde pela empresa — contador/
-            sócio vinculado e quem no portal pode editá-la — informação de
-            outra natureza, que só quem já tem a empresa em mãos costuma
-            preencher com calma. */}
+            de contas); Assinaturas é quem assina/responde tecnicamente pela
+            empresa — contador e representante/sócio são papéis diferentes,
+            por isso dois seletores separados em vez de um só misturando os
+            dois (ver lib/representantes.js `tipo`). */}
         <div className="mt-5 flex gap-1 border-b border-line px-8">
           {[
             { id: "dados", label: "Dados gerais", icon: IdCard },
@@ -154,9 +143,6 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
             >
               <item.icon size={14} strokeWidth={1.8} />
               {item.label}
-              {item.id === "assinaturas" && responsaveis.length === 0 && (
-                <span className="h-1.5 w-1.5 rounded-full bg-danger-500" title="Falta marcar um responsável" />
-              )}
             </button>
           ))}
         </div>
@@ -212,54 +198,47 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
           <p className="mt-0.5 text-[11.5px] text-ink-400">
             Empresas no mesmo plano compartilham as contas extras dele e o De/Para se propaga entre elas.
           </p>
-          <div className="mt-1.5 flex max-h-32 flex-col gap-0.5 overflow-y-auto rounded-lg border border-line-strong p-2">
-            {state.planosPadrao.length === 0 && !novoPlanoOpen && (
-              <p className="px-1.5 py-1 text-[12px] text-ink-400">Nenhum plano padrão criado ainda.</p>
-            )}
-            {state.planosPadrao.map((plano) => (
-              <label key={plano.id} className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5 text-[13px] text-ink-900 hover:bg-surface-muted">
-                <input
-                  type="radio"
-                  name="planoPadraoId"
-                  checked={planoPadraoId === plano.id}
-                  onChange={() => setPlanoPadraoId(plano.id)}
-                />
-                {plano.nome}
-              </label>
-            ))}
-            {novoPlanoOpen ? (
-              <div className="mt-1 flex items-center gap-1.5 border-t border-line pt-1.5">
-                <input
-                  autoFocus
-                  value={novoPlanoNome}
-                  onChange={(event) => setNovoPlanoNome(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      handleCreatePlano();
-                    }
-                  }}
-                  placeholder="Nome do plano padrão"
-                  className="flex-1 rounded-md border border-line-strong px-2 py-1.5 text-[12.5px] outline-none focus:border-accent-500"
-                />
-                <button type="button" onClick={handleCreatePlano} className="rounded-md bg-accent-500 px-2.5 py-1.5 text-[12px] font-medium text-white hover:bg-accent-600">
-                  Criar
-                </button>
-                <button type="button" onClick={() => setNovoPlanoOpen(false)} className="rounded-md px-2 py-1.5 text-[12px] text-ink-500 hover:bg-surface-muted">
-                  Cancelar
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setNovoPlanoOpen(true)}
-                className="mt-1 flex items-center gap-1.5 rounded-md border-t border-line px-1.5 pt-2 text-left text-[12.5px] font-medium text-accent-600 hover:text-accent-700"
-              >
-                <Plus size={13} strokeWidth={2.2} />
-                Criar plano padrão
-              </button>
-            )}
+          <div className="mt-1.5">
+            <SelectField
+              placeholder="Selecione o plano de contas"
+              options={planoOptions}
+              value={planoPadraoId}
+              onChange={setPlanoPadraoId}
+              emptyText="Nenhum plano padrão criado ainda."
+            />
           </div>
+          {novoPlanoOpen ? (
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <input
+                autoFocus
+                value={novoPlanoNome}
+                onChange={(event) => setNovoPlanoNome(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    handleCreatePlano();
+                  }
+                }}
+                placeholder="Nome do plano padrão"
+                className="flex-1 rounded-md border border-line-strong px-2 py-1.5 text-[12.5px] outline-none focus:border-accent-500"
+              />
+              <button type="button" onClick={handleCreatePlano} className="rounded-md bg-accent-500 px-2.5 py-1.5 text-[12px] font-medium text-white hover:bg-accent-600">
+                Criar
+              </button>
+              <button type="button" onClick={() => setNovoPlanoOpen(false)} className="rounded-md px-2 py-1.5 text-[12px] text-ink-500 hover:bg-surface-muted">
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setNovoPlanoOpen(true)}
+              className="mt-1.5 flex items-center gap-1.5 text-left text-[12.5px] font-medium text-accent-600 hover:text-accent-700"
+            >
+              <Plus size={13} strokeWidth={2.2} />
+              Criar plano padrão
+            </button>
+          )}
         </div>
 
         <div className="mt-5">
@@ -283,62 +262,35 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
         </div>
         </>
         ) : (
-        <>
-        {/* Assinaturas: quem responde pela empresa — o contador/sócio
-            vinculado (Representantes) e quem, dentro do portal, pode de
-            fato editá-la (Responsáveis). Separado de Dados gerais porque é
-            informação de outra natureza, normalmente preenchida com mais
-            calma do que o cadastro rápido inicial. */}
-        <div>
-          <p className="text-[13px] text-ink-600">Contador / representante vinculado</p>
-          <p className="mt-0.5 text-[11.5px] text-ink-400">Sócios e contadores cadastrados em Parâmetros → Representantes.</p>
-          {state.representantes.length === 0 ? (
-            <p className="mt-1.5 text-[12px] text-ink-400">
-              Nenhum representante cadastrado ainda. Cadastre em Parâmetros → Representantes.
-            </p>
-          ) : (
-            <div className="mt-1.5 flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-lg border border-line-strong p-2">
-              {state.representantes.map((representante) => (
-                <label key={representante.id} className="flex items-center gap-2 rounded-md px-1.5 py-1 text-[13px] text-ink-900 hover:bg-surface-muted">
-                  <input
-                    type="checkbox"
-                    checked={representanteIds.includes(representante.id)}
-                    onChange={() => toggleRepresentante(representante.id)}
-                  />
-                  {representante.nome}
-                  <span className="text-[11px] text-ink-400">{representante.email}</span>
-                </label>
-              ))}
+        <div className="grid grid-cols-2 gap-5">
+          <div>
+            <p className="text-[13px] text-ink-600">Contador</p>
+            <p className="mt-0.5 text-[11.5px] text-ink-400">Responsável contábil da empresa.</p>
+            <div className="mt-1.5">
+              <SelectField
+                placeholder="Selecione o(s) contador(es)"
+                options={contadores.map((representante) => ({ value: representante.id, label: representante.nome, hint: representante.email }))}
+                values={representanteIds.filter((id) => contadores.some((representante) => representante.id === id))}
+                onToggle={toggleRepresentante}
+                emptyText="Nenhum contador cadastrado ainda em Parâmetros → Representantes."
+              />
             </div>
-          )}
-        </div>
+          </div>
 
-        <div className="mt-5">
-          <p className={`text-[13px] ${responsaveisMissing ? "text-danger-600" : "text-ink-600"}`}>Responsáveis pela empresa *</p>
-          <p className="mt-0.5 text-[11.5px] text-ink-400">
-            Só quem estiver marcado aqui (além de você) edita essa empresa — os demais só visualizam, como um cliente.
-          </p>
-          {pessoas.length === 0 ? (
-            <p className="mt-1.5 text-[12px] text-ink-400">
-              Nenhum colaborador cadastrado ainda. Cadastre em Parâmetros → Colaborar.
-            </p>
-          ) : (
-            <div className={`mt-1.5 flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-lg border p-2 ${responsaveisMissing ? "border-danger-500/40" : "border-line-strong"}`}>
-              {pessoas.map((pessoa) => (
-                <label key={pessoa.email} className="flex items-center gap-2 rounded-md px-1.5 py-1 text-[13px] text-ink-900 hover:bg-surface-muted">
-                  <input
-                    type="checkbox"
-                    checked={responsaveis.includes(pessoa.email)}
-                    onChange={() => toggleResponsavel(pessoa.email)}
-                  />
-                  <span className="min-w-0 flex-1 truncate">{pessoa.nome || pessoa.email}</span>
-                  <span className="shrink-0 text-[10px] text-ink-400">{pessoa.categoria}</span>
-                </label>
-              ))}
+          <div>
+            <p className="text-[13px] text-ink-600">Representante (sócio)</p>
+            <p className="mt-0.5 text-[11.5px] text-ink-400">Sócio(s) da empresa.</p>
+            <div className="mt-1.5">
+              <SelectField
+                placeholder="Selecione o(s) sócio(s)"
+                options={socios.map((representante) => ({ value: representante.id, label: representante.nome, hint: representante.email }))}
+                values={representanteIds.filter((id) => socios.some((representante) => representante.id === id))}
+                onToggle={toggleRepresentante}
+                emptyText="Nenhum sócio cadastrado ainda em Parâmetros → Representantes."
+              />
             </div>
-          )}
+          </div>
         </div>
-        </>
         )}
         </div>
 

@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Building2, Network, Repeat, Users, SlidersHorizontal, ChevronLeft, BarChart3, LogOut, ShieldCheck, Layers, UserCog } from "lucide-react";
+import { Building2, Network, Repeat, Users, SlidersHorizontal, ChevronLeft, BarChart3, LogOut, ShieldCheck, Layers, UserCog, UserCheck } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
 import { useAppState } from "../data/useStore.js";
 import ThemeToggle from "./ThemeToggle.jsx";
@@ -10,6 +10,7 @@ const ITEMS = [
   { to: "/parametros/de-para", label: "De/Para", icon: Repeat },
   { to: "/parametros/planos-padrao", label: "Planos padrão", icon: Layers },
   { to: "/parametros/representantes", label: "Representantes", icon: Users },
+  { to: "/parametros/responsaveis", label: "Responsáveis", icon: UserCheck },
   { to: "/parametros/acessos", label: "Acessos", icon: ShieldCheck },
 ];
 

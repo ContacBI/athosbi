@@ -2,7 +2,7 @@ import { useState } from "react";
 import { X, Building2, Network } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { companiesResponsavel, groupsResponsavel } from "../lib/colaboradores.js";
-import Avatar from "./Avatar.jsx";
+import SelectField from "./SelectField.jsx";
 
 // Mesma linguagem visual do GroupModal (checkboxes numa lista rolável) —
 // só que aqui a pessoa pode marcar empresas E grupos ao mesmo tempo, já
@@ -93,17 +93,13 @@ export default function AccessModal({ onClose, onSubmit, saving }) {
               {state.isAdmin ? "Nenhuma empresa cadastrada ainda." : "Você não é responsável por nenhuma empresa ainda."}
             </p>
           ) : (
-            <div className="mt-1.5 flex max-h-40 flex-col gap-1 overflow-y-auto rounded-lg border border-line-strong p-2">
-              {companyOptions.map((company) => (
-                <label
-                  key={company.id}
-                  className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5 text-[13px] text-ink-900 hover:bg-surface-muted"
-                >
-                  <input type="checkbox" checked={companyIds.includes(company.id)} onChange={() => toggleCompany(company.id)} />
-                  <Avatar name={company.name} size={22} />
-                  <span className="min-w-0 flex-1 truncate">{company.name}</span>
-                </label>
-              ))}
+            <div className="mt-1.5">
+              <SelectField
+                placeholder="Selecione as empresas"
+                options={companyOptions.map((company) => ({ value: company.id, label: company.name }))}
+                values={companyIds}
+                onToggle={toggleCompany}
+              />
             </div>
           )}
         </div>
@@ -115,16 +111,13 @@ export default function AccessModal({ onClose, onSubmit, saving }) {
               Grupos
             </p>
             <p className="mt-0.5 text-[11.5px] text-ink-400">Libera automaticamente todas as empresas do grupo.</p>
-            <div className="mt-1.5 flex max-h-32 flex-col gap-1 overflow-y-auto rounded-lg border border-line-strong p-2">
-              {groupOptions.map((group) => (
-                <label
-                  key={group.id}
-                  className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5 text-[13px] text-ink-900 hover:bg-surface-muted"
-                >
-                  <input type="checkbox" checked={groupIds.includes(group.id)} onChange={() => toggleGroup(group.id)} />
-                  <span className="min-w-0 flex-1 truncate">{group.name}</span>
-                </label>
-              ))}
+            <div className="mt-1.5">
+              <SelectField
+                placeholder="Selecione os grupos"
+                options={groupOptions.map((group) => ({ value: group.id, label: group.name }))}
+                values={groupIds}
+                onToggle={toggleGroup}
+              />
             </div>
           </div>
         )}

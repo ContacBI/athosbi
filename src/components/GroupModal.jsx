@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
-import Avatar from "./Avatar.jsx";
+import SelectField from "./SelectField.jsx";
 
 export default function GroupModal({ onClose, onSubmit, group = null }) {
   const state = useAppState();
@@ -79,18 +79,13 @@ export default function GroupModal({ onClose, onSubmit, group = null }) {
           {state.companies.length === 0 ? (
             <p className="mt-1.5 text-[12px] text-ink-400">Nenhuma empresa cadastrada ainda.</p>
           ) : (
-            <div className="mt-1.5 flex flex-col gap-1 rounded-lg border border-line-strong p-2">
-              {state.companies.map((company) => (
-                <label
-                  key={company.id}
-                  className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5 text-[13px] text-ink-900 hover:bg-surface-muted"
-                >
-                  <input type="checkbox" checked={companyIds.includes(company.id)} onChange={() => toggleCompany(company.id)} />
-                  <Avatar name={company.name} size={24} />
-                  <span className="min-w-0 flex-1 truncate">{company.name}</span>
-                  <span className="shrink-0 text-[11px] text-ink-400">{company.cnpj}</span>
-                </label>
-              ))}
+            <div className="mt-1.5">
+              <SelectField
+                placeholder="Selecione as empresas do grupo"
+                options={state.companies.map((company) => ({ value: company.id, label: company.name, hint: company.cnpj }))}
+                values={companyIds}
+                onToggle={toggleCompany}
+              />
             </div>
           )}
         </div>

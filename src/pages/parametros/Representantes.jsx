@@ -57,7 +57,12 @@ export default function Representantes() {
               <div className="flex min-w-0 items-center gap-2.5">
                 <Avatar name={representante.nome} size={28} />
                 <div className="min-w-0">
-                  <p className="truncate text-[12.5px] font-medium text-ink-900">{representante.nome}</p>
+                  <p className="flex items-center gap-1.5 text-[12.5px] font-medium text-ink-900">
+                    <span className="truncate">{representante.nome}</span>
+                    <span className="shrink-0 rounded-full bg-surface-muted px-1.5 py-0.5 text-[10px] font-medium text-ink-500">
+                      {representante.tipo === "contador" ? "Contador" : "Sócio"}
+                    </span>
+                  </p>
                   <p className="truncate text-[11px] text-ink-400">
                     {[representante.email, representante.cpf].filter(Boolean).join(" · ") || "Sem email ou CPF informado"}
                     {empresas.length > 0 && ` · ${empresas.map((company) => company.name).join(", ")}`}

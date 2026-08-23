@@ -7,7 +7,7 @@ import { listAdmins, listColaboradores } from "../../lib/colaboradores.js";
 import CompanyModal from "../../components/CompanyModal.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import PageHeader from "../../components/PageHeader.jsx";
-import { Building2, Users2, FileSpreadsheet, Pencil, Trash2, Repeat, SlidersHorizontal, Download, Upload, ArrowRight } from "lucide-react";
+import { Building2, Users2, FileSpreadsheet, Pencil, Trash2, Repeat, SlidersHorizontal, Download, Upload, ArrowRight, UserCheck } from "lucide-react";
 
 // Tempo restante estimado a partir do ritmo médio até agora (tempo
 // decorrido / itens já feitos, projetado pros itens que faltam) — não dá
@@ -302,6 +302,17 @@ export default function CompaniesAdmin() {
                 <span className="flex items-center gap-2">
                   <Users2 size={14} strokeWidth={1.8} className="text-ink-400" />
                   Representantes
+                </span>
+                <ArrowRight size={12} className="text-ink-300" />
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/parametros/responsaveis")}
+                className="flex items-center justify-between rounded-lg px-2.5 py-2 text-left text-[13px] text-ink-700 hover:bg-surface-muted"
+              >
+                <span className="flex items-center gap-2">
+                  <UserCheck size={14} strokeWidth={1.8} className="text-ink-400" />
+                  Responsáveis
                 </span>
                 <ArrowRight size={12} className="text-ink-300" />
               </button>
