@@ -212,8 +212,12 @@ export default function LedgerModal({ row, onClose }) {
           )}
         </div>
 
-        <div className="overflow-y-auto scrollbar-thin">
-          <table className="w-full table-fixed text-[13px]">
+        {/* overflow-auto (não só -y): no celular as 3 colunas de largura fixa
+            (Data/Débito/Crédito) somadas já passam de telas estreitas —
+            sem rolagem horizontal aqui a tabela simplesmente vazava pra
+            fora do modal, cortada. */}
+        <div className="overflow-auto scrollbar-thin">
+          <table className="w-full min-w-[560px] table-fixed text-[13px]">
             <colgroup>
               <col style={{ width: "104px" }} />
               <col />

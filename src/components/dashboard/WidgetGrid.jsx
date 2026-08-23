@@ -23,6 +23,7 @@ import {
 } from "recharts";
 import { ArrowLeft, ArrowUpRight, ChevronRight, X, CheckCircle2, Circle, TriangleAlert } from "lucide-react";
 import { WIDGET_CATALOG, formatWidgetValue } from "../../lib/dashboardWidgets.js";
+import { useIsMobile } from "../../lib/useIsMobile.js";
 import { directChildren } from "../../lib/reportTree.js";
 import { buildDfcDirect, buildDfcIndirect } from "../../data/calculations.js";
 import { money } from "../../lib/format.js";
@@ -1026,6 +1027,12 @@ export default function WidgetGrid({ widgets, ctx, spacing = DEFAULT_SPACING }) 
   const navigate = useNavigate();
   const appState = useAppState();
   const marginPx = marginPxFor(spacing);
+  // No celular, uma grade de 8 colunas espreme cada widget "sm"/"md" numa
+  // tira de ~40-90px — ilegível. Em vez de uma versão paralela da tela,
+  // reaproveita a MESMA grade em modo coluna única: cada widget vira uma
+  // linha inteira, na mesma ordem vertical que já tinha (por y, depois x),
+  // sem mudar nada do editor (Personalizar é admin-only, fica só desktop).
+  const isMobile = useIsMobile();
 
   // WIDGET_CATALOG is a shared module-level array that lib/indicators.js
   // patches in place on every indicator create/edit/reset — this map must
@@ -1034,10 +1041,20 @@ export default function WidgetGrid({ widgets, ctx, spacing = DEFAULT_SPACING }) 
   // its old formula until a full page reload.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const catalogById = useMemo(() => new Map(WIDGET_CATALOG.map((definition) => [definition.id, definition])), [appState.indicatorOverrides]);
-  const layout = useMemo(
+  const desktopLayout = useMemo(
     () => widgets.map((entry) => layoutFor(entry, catalogById.get(entry.id))),
     [widgets, catalogById]
   );
+  const layout = useMemo(() => {
+    if (!isMobile) return desktopLayout;
+    const ordered = [...desktopLayout].sort((a, b) => a.y - b.y || a.x - b.x);
+    let cursorY = 0;
+    return ordered.map((item) => {
+      const stacked = { ...item, x: 0, y: cursorY, w: 1 };
+      cursorY += item.h;
+      return stacked;
+    });
+  }, [desktopLayout, isMobile]);
 
   function handleOpenDetail(definition) {
     const { value, format } = definition.value(ctx);
@@ -1050,7 +1067,7 @@ export default function WidgetGrid({ widgets, ctx, spacing = DEFAULT_SPACING }) 
       <GridLayout
         className="layout"
         layout={layout}
-        cols={GRID_COLS}
+        cols={isMobile ? 1 : GRID_COLS}
         rowHeight={ROW_HEIGHT}
         margin={[marginPx, marginPx]}
         containerPadding={[0, 0]}
