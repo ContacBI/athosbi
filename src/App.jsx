@@ -153,7 +153,7 @@ export default function App() {
           <Route path="acessos" element={<AcessosAdmin />} />
           <Route path="sistema" element={<Sistema />} />
           <Route path="sistema/plano-gerencial" element={<PlanoGerencial />} />
-          <Route path="sistema/planos-padrao" element={<PlanoPadraoAdmin />} />
+          <Route path="planos-padrao" element={<PlanoPadraoAdmin />} />
         </Route>
         <Route path="empresa" element={<CompanyLayout />}>
           <Route index element={<CompanyHome />} />
