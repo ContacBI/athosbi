@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ChevronRight, Layers, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, ChevronRight, Download, Layers, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { RESET_SECTION_EVENT } from "../../components/ParametrosSidebar.jsx";
 import {
@@ -13,6 +13,7 @@ import {
   hasExtraChildren,
 } from "../../lib/planosPadrao.js";
 import { hasAnyResponsibility } from "../../lib/colaboradores.js";
+import { exportPlanoPadraoExcel } from "../../lib/planoExcel.js";
 import PageHeader from "../../components/PageHeader.jsx";
 
 function buildTree(rows) {
@@ -54,7 +55,7 @@ function TreeNode({ node, depth, expanded, toggle, onAddChild, onDeleteExtra, ca
               title={node.movedFromGlobalAt ? `Movida do plano gerencial global em ${new Date(node.movedFromGlobalAt).toLocaleDateString("pt-BR")}` : undefined}
             >
               <Sparkles size={10} strokeWidth={2} />
-              {node.movedFromGlobalAt ? "movida do global" : "extra deste plano"}
+              {node.movedFromGlobalAt ? "exclusivo dessa empresa" : "extra deste plano"}
             </span>
           )}
         </button>
@@ -245,6 +246,16 @@ function PlanoEditor({ plano, onBack }) {
   const rows = useMemo(() => effective.filter((row) => row.demonstrativo === tab), [effective, tab]);
   const tree = useMemo(() => buildTree(rows), [rows]);
 
+  // Abre sempre com tudo mostrado — todos os níveis, até a conta
+  // analítica — em vez de começar recolhido esperando alguém clicar nos
+  // botões de nível. Refaz sozinho ao trocar de aba (BP/DRE), já que
+  // `rows` muda junto.
+  useEffect(() => {
+    setActiveLevel(5);
+    setExpanded(new Set(rows.filter((row) => Number(row.nivel) < 5).map((row) => row.codigo_gerencial)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
+
   function toggle(code) {
     setActiveLevel(null);
     setExpanded((current) => {
@@ -281,7 +292,20 @@ function PlanoEditor({ plano, onBack }) {
         Planos padrão
       </button>
 
-      <PageHeader eyebrow="Plano padrão" title={plano.nome} description={`${plano.extraAccounts.length} conta${plano.extraAccounts.length === 1 ? "" : "s"} extra · usado por ${companies.length} empresa${companies.length === 1 ? "" : "s"}`} icon={Layers} />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <PageHeader eyebrow="Plano padrão" title={plano.nome} icon={Layers} />
+        <button
+          type="button"
+          onClick={() => exportPlanoPadraoExcel(plano)}
+          className="flex shrink-0 items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-[12px] font-medium text-ink-700 transition-colors hover:bg-surface-muted"
+        >
+          <Download size={14} strokeWidth={1.8} />
+          Baixar Excel
+        </button>
+      </div>
+      <p className="-mt-2 mb-4 text-[13px] text-ink-500">
+        {plano.extraAccounts.length} conta{plano.extraAccounts.length === 1 ? "" : "s"} extra · usado por {companies.length} empresa{companies.length === 1 ? "" : "s"}
+      </p>
 
       {companies.length > 0 && (
         <div className="mb-4 flex flex-wrap gap-1.5 rounded-xl bg-surface-card p-3 shadow-sm">

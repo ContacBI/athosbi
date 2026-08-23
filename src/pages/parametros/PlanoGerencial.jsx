@@ -1,24 +1,40 @@
 import { useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { AlertTriangle, ArrowLeft, ChevronRight, Download, Layers, ListTree, Pencil, Plus, RotateCcw, Search, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Building2, ChevronRight, Download, ListTree, Pencil, Plus, RotateCcw, Search, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { addPlanoAccount, hasChildren, previewNewAccount, removePlanoAccount } from "../../lib/planoOverrides.js";
 import { exportPlanoExcel, parsePlanoExcelFile } from "../../lib/planoExcel.js";
 import { savePlanoSnapshot, restorePreviousPlano } from "../../lib/planoStore.js";
 import { invalidateMappingsForPlanoCodes } from "../../lib/companies.js";
-import { extraAccountsSummary, moveGlobalAccountToPlanos, pruneUnusedExtraAccounts } from "../../lib/planosPadrao.js";
+import { pruneUnusedExtraAccounts } from "../../lib/planosPadrao.js";
 import PageHeader from "../../components/PageHeader.jsx";
+import Avatar from "../../components/Avatar.jsx";
 
-// Resumo de tudo que foi criado nos Planos padrão (ver
-// lib/planosPadrao.js) — pensado pro admin bater o olho de vez em quando e
-// decidir se alguma conta "pegou" o suficiente pra merecer virar conta do
-// Plano gerencial global de verdade (nesse caso, é só recriar ela aqui e
-// apagar a extra de lá — não existe um botão de "promover" automático de
-// propósito, essa é uma decisão que vale olhar caso a caso).
-function NewAccountsSummary() {
+const normalize = (value) =>
+  String(value || "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
+// Por empresa (não por plano padrão) as contas extras que ela enxerga —
+// via o planoPadraoId dela. Uma empresa sem plano padrão, ou cujo plano
+// não tem conta extra nenhuma, nem aparece: não tem "modificação" pra
+// mostrar. Company de grupo compartilha o mesmo plano das outras do
+// grupo, então aparece igual, cada uma com sua própria linha.
+function ModificacoesPlanoPadrao() {
   const state = useAppState();
+  const [search, setSearch] = useState("");
   const [notice, setNotice] = useState("");
-  const summary = useMemo(() => extraAccountsSummary(), [state.planosPadrao, state.companies]);
+
+  const rows = useMemo(() => {
+    const planoById = new Map(state.planosPadrao.map((plano) => [plano.id, plano]));
+    return state.companies
+      .map((company) => ({ company, plano: planoById.get(company.planoPadraoId) }))
+      .filter(({ plano }) => plano && plano.extraAccounts.length > 0);
+  }, [state.companies, state.planosPadrao]);
+
+  const visible = useMemo(() => {
+    if (!search) return rows;
+    const term = normalize(search);
+    return rows.filter(({ company }) => normalize(company.name).includes(term));
+  }, [rows, search]);
 
   function handlePrune() {
     if (!confirm("Remover, de cada plano padrão, as contas extras que NENHUMA empresa daquele plano usa no De/Para? Nunca desfaz um vínculo — só limpa quem pode usar cada conta.")) return;
@@ -26,29 +42,44 @@ function NewAccountsSummary() {
     setNotice(removed ? `${removed} conta${removed === 1 ? "" : "s"} sem uso removida${removed === 1 ? "" : "s"} dos planos.` : "Nada pra limpar — toda conta extra já tem uso no plano onde está.");
   }
 
-  if (!summary.length) return null;
   return (
-    <div className="mb-4 rounded-2xl bg-surface-card p-4 shadow-sm">
+    <div className="rounded-2xl bg-surface-card p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Layers size={15} strokeWidth={1.8} className="text-accent-500" />
-          <p className="text-[13px] font-medium text-ink-900">Contas novas nos planos padrão</p>
-        </div>
+        <p className="text-[13px] font-medium text-ink-900">
+          {rows.length} empresa{rows.length === 1 ? "" : "s"} com contas extras do plano padrão
+        </p>
         <button type="button" onClick={handlePrune} className="rounded-md border border-line-strong px-2.5 py-1.5 text-[11.5px] text-ink-600 hover:bg-surface-muted">
           Limpar contas sem uso
         </button>
       </div>
-      <p className="mt-0.5 text-[11.5px] text-ink-400">
-        Criadas fora daqui, dentro de um plano padrão específico — não afetam o plano gerencial global até você decidir trazer alguma pra cá.
-      </p>
       {notice && <p className="mt-2 text-[11.5px] text-accent-600">{notice}</p>}
+
+      <div className="relative mt-3">
+        <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-400" />
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Buscar empresa"
+          className="w-64 rounded-md border border-line-strong py-1.5 pl-8 pr-3 text-[13px] outline-none focus:border-accent-500"
+        />
+      </div>
+
       <div className="mt-3 flex flex-col gap-2.5">
-        {summary.map(({ plano, companies }) => (
-          <div key={plano.id} className="rounded-xl border border-line p-3">
-            <p className="text-[12.5px] font-medium text-ink-800">
-              {plano.nome} <span className="font-normal text-ink-400">· {companies.map((c) => c.name).join(", ") || "nenhuma empresa usando ainda"}</span>
-            </p>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
+        {visible.length === 0 && (
+          <p className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-line-strong px-6 py-10 text-center text-[13px] text-ink-400">
+            <Building2 size={20} strokeWidth={1.6} className="text-ink-300" />
+            {rows.length === 0 ? "Nenhuma empresa com conta extra de plano padrão ainda." : "Nenhuma empresa bate com essa busca."}
+          </p>
+        )}
+        {visible.map(({ company, plano }) => (
+          <div key={company.id} className="rounded-xl border border-line p-3">
+            <div className="flex items-center gap-2.5">
+              <Avatar name={company.name} size={26} />
+              <p className="text-[12.5px] font-medium text-ink-800">
+                {company.name} <span className="font-normal text-ink-400">· {plano.nome}</span>
+              </p>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
               {plano.extraAccounts.map((row) => (
                 <span key={row.codigo_gerencial} className="rounded-full bg-accent-50 px-2.5 py-1 text-[11px] text-accent-700">
                   {row.codigo_gerencial} · {row.nome}
@@ -57,117 +88,6 @@ function NewAccountsSummary() {
             </div>
           </div>
         ))}
-      </div>
-    </div>
-  );
-}
-
-// Todo código ANALÍTICO que hoje é `custom: true` no global — inclusive os
-// de antes dessa funcionalidade existir, sem nenhuma pista de qual empresa
-// pediu — mais quem, na carteira de hoje, tem De/Para apontando pra cada
-// um. Só analíticas: uma sintética nunca recebe vínculo de De/Para direto
-// (só serve de categoria-mãe), então listá-la aqui seria só ruído — mover
-// a folha já leva a cadeia de sintéticas-mãe custom dela junto (ver
-// moveGlobalAccountToPlanos em lib/planosPadrao.js). Aceita mover pra MAIS
-// DE UM plano padrão de uma vez, porque a mesma conta pode já estar em uso
-// por empresas de grupos diferentes — mover pra só um quebraria a
-// visibilidade dela nos relatórios de quem ficasse de fora. Mover NUNCA
-// desfaz um vínculo de De/Para que já existe.
-function CustomAccountsAudit() {
-  const state = useAppState();
-  const [movingCode, setMovingCode] = useState(null);
-  const [selectedPlanoIds, setSelectedPlanoIds] = useState([]);
-
-  const customRows = useMemo(
-    () => state.planoGlobal.filter((row) => row.custom && row.natureza === "Analitica"),
-    [state.planoGlobal]
-  );
-  const usageByCode = useMemo(() => {
-    const map = new Map(customRows.map((row) => [row.codigo_gerencial, []]));
-    state.companies.forEach((company) => {
-      (company.mappings || []).forEach((mapping) => {
-        if (map.has(mapping.codigo_gerencial)) map.get(mapping.codigo_gerencial).push(company);
-      });
-    });
-    return map;
-  }, [customRows, state.companies]);
-
-  if (!customRows.length) return null;
-
-  function openMove(code) {
-    setMovingCode(code);
-    setSelectedPlanoIds([]);
-  }
-
-  function togglePlano(id) {
-    setSelectedPlanoIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : current.concat(id)));
-  }
-
-  function confirmMove(code) {
-    if (!selectedPlanoIds.length) return;
-    const names = state.planosPadrao.filter((plano) => selectedPlanoIds.includes(plano.id)).map((plano) => plano.nome).join(", ");
-    if (!confirm(`Mover "${code}" (e as sintéticas-mãe dela criadas manualmente) pra: ${names}? Sai do plano gerencial global; os vínculos de De/Para que já existem continuam funcionando.`)) return;
-    moveGlobalAccountToPlanos(code, selectedPlanoIds);
-    setMovingCode(null);
-  }
-
-  return (
-    <div className="mb-4 rounded-2xl bg-surface-card p-4 shadow-sm">
-      <div className="flex items-center gap-2">
-        <Sparkles size={15} strokeWidth={1.8} className="text-accent-500" />
-        <p className="text-[13px] font-medium text-ink-900">Contas adicionadas manualmente no global</p>
-      </div>
-      <p className="mt-0.5 text-[11.5px] text-ink-400">
-        {customRows.length} conta{customRows.length === 1 ? "" : "s"} analítica{customRows.length === 1 ? "" : "s"} · veja quais empresas já têm De/Para vinculado a cada uma e, se fizer mais sentido, mova pra um ou mais planos padrão — o código não muda, os vínculos existentes não quebram.
-      </p>
-      <div className="mt-3 flex flex-col gap-2">
-        {customRows.map((row) => {
-          const companies = usageByCode.get(row.codigo_gerencial) || [];
-          const isMoving = movingCode === row.codigo_gerencial;
-          return (
-            <div key={row.codigo_gerencial} className="rounded-xl border border-line p-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[12.5px] font-medium text-ink-800">
-                    <span className="font-mono">{row.codigo_gerencial}</span> <span className="font-normal">· {row.nome}</span>
-                  </p>
-                  <p className="mt-0.5 text-[11.5px] text-ink-400">
-                    {companies.length ? `Usada por: ${companies.map((c) => c.name).join(", ")}` : "Nenhuma empresa com De/Para vinculado a ela ainda"}
-                  </p>
-                </div>
-                {state.planosPadrao.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => (isMoving ? setMovingCode(null) : openMove(row.codigo_gerencial))}
-                    className="shrink-0 rounded-md border border-line-strong px-2.5 py-1.5 text-[12px] text-ink-600 hover:bg-surface-muted"
-                  >
-                    {isMoving ? "Cancelar" : "Mover pra plano(s) padrão…"}
-                  </button>
-                ) : (
-                  <span className="shrink-0 text-[11px] text-ink-300">Crie um plano padrão pra poder mover</span>
-                )}
-              </div>
-              {isMoving && (
-                <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-line pt-2.5">
-                  {state.planosPadrao.map((plano) => (
-                    <label key={plano.id} className="flex items-center gap-1.5 rounded-full border border-line-strong px-2.5 py-1 text-[11.5px] text-ink-700">
-                      <input type="checkbox" checked={selectedPlanoIds.includes(plano.id)} onChange={() => togglePlano(plano.id)} />
-                      {plano.nome}
-                    </label>
-                  ))}
-                  <button
-                    type="button"
-                    disabled={!selectedPlanoIds.length}
-                    onClick={() => confirmMove(row.codigo_gerencial)}
-                    className="rounded-md bg-accent-500 px-3 py-1.5 text-[11.5px] font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Confirmar
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })}
       </div>
     </div>
   );
@@ -493,6 +413,7 @@ export default function PlanoGerencial() {
   // Admin-only mesmo pra colaborador Restrito, que entra no resto de
   // Parâmetros — ver ParametrosLayout.jsx.
   if (!state.isAdmin) return <Navigate to="/parametros/empresas" replace />;
+  const [section, setSection] = useState("plano"); // "plano" | "modificacoes"
   const [tab, setTab] = useState("DRE");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(() => new Set());
@@ -643,9 +564,35 @@ export default function PlanoGerencial() {
         </div>
       </div>
 
-      <CustomAccountsAudit />
-      <NewAccountsSummary />
+      {/* Antes tinha aqui a auditoria de contas custom do global (já toda
+          migrada pros planos padrão — ver commit) e o resumo de contas
+          novas por plano padrão. No lugar, essas abas: a árvore de sempre,
+          e uma visão por EMPRESA de quais contas extras ela usa (pedido
+          explícito — "ver por empresa as contas criadas específicas"). */}
+      <div className="mb-4 inline-flex gap-0.5 rounded-full bg-surface-muted p-1">
+        <button
+          type="button"
+          onClick={() => setSection("plano")}
+          className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-medium transition-colors ${
+            section === "plano" ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"
+          }`}
+        >
+          Plano gerencial
+        </button>
+        <button
+          type="button"
+          onClick={() => setSection("modificacoes")}
+          className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-medium transition-colors ${
+            section === "modificacoes" ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"
+          }`}
+        >
+          Modificações plano padrão
+        </button>
+      </div>
 
+      {section === "modificacoes" ? (
+        <ModificacoesPlanoPadrao />
+      ) : (
       <div className="rounded-2xl bg-surface-card p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex gap-1.5">
@@ -721,6 +668,7 @@ export default function PlanoGerencial() {
           {tree.length === 0 && <p className="px-3 py-6 text-center text-[13px] text-ink-400">Nenhum código carregado.</p>}
         </div>
       </div>
+      )}
 
       {addingUnder && <AddAccountModal parent={addingUnder} onClose={() => setAddingUnder(null)} onCreated={handleCreated} />}
       {editing && <EditAccountModal row={editing} demonstrativos={demonstrativos} hasChildren={hasChildren(editing.codigo_gerencial)} onClose={() => setEditing(null)} onSave={handleSaveEdit} />}

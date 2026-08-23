@@ -2,6 +2,7 @@ import * as XLSX from "xlsx";
 import ExcelJS from "exceljs";
 import { state } from "../data/useStore.js";
 import { fetchBasePlano } from "./planoStore.js";
+import { effectivePlano } from "./planosPadrao.js";
 
 function normalize(text) {
   return String(text || "")
@@ -66,11 +67,14 @@ function styleForRow(row) {
 // collapse it the same way the tree view does. A second sheet spells out
 // what each column expects, since there's no cell-level dropdown
 // validation available either way.
-export async function exportPlanoExcel() {
-  const rows = sortForExport(state.planoGlobal);
-
+//
+// Compartilhada entre o Plano gerencial global (exportPlanoExcel) e
+// qualquer Plano padrão específico (exportPlanoPadraoExcel) — a única
+// diferença de verdade é QUAIS linhas entram (global puro vs. global +
+// extras de um plano) e o nome da aba/arquivo.
+async function buildPlanoWorkbook(rows, sheetName) {
   const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("Plano gerencial", {
+  const sheet = workbook.addWorksheet(sheetName, {
     views: [{ state: "frozen", ySplit: 1 }],
   });
 
@@ -142,16 +146,46 @@ export async function exportPlanoExcel() {
     ["Pra adicionar uma conta nova", "Copie uma linha parecida, troque o código pro próximo disponível dentro do mesmo pai, e o nome."],
   ].forEach((entry) => legend.addRow(entry));
 
+  return workbook;
+}
+
+async function downloadWorkbook(workbook, filename) {
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `plano_gerencial_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+export async function exportPlanoExcel() {
+  const workbook = await buildPlanoWorkbook(sortForExport(state.planoGlobal), "Plano gerencial");
+  await downloadWorkbook(workbook, `plano_gerencial_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+const slugify = (text) =>
+  String(text || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+// Mesma planilha, mas pra UM plano padrão específico: global + as contas
+// extras dele (ver effectivePlano em planosPadrao.js) — é exatamente a
+// árvore que quem usa esse plano enxerga no De/Para e nos relatórios.
+export async function exportPlanoPadraoExcel(plano) {
+  const rows = sortForExport(effectivePlano(plano.id));
+  // Nome de aba do Excel não aceita : \ / ? * [ ] e tem limite de 31
+  // caracteres — nome de plano padrão é texto livre, então sanitiza antes
+  // de usar como título da aba (o nome de verdade continua no arquivo).
+  const sheetName = plano.nome.replace(/[:\\/?*[\]]/g, " ").slice(0, 31) || "Plano padrão";
+  const workbook = await buildPlanoWorkbook(rows, sheetName);
+  await downloadWorkbook(workbook, `plano_padrao_${slugify(plano.nome)}_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 const YES_VALUES = new Set(["sim", "s", "yes", "y", "true", "1"]);

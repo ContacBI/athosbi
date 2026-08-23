@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Building2, CircleCheck, Repeat } from "lucide-react";
+import { ArrowLeft, Building2, CircleCheck, Lock, Repeat } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { selectCompany } from "../../lib/companies.js";
-import { companiesResponsavel } from "../../lib/colaboradores.js";
+import { listAdmins, listColaboradores } from "../../lib/colaboradores.js";
 import PageHeader from "../../components/PageHeader.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import { RESET_SECTION_EVENT } from "../../components/ParametrosSidebar.jsx";
@@ -31,12 +31,25 @@ export default function DeParaAdmin() {
   // be active — landing on this screen should always show just the picker
   // first, even if a company was left active from browsing elsewhere.
   const [selectedId, setSelectedId] = useState("");
-  // Admin escolhe de toda a carteira; colaborador Restrito só das empresas
-  // onde ele é responsável — é a mesma trava que já existe pra entrar em
-  // /empresa/de-para de dentro da empresa (ver CompanyLayout.jsx); essa
-  // tela só tinha ficado de fora por engano, já que é um caminho separado
-  // que reaproveita o mesmo editor sem passar por lá.
-  const companyOptions = state.isAdmin ? state.companies : companiesResponsavel(state);
+  const [pessoasByEmail, setPessoasByEmail] = useState({}); // email -> nome, pra "Solicite acesso a:"
+
+  // Todo mundo vê a carteira inteira aqui (já era assim em quase toda tela
+  // de Parâmetros) — só quem NÃO é responsável não consegue clicar pra
+  // abrir o de/para daquela empresa, ver `canOpen` abaixo. Antes essa tela
+  // escondia de vez as empresas onde a pessoa não era responsável; ficou
+  // mais claro mostrar todas com quem procurar em vez de simplesmente
+  // sumir com elas.
+  const companyOptions = state.companies;
+
+  useEffect(() => {
+    Promise.all([listAdmins(), listColaboradores()])
+      .then(([admins, colaboradores]) => {
+        const map = {};
+        [...admins, ...colaboradores].forEach((pessoa) => { map[pessoa.email] = pessoa.nome || pessoa.email; });
+        setPessoasByEmail(map);
+      })
+      .catch((err) => console.error("Falha ao carregar colaboradores:", err));
+  }, []);
 
   // Clicar de novo em "De/Para" na barra lateral enquanto já se está dentro
   // de uma empresa volta pro picker, sem precisar do botão de voltar (que
@@ -48,6 +61,10 @@ export default function DeParaAdmin() {
     window.addEventListener(RESET_SECTION_EVENT, handleReset);
     return () => window.removeEventListener(RESET_SECTION_EVENT, handleReset);
   }, []);
+
+  function canOpen(company) {
+    return state.isAdmin || (company.responsaveis || []).includes(state.userEmail);
+  }
 
   function handleSelect(id) {
     if (id !== state.activeCompanyId) selectCompany(id);
@@ -72,7 +89,7 @@ export default function DeParaAdmin() {
           De/Para
         </button>
 
-        <PageHeader eyebrow="De/Para" title={selectedCompany.name} description={selectedCompany.codigo ? `Código ${selectedCompany.codigo}` : undefined} icon={Repeat} />
+        <PageHeader eyebrow="De/Para" title={selectedCompany.name} icon={Repeat} />
 
         <Depara />
       </div>
@@ -109,29 +126,38 @@ export default function DeParaAdmin() {
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
               <Building2 size={22} strokeWidth={1.6} />
             </span>
-            <p className="text-[13px] font-medium text-ink-900">
-              {state.isAdmin ? "Nenhuma empresa cadastrada ainda" : "Você não é responsável por nenhuma empresa ainda"}
-            </p>
-            <p className="text-[12px] text-ink-400">
-              {state.isAdmin ? "Cadastre uma empresa em \"Empresas\" pra poder editar o de/para dela." : "Fale com o admin pra ser marcado como responsável nas empresas que você cuida."}
-            </p>
+            <p className="text-[13px] font-medium text-ink-900">Nenhuma empresa cadastrada ainda</p>
+            {state.isAdmin && <p className="text-[12px] text-ink-400">Cadastre uma empresa em "Empresas" pra poder editar o de/para dela.</p>}
           </div>
         )}
         {companyOptions.map((company) => {
           const pending = pendingCount(company);
+          const editable = canOpen(company);
+          const responsavelNames = (company.responsaveis || []).map((email) => pessoasByEmail[email] || email);
+          const Row = editable ? "button" : "div";
           return (
-            <button
+            <Row
               key={company.id}
-              type="button"
-              onClick={() => handleSelect(company.id)}
-              className="flex items-center gap-2.5 rounded-lg bg-surface-card px-3 py-2 text-left shadow-sm transition-shadow hover:shadow-md"
+              type={editable ? "button" : undefined}
+              onClick={editable ? () => handleSelect(company.id) : undefined}
+              className={`flex items-center gap-2.5 rounded-lg bg-surface-card px-3 py-2 shadow-sm transition-shadow ${
+                editable ? "text-left hover:shadow-md" : "cursor-default opacity-70"
+              }`}
             >
               <Avatar name={company.name} size={28} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[12.5px] font-medium text-ink-900">{company.name}</p>
-                {company.codigo && <p className="truncate text-[11px] text-ink-400">Código {company.codigo}</p>}
+                {editable ? (
+                  company.codigo && <p className="truncate text-[11px] text-ink-400">Código {company.codigo}</p>
+                ) : (
+                  <p className="truncate text-[11px] text-ink-400">
+                    {responsavelNames.length ? `Solicite acesso a: ${responsavelNames.join(", ")}` : "Sem responsável definido"}
+                  </p>
+                )}
               </div>
-              {pending ? (
+              {!editable ? (
+                <Lock size={13} strokeWidth={1.8} className="shrink-0 text-ink-300" />
+              ) : pending ? (
                 <span className="shrink-0 rounded-full bg-warning-50 px-2 py-0.5 text-[11px] font-medium text-warning-700">
                   {pending} pendente{pending === 1 ? "" : "s"}
                 </span>
@@ -141,7 +167,7 @@ export default function DeParaAdmin() {
                   vinculado
                 </span>
               )}
-            </button>
+            </Row>
           );
         })}
       </div>
