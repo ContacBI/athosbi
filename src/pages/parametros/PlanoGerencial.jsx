@@ -6,7 +6,7 @@ import { addPlanoAccount, hasChildren, previewNewAccount, removePlanoAccount } f
 import { exportPlanoExcel, parsePlanoExcelFile } from "../../lib/planoExcel.js";
 import { savePlanoSnapshot, restorePreviousPlano } from "../../lib/planoStore.js";
 import { invalidateMappingsForPlanoCodes } from "../../lib/companies.js";
-import { extraAccountsSummary, moveGlobalAccountToPlanos } from "../../lib/planosPadrao.js";
+import { extraAccountsSummary, moveGlobalAccountToPlanos, pruneUnusedExtraAccounts } from "../../lib/planosPadrao.js";
 import PageHeader from "../../components/PageHeader.jsx";
 
 // Resumo de tudo que foi criado nos Planos padrão (ver
@@ -17,17 +17,31 @@ import PageHeader from "../../components/PageHeader.jsx";
 // propósito, essa é uma decisão que vale olhar caso a caso).
 function NewAccountsSummary() {
   const state = useAppState();
+  const [notice, setNotice] = useState("");
   const summary = useMemo(() => extraAccountsSummary(), [state.planosPadrao, state.companies]);
+
+  function handlePrune() {
+    if (!confirm("Remover, de cada plano padrão, as contas extras que NENHUMA empresa daquele plano usa no De/Para? Nunca desfaz um vínculo — só limpa quem pode usar cada conta.")) return;
+    const removed = pruneUnusedExtraAccounts();
+    setNotice(removed ? `${removed} conta${removed === 1 ? "" : "s"} sem uso removida${removed === 1 ? "" : "s"} dos planos.` : "Nada pra limpar — toda conta extra já tem uso no plano onde está.");
+  }
+
   if (!summary.length) return null;
   return (
     <div className="mb-4 rounded-2xl bg-surface-card p-4 shadow-sm">
-      <div className="flex items-center gap-2">
-        <Layers size={15} strokeWidth={1.8} className="text-accent-500" />
-        <p className="text-[13px] font-medium text-ink-900">Contas novas nos planos padrão</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Layers size={15} strokeWidth={1.8} className="text-accent-500" />
+          <p className="text-[13px] font-medium text-ink-900">Contas novas nos planos padrão</p>
+        </div>
+        <button type="button" onClick={handlePrune} className="rounded-md border border-line-strong px-2.5 py-1.5 text-[11.5px] text-ink-600 hover:bg-surface-muted">
+          Limpar contas sem uso
+        </button>
       </div>
       <p className="mt-0.5 text-[11.5px] text-ink-400">
         Criadas fora daqui, dentro de um plano padrão específico — não afetam o plano gerencial global até você decidir trazer alguma pra cá.
       </p>
+      {notice && <p className="mt-2 text-[11.5px] text-accent-600">{notice}</p>}
       <div className="mt-3 flex flex-col gap-2.5">
         {summary.map(({ plano, companies }) => (
           <div key={plano.id} className="rounded-xl border border-line p-3">

@@ -235,6 +235,39 @@ export function moveGlobalAccountToPlanos(codigoGerencial, planoPadraoIds) {
   return true;
 }
 
+// Depois de mover uma conta pra "vários planos padrão" de uma vez (ver
+// moveGlobalAccountToPlanos), pode sobrar em algum plano onde nenhuma
+// empresa DAQUELE plano tem De/Para de verdade apontando pra ela — ficou
+// lá só porque foi marcada junto na hora de mover, não porque faz sentido
+// ali. Isso limpa: por plano, mantém só as contas extras que pelo menos
+// uma empresa DAQUELE plano específico realmente usa; remove o resto.
+// Uma sintética-mãe custom é mantida se ainda tiver algum filho em uso no
+// mesmo plano (ela não recebe De/Para direto, só as folhas). Nunca mexe
+// em nenhum vínculo de De/Para — só tira a conta da lista de "disponível
+// pra esse plano"; sempre reversível recriando a conta ou movendo de novo.
+export function pruneUnusedExtraAccounts() {
+  let removedTotal = 0;
+  const planos = state.planosPadrao.map((plano) => {
+    const memberIds = new Set(companiesUsingPlano(plano.id).map((company) => company.id));
+    const usedCodes = new Set();
+    state.companies.forEach((company) => {
+      if (!memberIds.has(company.id)) return;
+      (company.mappings || []).forEach((mapping) => usedCodes.add(mapping.codigo_gerencial));
+    });
+    const keep = plano.extraAccounts.filter((row) => {
+      if (usedCodes.has(row.codigo_gerencial)) return true;
+      if (row.natureza !== "Sintetica") return false;
+      const prefix = `${row.codigo_gerencial}.`;
+      return plano.extraAccounts.some((other) => other.codigo_gerencial.startsWith(prefix) && usedCodes.has(other.codigo_gerencial));
+    });
+    if (keep.length === plano.extraAccounts.length) return plano;
+    removedTotal += plano.extraAccounts.length - keep.length;
+    return { ...plano, extraAccounts: keep, updatedAt: new Date().toISOString() };
+  });
+  if (removedTotal) persist(planos);
+  return removedTotal;
+}
+
 export function hasExtraChildren(planoPadraoId, code) {
   const prefix = `${code}.`;
   return effectivePlano(planoPadraoId).some((row) => row.codigo_gerencial.startsWith(prefix));
