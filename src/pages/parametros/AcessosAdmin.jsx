@@ -3,6 +3,7 @@ import { ShieldCheck, Trash2 } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { listAccessGrants, grantAccess, revokeAccess, inviteUser } from "../../lib/access.js";
 import PageHeader from "../../components/PageHeader.jsx";
+import AccessModal from "../../components/AccessModal.jsx";
 
 // Quem loga aqui e não está em portal_admins (ver supabase/schema.sql) só
 // enxerga, em modo leitura, as empresas/grupos liberados abaixo — direto ou
@@ -13,11 +14,9 @@ export default function AcessosAdmin() {
   const [grants, setGrants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
-  const [email, setEmail] = useState("");
-  const [scopeType, setScopeType] = useState("company");
-  const [scopeId, setScopeId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
 
   async function reload() {
     setLoading(true);
@@ -38,20 +37,15 @@ export default function AcessosAdmin() {
   const companyName = (id) => state.companies.find((company) => company.id === id)?.name || "(empresa removida)";
   const groupName = (id) => state.groups.find((group) => group.id === id)?.name || "(grupo removido)";
 
-  const options = scopeType === "company" ? state.companies : state.groups;
-
-  async function handleSubmit(event) {
-    event.preventDefault();
-    if (!email.trim() || !scopeId) return;
+  // Um envio do modal pode trazer várias empresas/grupos de uma vez pro
+  // mesmo e-mail — cria uma concessão por item, e só UM convite no final
+  // (não faz sentido mandar vários e-mails pra mesma pessoa de uma vez só).
+  async function handleCreate({ email, items }) {
     setSaving(true);
     setError("");
     setNotice("");
     try {
-      await grantAccess({ email, scopeType, scopeId });
-      // O convite é best-effort: a concessão acima já vale por si só (a
-      // pessoa enxerga assim que tiver conta, convidada ou não). Se o
-      // e-mail já tinha conta, o backend devolve alreadyExists em vez de
-      // erro — trata como sucesso, só sem reenviar e-mail.
+      await Promise.all(items.map((item) => grantAccess({ email, scopeType: item.scopeType, scopeId: item.scopeId })));
       try {
         const result = await inviteUser(email);
         setNotice(result?.alreadyExists ? "Acesso liberado — esse e-mail já tinha conta." : "Acesso liberado e convite enviado por e-mail.");
@@ -59,7 +53,7 @@ export default function AcessosAdmin() {
         setNotice("Acesso liberado, mas não consegui enviar o e-mail de convite agora.");
         console.error("Falha ao convidar:", inviteErr);
       }
-      setScopeId("");
+      setModalOpen(false);
       await reload();
     } catch (err) {
       setError(String(err?.message || err));
@@ -109,63 +103,23 @@ export default function AcessosAdmin() {
         icon={ShieldCheck}
       />
 
-      <form onSubmit={handleSubmit} className="mt-4 flex flex-wrap items-end gap-3 rounded-xl bg-surface-card p-4 shadow-sm">
-        <label className="flex min-w-[220px] flex-1 flex-col gap-1.5">
-          <span className="text-[12px] font-medium text-ink-500">E-mail da pessoa</span>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="pessoa@email.com"
-            className="rounded-md border border-line-strong bg-surface-page px-3 py-2 text-[13px] text-ink-900 outline-none focus:border-accent-400"
-          />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[12px] font-medium text-ink-500">Tipo</span>
-          <select
-            value={scopeType}
-            onChange={(event) => {
-              setScopeType(event.target.value);
-              setScopeId("");
-            }}
-            className="rounded-md border border-line-strong bg-surface-page px-3 py-2 text-[13px] text-ink-900 outline-none focus:border-accent-400"
-          >
-            <option value="company">Empresa</option>
-            <option value="group">Grupo</option>
-          </select>
-        </label>
-        <label className="flex min-w-[220px] flex-1 flex-col gap-1.5">
-          <span className="text-[12px] font-medium text-ink-500">{scopeType === "company" ? "Empresa" : "Grupo"}</span>
-          <select
-            required
-            value={scopeId}
-            onChange={(event) => setScopeId(event.target.value)}
-            className="rounded-md border border-line-strong bg-surface-page px-3 py-2 text-[13px] text-ink-900 outline-none focus:border-accent-400"
-          >
-            <option value="" disabled>
-              Selecione…
-            </option>
-            {options.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[13px] font-medium text-ink-900">
+          {byEmail.length} pessoa{byEmail.length === 1 ? "" : "s"} com acesso liberado
+        </p>
         <button
-          type="submit"
-          disabled={saving}
-          className="rounded-md bg-accent-500 px-4 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+          type="button"
+          onClick={() => setModalOpen(true)}
+          className="rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md"
         >
-          {saving ? "Liberando…" : "Liberar acesso e convidar"}
+          + Novo acesso
         </button>
-      </form>
+      </div>
 
       {error && <p className="mt-3 text-[12.5px] text-danger-600">{error}</p>}
       {notice && <p className="mt-3 text-[12.5px] text-accent-600">{notice}</p>}
 
-      <div className="mt-5 flex flex-col gap-3">
+      <div className="mt-3 flex flex-col gap-3">
         {loading && <p className="text-[13px] text-ink-400">Carregando…</p>}
         {!loading && byEmail.length === 0 && (
           <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-card px-6 py-12 text-center shadow-sm">
@@ -173,7 +127,7 @@ export default function AcessosAdmin() {
               <ShieldCheck size={22} strokeWidth={1.6} />
             </span>
             <p className="text-[13px] font-medium text-ink-900">Nenhum acesso liberado ainda</p>
-            <p className="text-[12px] text-ink-400">Só você (admin) enxerga a carteira até liberar algum e-mail acima.</p>
+            <p className="text-[12px] text-ink-400">Só você (admin) enxerga a carteira até liberar algum e-mail em "+ Novo acesso".</p>
           </div>
         )}
         {byEmail.map(([personEmail, personGrants]) => (
@@ -209,6 +163,8 @@ export default function AcessosAdmin() {
           </div>
         ))}
       </div>
+
+      {modalOpen && <AccessModal onClose={() => setModalOpen(false)} onSubmit={handleCreate} saving={saving} />}
     </div>
   );
 }
