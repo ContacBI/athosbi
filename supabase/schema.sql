@@ -114,6 +114,12 @@ $$;
 -- ============================================================================
 
 alter table portal_admins add column if not exists nome text;
+-- portal_admins é de antes de existir tela de Colaborar — nunca teve
+-- created_at (só email, depois nome). ColaborarAdmin.jsx ordena a lista
+-- por essa coluna, igual já fazia com colaboradores; sem ela, a consulta
+-- falhava com "column portal_admins.created_at does not exist" (42703) e
+-- a tela ficava sempre vazia, mesmo com o cadastro em si funcionando.
+alter table portal_admins add column if not exists created_at timestamptz not null default now();
 
 create table if not exists colaboradores (
   email text primary key,
