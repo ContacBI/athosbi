@@ -1,5 +1,5 @@
 import { state, setData } from "../data/useStore.js";
-import { PLANOS_PADRAO_KEY, readStoredArray, writePersistent } from "./persistence.js";
+import { PLANOS_PADRAO_KEY, PLANO_SNAPSHOT_KEY, readStoredArray, writePersistent } from "./persistence.js";
 
 // Planos padrão — cada um é o Plano gerencial global MAIS uma lista pequena
 // de contas extras, exclusivas de quem usa aquele plano (uma empresa
@@ -185,6 +185,29 @@ export function removeExtraAccount(planoPadraoId, codigoGerencial) {
       : plano
   );
   persist(planos);
+}
+
+// Move uma conta que hoje vive no Plano gerencial global pra dentro de um
+// plano padrão — SEM trocar o código. Diferente de removePlanoAccount (que
+// desfaz todo mundo que apontava pra ela, ver invalidateMappingsForPlanoCodes
+// em companies.js), aqui os vínculos de De/Para que já existiam continuam
+// valendo do jeito que estavam: a conta só passa a existir pra quem usa
+// esse plano padrão, em vez de pra toda a carteira. Pensado pro fluxo
+// "essa conta foi criada manual pensando numa empresa só/grupo só, não
+// devia ter poluído o global" (ver PlanoGerencial.jsx CustomAccountsAudit).
+export function moveGlobalAccountToPlano(codigoGerencial, planoPadraoId) {
+  const row = state.planoGlobal.find((item) => item.codigo_gerencial === codigoGerencial);
+  if (!row) return false;
+  const movedRow = { ...row, movedFromGlobalAt: new Date().toISOString() };
+  const planos = state.planosPadrao.map((plano) =>
+    plano.id === planoPadraoId ? { ...plano, extraAccounts: [...plano.extraAccounts, movedRow], updatedAt: new Date().toISOString() } : plano
+  );
+  writePersistent(PLANOS_PADRAO_KEY, planos);
+  const nextGlobal = state.planoGlobal.filter((item) => item.codigo_gerencial !== codigoGerencial);
+  writePersistent(PLANO_SNAPSHOT_KEY, nextGlobal);
+  setData({ planosPadrao: planos, planoGlobal: nextGlobal });
+  refreshEffectivePlano();
+  return true;
 }
 
 export function hasExtraChildren(planoPadraoId, code) {

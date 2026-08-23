@@ -6,7 +6,7 @@ import { addPlanoAccount, hasChildren, previewNewAccount, removePlanoAccount } f
 import { exportPlanoExcel, parsePlanoExcelFile } from "../../lib/planoExcel.js";
 import { savePlanoSnapshot, restorePreviousPlano } from "../../lib/planoStore.js";
 import { invalidateMappingsForPlanoCodes } from "../../lib/companies.js";
-import { extraAccountsSummary } from "../../lib/planosPadrao.js";
+import { extraAccountsSummary, moveGlobalAccountToPlano } from "../../lib/planosPadrao.js";
 import PageHeader from "../../components/PageHeader.jsx";
 
 // Resumo de tudo que foi criado nos Planos padrão (ver
@@ -43,6 +43,77 @@ function NewAccountsSummary() {
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// Todo código que hoje é `custom: true` no global — inclusive os de antes
+// dessa funcionalidade existir, sem nenhuma pista de qual empresa pediu —
+// mais quem, na carteira de hoje, tem De/Para apontando pra cada um. É a
+// "listagem" pra decidir se alguma merece sair do global e virar exclusiva
+// de um plano padrão (ver moveGlobalAccountToPlano em lib/planosPadrao.js)
+// — mover NUNCA desfaz o vínculo que já existe, só limita quem mais pode
+// usar esse código dali pra frente.
+function CustomAccountsAudit() {
+  const state = useAppState();
+  const customRows = useMemo(() => state.planoGlobal.filter((row) => row.custom), [state.planoGlobal]);
+  const usageByCode = useMemo(() => {
+    const map = new Map(customRows.map((row) => [row.codigo_gerencial, []]));
+    state.companies.forEach((company) => {
+      (company.mappings || []).forEach((mapping) => {
+        if (map.has(mapping.codigo_gerencial)) map.get(mapping.codigo_gerencial).push(company);
+      });
+    });
+    return map;
+  }, [customRows, state.companies]);
+
+  if (!customRows.length) return null;
+
+  function handleMove(code, planoPadraoId) {
+    if (!planoPadraoId) return;
+    const plano = state.planosPadrao.find((item) => item.id === planoPadraoId);
+    if (!confirm(`Mover "${code}" pro plano "${plano?.nome}"? Ela sai do plano gerencial global e passa a valer só pra quem usa esse plano — os vínculos de De/Para que já existem continuam funcionando.`)) return;
+    moveGlobalAccountToPlano(code, planoPadraoId);
+  }
+
+  return (
+    <div className="mb-4 rounded-2xl bg-surface-card p-4 shadow-sm">
+      <div className="flex items-center gap-2">
+        <Sparkles size={15} strokeWidth={1.8} className="text-accent-500" />
+        <p className="text-[13px] font-medium text-ink-900">Contas adicionadas manualmente no global</p>
+      </div>
+      <p className="mt-0.5 text-[11.5px] text-ink-400">
+        {customRows.length} conta{customRows.length === 1 ? "" : "s"} · veja quais empresas já têm De/Para vinculado a cada uma e, se fizer mais sentido, mova pra um plano padrão específico — o código não muda, os vínculos existentes não quebram.
+      </p>
+      <div className="mt-3 flex flex-col gap-2">
+        {customRows.map((row) => {
+          const companies = usageByCode.get(row.codigo_gerencial) || [];
+          return (
+            <div key={row.codigo_gerencial} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line p-3">
+              <div className="min-w-0">
+                <p className="text-[12.5px] font-medium text-ink-800 font-mono">{row.codigo_gerencial} <span className="font-sans font-normal">· {row.nome}</span></p>
+                <p className="mt-0.5 text-[11.5px] text-ink-400">
+                  {companies.length ? `Usada por: ${companies.map((c) => c.name).join(", ")}` : "Nenhuma empresa com De/Para vinculado a ela ainda"}
+                </p>
+              </div>
+              {state.planosPadrao.length > 0 ? (
+                <select
+                  value=""
+                  onChange={(event) => handleMove(row.codigo_gerencial, event.target.value)}
+                  className="shrink-0 rounded-md border border-line-strong px-2 py-1.5 text-[12px] outline-none focus:border-accent-500"
+                >
+                  <option value="" disabled>Mover pra plano padrão…</option>
+                  {state.planosPadrao.map((plano) => (
+                    <option key={plano.id} value={plano.id}>{plano.nome}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className="shrink-0 text-[11px] text-ink-300">Crie um plano padrão pra poder mover</span>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -515,6 +586,7 @@ export default function PlanoGerencial() {
         </div>
       </div>
 
+      <CustomAccountsAudit />
       <NewAccountsSummary />
 
       <div className="rounded-2xl bg-surface-card p-4 shadow-sm">

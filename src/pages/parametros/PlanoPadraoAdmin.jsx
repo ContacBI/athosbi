@@ -47,9 +47,12 @@ function TreeNode({ node, depth, expanded, toggle, onAddChild, onDeleteExtra }) 
           <span className="w-[110px] shrink-0 font-mono text-[11px] text-ink-400">{node.codigo_gerencial}</span>
           <span className={`flex-1 truncate ${node.natureza === "Sintetica" ? "font-medium text-ink-900" : "text-ink-600"}`}>{node.nome}</span>
           {node.extra && (
-            <span className="flex shrink-0 items-center gap-1 rounded-full bg-accent-50 px-2 py-0.5 text-[10px] text-accent-600">
+            <span
+              className="flex shrink-0 items-center gap-1 rounded-full bg-accent-50 px-2 py-0.5 text-[10px] text-accent-600"
+              title={node.movedFromGlobalAt ? `Movida do plano gerencial global em ${new Date(node.movedFromGlobalAt).toLocaleDateString("pt-BR")}` : undefined}
+            >
               <Sparkles size={10} strokeWidth={2} />
-              extra deste plano
+              {node.movedFromGlobalAt ? "movida do global" : "extra deste plano"}
             </span>
           )}
         </button>
@@ -224,6 +227,7 @@ function PlanoEditor({ plano, onBack }) {
   const state = useAppState();
   const [tab, setTab] = useState("DRE");
   const [expanded, setExpanded] = useState(() => new Set());
+  const [activeLevel, setActiveLevel] = useState(null);
   const [addingUnder, setAddingUnder] = useState(null);
   const companies = companiesUsingPlano(plano.id);
 
@@ -237,12 +241,18 @@ function PlanoEditor({ plano, onBack }) {
   const tree = useMemo(() => buildTree(rows), [rows]);
 
   function toggle(code) {
+    setActiveLevel(null);
     setExpanded((current) => {
       const next = new Set(current);
       if (next.has(code)) next.delete(code);
       else next.add(code);
       return next;
     });
+  }
+
+  function expandToLevel(level) {
+    setActiveLevel(level);
+    setExpanded(new Set(rows.filter((row) => Number(row.nivel) < level).map((row) => row.codigo_gerencial)));
   }
 
   function handleCreated(row) {
@@ -284,12 +294,34 @@ function PlanoEditor({ plano, onBack }) {
             <button
               key={item}
               type="button"
-              onClick={() => setTab(item)}
+              onClick={() => {
+                setTab(item);
+                setActiveLevel(null);
+              }}
               className={`rounded-full px-3.5 py-1.5 text-[13px] transition-colors ${tab === item ? "bg-accent-500 font-medium text-white" : "text-ink-600 hover:bg-surface-muted"}`}
             >
               {item}
             </button>
           ))}
+        </div>
+
+        <div className="mt-3 flex items-center gap-2.5">
+          <span className="text-[12px] text-ink-400">Nível:</span>
+          <div className="flex gap-1.5">
+            {[1, 2, 3, 4, 5].map((level) => (
+              <button
+                key={level}
+                type="button"
+                onClick={() => expandToLevel(level)}
+                title={level === 5 ? "Abrir tudo até o nível analítico" : `Abrir até o nível ${level}`}
+                className={`flex h-7 w-7 items-center justify-center rounded-md text-[12px] font-medium transition-colors ${
+                  activeLevel === level ? "bg-accent-500 text-white" : "bg-surface-muted text-ink-600 hover:bg-accent-50 hover:text-accent-600"
+                }`}
+              >
+                {level}
+              </button>
+            ))}
+          </div>
         </div>
 
         <p className="mt-3 text-[12px] text-ink-400">
