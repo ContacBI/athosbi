@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Download, FileCheck2, FilePlus2, RotateCcw, Trash2, Upload } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Download, FileCheck2, FilePlus2, ListChecks, RotateCcw, Trash2, Upload, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { attachMonthlyReport, fetchMonthlyReportBlob, removeMonthlyReport, replaceAccounts, restorePreviousBalancete } from "../lib/companies.js";
 import { importBalancete, importDiario } from "../importers/dominio.js";
@@ -30,6 +30,14 @@ export default function RelatoriosMensais() {
   const [year, setYear] = useState(() => defaultYear(state.journal));
   const [openMonth, setOpenMonth] = useState(null);
   const [busy, setBusy] = useState("");
+  // Selecionar vários meses de uma vez pra excluir o diário deles junto —
+  // antes só dava pra excluir mês a mês, um clique + confirmação por vez,
+  // o que ficava bem lento pra limpar um ano inteiro. Só existe dentro de
+  // um ano por vez (a grade só mostra 12 meses do ano ativo mesmo), então
+  // a seleção zera ao trocar de ano — mais simples do que tentar carregar
+  // seleção "invisível" de outro ano.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedKeys, setSelectedKeys] = useState(() => new Set());
   const fileInputRef = useRef(null);
   const diarioInputRef = useRef(null);
   const balanceteInputRef = useRef(null);
@@ -127,6 +135,34 @@ export default function RelatoriosMensais() {
     removeJournalMonth(key);
   }
 
+  function toggleSelectMode() {
+    setSelectMode((current) => !current);
+    setSelectedKeys(new Set());
+    setOpenMonth(null);
+  }
+
+  function toggleMonthSelected(index) {
+    const key = monthKey(index);
+    if (!journalCountForMonth(key)) return; // nada pra excluir nesse mês
+    setSelectedKeys((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function handleBulkRemove() {
+    const keys = [...selectedKeys];
+    const total = keys.reduce((sum, key) => sum + journalCountForMonth(key), 0);
+    if (!keys.length || !total) return;
+    const meses = keys.map((key) => monthLabelFromKey(key)).join(", ");
+    if (!window.confirm(`Remover o diário de ${keys.length} mês${keys.length === 1 ? "" : "es"} (${meses}) — ${total} lançamentos no total? Essa ação não pode ser desfeita.`)) return;
+    keys.forEach((key) => removeJournalMonth(key));
+    setSelectedKeys(new Set());
+    setSelectMode(false);
+  }
+
   async function openFile(report) {
     setBusy("Abrindo arquivo…");
     try {
@@ -153,26 +189,59 @@ export default function RelatoriosMensais() {
           <h1 className="mt-1 text-[20px] font-semibold text-ink-900">Relatórios mensais</h1>
           <p className="mt-0.5 text-[13px] text-ink-400">Importe o diário e o balancete aqui — o app reconhece o mês de cada lançamento sozinho.</p>
         </div>
-        <div className="flex items-center gap-1.5 rounded-full bg-surface-muted p-1">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 rounded-full bg-surface-muted p-1">
+            <button
+              type="button"
+              onClick={() => { setYear((value) => value - 1); setSelectedKeys(new Set()); }}
+              aria-label="Ano anterior"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-ink-500 hover:bg-surface-card"
+            >
+              <ChevronLeft size={15} />
+            </button>
+            <span className="w-14 text-center text-[14px] font-semibold text-ink-900">{year}</span>
+            <button
+              type="button"
+              onClick={() => { setYear((value) => value + 1); setSelectedKeys(new Set()); }}
+              aria-label="Próximo ano"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-ink-500 hover:bg-surface-card"
+            >
+              <ChevronRight size={15} />
+            </button>
+          </div>
           <button
             type="button"
-            onClick={() => setYear((value) => value - 1)}
-            aria-label="Ano anterior"
-            className="flex h-7 w-7 items-center justify-center rounded-full text-ink-500 hover:bg-surface-card"
+            onClick={toggleSelectMode}
+            disabled={!attachedMonths.size && !selectMode}
+            title="Selecionar vários meses pra excluir o diário deles de uma vez"
+            className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-[12px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+              selectMode ? "bg-danger-500 text-white hover:bg-danger-600" : "border border-line-strong text-ink-600 hover:bg-surface-muted"
+            }`}
           >
-            <ChevronLeft size={15} />
-          </button>
-          <span className="w-14 text-center text-[14px] font-semibold text-ink-900">{year}</span>
-          <button
-            type="button"
-            onClick={() => setYear((value) => value + 1)}
-            aria-label="Próximo ano"
-            className="flex h-7 w-7 items-center justify-center rounded-full text-ink-500 hover:bg-surface-card"
-          >
-            <ChevronRight size={15} />
+            {selectMode ? <X size={14} strokeWidth={1.8} /> : <ListChecks size={14} strokeWidth={1.8} />}
+            {selectMode ? "Cancelar seleção" : "Selecionar vários"}
           </button>
         </div>
       </div>
+
+      {selectMode && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-danger-50 px-4 py-3 text-danger-700">
+          <p className="text-[13px] font-medium">
+            {selectedKeys.size === 0
+              ? "Clique nos meses abaixo pra marcar quais excluir."
+              : `${selectedKeys.size} mês${selectedKeys.size === 1 ? "" : "es"} selecionado${selectedKeys.size === 1 ? "" : "s"} · ${[...selectedKeys].reduce((sum, key) => sum + journalCountForMonth(key), 0)} lançamentos no total`}
+          </p>
+          <button
+            type="button"
+            onClick={handleBulkRemove}
+            disabled={selectedKeys.size === 0}
+            className="flex items-center gap-1.5 rounded-md bg-danger-600 px-3.5 py-2 text-[12px] font-medium text-white shadow-sm transition-colors hover:bg-danger-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Trash2 size={14} strokeWidth={1.8} />
+            Excluir selecionados
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-card p-4 shadow-sm">
@@ -235,19 +304,34 @@ export default function RelatoriosMensais() {
           const hasJournal = attachedMonths.has(key);
           const archiveCount = (monthlyReports[key] || []).filter((report) => (report.kind || "outro") === "outro").length;
           const isOpen = openMonth === index;
+          const isSelected = selectedKeys.has(key);
           return (
             <button
               key={label}
               type="button"
-              onClick={() => handleSquareClick(index)}
-              className={`flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border p-3 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
-                isOpen
-                  ? "border-accent-500 ring-2 ring-accent-100"
-                  : hasJournal
-                    ? "border-line bg-surface-card"
-                    : "border-dashed border-line-strong bg-surface-page"
+              onClick={() => (selectMode ? toggleMonthSelected(index) : handleSquareClick(index))}
+              disabled={selectMode && !hasJournal}
+              className={`relative flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border p-3 text-center shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
+                selectMode ? "" : "hover:-translate-y-0.5 hover:shadow-md"
+              } ${
+                isSelected
+                  ? "border-danger-500 bg-danger-50 ring-2 ring-danger-200"
+                  : isOpen
+                    ? "border-accent-500 ring-2 ring-accent-100"
+                    : hasJournal
+                      ? "border-line bg-surface-card"
+                      : "border-dashed border-line-strong bg-surface-page"
               }`}
             >
+              {selectMode && hasJournal && (
+                <span
+                  className={`absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full border-2 ${
+                    isSelected ? "border-danger-500 bg-danger-500 text-white" : "border-line-strong bg-surface-card"
+                  }`}
+                >
+                  {isSelected && <Check size={12} strokeWidth={3} />}
+                </span>
+              )}
               <span
                 className={`flex h-10 w-10 items-center justify-center rounded-xl ${
                   hasJournal ? "bg-accent-50 text-accent-600" : "bg-surface-muted text-ink-300"
