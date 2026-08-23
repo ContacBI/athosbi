@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, Building2, Network } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
+import { companiesResponsavel, groupsResponsavel } from "../lib/colaboradores.js";
 import Avatar from "./Avatar.jsx";
 
 // Mesma linguagem visual do GroupModal (checkboxes numa lista rolável) —
@@ -15,6 +16,13 @@ export default function AccessModal({ onClose, onSubmit, saving }) {
   const [companyIds, setCompanyIds] = useState([]);
   const [groupIds, setGroupIds] = useState([]);
   const [error, setError] = useState("");
+
+  // Admin escolhe de toda a carteira; colaborador Restrito só das
+  // empresas/grupos onde ele mesmo é responsável — é só isso que a RLS
+  // (access_grants_colaborador_scoped) deixaria criar mesmo, então nem
+  // oferece o resto pra não dar erro confuso na hora de salvar.
+  const companyOptions = state.isAdmin ? state.companies : companiesResponsavel(state);
+  const groupOptions = state.isAdmin ? state.groups : groupsResponsavel(state);
 
   function toggleCompany(id) {
     setCompanyIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : current.concat(id)));
@@ -80,11 +88,13 @@ export default function AccessModal({ onClose, onSubmit, saving }) {
             <Building2 size={14} strokeWidth={1.8} className="text-ink-400" />
             Empresas
           </p>
-          {state.companies.length === 0 ? (
-            <p className="mt-1.5 text-[12px] text-ink-400">Nenhuma empresa cadastrada ainda.</p>
+          {companyOptions.length === 0 ? (
+            <p className="mt-1.5 text-[12px] text-ink-400">
+              {state.isAdmin ? "Nenhuma empresa cadastrada ainda." : "Você não é responsável por nenhuma empresa ainda."}
+            </p>
           ) : (
             <div className="mt-1.5 flex max-h-40 flex-col gap-1 overflow-y-auto rounded-lg border border-line-strong p-2">
-              {state.companies.map((company) => (
+              {companyOptions.map((company) => (
                 <label
                   key={company.id}
                   className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5 text-[13px] text-ink-900 hover:bg-surface-muted"
@@ -98,7 +108,7 @@ export default function AccessModal({ onClose, onSubmit, saving }) {
           )}
         </div>
 
-        {state.groups.length > 0 && (
+        {groupOptions.length > 0 && (
           <div className="mt-4">
             <p className="flex items-center gap-1.5 text-[13px] text-ink-600">
               <Network size={14} strokeWidth={1.8} className="text-ink-400" />
@@ -106,7 +116,7 @@ export default function AccessModal({ onClose, onSubmit, saving }) {
             </p>
             <p className="mt-0.5 text-[11.5px] text-ink-400">Libera automaticamente todas as empresas do grupo.</p>
             <div className="mt-1.5 flex max-h-32 flex-col gap-1 overflow-y-auto rounded-lg border border-line-strong p-2">
-              {state.groups.map((group) => (
+              {groupOptions.map((group) => (
                 <label
                   key={group.id}
                   className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5 text-[13px] text-ink-900 hover:bg-surface-muted"

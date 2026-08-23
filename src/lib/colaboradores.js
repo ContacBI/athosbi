@@ -65,3 +65,27 @@ export async function removeColaborador(email) {
   const { error } = await supabase.from("colaboradores").delete().eq("email", email);
   if (error) throw error;
 }
+
+// Espelha has_any_responsibility() do banco (supabase/schema.sql) — usado
+// só pra UI decidir se mostra os botões de criar/editar em Planos padrão,
+// Representantes e Acessos pra um colaborador Restrito. A aplicação de
+// verdade continua sendo a RLS.
+export function hasAnyResponsibility(state) {
+  return (state.companies || []).some((company) => (company.responsaveis || []).includes(state.userEmail));
+}
+
+// Empresas/grupos onde ESTE colaborador pode liberar/revogar acesso de
+// cliente (ver access_grants_colaborador_scoped) — pra filtrar o que o
+// AccessModal oferece pra quem não é admin.
+export function companiesResponsavel(state) {
+  return (state.companies || []).filter((company) => (company.responsaveis || []).includes(state.userEmail));
+}
+
+export function groupsResponsavel(state) {
+  return (state.groups || []).filter((group) =>
+    (group.companyIds || []).some((id) => {
+      const company = state.companies.find((item) => item.id === id);
+      return company && (company.responsaveis || []).includes(state.userEmail);
+    })
+  );
+}

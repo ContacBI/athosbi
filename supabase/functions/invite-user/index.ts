@@ -21,9 +21,14 @@
 //      "<SITE_URL>/definir-senha" (e a mesma coisa com localhost:5173 se
 //      quiser testar convite em desenvolvimento).
 //
-// Quem pode chamar: só um e-mail cadastrado em portal_admins (ver
-// supabase/schema.sql) — verificado abaixo chamando a mesma função
-// is_portal_admin() que a RLS usa, com o token de quem chamou.
+// Quem pode chamar: admin (portal_admins) OU colaborador Restrito
+// (colaboradores) — verificado abaixo com as mesmas funções que a RLS usa,
+// com o token de quem chamou. Um colaborador Restrito convida tanto
+// cliente (Acessos) quanto, indiretamente, ninguém em Colaborar (essa tela
+// é admin-only no front, mas o convite em si não distingue "pra quê" —
+// quem decide se a pessoa vira Total/Restrito/cliente é a linha que já foi
+// criada em portal_admins/colaboradores/access_grants antes de chamar
+// aqui).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -53,9 +58,12 @@ Deno.serve(async (req) => {
   const callerClient = createClient(SUPABASE_URL, ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
   });
-  const { data: isAdmin, error: adminError } = await callerClient.rpc("is_portal_admin");
-  if (adminError || !isAdmin) {
-    return json({ error: "Só um admin pode convidar." }, 403);
+  const [{ data: isAdmin, error: adminError }, { data: isColaborador, error: colaboradorError }] = await Promise.all([
+    callerClient.rpc("is_portal_admin"),
+    callerClient.rpc("is_colaborador"),
+  ]);
+  if ((adminError && colaboradorError) || (!isAdmin && !isColaborador)) {
+    return json({ error: "Só admin ou colaborador pode convidar." }, 403);
   }
 
   let email = "";

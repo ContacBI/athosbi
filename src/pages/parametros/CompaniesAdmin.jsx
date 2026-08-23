@@ -143,7 +143,7 @@ export default function CompaniesAdmin() {
             <p className="text-[13px] font-medium text-ink-900">
               {state.companies.length} empresa{state.companies.length === 1 ? "" : "s"} na carteira
             </p>
-            {state.isAdmin && (
+            {(state.isAdmin || state.isColaborador) && (
               <button
                 type="button"
                 onClick={() => setModalCompany(null)}

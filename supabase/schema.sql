@@ -188,11 +188,35 @@ create policy "app_storage_select_scoped"
     )
   );
 
--- Escrita (insert/update): o dono pode tudo; um colaborador Restrito só
--- pode mexer no registro/razão de uma empresa (nunca em outra gaveta —
--- grupo, plano padrão, representantes, acessos continuam só do dono) e só
--- se estiver listado em `responsaveis` dela. Quem é só liberado via
--- access_grants (cliente externo) continua sempre somente-leitura.
+-- Se o colaborador é responsável por QUALQUER empresa — usado como o
+-- crivo de confiança de plano padrão/representantes (gavetas de linha
+-- única, não dá pra travar por item individual dentro do array; ver
+-- comentário grande abaixo).
+create or replace function has_any_responsibility()
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from app_storage
+    where key like 'portalGerencial.company.%'
+      and (value->'responsaveis') ? lower(coalesce(auth.jwt()->>'email', ''))
+  );
+$$;
+
+-- Escrita (insert/update) — regras por gaveta, pedidas explicitamente:
+--   • Empresa NOVA: qualquer colaborador pode criar (o registro ainda nem
+--     existe, não tem responsável nenhum pra checar ainda — só depois de
+--     criada, com os responsáveis já escolhidos no formulário, que o
+--     UPDATE seguinte fica restrito a quem estiver nessa lista).
+--   • Razão de uma empresa (o UPDATE do cadastro dela, De/Para, imports):
+--     só quem está em `responsaveis` DAQUELA empresa.
+--   • Grupo: qualquer colaborador, sem crivo — não existe "responsável de
+--     grupo".
+--   • Plano padrão / Representantes: só quem é responsável por ALGUMA
+--     empresa (has_any_responsibility) — essas duas gavetas guardam TUDO
+--     numa linha só (um array), não dá pra travar por item individual
+--     dentro dela como dá com empresa/razão (linhas separadas por id).
+-- Acessos (access_grants) tem regra própria mais abaixo — é uma tabela de
+-- verdade (uma linha por concessão), dá pra escopar por empresa/grupo.
 drop policy if exists "app_storage_insert_authenticated" on app_storage;
 drop policy if exists "app_storage_insert_admin_only" on app_storage;
 drop policy if exists "app_storage_insert_scoped" on app_storage;
@@ -203,8 +227,12 @@ create policy "app_storage_insert_scoped"
     is_portal_admin()
     or (
       is_colaborador()
-      and (key like 'portalGerencial.company.%' or key like 'portalGerencial.companyJournal.%')
-      and is_responsavel(split_part(key, '.', 3))
+      and (
+        key like 'portalGerencial.company.%'
+        or (key like 'portalGerencial.companyJournal.%' and is_responsavel(split_part(key, '.', 3)))
+        or key = 'portalGerencial.groups.v1'
+        or (key in ('portalGerencial.planosPadrao.v1', 'portalGerencial.representantes.v1') and has_any_responsibility())
+      )
     )
   );
 
@@ -218,16 +246,24 @@ create policy "app_storage_update_scoped"
     is_portal_admin()
     or (
       is_colaborador()
-      and (key like 'portalGerencial.company.%' or key like 'portalGerencial.companyJournal.%')
-      and is_responsavel(split_part(key, '.', 3))
+      and (
+        (key like 'portalGerencial.company.%' and is_responsavel(split_part(key, '.', 3)))
+        or (key like 'portalGerencial.companyJournal.%' and is_responsavel(split_part(key, '.', 3)))
+        or key = 'portalGerencial.groups.v1'
+        or (key in ('portalGerencial.planosPadrao.v1', 'portalGerencial.representantes.v1') and has_any_responsibility())
+      )
     )
   )
   with check (
     is_portal_admin()
     or (
       is_colaborador()
-      and (key like 'portalGerencial.company.%' or key like 'portalGerencial.companyJournal.%')
-      and is_responsavel(split_part(key, '.', 3))
+      and (
+        (key like 'portalGerencial.company.%' and is_responsavel(split_part(key, '.', 3)))
+        or (key like 'portalGerencial.companyJournal.%' and is_responsavel(split_part(key, '.', 3)))
+        or key = 'portalGerencial.groups.v1'
+        or (key in ('portalGerencial.planosPadrao.v1', 'portalGerencial.representantes.v1') and has_any_responsibility())
+      )
     )
   );
 
@@ -270,6 +306,47 @@ create policy "access_grants_admin_all"
   to authenticated
   using (is_portal_admin())
   with check (is_portal_admin());
+
+-- Se o colaborador é responsável por PELO MENOS UMA das empresas de um
+-- grupo — usado só pra liberar/revogar acesso de cliente (access_grants)
+-- num grupo inteiro; não precisa ser responsável por todas.
+create or replace function is_responsavel_for_group(target_group_id text)
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce(
+    bool_or((value->'responsaveis') ? lower(coalesce(auth.jwt()->>'email', ''))),
+    false
+  )
+  from app_storage
+  where key like 'portalGerencial.company.%'
+    and split_part(key, '.', 3) in (
+      select jsonb_array_elements_text(coalesce(g->'companyIds', '[]'::jsonb))
+      from app_storage grp, jsonb_array_elements(grp.value) as g
+      where grp.key = 'portalGerencial.groups.v1' and g->>'id' = target_group_id
+    );
+$$;
+
+-- Colaborador pode liberar/revogar acesso de CLIENTE externo, mas só nas
+-- empresas/grupos onde ele mesmo é responsável — pedido explícito: "os
+-- responsáveis podem modificar isso, mas somente as suas empresas".
+drop policy if exists "access_grants_colaborador_scoped" on access_grants;
+create policy "access_grants_colaborador_scoped"
+  on access_grants for all
+  to authenticated
+  using (
+    is_colaborador()
+    and (
+      (scope_type = 'company' and is_responsavel(scope_id))
+      or (scope_type = 'group' and is_responsavel_for_group(scope_id))
+    )
+  )
+  with check (
+    is_colaborador()
+    and (
+      (scope_type = 'company' and is_responsavel(scope_id))
+      or (scope_type = 'group' and is_responsavel_for_group(scope_id))
+    )
+  );
 
 -- Bucket de anexos: qualquer logado ainda pode BAIXAR (é preciso saber o
 -- caminho exato do arquivo pra isso, e a UI só mostra o link pra quem tem

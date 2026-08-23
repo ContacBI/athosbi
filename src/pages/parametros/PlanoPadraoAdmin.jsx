@@ -11,6 +11,7 @@ import {
   removeExtraAccount,
   hasExtraChildren,
 } from "../../lib/planosPadrao.js";
+import { hasAnyResponsibility } from "../../lib/colaboradores.js";
 import PageHeader from "../../components/PageHeader.jsx";
 
 function buildTree(rows) {
@@ -232,6 +233,7 @@ function PlanoEditor({ plano, onBack }) {
   const [activeLevel, setActiveLevel] = useState(null);
   const [addingUnder, setAddingUnder] = useState(null);
   const companies = companiesUsingPlano(plano.id);
+  const canEdit = state.isAdmin || (state.isColaborador && hasAnyResponsibility(state));
 
   const effective = useMemo(() => {
     const base = effectivePlano(plano.id);
@@ -333,7 +335,7 @@ function PlanoEditor({ plano, onBack }) {
 
         <div className="mt-2 max-h-[560px] overflow-y-auto scrollbar-thin">
           {tree.map((node) => (
-            <TreeNode key={node.codigo_gerencial} node={node} depth={0} expanded={expanded} toggle={toggle} onAddChild={setAddingUnder} onDeleteExtra={handleDeleteExtra} canEdit={state.isAdmin} />
+            <TreeNode key={node.codigo_gerencial} node={node} depth={0} expanded={expanded} toggle={toggle} onAddChild={setAddingUnder} onDeleteExtra={handleDeleteExtra} canEdit={canEdit} />
           ))}
           {tree.length === 0 && <p className="px-3 py-6 text-center text-[13px] text-ink-400">Nenhum código carregado.</p>}
         </div>
@@ -348,6 +350,7 @@ export default function PlanoPadraoAdmin() {
   const state = useAppState();
   const [openId, setOpenId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const canEdit = state.isAdmin || (state.isColaborador && hasAnyResponsibility(state));
 
   const openPlano = openId ? state.planosPadrao.find((plano) => plano.id === openId) : null;
   if (openPlano) return <PlanoEditor plano={openPlano} onBack={() => setOpenId(null)} />;
@@ -365,7 +368,7 @@ export default function PlanoPadraoAdmin() {
         <p className="text-[13px] font-medium text-ink-900">
           {state.planosPadrao.length} plano{state.planosPadrao.length === 1 ? "" : "s"} criado{state.planosPadrao.length === 1 ? "" : "s"}
         </p>
-        {state.isAdmin && (
+        {canEdit && (
           <button
             type="button"
             onClick={() => setModalOpen(true)}
@@ -401,7 +404,7 @@ export default function PlanoPadraoAdmin() {
                   </p>
                 </div>
               </button>
-              {state.isAdmin && (
+              {canEdit && (
                 <button
                   type="button"
                   onClick={() => {

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Users, Pencil, Trash2 } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { createRepresentante, updateRepresentante, deleteRepresentante, companiesForRepresentante } from "../../lib/representantes.js";
+import { hasAnyResponsibility } from "../../lib/colaboradores.js";
 import RepresentanteModal from "../../components/RepresentanteModal.jsx";
 import PageHeader from "../../components/PageHeader.jsx";
 import Avatar from "../../components/Avatar.jsx";
@@ -9,6 +10,10 @@ import Avatar from "../../components/Avatar.jsx";
 export default function Representantes() {
   const state = useAppState();
   const [modalRepresentante, setModalRepresentante] = useState(undefined); // undefined = fechado, null = criar, objeto = editar
+  // Plano padrão/Representantes guardam tudo numa linha só — não dá pra
+  // travar por item, então quem é responsável por ALGUMA empresa já pode
+  // mexer aqui (ver has_any_responsibility em supabase/schema.sql).
+  const canEdit = state.isAdmin || (state.isColaborador && hasAnyResponsibility(state));
 
   function handleSubmit(fields) {
     if (modalRepresentante) updateRepresentante(modalRepresentante.id, fields);
@@ -25,7 +30,7 @@ export default function Representantes() {
         icon={Users}
       />
 
-      {state.isAdmin && (
+      {canEdit && (
         <button
           type="button"
           onClick={() => setModalRepresentante(null)}
@@ -61,7 +66,7 @@ export default function Representantes() {
                   </p>
                 </div>
               </div>
-              {state.isAdmin && (
+              {canEdit && (
                 <div className="flex shrink-0 gap-2">
                   <button
                     type="button"

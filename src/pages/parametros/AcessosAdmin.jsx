@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ShieldCheck, Trash2 } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { listAccessGrants, grantAccess, revokeAccess, inviteUser } from "../../lib/access.js";
+import { hasAnyResponsibility } from "../../lib/colaboradores.js";
 import PageHeader from "../../components/PageHeader.jsx";
 import AccessModal from "../../components/AccessModal.jsx";
 
@@ -17,6 +18,11 @@ export default function AcessosAdmin() {
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  // Acessos (empresa/grupo de cliente externo) segue a mesma regra de
+  // Planos padrão/Representantes: quem é responsável por ALGUMA empresa já
+  // pode mexer aqui — a RLS (access_grants_colaborador_scoped) que de fato
+  // só deixa criar/revogar nas empresas/grupos onde a pessoa é responsável.
+  const canEdit = state.isAdmin || (state.isColaborador && hasAnyResponsibility(state));
 
   async function reload() {
     setLoading(true);
@@ -107,7 +113,7 @@ export default function AcessosAdmin() {
         <p className="text-[13px] font-medium text-ink-900">
           {byEmail.length} pessoa{byEmail.length === 1 ? "" : "s"} com acesso liberado
         </p>
-        {state.isAdmin && (
+        {canEdit && (
           <button
             type="button"
             onClick={() => setModalOpen(true)}
@@ -136,7 +142,7 @@ export default function AcessosAdmin() {
           <div key={personEmail} className="rounded-xl bg-surface-card p-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <p className="text-[13px] font-medium text-ink-900">{personEmail}</p>
-              {state.isAdmin && (
+              {canEdit && (
                 <button
                   type="button"
                   onClick={() => handleReinvite(personEmail)}
@@ -153,7 +159,7 @@ export default function AcessosAdmin() {
                   className="flex items-center gap-2 rounded-full border border-line-strong bg-surface-page px-3 py-1 text-[12px] text-ink-700"
                 >
                   {grant.scope_type === "company" ? "Empresa" : "Grupo"}: {grant.scope_type === "company" ? companyName(grant.scope_id) : groupName(grant.scope_id)}
-                  {state.isAdmin && (
+                  {canEdit && (
                     <button
                       type="button"
                       onClick={() => handleRevoke(grant.id)}

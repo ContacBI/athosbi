@@ -35,7 +35,7 @@ export default function GruposAdmin() {
             <p className="text-[13px] font-medium text-ink-900">
               {state.groups.length} grupo{state.groups.length === 1 ? "" : "s"} criado{state.groups.length === 1 ? "" : "s"}
             </p>
-            {state.isAdmin && (
+            {(state.isAdmin || state.isColaborador) && (
               <button
                 type="button"
                 onClick={() => setModalGroup(null)}
@@ -103,7 +103,7 @@ export default function GruposAdmin() {
                         </p>
                       </div>
                     </div>
-                    {state.isAdmin && (
+                    {(state.isAdmin || state.isColaborador) && (
                       <div className="flex shrink-0 gap-2">
                         <button
                           type="button"
