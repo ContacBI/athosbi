@@ -269,7 +269,7 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
             <div className="mt-1.5">
               <SelectField
                 placeholder="Selecione os responsáveis"
-                options={pessoas.map((pessoa) => ({ value: pessoa.email, label: pessoa.nome || pessoa.email, hint: pessoa.categoria }))}
+                options={pessoas.map((pessoa) => ({ value: pessoa.email, label: pessoa.nome || pessoa.email }))}
                 values={responsaveis}
                 onToggle={toggleResponsavel}
                 emptyText="Nenhum colaborador cadastrado ainda. Cadastre em Parâmetros → Colaborar."

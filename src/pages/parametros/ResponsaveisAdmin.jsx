@@ -98,7 +98,7 @@ export default function ResponsaveisAdmin() {
           <div className="mt-2">
             <SelectField
               placeholder="Selecione os responsáveis"
-              options={pessoas.map((pessoa) => ({ value: pessoa.email, label: pessoa.nome || pessoa.email, hint: pessoa.categoria }))}
+              options={pessoas.map((pessoa) => ({ value: pessoa.email, label: pessoa.nome || pessoa.email }))}
               values={responsaveis}
               onToggle={(email) => toggleResponsavel(selectedCompany, email)}
               emptyText="Nenhum colaborador cadastrado ainda. Cadastre em Parâmetros → Colaborar."

@@ -128,19 +128,10 @@ create table if not exists colaboradores (
 );
 alter table colaboradores enable row level security;
 
-drop policy if exists "colaboradores_self_read" on colaboradores;
-create policy "colaboradores_self_read"
-  on colaboradores for select
-  to authenticated
-  using (email = lower(coalesce(auth.jwt()->>'email', '')));
-
-drop policy if exists "colaboradores_admin_all" on colaboradores;
-create policy "colaboradores_admin_all"
-  on colaboradores for all
-  to authenticated
-  using (is_portal_admin())
-  with check (is_portal_admin());
-
+-- Definida ANTES das políticas de `colaboradores` de propósito — a nova
+-- policy de leitura logo abaixo chama essa função, e `create policy`
+-- valida que ela já existe no momento da criação (senão dá "function
+-- is_colaborador() does not exist" rodando o script do zero).
 create or replace function is_colaborador()
 returns boolean
 language sql stable security definer set search_path = public as $$
@@ -148,6 +139,23 @@ language sql stable security definer set search_path = public as $$
     select 1 from colaboradores where email = lower(coalesce(auth.jwt()->>'email', ''))
   );
 $$;
+
+-- Mesma lógica do portal_admins acima: qualquer colaborador enxerga a
+-- lista inteira de colaboradores (não só o próprio e-mail), pro seletor
+-- de "Responsáveis" poder oferecer todo mundo, não só quem está logado.
+drop policy if exists "colaboradores_self_read" on colaboradores;
+drop policy if exists "colaboradores_colaborador_read" on colaboradores;
+create policy "colaboradores_colaborador_read"
+  on colaboradores for select
+  to authenticated
+  using (is_portal_admin() or is_colaborador());
+
+drop policy if exists "colaboradores_admin_all" on colaboradores;
+create policy "colaboradores_admin_all"
+  on colaboradores for all
+  to authenticated
+  using (is_portal_admin())
+  with check (is_portal_admin());
 
 -- Lê o registro da PRÓPRIA empresa (security definer — não importa se quem
 -- chama teria permissão de ver essa linha ou não) e confere se o e-mail de
@@ -282,14 +290,19 @@ create policy "app_storage_delete_admin_only"
   to authenticated
   using (is_portal_admin());
 
--- portal_admins: qualquer logado pode checar SE ELE PRÓPRIO é admin (é assim
--- que o app decide se mostra o menu Parâmetros); só um admin pode listar
--- todos ou mexer na tabela.
+-- portal_admins: qualquer colaborador (Total ou Restrito) enxerga a lista
+-- inteira — precisa pra escolher "Responsáveis" no cadastro da empresa
+-- (CompanyModal.jsx/ResponsaveisAdmin.jsx), que tem que oferecer TODO
+-- mundo cadastrado, não só quem já está logado. Antes só dava pra ver o
+-- próprio e-mail, e um Restrito só via a si mesmo na lista de responsável
+-- possível — a troca pra outra pessoa ficava impossível. Só um admin
+-- ainda cria/edita/apaga a tabela em si (ver policy abaixo).
 drop policy if exists "portal_admins_self_read" on portal_admins;
-create policy "portal_admins_self_read"
+drop policy if exists "portal_admins_colaborador_read" on portal_admins;
+create policy "portal_admins_colaborador_read"
   on portal_admins for select
   to authenticated
-  using (email = lower(coalesce(auth.jwt()->>'email', '')));
+  using (is_portal_admin() or is_colaborador());
 
 drop policy if exists "portal_admins_admin_all" on portal_admins;
 create policy "portal_admins_admin_all"
