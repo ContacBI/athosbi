@@ -62,8 +62,8 @@ const localKey = (key) => `portalGerencial.fallback.${key}`;
 // (ver readPersistent/readPersistentByPrefix abaixo). Tenta de novo antes de
 // desistir — cobre a esmagadora maioria dos casos reais (uma falha
 // passageira, mais comum quanto maior o payload, ex. um razão gigante).
-const READ_RETRIES = 2;
-const READ_RETRY_BASE_MS = 400;
+const READ_RETRIES = 4;
+const READ_RETRY_BASE_MS = 700;
 
 async function withReadRetries(run) {
   let lastError;
@@ -171,9 +171,16 @@ export async function readCompanyJournal(companyId) {
   const baseKey = companyJournalKey(companyId);
   const value = await readPersistent(baseKey);
   if (value && typeof value === "object" && !Array.isArray(value) && value.__chunked) {
-    const pieces = await Promise.all(
-      Array.from({ length: value.parts }, (_, index) => readPersistent(`${baseKey}.part${index}`))
-    );
+    // Uma de cada vez, não Promise.all — pedir 5 pedaços de ~7MB TODOS ao
+    // mesmo tempo é o que mais sobrecarrega uma conexão já instável (é
+    // exatamente esse padrão que fazia razões grandes darem "não carregou"
+    // com internet ruim). Sequencial é um pouco mais lento no caso feliz,
+    // mas MUITO mais robusto quando a rede está capenga — e cada pedaço já
+    // tem seu próprio retry via readPersistent.
+    const pieces = [];
+    for (let index = 0; index < value.parts; index += 1) {
+      pieces.push(await readPersistent(`${baseKey}.part${index}`));
+    }
     return pieces.flatMap((piece) => (Array.isArray(piece) ? piece : []));
   }
   return Array.isArray(value) ? value : [];
