@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, LayoutGrid, Network, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, LayoutGrid, Loader2, Network, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
 import { useAppState, setData, state } from "../data/useStore.js";
 import { missingMappingAccounts } from "../data/calculations.js";
 import { groupCompanies, activeWorkspaceName } from "../lib/groups.js";
@@ -456,6 +456,13 @@ export default function CompanyTopBar({ company }) {
 
   return (
     <header className="sticky top-0 z-30 bg-navy-950">
+      {appState.journalLoading && !appState.journalLoadFailed && (
+        <div className="flex items-center gap-2 bg-accent-500 px-5 py-1.5 text-[12px] font-medium text-white">
+          <Loader2 size={14} strokeWidth={2} className="shrink-0 animate-spin" />
+          Carregando o razão desta empresa{appState.journalLoadProgress !== null ? ` — ${Math.round(appState.journalLoadProgress * 100)}%` : "..."}
+          {" "}— pode levar alguns segundos num razão grande; "0 lançamentos" ainda não é a palavra final.
+        </div>
+      )}
       {appState.journalLoadFailed && (
         <div className="flex items-center gap-2 bg-warning-500 px-5 py-1.5 text-[12px] font-medium text-warning-950">
           <TriangleAlert size={14} strokeWidth={2} className="shrink-0" />

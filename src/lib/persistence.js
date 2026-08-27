@@ -189,8 +189,15 @@ export async function writeCompanyJournal(companyId, journal, { onProgress } = {
   report(doneUnits / totalUnits);
 }
 
-export async function readCompanyJournal(companyId) {
+// `onProgress(fraction)` (0..1) — mesma ideia de writeCompanyJournal. Um
+// razão grande em pedaços pode levar de verdade dezenas de segundos pra
+// ler de volta (visto na prática: ~30s pra reler os mesmos ~31 mil
+// lançamentos que levaram ~32s pra gravar) — sem isso, a tela que chamou
+// não tem como distinguir "ainda carregando" de "razão realmente vazio".
+export async function readCompanyJournal(companyId, { onProgress } = {}) {
   const baseKey = companyJournalKey(companyId);
+  const report = typeof onProgress === "function" ? onProgress : () => {};
+  report(0);
   const value = await readPersistent(baseKey);
   if (value && typeof value === "object" && !Array.isArray(value) && value.__chunked) {
     // Uma de cada vez, não Promise.all — pedir 5 pedaços de ~7MB TODOS ao
@@ -202,9 +209,11 @@ export async function readCompanyJournal(companyId) {
     const pieces = [];
     for (let index = 0; index < value.parts; index += 1) {
       pieces.push(await readPersistent(`${baseKey}.part${index}`));
+      report((index + 1) / value.parts);
     }
     return pieces.flatMap((piece) => (Array.isArray(piece) ? piece : []));
   }
+  report(1);
   return Array.isArray(value) ? value : [];
 }
 

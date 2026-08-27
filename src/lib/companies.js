@@ -327,12 +327,12 @@ export async function fetchCompaniesAndGroups() {
 // inteiro. Antes dessa mudança, logar com 10 empresas somando 200 mil+
 // lançamentos baixava TUDO isso de uma vez só pra montar aquela lista.
 // Idempotente: chamar de novo numa empresa já carregada é um no-op.
-export async function ensureCompanyJournalLoaded(company) {
+export async function ensureCompanyJournalLoaded(company, { onProgress } = {}) {
   if (!company || company.journalLoaded) return company;
   let journal;
   let journalLoadFailed = false;
   try {
-    journal = await readCompanyJournal(company.id);
+    journal = await readCompanyJournal(company.id, { onProgress });
   } catch (error) {
     console.error(`Empresa "${company.name}" (${company.id}): não consegui ler o razão do Supabase.`, error);
     journalLoadFailed = true;
@@ -575,6 +575,11 @@ export async function selectCompany(id, { skipPersist = false } = {}) {
     // mostra um aviso; nenhum save toca no razão dela enquanto isso ficar
     // true (ver writeStoredCompanies).
     journalLoadFailed: Boolean(company.journalLoadFailed),
+    // Ver comentário do campo em data/store.js — sem isso a tela não tem
+    // como saber se "0 lançamentos" é a empresa vazia de verdade ou o
+    // razão dela ainda carregando em segundo plano.
+    journalLoading: !company.journalLoaded,
+    journalLoadProgress: null,
     periodStart: company.periodStart || "",
     periodEnd: company.periodEnd || "",
     hideNonOperatingResults: Boolean(company.hideNonOperatingResults),
@@ -597,13 +602,21 @@ export async function selectCompany(id, { skipPersist = false } = {}) {
   // setData acima, não antes: refreshEffectivePlano lê state.activeCompanyId.
   refreshEffectivePlano();
   if (company.journalLoaded) return;
-  const loaded = await ensureCompanyJournalLoaded(company);
+  const loaded = await ensureCompanyJournalLoaded(company, {
+    onProgress: (fraction) => {
+      // Idem: não pisa numa troca de empresa que já aconteceu enquanto essa
+      // busca ainda estava correndo.
+      if (state.activeCompanyId === id) setData({ journalLoadProgress: fraction });
+    },
+  });
   // O usuário pode ter trocado de empresa de novo enquanto essa busca
   // ainda estava em andamento — não pisa no que já é outra tela agora.
   if (state.activeCompanyId !== id) return;
   setData({
     journal: remapJournal(loaded.journal || [], state.mappings || []),
     journalLoadFailed: Boolean(loaded.journalLoadFailed),
+    journalLoading: false,
+    journalLoadProgress: null,
   });
 }
 

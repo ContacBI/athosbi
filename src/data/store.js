@@ -62,6 +62,18 @@ export const state = {
   // lib/companies.js loadCompanies/selectCompany) — nunca deve ser tratado
   // como "essa empresa não tem lançamento".
   journalLoadFailed: false,
+  // true enquanto o razão da empresa ativa ainda está sendo buscado em
+  // segundo plano (selectCompany adia essa busca — ver ensureCompanyJournalLoaded
+  // em lib/companies.js). Um razão grande em pedaços pode levar dezenas de
+  // segundos pra carregar; sem esse sinal a tela mostrava "0 lançamentos"
+  // idêntico a uma empresa realmente vazia enquanto ainda carregava — foi
+  // exatamente isso que pareceu um diário "sumindo" depois de um F5 na
+  // MICROMEDICAL quando na verdade os dados sempre estiveram salvos.
+  journalLoading: false,
+  // Fração 0..1 do carregamento acima, quando mensurável (razão em pedaços)
+  // — null quando não há carregamento em andamento ou o progresso não é
+  // conhecido (razão pequeno, lido de uma vez só).
+  journalLoadProgress: null,
   view: "empresas",
   selectedLine: null,
   selectedAccount: null,
