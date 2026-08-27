@@ -600,6 +600,26 @@ function findCashPieces(cashEntry, groupIndex, dayIndex) {
     if (extra) return closeCashPieces(cashEntry, [primary, extra]);
   }
 
+  // Transferência por HISTÓRICO IDÊNTICO (mesma empresa+data+texto, ver
+  // dfcGroupKey) E VALOR EXATO batendo — sinal forte o bastante pra vencer
+  // o fallback mais fraco logo abaixo (daySingle: mesmo dia, QUALQUER
+  // valor batendo, sem olhar o histórico), mas só quando os DOIS lados
+  // realmente se cancelam (não basta só existir alguma outra conta de
+  // caixa no mesmo grupo — um histórico genérico reaproveitado em várias
+  // transações reais e não relacionadas no mesmo dia é comum demais nesse
+  // diário pra usar só "existe uma conta de caixa no grupo" como sinal).
+  // Entra em jogo AQUI, depois de exactSingle/par+trinca: uma conta de
+  // verdade com o mesmo histórico já teria fechado o lançamento ali, e não
+  // pode perder pra essa checagem. Achado com um caso real: um PIX entre
+  // contas próprias (mesmo histórico nos dois lados, valores exatamente
+  // opostos) coincidiu, no mesmo dia, com um pagamento de R$10.000 pro
+  // sócio que também batia o valor — o daySingle casava errado com o
+  // pagamento do sócio antes de qualquer checagem de transferência rodar,
+  // contando a transferência como se fosse uma saída de caixa de verdade
+  // (inflava a saída do período em R$10.000 sem nenhum lançamento real por
+  // trás).
+  if (sameHistoricoAll.some((entry) => isCashEntry(entry) && Math.round(entryValue(entry) * 100) === target)) return null;
+
   const daySingle = sameDay.find((entry) => Math.round(entryValue(entry) * 100) === target);
   if (daySingle) return closeCashPieces(cashEntry, [daySingle]);
 
@@ -614,9 +634,13 @@ function findCashPieces(cashEntry, groupIndex, dayIndex) {
   const combination = findClosingCombination(cashEntry, sameDay);
   if (combination.length) return closeCashPieces(cashEntry, combination);
 
-  const transferByHistorico = sameHistoricoAll.some((entry) => isCashEntry(entry));
+  // Transferência por histórico idêntico já foi tratada bem no início desta
+  // função (sinal forte, checado antes de qualquer fallback). Isso aqui é
+  // só o fallback mais fraco: mesma DATA (sem histórico batendo) e mesmo
+  // valor de outra conta de caixa — só entra em jogo depois de já ter
+  // tentado achar uma contrapartida de verdade acima.
   const transferByDay = sameDayAll.some((entry) => isCashEntry(entry) && Math.round(entryValue(entry) * 100) === target);
-  if (transferByHistorico || transferByDay) return null;
+  if (transferByDay) return null;
 
   // Não achou como fechar de jeito nenhum e não é transferência. Se existe
   // ao menos uma conta do MESMO histórico do caixa, usa ela do jeito que é
