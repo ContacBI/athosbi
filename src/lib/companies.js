@@ -35,7 +35,7 @@ import { refreshEffectivePlano } from "./planosPadrao.js";
 const lastWrittenJournals = new Map();
 const lastWrittenRecords = new Map();
 
-function writeStoredCompanies(companies) {
+function writeStoredCompanies(companies, { allowEmptyJournal = false } = {}) {
   const writes = companies.map((company) => {
     // Compared against the COMPANY object itself, not a `{ ...company }`
     // copy — object-rest-spread always allocates a new object, so
@@ -66,11 +66,39 @@ function writeStoredCompanies(companies) {
     if (!journalSafeToWrite && lastWrittenRecords.get(company.id) !== company) {
       console.error(`Empresa "${company.name}" (${company.id}): razão ainda não carregou (ou falhou) — pulando a escrita do razão pra não sobrescrever com vazio.`);
     }
-    if (!journalChanged && !recordChanged) return null;
+    // Segunda trava, independente da de cima: uma gravação que troca um
+    // razão que JÁ tinha lançamentos de verdade por um vazio é sempre
+    // suspeita (uma corrida entre duas telas salvando quase ao mesmo
+    // tempo, um estado que zerou sem querer no meio de uma troca de
+    // empresa, etc.) — só é legítima quando quem chamou persistActiveCompany
+    // avisou explicitamente (allowEmptyJournal: true), que é exatamente o
+    // que removeJournalMonths faz depois de o usuário confirmar a exclusão.
+    // Foi uma gravação vazia SEM esse aviso que apagou de verdade o razão
+    // da 0341 MICROMEDICAL (31249 lançamentos) em 27/08/2026 — o registro
+    // leve ainda dizia "31249" porque essa contagem é que ficou sem
+    // atualizar (ver abaixo), mas o razão em si virou [] no Supabase.
+    const previousLength = (lastWrittenJournals.get(company.id) || []).length;
+    const newLength = (company.journal || []).length;
+    const suspiciousWipe = journalChanged && newLength === 0 && previousLength > 0 && !allowEmptyJournal;
+    if (suspiciousWipe) {
+      console.error(
+        `Empresa "${company.name}" (${company.id}): bloqueei uma gravação que zerava o razão (tinha ${previousLength} lançamentos) sem confirmação explícita de exclusão total. Recarregue a página antes de tentar de novo.`
+      );
+    }
+    const journalWillWrite = journalChanged && !suspiciousWipe;
+    if (!journalWillWrite && !recordChanged) {
+      if (suspiciousWipe) return Promise.reject(new Error(`Gravação bloqueada: o razão de "${company.name}" ficaria vazio sem confirmação de exclusão.`));
+      return null;
+    }
     const pending = [];
-    if (journalChanged) {
-      lastWrittenJournals.set(company.id, company.journal);
-      pending.push(writeCompanyJournal(company.id, company.journal || []));
+    if (journalWillWrite) {
+      // Só marca como "já salvo" DEPOIS que a escrita realmente confirmar no
+      // Supabase — marcar antes (como era) deixava esse cache mentindo "já
+      // está salvo" pra uma escrita que na verdade tinha falhado, fazendo
+      // uma tentativa seguinte (com os mesmos dados, mesma referência) ser
+      // pulada por engano por achar que não tinha nada novo pra gravar.
+      const journalToWrite = company.journal;
+      pending.push(writeCompanyJournal(company.id, journalToWrite || []).then(() => { lastWrittenJournals.set(company.id, journalToWrite); }));
     }
     // Grava o registro sempre que o razão mudou também (mesmo se mais nada
     // mudou) — é onde `journalCount` fica atualizado. loadCompanies() lê só
@@ -78,25 +106,17 @@ function writeStoredCompanies(companies) {
     // inteiro de cada empresa — sem isso aqui, o contador ficaria
     // desatualizado toda vez que o razão muda sozinho (ex.: importar um
     // mês novo de diário).
-    if (recordChanged || journalChanged) {
-      lastWrittenRecords.set(company.id, company);
+    if (recordChanged || journalWillWrite) {
       const { journal, journalLoadFailed, journalLoaded, ...record } = company; // nenhum dos 3 é persistido — journal tem write própria, os outros dois são só sinal local desta aba
       // Só recalcula journalCount a partir de company.journal quando ele é
-      // o razão DE VERDADE (journalSafeToWrite) — senão, uma empresa com o
-      // razão ainda não carregado (placeholder []) mas com o REGISTRO
-      // mudando por outro motivo (ex.: um De/Para propagado por
-      // applySiblingMapping, ou invalidateMappingsForPlanoCodes tocando
-      // várias empresas de uma vez) gravaria journalCount: 0 por cima do
-      // valor real, mesmo sem tocar no razão em si — ficaria "0
-      // lançamentos" na lista até alguém descobrir e corrigir na mão.
-      pending.push(
-        writePersistent(companyKey(company.id), {
-          ...record,
-          journalCount: journalSafeToWrite ? (company.journal || []).length : company.journalCount,
-        })
-      );
+      // o razão DE VERDADE (journalSafeToWrite) e a gravação do razão não
+      // foi bloqueada acima — senão, ficaria "0 lançamentos" mostrado por
+      // cima do valor real sem o razão em si ter sido tocado.
+      const recordToWrite = { ...record, journalCount: journalWillWrite ? (company.journal || []).length : company.journalCount };
+      pending.push(writePersistent(companyKey(company.id), recordToWrite).then(() => { lastWrittenRecords.set(company.id, company); }));
     }
-    return Promise.all(pending);
+    const settled = Promise.all(pending);
+    return suspiciousWipe ? settled.then(() => Promise.reject(new Error(`Gravação bloqueada: o razão de "${company.name}" ficaria vazio sem confirmação de exclusão.`))) : settled;
   });
   return Promise.all(writes.filter(Boolean));
 }
@@ -585,7 +605,11 @@ export async function selectCompany(id, { skipPersist = false } = {}) {
 // Depara.jsx, RelatoriosMensais.jsx, journalMonths.js) already calls it
 // unconditionally after an edit; dispatching internally means none of them
 // need to know or care whether a company or a group is currently active.
-export function persistActiveCompany() {
+// `allowEmptyJournal` deve ser passado como true só quando o chamador tem
+// certeza de que um razão vazio agora é intencional (ex.: removeJournalMonths
+// depois do usuário confirmar a exclusão) — ver a trava correspondente em
+// writeStoredCompanies.
+export function persistActiveCompany({ allowEmptyJournal = false } = {}) {
   if (state.activeGroupId) {
     return persistActiveGroupWorkspace();
   }
@@ -615,7 +639,7 @@ export function persistActiveCompany() {
     };
   });
   setData({ companies });
-  return writeStoredCompanies(companies);
+  return writeStoredCompanies(companies, { allowEmptyJournal });
 }
 
 // A group has no accounts/journal/mappings of its own to save — those are

@@ -62,7 +62,12 @@ export async function removeJournalMonths(monthKeys) {
   const next = previous.filter((entry) => !keys.has(monthOf(entry)));
   setData({ journal: next });
   try {
-    await persistActiveCompany();
+    // allowEmptyJournal: true — esta função só roda depois do usuário
+    // confirmar a exclusão num window.confirm (ver RelatoriosMensais.jsx),
+    // então um resultado vazio aqui é intencional, não uma corrida/estado
+    // zerado sem querer — precisa avisar isso pra writeStoredCompanies não
+    // bloquear a gravação (ver a trava "suspiciousWipe" em companies.js).
+    await persistActiveCompany({ allowEmptyJournal: next.length === 0 });
   } catch (error) {
     setData({ journal: previous });
     throw error;
