@@ -587,10 +587,9 @@ export async function selectCompany(id, { skipPersist = false } = {}) {
 // need to know or care whether a company or a group is currently active.
 export function persistActiveCompany() {
   if (state.activeGroupId) {
-    persistActiveGroupWorkspace();
-    return;
+    return persistActiveGroupWorkspace();
   }
-  if (!state.activeCompanyId) return;
+  if (!state.activeCompanyId) return Promise.resolve();
   const companies = state.companies.map((company) => {
     if (company.id !== state.activeCompanyId) return company;
     const { dashboardWidgets, ...rest } = company;
@@ -616,14 +615,14 @@ export function persistActiveCompany() {
     };
   });
   setData({ companies });
-  writeStoredCompanies(companies);
+  return writeStoredCompanies(companies);
 }
 
 // A group has no accounts/journal/mappings of its own to save — those are
 // always rebuilt live from its member companies (see groups.js) — just its
 // own workspace settings: period, tab layout, non-operating filter.
 function persistActiveGroupWorkspace() {
-  if (!state.activeGroupId) return;
+  if (!state.activeGroupId) return Promise.resolve();
   const groups = state.groups.map((group) => {
     if (group.id !== state.activeGroupId) return group;
     return {
@@ -637,7 +636,7 @@ function persistActiveGroupWorkspace() {
     };
   });
   setData({ groups });
-  writeStoredGroups(groups);
+  return writeStoredGroups(groups);
 }
 
 function freshTabId() {

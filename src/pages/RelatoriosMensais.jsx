@@ -3,7 +3,7 @@ import { Check, ChevronLeft, ChevronRight, Download, FileCheck2, FilePlus2, List
 import { useAppState } from "../data/useStore.js";
 import { attachMonthlyReport, fetchMonthlyReportBlob, removeMonthlyReport, replaceAccounts, restorePreviousBalancete } from "../lib/companies.js";
 import { importBalancete, importDiario } from "../importers/dominio.js";
-import { attachJournalMonths, journalCountForMonth, journalMonthsPresent, removeJournalMonth } from "../lib/journalMonths.js";
+import { attachJournalMonths, journalCountForMonth, journalMonthsPresent, removeJournalMonth, removeJournalMonths } from "../lib/journalMonths.js";
 
 const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -30,6 +30,11 @@ export default function RelatoriosMensais() {
   const [year, setYear] = useState(() => defaultYear(state.journal));
   const [openMonth, setOpenMonth] = useState(null);
   const [busy, setBusy] = useState("");
+  // Separado do texto em si pra poder pintar a faixa de vermelho quando é um
+  // erro de verdade (ex.: exclusão/importação que não salvou no Supabase) —
+  // sem isso, um erro ficava com a mesma cor "info" azul de qualquer outro
+  // aviso, fácil demais de ignorar justamente na hora que mais importa.
+  const [busyIsError, setBusyIsError] = useState(false);
   // Selecionar vários meses de uma vez pra excluir o diário deles junto —
   // antes só dava pra excluir mês a mês, um clique + confirmação por vez,
   // o que ficava bem lento pra limpar um ano inteiro. Só existe dentro de
@@ -52,8 +57,19 @@ export default function RelatoriosMensais() {
   }
 
   function flashBusy(message) {
+    setBusyIsError(false);
     setBusy(message);
     setTimeout(() => setBusy(""), 3500);
+  }
+
+  // Erros de salvar de verdade (conexão caiu no meio da escrita, etc.) ficam
+  // visíveis mais tempo que um flashBusy comum — o usuário precisa ter tempo
+  // de ler que a ação NÃO foi salva de verdade, não só ver algo piscar — e
+  // com a faixa vermelha em vez do azul "info" de todo o resto.
+  function flashError(message) {
+    setBusyIsError(true);
+    setBusy(message);
+    setTimeout(() => setBusy(""), 7000);
   }
 
   // Every lançamento carries its own date — importing (or re-importing) a
@@ -65,12 +81,29 @@ export default function RelatoriosMensais() {
     event.target.value = "";
     if (!files.length) return;
     flashBusy("Importando diário...");
+    let entries;
     try {
       const chunks = await Promise.all(files.map((file) => importDiario(file, state.mappings)));
-      const months = attachJournalMonths(chunks.flat());
-      flashBusy(months.length ? `Meses atualizados: ${months.map(monthLabelFromKey).join(", ")}` : "Nenhum lançamento reconhecido nesse arquivo.");
+      entries = chunks.flat();
     } catch {
       flashBusy("Não consegui ler esse arquivo de diário.");
+      return;
+    }
+    if (!entries.length) {
+      flashBusy("Nenhum lançamento reconhecido nesse arquivo.");
+      return;
+    }
+    // attachJournalMonths só resolve depois que o Supabase confirmou a
+    // escrita de verdade (com as tentativas internas dele já esgotadas) —
+    // se ela rejeitar, o próprio attachJournalMonths já desfez a mudança
+    // otimista local, então a tela junto do banco: nenhum dos dois mostra
+    // o mês como importado.
+    try {
+      const months = await attachJournalMonths(entries);
+      flashBusy(`Meses atualizados: ${months.map(monthLabelFromKey).join(", ")}`);
+    } catch (error) {
+      console.error("Falha ao salvar diário importado:", error);
+      flashError("Não consegui salvar de verdade — a conexão falhou e esse arquivo NÃO foi importado. Tenta de novo.");
     }
   }
 
@@ -116,23 +149,34 @@ export default function RelatoriosMensais() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file || !pendingMonthRef.current) return;
+    setBusyIsError(false);
     setBusy("Enviando arquivo…");
     try {
       await attachMonthlyReport(pendingMonthRef.current, file, "outro");
       setBusy("");
     } catch (error) {
       console.error("Falha ao enviar anexo:", error);
-      setBusy("Não consegui enviar o arquivo — tenta de novo.");
-      setTimeout(() => setBusy(""), 3500);
+      flashError("Não consegui enviar o arquivo — tenta de novo.");
     }
   }
 
-  function handleRemoveMonthJournal(index) {
+  async function handleRemoveMonthJournal(index) {
     const key = monthKey(index);
     const count = journalCountForMonth(key);
     if (!count) return;
     if (!window.confirm(`Remover os ${count} lançamentos de ${MONTHS[index]}/${year}? Os outros meses não são afetados.`)) return;
-    removeJournalMonth(key);
+    setBusyIsError(false);
+    setBusy("Excluindo...");
+    try {
+      await removeJournalMonth(key);
+      flashBusy(`${MONTHS[index]}/${year} excluído.`);
+    } catch (error) {
+      console.error("Falha ao excluir mês do diário:", error);
+      // removeJournalMonth já reverteu a remoção otimista local, então os
+      // lançamentos continuam ali (e continuam no Supabase) — o erro aqui é
+      // só pra deixar isso claro pro usuário, não pra "desfazer" nada.
+      flashError(`Não consegui excluir de verdade ${MONTHS[index]}/${year} — a conexão falhou e os lançamentos continuam salvos. Tenta de novo.`);
+    }
   }
 
   function toggleSelectMode() {
@@ -152,18 +196,32 @@ export default function RelatoriosMensais() {
     });
   }
 
-  function handleBulkRemove() {
+  async function handleBulkRemove() {
     const keys = [...selectedKeys];
     const total = keys.reduce((sum, key) => sum + journalCountForMonth(key), 0);
     if (!keys.length || !total) return;
     const meses = keys.map((key) => monthLabelFromKey(key)).join(", ");
     if (!window.confirm(`Remover o diário de ${keys.length} mês${keys.length === 1 ? "" : "es"} (${meses}) — ${total} lançamentos no total? Essa ação não pode ser desfeita.`)) return;
-    keys.forEach((key) => removeJournalMonth(key));
-    setSelectedKeys(new Set());
-    setSelectMode(false);
+    setBusyIsError(false);
+    setBusy("Excluindo...");
+    try {
+      // Um único setData + uma única escrita no Supabase pros meses todos —
+      // ver o comentário de removeJournalMonths em lib/journalMonths.js.
+      await removeJournalMonths(keys);
+      flashBusy(`${keys.length} mês${keys.length === 1 ? "" : "es"} excluído${keys.length === 1 ? "" : "s"}: ${meses}.`);
+      setSelectedKeys(new Set());
+      setSelectMode(false);
+    } catch (error) {
+      console.error("Falha ao excluir meses do diário:", error);
+      // Mantém a seleção e o modo de seleção ligados de propósito — a
+      // exclusão não foi salva de verdade (e já foi revertida localmente),
+      // então o usuário só precisa clicar em "Excluir selecionados" de novo.
+      flashError(`Não consegui excluir de verdade — a conexão falhou e os ${total} lançamentos continuam salvos. Tenta de novo.`);
+    }
   }
 
   async function openFile(report) {
+    setBusyIsError(false);
     setBusy("Abrindo arquivo…");
     try {
       const blob = await fetchMonthlyReportBlob(report);
@@ -172,8 +230,7 @@ export default function RelatoriosMensais() {
       window.open(url, "_blank", "noopener");
     } catch (error) {
       console.error("Falha ao baixar anexo:", error);
-      setBusy("Não consegui abrir o arquivo.");
-      setTimeout(() => setBusy(""), 3500);
+      flashError("Não consegui abrir o arquivo.");
     }
   }
 
@@ -295,7 +352,15 @@ export default function RelatoriosMensais() {
         </div>
       </div>
 
-      {busy && <p className="rounded-lg bg-accent-50 px-3 py-2 text-[12px] text-accent-700">{busy}</p>}
+      {busy && (
+        <p
+          className={`rounded-lg px-3 py-2 text-[12px] font-medium ${
+            busyIsError ? "bg-danger-50 text-danger-700" : "bg-accent-50 text-accent-700"
+          }`}
+        >
+          {busy}
+        </p>
+      )}
 
       <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
         {MONTHS.map((label, index) => {
