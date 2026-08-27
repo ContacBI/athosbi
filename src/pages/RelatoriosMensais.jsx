@@ -35,6 +35,12 @@ export default function RelatoriosMensais() {
   // sem isso, um erro ficava com a mesma cor "info" azul de qualquer outro
   // aviso, fácil demais de ignorar justamente na hora que mais importa.
   const [busyIsError, setBusyIsError] = useState(false);
+  // Percentual (0 a 1) de uma gravação de razão em andamento — null quando
+  // não há nenhuma gravação com progresso mensurável rolando (leitura de
+  // arquivo, deletar registro pequeno, etc. ficam só com o texto do busy
+  // mesmo). É o que dá o "ainda está carregando ou não, com percentual"
+  // pedido depois dos sumiços silenciosos de importação/exclusão.
+  const [progress, setProgress] = useState(null);
   // Selecionar vários meses de uma vez pra excluir o diário deles junto —
   // antes só dava pra excluir mês a mês, um clique + confirmação por vez,
   // o que ficava bem lento pra limpar um ano inteiro. Só existe dentro de
@@ -58,6 +64,7 @@ export default function RelatoriosMensais() {
 
   function flashBusy(message) {
     setBusyIsError(false);
+    setProgress(null);
     setBusy(message);
     setTimeout(() => setBusy(""), 3500);
   }
@@ -68,8 +75,20 @@ export default function RelatoriosMensais() {
   // com a faixa vermelha em vez do azul "info" de todo o resto.
   function flashError(message) {
     setBusyIsError(true);
+    setProgress(null);
     setBusy(message);
     setTimeout(() => setBusy(""), 7000);
+  }
+
+  // Texto + percentual junto pro banner de baixo — "Salvando... 42%" — em
+  // vez de um "carregando" indefinido enquanto a gravação (a parte lenta e
+  // sujeita a falhar) está de fato em andamento.
+  function reportSaveProgress(message) {
+    return (fraction) => {
+      setBusyIsError(false);
+      setProgress(fraction);
+      setBusy(`${message} ${Math.round(Math.min(1, Math.max(0, fraction)) * 100)}%`);
+    };
   }
 
   // Every lançamento carries its own date — importing (or re-importing) a
@@ -99,7 +118,7 @@ export default function RelatoriosMensais() {
     // otimista local, então a tela junto do banco: nenhum dos dois mostra
     // o mês como importado.
     try {
-      const months = await attachJournalMonths(entries);
+      const months = await attachJournalMonths(entries, { onProgress: reportSaveProgress("Salvando diário...") });
       flashBusy(`Meses atualizados: ${months.map(monthLabelFromKey).join(", ")}`);
     } catch (error) {
       console.error("Falha ao salvar diário importado:", error);
@@ -168,7 +187,7 @@ export default function RelatoriosMensais() {
     setBusyIsError(false);
     setBusy("Excluindo...");
     try {
-      await removeJournalMonth(key);
+      await removeJournalMonth(key, { onProgress: reportSaveProgress("Excluindo...") });
       flashBusy(`${MONTHS[index]}/${year} excluído.`);
     } catch (error) {
       console.error("Falha ao excluir mês do diário:", error);
@@ -207,7 +226,7 @@ export default function RelatoriosMensais() {
     try {
       // Um único setData + uma única escrita no Supabase pros meses todos —
       // ver o comentário de removeJournalMonths em lib/journalMonths.js.
-      await removeJournalMonths(keys);
+      await removeJournalMonths(keys, { onProgress: reportSaveProgress("Excluindo...") });
       flashBusy(`${keys.length} mês${keys.length === 1 ? "" : "es"} excluído${keys.length === 1 ? "" : "s"}: ${meses}.`);
       setSelectedKeys(new Set());
       setSelectMode(false);
@@ -353,13 +372,17 @@ export default function RelatoriosMensais() {
       </div>
 
       {busy && (
-        <p
-          className={`rounded-lg px-3 py-2 text-[12px] font-medium ${
-            busyIsError ? "bg-danger-50 text-danger-700" : "bg-accent-50 text-accent-700"
-          }`}
-        >
-          {busy}
-        </p>
+        <div className={`rounded-lg px-3 py-2 ${busyIsError ? "bg-danger-50" : "bg-accent-50"}`}>
+          <p className={`text-[12px] font-medium ${busyIsError ? "text-danger-700" : "text-accent-700"}`}>{busy}</p>
+          {progress !== null && (
+            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-accent-100">
+              <div
+                className="h-full rounded-full bg-accent-500 transition-[width] duration-200"
+                style={{ width: `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%` }}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">

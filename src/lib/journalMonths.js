@@ -33,14 +33,14 @@ export function journalCountForMonth(monthKey) {
 // silently wipe it back out — exactly the bug this was written to close.
 // Callers MUST await this and show the user a real error on failure; never
 // fire-and-forget it again.
-export async function attachJournalMonths(newEntries) {
+export async function attachJournalMonths(newEntries, { onProgress } = {}) {
   const months = new Set(monthsPresent(newEntries));
   if (!months.size) return [];
   const previous = state.journal;
   const kept = previous.filter((entry) => !months.has(monthOf(entry)));
   setData({ journal: [...kept, ...newEntries] });
   try {
-    await persistActiveCompany();
+    await persistActiveCompany({ onProgress });
   } catch (error) {
     setData({ journal: previous });
     throw error;
@@ -55,7 +55,7 @@ export async function attachJournalMonths(newEntries) {
 // racing several independent persistActiveCompany() calls against each
 // other (each of which would have serialized the FULL company/journal at
 // whatever half-deleted point it happened to run).
-export async function removeJournalMonths(monthKeys) {
+export async function removeJournalMonths(monthKeys, { onProgress } = {}) {
   const keys = new Set(Array.isArray(monthKeys) ? monthKeys : [monthKeys]);
   if (!keys.size) return;
   const previous = state.journal;
@@ -67,13 +67,13 @@ export async function removeJournalMonths(monthKeys) {
     // então um resultado vazio aqui é intencional, não uma corrida/estado
     // zerado sem querer — precisa avisar isso pra writeStoredCompanies não
     // bloquear a gravação (ver a trava "suspiciousWipe" em companies.js).
-    await persistActiveCompany({ allowEmptyJournal: next.length === 0 });
+    await persistActiveCompany({ allowEmptyJournal: next.length === 0, onProgress });
   } catch (error) {
     setData({ journal: previous });
     throw error;
   }
 }
 
-export async function removeJournalMonth(monthKey) {
-  return removeJournalMonths([monthKey]);
+export async function removeJournalMonth(monthKey, options) {
+  return removeJournalMonths([monthKey], options);
 }

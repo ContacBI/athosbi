@@ -35,7 +35,8 @@ import { refreshEffectivePlano } from "./planosPadrao.js";
 const lastWrittenJournals = new Map();
 const lastWrittenRecords = new Map();
 
-function writeStoredCompanies(companies, { allowEmptyJournal = false } = {}) {
+function writeStoredCompanies(companies, { allowEmptyJournal = false, onProgress } = {}) {
+  const report = typeof onProgress === "function" ? onProgress : () => {};
   const writes = companies.map((company) => {
     // Compared against the COMPANY object itself, not a `{ ...company }`
     // copy — object-rest-spread always allocates a new object, so
@@ -98,7 +99,14 @@ function writeStoredCompanies(companies, { allowEmptyJournal = false } = {}) {
       // uma tentativa seguinte (com os mesmos dados, mesma referência) ser
       // pulada por engano por achar que não tinha nada novo pra gravar.
       const journalToWrite = company.journal;
-      pending.push(writeCompanyJournal(company.id, journalToWrite || []).then(() => { lastWrittenJournals.set(company.id, journalToWrite); }));
+      // O razão em si é o que demora (é a escrita grande, em pedaços,
+      // sujeita à conexão instável) — reserva 95% da barra pra ele e só os
+      // 5% finais pro registro leve, que grava rápido logo em seguida.
+      pending.push(
+        writeCompanyJournal(company.id, journalToWrite || [], { onProgress: (fraction) => report(fraction * 0.95) }).then(() => {
+          lastWrittenJournals.set(company.id, journalToWrite);
+        })
+      );
     }
     // Grava o registro sempre que o razão mudou também (mesmo se mais nada
     // mudou) — é onde `journalCount` fica atualizado. loadCompanies() lê só
@@ -115,7 +123,7 @@ function writeStoredCompanies(companies, { allowEmptyJournal = false } = {}) {
       const recordToWrite = { ...record, journalCount: journalWillWrite ? (company.journal || []).length : company.journalCount };
       pending.push(writePersistent(companyKey(company.id), recordToWrite).then(() => { lastWrittenRecords.set(company.id, company); }));
     }
-    const settled = Promise.all(pending);
+    const settled = Promise.all(pending).then(() => report(1));
     return suspiciousWipe ? settled.then(() => Promise.reject(new Error(`Gravação bloqueada: o razão de "${company.name}" ficaria vazio sem confirmação de exclusão.`))) : settled;
   });
   return Promise.all(writes.filter(Boolean));
@@ -609,7 +617,7 @@ export async function selectCompany(id, { skipPersist = false } = {}) {
 // certeza de que um razão vazio agora é intencional (ex.: removeJournalMonths
 // depois do usuário confirmar a exclusão) — ver a trava correspondente em
 // writeStoredCompanies.
-export function persistActiveCompany({ allowEmptyJournal = false } = {}) {
+export function persistActiveCompany({ allowEmptyJournal = false, onProgress } = {}) {
   if (state.activeGroupId) {
     return persistActiveGroupWorkspace();
   }
@@ -639,7 +647,7 @@ export function persistActiveCompany({ allowEmptyJournal = false } = {}) {
     };
   });
   setData({ companies });
-  return writeStoredCompanies(companies, { allowEmptyJournal });
+  return writeStoredCompanies(companies, { allowEmptyJournal, onProgress });
 }
 
 // A group has no accounts/journal/mappings of its own to save — those are

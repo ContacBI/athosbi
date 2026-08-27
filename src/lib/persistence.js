@@ -151,20 +151,42 @@ export function writePersistent(key, value) {
 // sem nenhuma mudança de comportamento.
 const JOURNAL_CHUNK_SIZE = 20000;
 
-export async function writeCompanyJournal(companyId, journal) {
+// `onProgress(fraction)` (0..1) deixa quem chamou mostrar uma barra/percentual
+// de verdade em vez de só um "carregando" indefinido — importante justamente
+// pros razões grandes o suficiente pra cair no caminho em pedaços abaixo, que
+// são também os que mais demoram e mais sofrem com a conexão instável.
+export async function writeCompanyJournal(companyId, journal, { onProgress } = {}) {
   const list = Array.isArray(journal) ? journal : [];
   const baseKey = companyJournalKey(companyId);
+  const report = typeof onProgress === "function" ? onProgress : () => {};
   if (list.length <= JOURNAL_CHUNK_SIZE) {
+    report(0);
     await writePersistent(baseKey, list);
+    report(1);
     return;
   }
   const parts = [];
   for (let i = 0; i < list.length; i += JOURNAL_CHUNK_SIZE) parts.push(list.slice(i, i + JOURNAL_CHUNK_SIZE));
+  // +1 unidade pro manifesto — ele só grava depois de TODAS as partes (ver
+  // comentário abaixo), então sem contar essa última escrita a barra pularia
+  // de "quase lá" pra "100%" antes dela realmente acontecer.
+  const totalUnits = parts.length + 1;
+  let doneUnits = 0;
+  report(0);
   // As partes primeiro, o manifesto por último — se cair no meio (rede
   // caiu, aba fechou), uma leitura ainda vê o manifesto ANTIGO (ou
   // nenhum), nunca um manifesto novo apontando pra partes que não existem.
-  await Promise.all(parts.map((part, index) => writePersistent(`${baseKey}.part${index}`, part)));
+  await Promise.all(
+    parts.map((part, index) =>
+      writePersistent(`${baseKey}.part${index}`, part).then(() => {
+        doneUnits += 1;
+        report(doneUnits / totalUnits);
+      })
+    )
+  );
   await writePersistent(baseKey, { __chunked: true, parts: parts.length });
+  doneUnits += 1;
+  report(doneUnits / totalUnits);
 }
 
 export async function readCompanyJournal(companyId) {
