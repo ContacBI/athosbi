@@ -23,6 +23,7 @@ import {
 } from "recharts";
 import { ArrowLeft, ArrowUpRight, ChevronRight, X, CheckCircle2, Circle, TriangleAlert } from "lucide-react";
 import { WIDGET_CATALOG, formatWidgetValue } from "../../lib/dashboardWidgets.js";
+import { isSingleLineFormula, describeIndicatorFormula } from "../../lib/indicatorFormula.js";
 import { useIsMobile } from "../../lib/useIsMobile.js";
 import { directChildren } from "../../lib/reportTree.js";
 import { buildDfcDirect, buildDfcIndirect } from "../../data/calculations.js";
@@ -1176,6 +1177,13 @@ function KpiInline({ definition, ctx }) {
   const Icon = definition.icon;
   const { value, format } = definition.value(ctx);
   const tone = format === "money" ? moneyClass(value) : "text-ink-900";
+  // Só pra fórmulas de razão/soma-de-várias-linhas (Margem, Liquidez, ROE,
+  // Giro do ativo etc.) — um card de linha única do DRE/Balanço mostraria
+  // aqui exatamente o mesmo texto que já está no título do card, sem
+  // acrescentar nada. PrintableWidgetGrid reaproveita este mesmo componente
+  // pra montar o PDF (domSnapshotPdf.js tira um "print" dele), então esse
+  // resuminho sai tanto na tela quanto no PDF de um só lugar.
+  const caption = definition.formula && !isSingleLineFormula(definition.formula) ? describeIndicatorFormula(definition.formula) : null;
   return (
     <>
       <div className="flex items-center justify-between">
@@ -1186,7 +1194,9 @@ function KpiInline({ definition, ctx }) {
           </span>
         )}
       </div>
-      <p className={`mt-1.5 mb-auto text-[22px] font-medium ${tone}`}>{formatWidgetValue(value, format)}</p>
+      <p className={`mt-1.5 text-[22px] font-medium ${tone}`}>{formatWidgetValue(value, format)}</p>
+      {caption && <p className="mt-1 mb-auto text-[10.5px] leading-snug text-ink-400">{caption}</p>}
+      {!caption && <div className="mb-auto" />}
     </>
   );
 }
