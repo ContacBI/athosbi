@@ -275,6 +275,9 @@ export function buildReportTree(type) {
   const periodCreditByPlan = new Map();
 
   entries.forEach((entry) => {
+    // Só ignora o zeramento dentro do DRE — o Balanço (BP) precisa dele pra
+    // fechar o PL de verdade (ver isResultClosingEntry acima).
+    if (type === "DRE" && isResultClosingEntry(entry)) return;
     const mapped = mapping.get(entry.classificacao) || {};
     const codigoGerencial = entry.codigo_gerencial || mapped.codigo_gerencial || "";
     if (!codigoGerencial) return;
@@ -387,6 +390,7 @@ function dreResultBeforePeriodStart() {
   const values = new Map();
 
   entries.forEach((entry) => {
+    if (isResultClosingEntry(entry)) return;
     const codigoGerencial = entry.codigo_gerencial || mapping.get(entry.classificacao)?.codigo_gerencial || "";
     if (!codigoGerencial) return;
     const planRow = plan.get(codigoGerencial);
@@ -1208,6 +1212,13 @@ function movementByAccount(entries, type) {
   const plan = planByCode();
   const result = new Map();
   entries.forEach((entry) => {
+    // Mesma exclusão do zeramento aplicada em buildReportTree — sem ela, o
+    // saldo/movimento "do período" de uma conta de Receita/Despesa dava
+    // exatamente ZERO sempre que o período selecionado ia até a data do
+    // fechamento (o lançamento de zeramento, por definição, zera o
+    // movimento da conta no período): "Receita bruta" e "Resultado líquido
+    // do período" apareciam como "-" mesmo com o ano inteiro selecionado.
+    if (type === "DRE" && isResultClosingEntry(entry)) return;
     const codigoGerencial = entry.codigo_gerencial || mapping.get(entry.classificacao)?.codigo_gerencial || "";
     const planRow = plan.get(codigoGerencial);
     if (planRow && planRow.demonstrativo !== type) return;
@@ -1699,6 +1710,22 @@ function isPassiveOrEquityPlan(planRow) {
 
 function normalize(value) {
   return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+// Lan\u00e7amento de zeramento/encerramento das contas de resultado \u2014 comum em
+// raz\u00f5es antigos importados de outro contador/sistema (Dom\u00ednio), feito na
+// m\u00e3o trimestral ou anualmente conforme a empresa. \u00c9 uma transfer\u00eancia
+// cont\u00e1bil real (zera Receitas/Despesas contra uma conta de PL), ent\u00e3o
+// precisa continuar valendo pro Balan\u00e7o \u2014 mas contado dentro do DRE ele
+// aparece como um estorno gigante bem no m\u00eas do fechamento (ex.: EBITDA de
+// dezembro caindo pra v\u00e1rios milh\u00f5es negativos), o que n\u00e3o \u00e9 o resultado
+// real daquele m\u00eas. O hist\u00f3rico desse lan\u00e7amento \u00e9 sempre gerado
+// automaticamente pelo Dom\u00ednio com esse texto fixo (c\u00f3digo de hist\u00f3rico
+// 47), ent\u00e3o d\u00e1 pra reconhecer com seguran\u00e7a sem depender de data.
+const RESULT_CLOSING_HISTORICO_PREFIX = "referente a apuracao do resultado do exercicio em";
+
+function isResultClosingEntry(entry) {
+  return normalize(entry?.historico).startsWith(RESULT_CLOSING_HISTORICO_PREFIX);
 }
 
 
