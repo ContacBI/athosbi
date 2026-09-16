@@ -15,7 +15,7 @@ import { ChevronRight, Maximize2, Minimize2, Search, TriangleAlert } from "lucid
 import { useAppState, setData, state } from "../data/useStore.js";
 import { visibleReportRows, missingMappingAccounts, reportMonths, buildReportTree } from "../data/calculations.js";
 import { rowsForPeriod, rowValue, rowKey } from "../lib/periodCompare.js";
-import { reportColumns, columnLabel, columnValue, isZeroNoMovement, horizontalPercent } from "../lib/reportColumns.js";
+import { reportColumns, columnLabel, columnValue, isZeroNoMovement, horizontalPercent, groupMonths } from "../lib/reportColumns.js";
 import { exportDemonstrativoPdf } from "../lib/reportPdf.js";
 import { exportDemonstrativoExcel } from "../lib/reportExcel.js";
 import { buildExecutiveDreRows, ebitdaChartData } from "../lib/executiveDre.js";
@@ -44,6 +44,12 @@ const MODES = [
 // renderização (mode "executiva"/"graficos") continua existindo, só não
 // é mais alcançável por este seletor.
 const DRE_ONLY_MODES = [];
+
+const GRANULARITY_OPTIONS = [
+  { id: "month", label: "Mensal" },
+  { id: "bimester", label: "Bimestral" },
+  { id: "quarter", label: "Trimestral" },
+];
 
 const EBITDA_CHARTS = [
   { id: "evolucao", label: "Evolução do EBITDA" },
@@ -166,6 +172,15 @@ function executiveColumnValue(row, column, ctx) {
   if (row.isPercentage) {
     if (column === "saldo" || column === "total" || column === "movement" || column === "ending") return row.saldo;
     if (column === "previous") return row.saldo_anterior_balancete;
+    // Coluna de bimestre/trimestre — uma % não se soma entre meses (ver
+    // comentário acima), então mostra a média simples dos meses reais do
+    // bloco em vez de somar razões que não fazem sentido somadas.
+    if (/^\d{4}-[QB]\d$/.test(column)) {
+      const groupedMonths = groupMonths(ctx.months, ctx.granularity).find((item) => item.key === column)?.months || [];
+      if (!groupedMonths.length) return 0;
+      const total = groupedMonths.reduce((sum, month) => sum + Number(row.monthValues?.[month] || 0), 0);
+      return total / groupedMonths.length;
+    }
     return row.monthValues?.[column] || 0;
   }
   return columnValue(row, column, ctx);
@@ -269,6 +284,11 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lockedTab]);
   const [mode, setMode] = useState("padrao");
+  // Só afeta o modo "Padrão"/EBITDA — agrupa as colunas de mês em blocos de
+  // bimestre/trimestre (ver groupMonths em lib/reportColumns.js) pra
+  // comparar, por exemplo, os 4 trimestres do ano lado a lado em vez de
+  // rolar 12 colunas de mês.
+  const [granularity, setGranularity] = useState("month");
   const [compareStart, setCompareStart] = useState("");
   const [compareEnd, setCompareEnd] = useState("");
   // Período A antes era sempre o período global (o do topo da tela) sem
@@ -328,6 +348,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
       showPreviousBalance,
       showReportTotal: tab === "BP" ? appState.showReportTotalBP : appState.showReportTotalDRE,
       bpMonthlyMode: appState.bpMonthlyMode,
+      granularity,
     });
     // reportColumns() reads the selected period internally (via reportMonths()),
     // so periodStart/periodEnd must be deps too — otherwise the column
@@ -344,6 +365,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
     appState.periodStart,
     appState.periodEnd,
     months,
+    granularity,
   ]);
 
   const showTrend = mode === "padrao" && !appState.reportCompare;
@@ -499,8 +521,8 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
       columns.forEach((column) => {
         const raw =
           mode === "executiva"
-            ? executiveColumnValue(row, column, { tab, months })
-            : columnValue(row, column, { tab, bpMonthlyMode: appState.bpMonthlyMode, months });
+            ? executiveColumnValue(row, column, { tab, months, granularity })
+            : columnValue(row, column, { tab, bpMonthlyMode: appState.bpMonthlyMode, months, granularity });
         cells[column] = format(raw, row.isPercentage);
       });
       return { ...base, cells };
@@ -627,6 +649,12 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                 ))}
               </div>
             )}
+            {(mode === "padrao" || mode === "executiva") && appState.reportCompare && (
+              <div className="flex items-center gap-1.5 border-l border-line pl-3">
+                <span className="text-[11px] text-ink-400">Colunas</span>
+                <SegmentedControl options={GRANULARITY_OPTIONS} value={granularity} onChange={setGranularity} />
+              </div>
+            )}
           </div>
           {mode === "comparativo" && (
             <div className="flex flex-wrap items-center gap-2">
@@ -721,7 +749,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                     {row.categoria_gerencial}
                   </span>
                   {columns.map((column) => {
-                    const value = executiveColumnValue(row, column, { tab, months });
+                    const value = executiveColumnValue(row, column, { tab, months, granularity });
                     return (
                       <span
                         key={column}
@@ -804,7 +832,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                     {mode === "padrao" && (
                       <>
                         {columns.map((column) => {
-                          const value = columnValue(row, column, { tab, bpMonthlyMode: appState.bpMonthlyMode, months });
+                          const value = columnValue(row, column, { tab, bpMonthlyMode: appState.bpMonthlyMode, months, granularity });
                           const tone = columnTone(column) || moneyClass(value);
                           return (
                             <span key={column} className={`whitespace-nowrap text-right tabular-nums ${tone} ${isHighlight ? "font-semibold" : ""}`}>
