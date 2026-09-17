@@ -89,6 +89,12 @@ function analyticBreakdown(tree, code) {
     const monthValues = {};
     let saldo = 0;
     accountEntries.forEach((entry) => {
+      // Mesma exclusão do zeramento (ver isResultClosingEntry) — este
+      // detalhamento por conta alimenta o drill-down do DFC Indireto sob
+      // linhas como "Resultado líquido do período"/"Depreciações" (fonte:
+      // árvore DRE), então precisa da mesma trava pra não repetir o mesmo
+      // estorno de encerramento visto no DRE/EBITDA.
+      if (row.demonstrativo === "DRE" && isResultClosingEntry(entry)) return;
       const month = String(entry.data || "").slice(0, 7);
       const value = Number(entry.debito || 0) - Number(entry.credito || 0);
       monthValues[month] = (monthValues[month] || 0) + value;
@@ -1375,6 +1381,13 @@ export function analyticRowsForLine(line) {
       let periodDebito = 0;
       let periodCredito = 0;
       accountEntries.forEach((entry) => {
+        // Mesma exclusão do zeramento de buildReportTree/movementByAccount —
+        // esse loop monta o monthValues/movimento da conta ANALÍTICA direto
+        // do razão, por fora daquelas duas funções, então precisa da mesma
+        // trava. Sem isso a sintética (que já usa movementByAccount) batia
+        // certo mas a conta analítica por baixo dela continuava mostrando o
+        // saldo total zerado pelo lançamento de encerramento.
+        if (type === "DRE" && isResultClosingEntry(entry)) return;
         const month = String(entry.data || "").slice(0, 7);
         const planRow = mapping.get(entry.classificacao) ? planByCode().get(mapping.get(entry.classificacao).codigo_gerencial) : null;
         const entryValue = reportEntryValue(type, entry, planRow);
