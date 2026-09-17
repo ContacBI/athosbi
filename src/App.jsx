@@ -100,9 +100,17 @@ export default function App() {
       isColaborador(),
       currentUserEmail(),
     ])
-      .then(([, companiesResult, , , adminFlag, , colaboradorFlag, email]) => {
+      .then(async ([, companiesResult, , , adminFlag, , colaboradorFlag, email]) => {
         setData({ isAdmin: adminFlag, isColaborador: colaboradorFlag, userEmail: email });
-        if (companiesResult?.groupId) selectGroup(companiesResult.groupId, { skipPersist: true });
+        // PRECISA aguardar de verdade — selectGroup só marca state.activeGroupId
+        // depois de buscar o razão de todos os membros (ver comentário lá em
+        // lib/groups.js), então disparar sem esperar fazia `ready` virar true
+        // com o grupo ainda "sem dono" por um instante. CompanyLayout, que só
+        // sabe checar activeCompanyId/activeGroupId, lia isso como "nenhuma
+        // empresa/grupo ativo" e chutava de volta pra /empresas assim que a
+        // rota tentava renderizar — um F5 dentro de um grupo nunca voltava
+        // pro grupo, ia sempre pra tela de escolher empresa.
+        if (companiesResult?.groupId) await selectGroup(companiesResult.groupId, { skipPersist: true });
         // loadCompanies() já chama selectCompany() internamente, que por
         // sua vez chama refreshEffectivePlano() — mas isso roda em
         // paralelo com loadPlanosPadrao() aqui em cima (mesmo Promise.all),
