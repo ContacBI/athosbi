@@ -10,7 +10,20 @@ export const EXECUTIVE_DRE_MAP = [
   { code: "DEX.06", name: "(-) Despesas Administrativas e Operacionais", sources: ["DRE.06", "DRE.07", "DRE.08"] },
   { code: "DEX.07", name: "Outras Receitas/Despesas Operacionais", sources: ["DRE.09"] },
   { code: "DEX.08", name: "Resultado antes do Resultado Financeiro (EBIT)", sources: ["DRE.12"], formula: true },
-  { code: "DEX.09", name: "(+) Depreciação e Amortização", sources: ["DRE.11"], invert: true },
+  // DRE.11 é a depreciação "destacada" (linha própria). Nem toda empresa
+  // separa assim — parte da depreciação/amortização às vezes fica dentro
+  // de Despesas Administrativas mesmo, na linha gerencial dedicada
+  // "Depreciação e amortização administrativa" (DRE.07.07.03, dentro da
+  // árvore de DRE.06/07/08 que compõe DEX.06). Soma as duas fontes aqui —
+  // sem isso o EBITDA ficava subestimado sempre que a depreciação
+  // administrativa existia só dentro desse ramo, sem linha própria em DRE.11.
+  { code: "DEX.09", name: "(+) Depreciação e Amortização", sources: ["DRE.11", "DRE.07.07.03"], invert: true },
+  // EBITDA recalculado como EBIT + a linha acima (ver applyExecutiveEbitda
+  // logo abaixo) em vez de simplesmente reaproveitar DRE.10 — DRE.10 já
+  // vem com QUALQUER depreciação administrativa embutida como custo (ela é
+  // filha de DRE.06 na árvore gerencial), então usar DRE.10 direto deixava
+  // essa parcela de fora do "somar de volta". `sources` aqui vira só um
+  // valor inicial, sempre sobrescrito depois.
   { code: "DEX.10", name: "EBITDA", sources: ["DRE.10"], formula: true },
   { code: "DEX.11", name: "Margem EBITDA (% da Receita Líquida)", percentage: true },
   { code: "DEX.12", name: "Resultados não operacionais", sources: ["DRE.14"] },
@@ -67,11 +80,36 @@ export function buildExecutiveDreRows(dreRows, map = EXECUTIVE_DRE_MAP) {
   });
 
   const byExecutiveCode = new Map(built.map((row) => [row.codigo_gerencial, row]));
-  const margin = byExecutiveCode.get("DEX.11");
+  const ebit = byExecutiveCode.get("DEX.08");
+  const addback = byExecutiveCode.get("DEX.09");
   const ebitda = byExecutiveCode.get("DEX.10");
+  // Precisa rodar ANTES da margem — a margem lê ebitda.saldo/monthValues,
+  // que só ficam corretos depois dessa correção (ver comentário de DEX.10
+  // acima).
+  if (ebit && addback && ebitda) applyExecutiveEbitda(ebitda, ebit, addback);
+  const margin = byExecutiveCode.get("DEX.11");
   const netRevenue = byExecutiveCode.get("DEX.03");
   if (margin && ebitda && netRevenue) applyExecutiveMargin(margin, ebitda, netRevenue);
   return built;
+}
+
+// EBITDA = EBIT + Depreciação e Amortização somada de volta, sempre — em
+// vez de reaproveitar o subtotal DRE.10 (que já vem com qualquer
+// depreciação administrativa embutida como custo, ver comentário de DEX.10
+// acima). Mesma mecânica de soma campo a campo que applyExecutiveMargin já
+// usa logo abaixo, só que soma em vez de dividir.
+function applyExecutiveEbitda(target, ebit, addback) {
+  const months = new Set([...Object.keys(ebit.monthValues || {}), ...Object.keys(addback.monthValues || {})]);
+  const sum = (key) => Number(ebit[key] || 0) + Number(addback[key] || 0);
+  target.saldo = sum("saldo");
+  target.saldo_inicial = sum("saldo_inicial");
+  target.saldo_anterior_balancete = sum("saldo_anterior_balancete");
+  target.movimento_periodo = sum("movimento_periodo");
+  target.saldo_final = sum("saldo_final");
+  target.monthValues = Object.fromEntries(
+    [...months].map((month) => [month, Number(ebit.monthValues?.[month] || 0) + Number(addback.monthValues?.[month] || 0)])
+  );
+  target.hasValue = ebit.hasValue || addback.hasValue;
 }
 
 function applyExecutiveMargin(target, ebitda, netRevenue) {
