@@ -1,8 +1,12 @@
 // Edge Function: invite-user
 //
 // Convida um e-mail novo pro portal — cria a conta no Supabase Auth SEM
-// senha e dispara o e-mail de convite; a pessoa clica, cai logada em
-// /definir-senha (ver src/pages/SetPassword.jsx) e escolhe a senha ali.
+// senha e dispara o e-mail de convite; a pessoa clica, confirma numa
+// página intermediária (ver src/pages/ConfirmAccess.jsx — o e-mail
+// aponta pra lá, não direto pro link do Supabase, justamente pra não ser
+// consumido sozinho por verificadores automáticos de e-mail corporativo),
+// cai logada em /definir-senha (ver src/pages/SetPassword.jsx) e escolhe
+// a senha ali.
 //
 // Só existe como função de servidor porque supabase.auth.admin.* exige a
 // service role key, que NUNCA pode ir pro código do front-end (bundle do

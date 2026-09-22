@@ -5,6 +5,7 @@ import ParametrosLayout from "./components/ParametrosLayout.jsx";
 import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
 import SetPassword from "./pages/SetPassword.jsx";
+import ConfirmAccess from "./pages/ConfirmAccess.jsx";
 import { supabase } from "./lib/supabaseClient.js";
 import Empresas from "./pages/Empresas.jsx";
 import CompanyHome from "./pages/CompanyHome.jsx";
@@ -51,7 +52,7 @@ function RouteFallback() {
   );
 }
 
-export default function App() {
+function AuthedApp() {
   const [session, setSession] = useState(undefined); // undefined = ainda não checou, null = deslogado
   const [ready, setReady] = useState(false);
   const [bootError, setBootError] = useState("");
@@ -192,4 +193,18 @@ export default function App() {
       </Suspense>
     </BrowserRouter>
   );
+}
+
+export default function App() {
+  // Antes de qualquer checagem de sessão — quem chega aqui (link de convite
+  // ou de "esqueci minha senha", ver ConfirmAccess.jsx) ainda não está
+  // logado de propósito; a troca de verdade só acontece dentro do clique
+  // no botão daquela página. Fica FORA de AuthedApp (que já usa useState
+  // logo na primeira linha) pra não ter hook nenhum condicionado a essa
+  // checagem de pathname. Comparação crua de window.location porque isso
+  // roda antes do <BrowserRouter> existir.
+  if (window.location.pathname === "/confirmar-acesso") {
+    return <ConfirmAccess />;
+  }
+  return <AuthedApp />;
 }

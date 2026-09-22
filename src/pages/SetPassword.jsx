@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { KeyRound } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
 
-// Pra onde o link de convite (lib/access.js inviteUser) e o de "esqueci
-// minha senha" (Login.jsx) mandam a pessoa — os dois casos chegam aqui já
-// logados (é assim que o link mágico do Supabase funciona: abrir o link já
-// cria a sessão), só falta escolher a senha de verdade pra usar dali em
-// diante. supabase.auth.updateUser roda em cima dessa sessão temporária.
+// Pra onde o link de convite (supabase/functions/invite-user) e o de
+// "esqueci minha senha" (Login.jsx) mandam a pessoa DEPOIS de ela confirmar
+// em ConfirmAccess.jsx — os dois casos chegam aqui já logados (a
+// confirmação ali já trocou o token pela sessão de verdade), só falta
+// escolher a senha pra usar dali em diante. supabase.auth.updateUser roda
+// em cima dessa sessão temporária.
 export default function SetPassword() {
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
