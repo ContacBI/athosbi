@@ -14,6 +14,7 @@ import {
   writeCompanyJournal,
   deleteCompanyJournal,
   COMPANY_KEY_PREFIX,
+  rememberActiveWorkspace,
 } from "./persistence.js";
 import { DEFAULT_NATURE_RULES } from "./accountNature.js";
 import { supabase, MONTHLY_REPORTS_BUCKET } from "./supabaseClient.js";
@@ -327,8 +328,30 @@ export async function fetchCompaniesAndGroups() {
 // inteiro. Antes dessa mudança, logar com 10 empresas somando 200 mil+
 // lançamentos baixava TUDO isso de uma vez só pra montar aquela lista.
 // Idempotente: chamar de novo numa empresa já carregada é um no-op.
-export async function ensureCompanyJournalLoaded(company, { onProgress } = {}) {
-  if (!company || company.journalLoaded) return company;
+//
+// Duas chamadas pra MESMA empresa enquanto a primeira ainda está baixando
+// (ex.: o boot já está carregando a última empresa aberta em segundo plano
+// e o usuário abre um grupo que tem ela) dividem o mesmo download em vez de
+// baixar o razão inteiro duas vezes ao mesmo tempo — cada uma continua
+// recebendo o próprio onProgress.
+const inflightJournalLoads = new Map();
+
+export function ensureCompanyJournalLoaded(company, { onProgress } = {}) {
+  if (!company || company.journalLoaded) return Promise.resolve(company);
+  let inflight = inflightJournalLoads.get(company.id);
+  if (!inflight) {
+    const listeners = new Set();
+    const promise = loadCompanyJournal(company, (fraction) => listeners.forEach((listener) => listener(fraction))).finally(() => {
+      inflightJournalLoads.delete(company.id);
+    });
+    inflight = { promise, listeners };
+    inflightJournalLoads.set(company.id, inflight);
+  }
+  if (typeof onProgress === "function") inflight.listeners.add(onProgress);
+  return inflight.promise;
+}
+
+async function loadCompanyJournal(company, onProgress) {
   let journal;
   let journalLoadFailed = false;
   try {
@@ -485,8 +508,7 @@ export function createCompany({
   };
   const companies = state.companies.concat(company);
   writeStoredCompanies(companies);
-  localStorage.setItem(ACTIVE_COMPANY_KEY, company.id);
-  localStorage.removeItem(ACTIVE_GROUP_KEY);
+  rememberActiveWorkspace({ companyId: company.id });
   setData({
     companies,
     activeCompanyId: company.id,
@@ -551,12 +573,49 @@ export function migrateDashboardTabs(company) {
   return [];
 }
 
+// Mesmos 4 campos que remapJournal reescreve — true quando o remap não
+// mudou nada de fato (o caso normal: o razão salvo já está com o De/Para
+// atual carimbado).
+function sameGerencialStamps(original, remapped) {
+  if (original.length !== remapped.length) return false;
+  for (let index = 0; index < original.length; index += 1) {
+    const before = original[index];
+    const after = remapped[index];
+    if (
+      (before.codigo_gerencial || "") !== after.codigo_gerencial ||
+      (before.categoria_gerencial || "") !== after.categoria_gerencial ||
+      (before.demonstrativo || "") !== after.demonstrativo ||
+      (before.grupo_macro || "") !== after.grupo_macro
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// state.journal é sempre uma CÓPIA remapeada do razão da empresa (array
+// novo, mesmo conteúdo). writeStoredCompanies compara referência, então
+// essa cópia parecia "razão editado" e persistActiveCompany re-subia o
+// razão INTEIRO pro Supabase toda vez que alguém saía da empresa (trocar de
+// empresa, abrir um grupo) — dezenas de MB disputando a conexão com o
+// download do que a pessoa acabou de abrir (e, pra quem só tem leitura, o
+// banco recusava tudo no fim, depois de subir tudo). Quando o remap não
+// mudou carimbo nenhum e o original é exatamente o que está salvo, marca a
+// cópia como "já salva" também. Se o remap mudou algo (De/Para editado com
+// essa empresa fechada), deixa como está — aí a regravação é de verdade.
+function journalForDisplay(companyId, journal, mappings) {
+  const remapped = remapJournal(journal, mappings);
+  if (lastWrittenJournals.get(companyId) === journal && sameGerencialStamps(journal, remapped)) {
+    lastWrittenJournals.set(companyId, remapped);
+  }
+  return remapped;
+}
+
 export async function selectCompany(id, { skipPersist = false } = {}) {
   if (!skipPersist) persistActiveCompany();
   const company = state.companies.find((item) => item.id === id);
   if (!company) return;
-  localStorage.setItem(ACTIVE_COMPANY_KEY, id);
-  localStorage.removeItem(ACTIVE_GROUP_KEY);
+  rememberActiveWorkspace({ companyId: id });
   // Tudo que já está disponível sem buscar nada no Supabase (registro leve
   // de loadCompanies — contas, mappings, configurações) entra já, síncrono:
   // trocar de empresa não pode esperar o razão pra sequer navegar pra tela
@@ -569,7 +628,7 @@ export async function selectCompany(id, { skipPersist = false } = {}) {
     mappings: company.mappings || [],
     dfcOverrides: company.dfcOverrides || [],
     accounts: company.accounts || [],
-    journal: company.journalLoaded ? remapJournal(company.journal || [], company.mappings || []) : [],
+    journal: company.journalLoaded ? journalForDisplay(company.id, company.journal || [], company.mappings || []) : [],
     // Ver loadCompanies/ensureCompanyJournalLoaded — true quando a leitura
     // do razão desta empresa falhou (não confirma "vazia"). CompanyTopBar
     // mostra um aviso; nenhum save toca no razão dela enquanto isso ficar
@@ -613,7 +672,7 @@ export async function selectCompany(id, { skipPersist = false } = {}) {
   // ainda estava em andamento — não pisa no que já é outra tela agora.
   if (state.activeCompanyId !== id) return;
   setData({
-    journal: remapJournal(loaded.journal || [], state.mappings || []),
+    journal: journalForDisplay(id, loaded.journal || [], state.mappings || []),
     journalLoadFailed: Boolean(loaded.journalLoadFailed),
     journalLoading: false,
     journalLoadProgress: null,
