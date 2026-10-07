@@ -1,9 +1,11 @@
 import { state, setData } from "../data/useStore.js";
 import { ACTIVE_GROUP_KEY, GROUPS_KEY, writePersistent, rememberActiveWorkspace } from "./persistence.js";
-import { persistActiveCompany, replicateTabsToCompanies, ensureCompanyJournalLoaded } from "./companies.js";
+import { persistActiveCompany, replicateTabsToCompanies, ensureCompanyJournalLoaded, remapJournal, canWriteGroups } from "./companies.js";
 import { refreshEffectivePlano } from "./planosPadrao.js";
 
 function writeStoredGroups(groups) {
+  // Ver canWriteGroups (lib/companies.js) — o banco recusaria mesmo.
+  if (!canWriteGroups()) return Promise.reject(new Error("Sem permissão pra salvar grupos — só admin ou colaborador."));
   return writePersistent(GROUPS_KEY, groups);
 }
 
@@ -172,7 +174,12 @@ function buildGroupDataset(companies, { withJournal = true } = {}) {
       mappings.push({ ...mapping, classificacao: namespaced(company.id, mapping.classificacao) });
     });
     if (!withJournal) return;
-    (company.journal || []).forEach((entry) => {
+    // Remapeia pelo De/Para ATUAL de cada membro, igual selectCompany faz
+    // pra uma empresa só (e groupExport.js já fazia pro relatório por
+    // empresa) — o razão salvo pode estar com carimbo de um De/Para antigo
+    // (ver journalForDisplay em lib/companies.js), e sem isso o consolidado
+    // mostraria um número diferente da soma das empresas abertas uma a uma.
+    remapJournal(company.journal || [], company.mappings || []).forEach((entry) => {
       journal.push({
         ...entry,
         classificacao: namespaced(company.id, entry.classificacao),
@@ -195,7 +202,9 @@ function buildGroupDataset(companies, { withJournal = true } = {}) {
 // Demonstrativos workspace (period, tabs) is editable and saved back onto
 // the group record itself (see persistActiveGroupWorkspace in companies.js).
 export async function selectGroup(id, { skipPersist = false } = {}) {
-  if (!skipPersist) persistActiveCompany();
+  // Salvar o que ficou pra trás não pode travar nem quebrar a troca — quem
+  // só tem leitura cai aqui toda vez (ver canWriteCompany em companies.js).
+  if (!skipPersist) persistActiveCompany().catch((error) => console.warn("Não salvei a empresa/grupo anterior:", error?.message || error));
   const group = state.groups.find((item) => item.id === id);
   if (!group) return;
   rememberActiveWorkspace({ groupId: id });

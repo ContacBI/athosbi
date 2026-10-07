@@ -202,19 +202,49 @@ export function writePersistent(key, value) {
   });
 }
 
-// Um razão de dezenas de milhares de lançamentos (uma linha JSONB só) às
-// vezes falha ao gravar de uma vez, mesmo com retry — confirmado com um
-// caso real de 85 mil lançamentos (~32MB) que falhava sempre como blob
-// único mas gravava certinho em pedaços de ~20 mil. Journals menores (a
-// esmagadora maioria das empresas) continuam gravando como uma linha só,
-// sem nenhuma mudança de comportamento.
-const JOURNAL_CHUNK_SIZE = 20000;
+// Um razão de dezenas de milhares de lançamentos (uma linha JSONB só)
+// falha ao gravar de uma vez — o banco (Supabase Free/NANO) corta qualquer
+// consulta que passe de 8s. Pedaços de 20 mil (~8MB de JSON) já passavam
+// disso com o banco minimamente ocupado, e gravar todos AO MESMO TEMPO
+// (Promise.all) saturava o banco a ponto de derrubar o portal inteiro
+// (07/10/2026: uma aba re-subindo o razão do CJ em loop deixou todo mundo
+// preso em "Carregando…"). 5 mil (~2MB) por pedaço, um de cada vez, fica
+// folgado dentro do limite. Razões menores continuam numa linha só.
+const JOURNAL_CHUNK_SIZE = 5000;
+
+// Partes de um razão em pedaços vivem em um de dois "espaços" (a/b),
+// alternados a cada gravação: as partes novas vão pro espaço que o
+// manifesto atual NÃO usa, e só no fim o manifesto troca de espaço. Se a
+// gravação cair no meio (aba fechada, rede caiu), o manifesto antigo
+// continua apontando pras partes antigas, intactas. Antes as partes eram
+// sobrescritas no MESMO lugar — uma gravação interrompida deixava o
+// manifesto antigo apontando pra uma mistura de partes novas e velhas.
+// Manifesto sem `slot` = formato antigo (partes em `${baseKey}.partN`).
+const journalPartKey = (baseKey, slot, index) => (slot ? `${baseKey}.${slot}.part${index}` : `${baseKey}.part${index}`);
+
+function isChunkedManifest(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value) && value.__chunked);
+}
+
+// Duas gravações do razão da MESMA empresa nunca correm juntas — a segunda
+// espera a primeira terminar (inclusive o manifesto) antes de escolher o
+// espaço, senão as duas escolheriam o mesmo e intercalariam as partes.
+const journalWriteChains = new Map();
 
 // `onProgress(fraction)` (0..1) deixa quem chamou mostrar uma barra/percentual
 // de verdade em vez de só um "carregando" indefinido — importante justamente
 // pros razões grandes o suficiente pra cair no caminho em pedaços abaixo, que
 // são também os que mais demoram e mais sofrem com a conexão instável.
-export async function writeCompanyJournal(companyId, journal, { onProgress } = {}) {
+export function writeCompanyJournal(companyId, journal, { onProgress } = {}) {
+  const previous = journalWriteChains.get(companyId) || Promise.resolve();
+  const next = previous.catch(() => undefined).then(() => writeCompanyJournalNow(companyId, journal, onProgress));
+  journalWriteChains.set(companyId, next);
+  return next.finally(() => {
+    if (journalWriteChains.get(companyId) === next) journalWriteChains.delete(companyId);
+  });
+}
+
+async function writeCompanyJournalNow(companyId, journal, onProgress) {
   const list = Array.isArray(journal) ? journal : [];
   const baseKey = companyJournalKey(companyId);
   const report = typeof onProgress === "function" ? onProgress : () => {};
@@ -224,28 +254,26 @@ export async function writeCompanyJournal(companyId, journal, { onProgress } = {
     report(1);
     return;
   }
+  // Precisa saber qual espaço o manifesto atual usa pra gravar no OUTRO —
+  // se não der pra ler, não arrisca sobrescrever as partes em uso.
+  const current = await readPersistent(baseKey);
+  const slot = isChunkedManifest(current) && current.slot === "a" ? "b" : "a";
   const parts = [];
   for (let i = 0; i < list.length; i += JOURNAL_CHUNK_SIZE) parts.push(list.slice(i, i + JOURNAL_CHUNK_SIZE));
   // +1 unidade pro manifesto — ele só grava depois de TODAS as partes (ver
   // comentário abaixo), então sem contar essa última escrita a barra pularia
   // de "quase lá" pra "100%" antes dela realmente acontecer.
   const totalUnits = parts.length + 1;
-  let doneUnits = 0;
   report(0);
-  // As partes primeiro, o manifesto por último — se cair no meio (rede
-  // caiu, aba fechou), uma leitura ainda vê o manifesto ANTIGO (ou
-  // nenhum), nunca um manifesto novo apontando pra partes que não existem.
-  await Promise.all(
-    parts.map((part, index) =>
-      writePersistent(`${baseKey}.part${index}`, part).then(() => {
-        doneUnits += 1;
-        report(doneUnits / totalUnits);
-      })
-    )
-  );
-  await writePersistent(baseKey, { __chunked: true, parts: parts.length });
-  doneUnits += 1;
-  report(doneUnits / totalUnits);
+  // Uma parte de cada vez (ver JOURNAL_CHUNK_SIZE). As partes primeiro, o
+  // manifesto por último — se cair no meio, uma leitura ainda vê o
+  // manifesto ANTIGO apontando pro espaço antigo, intacto.
+  for (let index = 0; index < parts.length; index += 1) {
+    await writePersistent(journalPartKey(baseKey, slot, index), parts[index]);
+    report((index + 1) / totalUnits);
+  }
+  await writePersistent(baseKey, { __chunked: true, parts: parts.length, slot });
+  report(1);
 }
 
 // `onProgress(fraction)` (0..1) — mesma ideia de writeCompanyJournal. Um
@@ -258,7 +286,7 @@ export async function readCompanyJournal(companyId, { onProgress } = {}) {
   const report = typeof onProgress === "function" ? onProgress : () => {};
   report(0);
   const value = await readPersistent(baseKey);
-  if (value && typeof value === "object" && !Array.isArray(value) && value.__chunked) {
+  if (isChunkedManifest(value)) {
     // Uma de cada vez, não Promise.all — pedir 5 pedaços de ~7MB TODOS ao
     // mesmo tempo é o que mais sobrecarrega uma conexão já instável (é
     // exatamente esse padrão que fazia razões grandes darem "não carregou"
@@ -267,10 +295,18 @@ export async function readCompanyJournal(companyId, { onProgress } = {}) {
     // tem seu próprio retry via readPersistent.
     const pieces = [];
     for (let index = 0; index < value.parts; index += 1) {
-      pieces.push(await readPersistent(`${baseKey}.part${index}`));
+      const piece = await readPersistent(journalPartKey(baseKey, value.slot, index));
+      // Parte que o manifesto promete mas não existe = razão incompleto.
+      // Devolver só o que sobrou faria ele parecer "carregado" — e o
+      // próximo save gravaria essa versão menor por cima do razão inteiro.
+      // Como erro de leitura, vira journalLoadFailed (trava de escrita).
+      if (!Array.isArray(piece)) {
+        throw new PersistenceReadError(`Razão de "${companyId}" incompleto: falta a parte ${index + 1} de ${value.parts}.`);
+      }
+      pieces.push(piece);
       report((index + 1) / value.parts);
     }
-    return pieces.flatMap((piece) => (Array.isArray(piece) ? piece : []));
+    return pieces.flat();
   }
   report(1);
   return Array.isArray(value) ? value : [];
@@ -300,21 +336,16 @@ export async function readPersistentByPrefix(prefix) {
 
 // Apaga o razão da empresa por completo — a linha única (caso comum) ou o
 // manifesto + todas as partes (caso uma empresa grande tenha sido dividida
-// por writeCompanyJournal). Lê o manifesto primeiro só pra saber quantas
-// partes existem; se não for chunked, isso não custa nada além da leitura
-// normal que já aconteceria de qualquer jeito.
+// por writeCompanyJournal), dos dois espaços a/b e do formato antigo. Lista
+// as chaves (só a coluna `key`, sem baixar o razão) e confere o prefixo
+// exato aqui — no LIKE o "_" de "emp_..." é curinga.
 export async function deleteCompanyJournal(companyId) {
   const baseKey = companyJournalKey(companyId);
-  let value;
-  try {
-    value = await readPersistent(baseKey);
-  } catch {
-    value = undefined;
-  }
+  const { data, error } = await supabase.from("app_storage").select("key").like("key", `${baseKey}.%`);
+  if (error) console.error(`Falha ao listar as partes do razão "${baseKey}":`, error);
+  const partKeys = (data || []).map((row) => row.key).filter((key) => key.startsWith(`${baseKey}.`));
   await deletePersistent(baseKey);
-  if (value && typeof value === "object" && !Array.isArray(value) && value.__chunked) {
-    await Promise.all(Array.from({ length: value.parts }, (_, index) => deletePersistent(`${baseKey}.part${index}`)));
-  }
+  await Promise.all(partKeys.map((key) => deletePersistent(key)));
 }
 
 export async function deletePersistent(key) {
