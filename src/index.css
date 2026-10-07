@@ -18,20 +18,31 @@
   --color-navy-900: #0c2b4a;
   --color-navy-800: #123a61;
   --color-navy-700: #1a4c7a;
+  --color-navy-400: #3d6fa8;
 
+  /* accent-200/300/700, danger-200/700, navy-400 e warning-950 já eram
+     usados pelo app (selo "ativa", bordas de hover, avisos, paleta dos
+     gráficos) mas nunca tinham sido definidos — não pintavam nada, nos dois
+     temas. accent-300 é igual nos dois temas de propósito: aparece também
+     sobre o navy fixo (Login) e como cor de série nos gráficos. */
   --color-accent-50: #fdf1e7;
   --color-accent-100: #fbdfc4;
+  --color-accent-200: #f8c9a0;
+  --color-accent-300: #f4a96f;
   --color-accent-400: #f28a42;
   --color-accent-500: #e8691f;
   --color-accent-600: #c8530f;
+  --color-accent-700: #a3430c;
 
   --color-success-50: #eaf7f1;
   --color-success-500: #1d9e75;
   --color-success-600: #0f6e56;
 
   --color-danger-50: #fbeceb;
+  --color-danger-200: #f2c4bf;
   --color-danger-500: #d8493a;
   --color-danger-600: #a8342a;
+  --color-danger-700: #8a2a22;
 
   /* warning-50/600/700 estavam faltando aqui — só warning-500 tinha valor
      real, então todo `bg-warning-50`/`text-warning-600`/`text-warning-700`
@@ -42,6 +53,9 @@
   --color-warning-500: #d99a2b;
   --color-warning-600: #96660f;
   --color-warning-700: #7a530c;
+  /* Texto escuro sobre a faixa amarela de aviso (bg-warning-500) — mesma
+     cor nos dois temas, porque a faixa continua clara no escuro. */
+  --color-warning-950: #3a2705;
 
   --color-surface-page: #f4f6f9;
   --color-surface-card: #ffffff;
@@ -74,13 +88,16 @@
   --color-surface-card: #1e2126;
   --color-surface-muted: #26292f;
 
+  /* 400/500/300 um degrau mais claros que antes: ink-400 (legendas, eixos
+     dos gráficos, rótulos de card) ficava em ~3:1 de contraste contra o
+     card escuro — difícil de ler. Agora ~4,5:1. */
   --color-ink-900: #f0f1f2;
   --color-ink-800: #d6d8db;
   --color-ink-700: #b9bcc1;
   --color-ink-600: #a3a7ae;
-  --color-ink-500: #888d96;
-  --color-ink-400: #6c7079;
-  --color-ink-300: #4e5259;
+  --color-ink-500: #9a9fa7;
+  --color-ink-400: #82878f;
+  --color-ink-300: #5d6169;
 
   --color-line: #34373e;
   --color-line-strong: #454952;
@@ -91,6 +108,10 @@
      do mesmo laranja, em vez de um creme que brigaria com o fundo. */
   --color-accent-50: #2a2013;
   --color-accent-100: #402d16;
+  --color-accent-200: #6b4319;
+  /* Texto "forte" sobre fundo accent-50/100 (selos, avisos) — no escuro
+     precisa ser um laranja CLARO, não o escuro do tema claro. */
+  --color-accent-700: #f6b27a;
 
   /* success/danger/navy-700 são cor de dado (valores em dinheiro positivos/
      negativos, linhas de gráfico) — as mesmas tonalidades do modo claro,
@@ -103,8 +124,10 @@
   --color-success-600: #4fcf9f;
 
   --color-danger-50: #2a1816;
+  --color-danger-200: #5e2a24;
   --color-danger-500: #e2695c;
   --color-danger-600: #e88378;
+  --color-danger-700: #f0a198;
 
   --color-warning-50: #2c2312;
   --color-warning-500: #e0ac52;
@@ -113,10 +136,95 @@
 
   --color-navy-800: #2f5488;
   --color-navy-700: #5c8fd6;
+  --color-navy-400: #7fa8e0;
+
+  /* Barras de rolagem, selects, campos de data, checkboxes e o menu nativo
+     do navegador seguem o tema — sem isso continuavam claros (ex.: a barra
+     de rolagem branca embaixo da DRE resumida). */
+  color-scheme: dark;
+}
+
+/* Trecho que precisa SEMPRE sair com as cores do tema claro, mesmo com o
+   escuro ligado — hoje, o "papel" da exportação em PDF do Resumo
+   (PrintableWidgetGrid + domSnapshotPdf.js): fundo branco fixo, mas o texto
+   seguia o tema e saía quase branco sobre branco. Repete só os tokens que o
+   bloco escuro acima muda. */
+:root[data-theme="dark"] [data-theme="light"] {
+  color-scheme: light;
+  --color-surface-page: #f4f6f9;
+  --color-surface-card: #ffffff;
+  --color-surface-muted: #eef1f6;
+  --color-ink-900: #17222f;
+  --color-ink-800: #263447;
+  --color-ink-700: #37485f;
+  --color-ink-600: #4c5b6e;
+  --color-ink-500: #64738a;
+  --color-ink-400: #8794a3;
+  --color-ink-300: #aab6c2;
+  --color-line: #e3e8ef;
+  --color-line-strong: #cbd3df;
+  --color-accent-50: #fdf1e7;
+  --color-accent-100: #fbdfc4;
+  --color-accent-200: #f8c9a0;
+  --color-accent-700: #a3430c;
+  --color-success-50: #eaf7f1;
+  --color-success-500: #1d9e75;
+  --color-success-600: #0f6e56;
+  --color-danger-50: #fbeceb;
+  --color-danger-200: #f2c4bf;
+  --color-danger-500: #d8493a;
+  --color-danger-600: #a8342a;
+  --color-danger-700: #8a2a22;
+  --color-warning-50: #fbf1de;
+  --color-warning-500: #d99a2b;
+  --color-warning-600: #96660f;
+  --color-warning-700: #7a530c;
+  --color-navy-800: #123a61;
+  --color-navy-700: #1a4c7a;
+  --color-navy-400: #3d6fa8;
 }
 
 * {
   box-sizing: border-box;
+}
+
+:root {
+  color-scheme: light;
+}
+
+/* Recharts desenha o tooltip com fundo branco fixo, o "cursor" das barras
+   em cinza #ccc e as fatias da pizza separadas por branco — no tema escuro
+   isso virava caixas/riscos brancos estourando no meio do card. Mesmas
+   cores do card/linhas do tema em vez disso (no claro dá praticamente o
+   mesmo resultado de antes). */
+.recharts-default-tooltip {
+  background-color: var(--color-surface-card) !important;
+  border-color: var(--color-line-strong) !important;
+  color: var(--color-ink-900);
+}
+
+.recharts-tooltip-label {
+  color: var(--color-ink-700);
+}
+
+/* Série sem cor própria (barras coloridas por <Cell>, ex. "Comparativo de
+   margens") sai com o texto do valor em preto fixo — invisível no tooltip
+   escuro. Só esse caso; séries com cor continuam na cor da série. */
+:root[data-theme="dark"] .recharts-tooltip-item[style*="rgb(0, 0, 0)"],
+:root[data-theme="dark"] .recharts-tooltip-item[style*="#000"] {
+  color: var(--color-ink-800) !important;
+}
+
+.recharts-rectangle.recharts-tooltip-cursor {
+  fill: var(--color-surface-muted);
+}
+
+.recharts-curve.recharts-tooltip-cursor {
+  stroke: var(--color-line-strong);
+}
+
+.recharts-pie-sector .recharts-sector {
+  stroke: var(--color-surface-card);
 }
 
 html,

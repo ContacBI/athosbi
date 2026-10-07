@@ -92,6 +92,18 @@ function writeStoredCompanies(companies, { allowEmptyJournal = false, onProgress
       if (suspiciousWipe) return Promise.reject(new Error(`Gravação bloqueada: o razão de "${company.name}" ficaria vazio sem confirmação de exclusão.`));
       return null;
     }
+    // O banco recusaria de qualquer jeito (RLS) — mas só DEPOIS de receber o
+    // corpo inteiro: quem só tem leitura subia o registro (e às vezes o
+    // razão, MB por pedaço) a cada troca de empresa só pra levar um 403.
+    // Mesma rejeição de antes pra quem chama, sem o upload — mas só pra
+    // empresa ativa (a que está sendo salva de fato). Uma OUTRA empresa sem
+    // permissão que ficou "suja" na memória (um save recusado antes) só
+    // está de carona no array: recusar por ela fazia o save da empresa
+    // ativa, que gravou certinho, parecer que falhou.
+    if (!canWriteCompany(company)) {
+      if (company.id !== state.activeCompanyId) return null;
+      return Promise.reject(new Error(`Sem permissão pra salvar "${company.name}" — só admin ou responsável pela empresa.`));
+    }
     const pending = [];
     if (journalWillWrite) {
       // Só marca como "já salvo" DEPOIS que a escrita realmente confirmar no
@@ -130,7 +142,28 @@ function writeStoredCompanies(companies, { allowEmptyJournal = false, onProgress
   return Promise.all(writes.filter(Boolean));
 }
 
+// Espelho, no app, das políticas de escrita de app_storage (ver
+// app_storage_insert_scoped/app_storage_update_scoped em
+// supabase/schema.sql): admin grava tudo; colaborador grava empresa onde é
+// responsável, ou cria uma empresa nova (registro que ainda não existe no
+// banco — nunca foi lido nem gravado por esta aba); cliente (só leitura)
+// não grava nada. Serve só pra não mandar pro banco o que ele vai recusar
+// — quem decide de verdade continua sendo a RLS.
+function canWriteCompany(company) {
+  if (state.isAdmin) return true;
+  if (!state.isColaborador) return false;
+  const email = String(state.userEmail || "").toLowerCase();
+  if ((company.responsaveis || []).some((item) => String(item).toLowerCase() === email)) return true;
+  return !lastWrittenRecords.has(company.id);
+}
+
+// Lista de grupos: admin ou qualquer colaborador (mesma política acima).
+export function canWriteGroups() {
+  return Boolean(state.isAdmin || state.isColaborador);
+}
+
 function writeStoredGroups(groups) {
+  if (!canWriteGroups()) return Promise.reject(new Error("Sem permissão pra salvar grupos — só admin ou colaborador."));
   return writePersistent(GROUPS_KEY, groups);
 }
 
@@ -449,7 +482,7 @@ async function backfillMissingJournalCounts() {
       const loaded = await ensureCompanyJournalLoaded(company);
       if (loaded.journalLoadFailed) return;
       const current = state.companies.find((item) => item.id === company.id);
-      if (!current) return;
+      if (!current || !canWriteCompany(current)) return;
       const { journal, journalLoadFailed, journalLoaded, ...record } = current;
       try {
         await writePersistent(companyKey(company.id), { ...record, journalCount: loaded.journal.length });
@@ -573,46 +606,28 @@ export function migrateDashboardTabs(company) {
   return [];
 }
 
-// Mesmos 4 campos que remapJournal reescreve — true quando o remap não
-// mudou nada de fato (o caso normal: o razão salvo já está com o De/Para
-// atual carimbado).
-function sameGerencialStamps(original, remapped) {
-  if (original.length !== remapped.length) return false;
-  for (let index = 0; index < original.length; index += 1) {
-    const before = original[index];
-    const after = remapped[index];
-    if (
-      (before.codigo_gerencial || "") !== after.codigo_gerencial ||
-      (before.categoria_gerencial || "") !== after.categoria_gerencial ||
-      (before.demonstrativo || "") !== after.demonstrativo ||
-      (before.grupo_macro || "") !== after.grupo_macro
-    ) {
-      return false;
-    }
-  }
-  return true;
-}
-
 // state.journal é sempre uma CÓPIA remapeada do razão da empresa (array
 // novo, mesmo conteúdo). writeStoredCompanies compara referência, então
 // essa cópia parecia "razão editado" e persistActiveCompany re-subia o
 // razão INTEIRO pro Supabase toda vez que alguém saía da empresa (trocar de
-// empresa, abrir um grupo) — dezenas de MB disputando a conexão com o
-// download do que a pessoa acabou de abrir (e, pra quem só tem leitura, o
-// banco recusava tudo no fim, depois de subir tudo). Quando o remap não
-// mudou carimbo nenhum e o original é exatamente o que está salvo, marca a
-// cópia como "já salva" também. Se o remap mudou algo (De/Para editado com
-// essa empresa fechada), deixa como está — aí a regravação é de verdade.
+// empresa, abrir um grupo) — dezenas de MB por troca, e foi uma aba presa
+// re-subindo assim em loop que derrubou o banco em 07/10/2026. Quando o
+// original é exatamente o que está salvo, a cópia conta como "já salva"
+// também, MESMO que o remap tenha atualizado carimbos (De/Para editado com
+// a empresa fechada): os relatórios remapeiam de novo na hora (aqui,
+// buildGroupDataset em groups.js, groupExport.js), então carimbo antigo no
+// banco não aparece neles — e o razão só volta a ser gravado numa edição de
+// verdade (importar, excluir meses, De/Para).
 function journalForDisplay(companyId, journal, mappings) {
   const remapped = remapJournal(journal, mappings);
-  if (lastWrittenJournals.get(companyId) === journal && sameGerencialStamps(journal, remapped)) {
-    lastWrittenJournals.set(companyId, remapped);
-  }
+  if (lastWrittenJournals.get(companyId) === journal) lastWrittenJournals.set(companyId, remapped);
   return remapped;
 }
 
 export async function selectCompany(id, { skipPersist = false } = {}) {
-  if (!skipPersist) persistActiveCompany();
+  // Salvar o que ficou pra trás não pode travar nem quebrar a troca — quem
+  // só tem leitura cai aqui toda vez (ver canWriteCompany).
+  if (!skipPersist) persistActiveCompany().catch((error) => console.warn("Não salvei a empresa/grupo anterior:", error?.message || error));
   const company = state.companies.find((item) => item.id === id);
   if (!company) return;
   rememberActiveWorkspace({ companyId: id });

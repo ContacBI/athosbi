@@ -1141,7 +1141,9 @@ export function PrintableWidgetGrid({ widgets, ctx, spacing = DEFAULT_SPACING })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const catalogById = useMemo(() => new Map(WIDGET_CATALOG.map((definition) => [definition.id, definition])), [appState.indicatorOverrides]);
   return (
-    <div style={{ width: 1100, background: "#ffffff", padding: 16, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: marginPx }}>
+    // data-theme="light": é "papel" pro PDF — sempre com as cores do tema
+    // claro, mesmo com o escuro ligado na tela (ver index.css).
+    <div data-theme="light" style={{ width: 1100, background: "#ffffff", padding: 16, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: marginPx }}>
       {widgets.map((entry) => {
         const definition = catalogById.get(entry.id);
         if (!definition) return null;
