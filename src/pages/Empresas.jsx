@@ -4,7 +4,9 @@ import { ArrowLeft, Building2, ChevronRight, Layers, Network, Search, Settings, 
 import { useAppState } from "../data/useStore.js";
 import { selectCompany } from "../lib/companies.js";
 import { selectGroup, groupCompanies } from "../lib/groups.js";
+import { prewarmDashboardContext } from "../lib/dashboardData.js";
 import Avatar from "../components/Avatar.jsx";
+import WorkspaceLoading from "../components/WorkspaceLoading.jsx";
 
 const norm = (value) => String(value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -161,21 +163,64 @@ export default function Empresas() {
     return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
-  // selectCompany/selectGroup marcam a empresa/grupo como ativo de forma
-  // SÍNCRONA (antes de qualquer await) e só depois baixam o razão em
-  // segundo plano — a barra do topo da empresa mostra o percentual. Então
-  // dá pra navegar na hora, sem esperar o download: esperar aqui é o que
-  // deixava a lista presa em "carregando…" por minutos num grupo grande.
-  // A checagem do id ativo antes de navegar garante que nunca abre a
-  // empresa/grupo ANTERIOR caso a seleção não tenha acontecido.
+  // A espera acontece AQUI, antes de abrir o painel: uma tela de
+  // carregamento (WorkspaceLoading) mostra "Carregando os lançamentos — X%"
+  // enquanto baixa e "Calculando os relatórios…" enquanto o painel é
+  // montado (prewarmDashboardContext — num grupo grande são alguns segundos
+  // de navegador ocupado, que dentro do painel apareciam como tela em
+  // branco). Só navega com tudo pronto.
+  // selectCompany/selectGroup já marcam o ativo de forma síncrona, então a
+  // checagem do id ativo garante que nunca abre a empresa/grupo ANTERIOR;
+  // e clicar em outro card no meio do caminho troca o alvo (o anterior
+  // desiste de navegar ao terminar).
+  const [pending, setPending] = useState(null); // { id, name, isGroup, phase: "loading" | "calculating" }
+  const pendingRef = useRef(null);
+
+  async function handleOpen(id, select, isActive, label) {
+    if (pendingRef.current === id) return;
+    pendingRef.current = id;
+    setPending({ id, ...label, phase: "loading" });
+    const stillWanted = () => pendingRef.current === id && isActive();
+    try {
+      await select(id);
+      if (!stillWanted()) return;
+      if (!state.journalLoadFailed && (state.dashboardTabs || []).length > 0) {
+        setPending({ id, ...label, phase: "calculating" });
+        // Deixa o navegador pintar o "calculando…" antes do cálculo pesado.
+        await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+        if (!stillWanted()) return;
+        prewarmDashboardContext();
+      }
+      if (stillWanted()) navigate("/empresa");
+    } catch (error) {
+      console.error("Falha ao abrir:", error);
+      // Mesmo com erro no pré-cálculo, abre — o painel calcula sozinho e a
+      // barra do topo avisa se o razão não carregou.
+      if (stillWanted()) navigate("/empresa");
+    } finally {
+      if (pendingRef.current === id) {
+        pendingRef.current = null;
+        setPending(null);
+      }
+    }
+  }
+
   function handleAccess(id) {
-    selectCompany(id).catch((error) => console.error("Falha ao abrir a empresa:", error));
-    if (state.activeCompanyId === id && !state.activeGroupId) navigate("/empresa");
+    const company = state.companies.find((item) => item.id === id);
+    handleOpen(id, selectCompany, () => state.activeCompanyId === id && !state.activeGroupId, { name: company?.name || "Empresa", isGroup: false });
   }
 
   function handleAccessGroup(id) {
-    selectGroup(id).catch((error) => console.error("Falha ao abrir o grupo:", error));
-    if (state.activeGroupId === id) navigate("/empresa");
+    const group = state.groups.find((item) => item.id === id);
+    handleOpen(id, selectGroup, () => state.activeGroupId === id, { name: group?.name || "Grupo", isGroup: true });
+  }
+
+  // "Voltar pra lista" no meio do carregamento: desiste de navegar quando
+  // terminar (a empresa/grupo continua selecionado e carregando em segundo
+  // plano — abrir de novo depois reaproveita o que já chegou).
+  function cancelOpen() {
+    pendingRef.current = null;
+    setPending(null);
   }
 
   const totalLancamentos = state.companies.reduce((sum, company) => sum + journalCountOf(company), 0);
@@ -202,6 +247,15 @@ export default function Empresas() {
 
   return (
     <div className="min-h-screen bg-surface-page pb-16">
+      {pending && (
+        <WorkspaceLoading
+          name={pending.name}
+          isGroup={pending.isGroup}
+          phase={pending.phase}
+          progress={state.journalLoadProgress}
+          onCancel={cancelOpen}
+        />
+      )}
       {/* Faixa de identidade — bem mais enxuta que uma "hero" de marketing:
           o trabalho de verdade é a busca+lista logo abaixo, então isso aqui
           só precisa situar "você está na carteira" e mostrar os totais de

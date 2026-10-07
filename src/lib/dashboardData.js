@@ -1,3 +1,4 @@
+import { state } from "../data/useStore.js";
 import { buildReportTree, buildDfcDirect, kpis, reportMonths, missingMappingAccounts } from "../data/calculations.js";
 import { buildExecutiveDreRows, ebitdaChartData, DRE_RESUMIDA_MAP } from "./executiveDre.js";
 import { accumulatedBalanceValue } from "./reportColumns.js";
@@ -12,6 +13,38 @@ export function monthLabel(month) {
 
 function findRow(tree, code) {
   return tree.find((row) => row.codigo_gerencial === code);
+}
+
+// Pré-cálculo feito pela tela "Escolha uma empresa" ANTES de navegar (ver
+// Empresas.jsx): num grupo grande buildDashboardContext leva vários
+// segundos com o navegador travado, e feito só ao abrir o painel isso
+// aparecia como uma tela em branco. Feito ainda na lista, o "calculando…"
+// fica visível lá e o painel já abre pronto. Uso ÚNICO (o primeiro
+// PainelTab que montar consome e descarta) e só vale se nada que o cálculo
+// lê mudou de referência desde então — fora isso, cálculo normal.
+let prewarmed = null;
+
+function prewarmKey() {
+  return [
+    state.activeCompanyId, state.activeGroupId, state.journal, state.mappings, state.accounts, state.plano,
+    state.periodStart, state.periodEnd, state.hideNonOperatingResults, state.excludedNonOperatingCodes,
+    state.dfcOverrides, state.dfcLinks, state.dfcRules, state.dfcStructure, state.natureRules, state.indicatorOverrides,
+    state.expandedLines, state.search, state.companies, state.groups,
+  ];
+}
+
+export function prewarmDashboardContext() {
+  prewarmed = { key: prewarmKey(), ctx: buildDashboardContext() };
+}
+
+export function takeDashboardContext() {
+  const cached = prewarmed;
+  prewarmed = null;
+  if (cached) {
+    const key = prewarmKey();
+    if (cached.key.every((value, index) => value === key[index])) return cached.ctx;
+  }
+  return buildDashboardContext();
 }
 
 // Computes every number any dashboard widget could possibly need, once —

@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import CompanyTopBar from "./CompanyTopBar.jsx";
+import WorkspaceLoading from "./WorkspaceLoading.jsx";
 import { useAppState } from "../data/useStore.js";
 import { isResponsavelForGroup } from "../lib/colaboradores.js";
 import { PageActionsProvider } from "../lib/pageActions.jsx";
@@ -29,6 +30,16 @@ export default function CompanyLayout() {
 
   if (!company && !state.activeGroupId) {
     return <Navigate to="/empresas" replace />;
+  }
+
+  // Razão ainda chegando (F5 dentro de uma empresa/grupo, ou troca pelo
+  // seletor do topo): tela de carregamento no lugar do painel, em vez de
+  // relatórios zerados seguidos de uma tela em branco enquanto calcula.
+  // Vindo da tela de escolher empresa isso nem aparece — ela já espera o
+  // carregamento antes de navegar (ver Empresas.jsx).
+  if (state.journalLoading && !state.journalLoadFailed) {
+    const group = state.activeGroupId ? state.groups.find((item) => item.id === state.activeGroupId) : null;
+    return <WorkspaceLoading name={group?.name || company?.name || ""} isGroup={Boolean(group)} progress={state.journalLoadProgress} />;
   }
 
   const canEditHere =

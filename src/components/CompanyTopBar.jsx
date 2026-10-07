@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, LayoutGrid, Loader2, Network, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, LayoutGrid, Network, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
 import { useAppState, setData, state } from "../data/useStore.js";
 import { missingMappingAccounts } from "../data/calculations.js";
 import { groupCompanies, activeWorkspaceName } from "../lib/groups.js";
@@ -456,13 +456,6 @@ export default function CompanyTopBar({ company }) {
 
   return (
     <header className="sticky top-0 z-30 bg-navy-950">
-      {appState.journalLoading && !appState.journalLoadFailed && (
-        <div className="flex items-center gap-2 bg-accent-500 px-5 py-1.5 text-[12px] font-medium text-white">
-          <Loader2 size={14} strokeWidth={2} className="shrink-0 animate-spin" />
-          Carregando o razão {group ? "deste grupo" : "desta empresa"}{appState.journalLoadProgress !== null ? ` — ${Math.round(appState.journalLoadProgress * 100)}%` : "..."}
-          {" "}— pode levar alguns segundos num razão grande; "0 lançamentos" ainda não é a palavra final.
-        </div>
-      )}
       {appState.journalLoadFailed && (
         <div className="flex items-center gap-2 bg-warning-500 px-5 py-1.5 text-[12px] font-medium text-warning-950">
           <TriangleAlert size={14} strokeWidth={2} className="shrink-0" />
@@ -538,7 +531,7 @@ export default function CompanyTopBar({ company }) {
               onClick={() => navigate("/empresa/personalizar")}
               title={canEdit ? undefined : "Só visualização — você não é responsável por esta empresa/grupo"}
               className={`flex h-8 items-center gap-1.5 rounded-md border px-3 text-[12px] font-medium transition-colors ${
-                isPersonalizar ? "border-accent-500 bg-accent-500 text-white" : "border-accent-500/40 bg-accent-500/15 text-accent-100 hover:border-accent-500/70 hover:bg-accent-500/25"
+                isPersonalizar ? "border-accent-500 bg-accent-500 text-white" : "border-accent-500/40 bg-accent-500/15 text-accent-300 hover:border-accent-500/70 hover:bg-accent-500/25 hover:text-white"
               }`}
             >
               <LayoutGrid size={13} strokeWidth={1.8} />

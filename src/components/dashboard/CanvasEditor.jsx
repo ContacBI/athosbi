@@ -56,7 +56,7 @@ export default function CanvasEditor({ widgets, ctx, spacing = DEFAULT_SPACING, 
               {!readOnly && (
                 <div className="pointer-events-none absolute inset-x-2 top-2 z-10 flex items-center justify-between opacity-0 transition-opacity group-hover:opacity-100">
                   <span
-                    className="widget-drag-handle pointer-events-auto flex h-6 w-6 cursor-move items-center justify-center rounded-md bg-white/95 text-ink-400 shadow ring-1 ring-line hover:text-accent-600"
+                    className="widget-drag-handle pointer-events-auto flex h-6 w-6 cursor-move items-center justify-center rounded-md bg-surface-card/95 text-ink-400 shadow ring-1 ring-line hover:text-accent-600"
                     title="Arrastar"
                   >
                     <GripVertical size={13} />
@@ -64,7 +64,7 @@ export default function CanvasEditor({ widgets, ctx, spacing = DEFAULT_SPACING, 
                   <button
                     type="button"
                     onClick={() => onRemove(entry.id)}
-                    className="pointer-events-auto flex h-6 w-6 items-center justify-center rounded-md bg-white/95 text-danger-600 shadow ring-1 ring-line hover:bg-danger-50"
+                    className="pointer-events-auto flex h-6 w-6 items-center justify-center rounded-md bg-surface-card/95 text-danger-600 shadow ring-1 ring-line hover:bg-danger-50"
                     aria-label={`Remover ${definition.label}`}
                   >
                     <X size={13} />

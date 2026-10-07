@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, Navigate } from "react-router-dom";
 import { LayoutDashboard, LayoutGrid, Sparkles } from "lucide-react";
 import { useAppState, setData, state } from "../data/useStore.js";
-import { buildDashboardContext } from "../lib/dashboardData.js";
+import { takeDashboardContext } from "../lib/dashboardData.js";
 import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
 import { buildSummaryExportRows } from "../lib/dashboardExport.js";
 import { exportDemonstrativoPdf } from "../lib/reportPdf.js";
@@ -66,7 +66,8 @@ export default function PainelTab() {
 
   const ctx = useMemo(() => {
     if (!hasData) return null;
-    return buildDashboardContext();
+    // Já pronto se veio da tela de escolher empresa (ver prewarmDashboardContext).
+    return takeDashboardContext();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasData, state.mappings, state.accounts, state.journal, state.periodStart, state.periodEnd]);
 
