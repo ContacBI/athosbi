@@ -1641,7 +1641,23 @@ function dedupeRows(rows) {
   });
 }
 
+// Chamada uma vez por lançamento em buildReportTree — o resultado só
+// depende do código (poucas centenas distintos), então guarda em cache em
+// vez de refazer split/join pra cada um. Quem chama só itera o array
+// devolvido (forEach/filter), nunca muta.
+const ancestorsCache = new Map();
+
 function ancestors(code) {
+  const key = String(code || "");
+  let cached = ancestorsCache.get(key);
+  if (!cached) {
+    cached = computeAncestors(key);
+    ancestorsCache.set(key, cached);
+  }
+  return cached;
+}
+
+function computeAncestors(code) {
   const balanceGroup = balanceGroupCode(code);
   const parts = String(code || "").split(".");
   const result = parts.map((_, index) => parts.slice(0, index + 1).join("."));
@@ -1721,8 +1737,28 @@ function isPassiveOrEquityPlan(planRow) {
   return code === "02" || code.startsWith("02.") || code === "03" || code.startsWith("03.");
 }
 
+// Texto s\u00f3 ASCII (a maioria dos hist\u00f3ricos) n\u00e3o tem acento nenhum pra
+// tirar \u2014 NFD + replace seria no-op, ent\u00e3o pula direto pro toLowerCase.
+// Roda v\u00e1rias vezes por lan\u00e7amento (DFC, zeramento), por isso o atalho.
+// eslint-disable-next-line no-control-regex
+const NON_ASCII = /[^\x00-\x7f]/;
+
+// Hist\u00f3ricos se repetem muito (o lan\u00e7amento de caixa e a contrapartida
+// dividem o mesmo texto, e o mesmo hist\u00f3rico volta m\u00eas a m\u00eas) \u2014 cache com
+// teto, zerado quando enche, s\u00f3 pra n\u00e3o crescer sem limite.
+const normalizeCache = new Map();
+const NORMALIZE_CACHE_LIMIT = 50000;
+
 function normalize(value) {
-  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const text = String(value || "");
+  if (!NON_ASCII.test(text)) return text.toLowerCase();
+  let cached = normalizeCache.get(text);
+  if (cached === undefined) {
+    if (normalizeCache.size >= NORMALIZE_CACHE_LIMIT) normalizeCache.clear();
+    cached = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    normalizeCache.set(text, cached);
+  }
+  return cached;
 }
 
 // Lan\u00e7amento de zeramento/encerramento das contas de resultado \u2014 comum em

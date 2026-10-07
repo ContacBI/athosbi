@@ -131,10 +131,26 @@ export function setData(partial) {
   Object.assign(state, partial);
 }
 
+// Cacheados pela referência do array de origem — calculations.js chama
+// isso por LANÇAMENTO (gerencialCodeForEntry, via isCashEntry na DFC), e
+// remontar o Map inteiro a cada chamada era o que mais pesava num grupo
+// grande (225 mil lançamentos levavam ~13s só pra montar o Resumo, com o
+// navegador congelado). Toda troca de mappings/plano passa por setData com
+// um array NOVO (ninguém muta esses arrays no lugar), então comparar a
+// referência basta pra saber quando refazer.
+let mappingCache = { source: null, map: null };
+let planCache = { source: null, map: null };
+
 export function mappingByClassification() {
-  return new Map(state.mappings.map((row) => [row.classificacao, row]));
+  if (mappingCache.source !== state.mappings) {
+    mappingCache = { source: state.mappings, map: new Map(state.mappings.map((row) => [row.classificacao, row])) };
+  }
+  return mappingCache.map;
 }
 
 export function planByCode() {
-  return new Map(state.plano.map((row) => [row.codigo_gerencial, row]));
+  if (planCache.source !== state.plano) {
+    planCache = { source: state.plano, map: new Map(state.plano.map((row) => [row.codigo_gerencial, row])) };
+  }
+  return planCache.map;
 }

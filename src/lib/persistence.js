@@ -56,6 +56,53 @@ export const COMPANY_KEY_PREFIX = "portalGerencial.company.";
 const writeQueues = new Map();
 const localKey = (key) => `portalGerencial.fallback.${key}`;
 
+// O razão (linha única ou cada pedaço .partN) NÃO ganha cópia no
+// localStorage. Um pedaço tem ~8MB de JSON — maior que a cota inteira do
+// localStorage (~5MB) — então a cópia falhava sempre, mas só depois de
+// gastar um JSON.stringify gigante na thread da tela; e os razões menores
+// que cabiam enchiam a cota até não sobrar espaço nem pra lembrar qual
+// empresa/grupo está aberto (ver rememberActiveWorkspace abaixo). Sem a
+// cópia, uma leitura de razão que falha vira journalLoadFailed (trava de
+// escrita + aviso na tela), que é mais seguro do que mostrar uma cópia
+// local possivelmente desatualizada como se fosse o dado de verdade.
+const JOURNAL_KEY_PREFIX = "portalGerencial.companyJournal.";
+const keepsLocalCopy = (key) => !key.startsWith(JOURNAL_KEY_PREFIX);
+
+// Limpa de uma vez as cópias de razão que versões anteriores deixaram no
+// localStorage — sem isso, quem já está com a cota cheia continuaria cheio.
+function purgeLocalJournalCopies() {
+  try {
+    const prefix = localKey(JOURNAL_KEY_PREFIX);
+    const stale = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (key && key.startsWith(prefix)) stale.push(key);
+    }
+    stale.forEach((key) => localStorage.removeItem(key));
+  } catch {
+    /* storage can be unavailable */
+  }
+}
+purgeLocalJournalCopies();
+
+// Lembrar qual empresa/grupo estava aberto (pro F5 voltar pro mesmo lugar)
+// é só conveniência — nunca pode impedir a troca em si. Com o localStorage
+// cheio (QuotaExceededError) ou bloqueado, setItem lança exceção síncrona;
+// sem esse try/catch ela escapava de selectCompany/selectGroup antes de
+// qualquer estado mudar, e o clique na empresa/grupo simplesmente não fazia
+// nada (nem "carregando" aparecia). removeItem primeiro: não precisa de
+// cota e já libera o espaço da chave antiga.
+export function rememberActiveWorkspace({ companyId = "", groupId = "" }) {
+  try {
+    if (!companyId) localStorage.removeItem(ACTIVE_COMPANY_KEY);
+    if (!groupId) localStorage.removeItem(ACTIVE_GROUP_KEY);
+    if (companyId) localStorage.setItem(ACTIVE_COMPANY_KEY, companyId);
+    if (groupId) localStorage.setItem(ACTIVE_GROUP_KEY, groupId);
+  } catch (error) {
+    console.warn("Não consegui lembrar a empresa/grupo ativo no navegador (localStorage cheio ou bloqueado):", error);
+  }
+}
+
 // Um único timeout/soluço de rede não pode virar "essa conta está vazia" —
 // foi exatamente isso que fez o razão de empresas inteiras (uma com 85 mil
 // lançamentos) aparecer com 0 lançamentos na lista, sem erro nenhum visível
@@ -64,6 +111,14 @@ const localKey = (key) => `portalGerencial.fallback.${key}`;
 // passageira, mais comum quanto maior o payload, ex. um razão gigante).
 const READ_RETRIES = 4;
 const READ_RETRY_BASE_MS = 700;
+
+// Uma requisição que trava (a conexão para de responder sem fechar) nunca
+// terminava sozinha — sem tempo limite, o portal ficava preso em
+// "Carregando…" indefinidamente (visto: mais de uma hora). Com o limite,
+// ela vira um erro comum e cai no retry acima. Generoso o bastante pra um
+// pedaço de razão de ~8MB numa conexão lenta. Um sinal novo por tentativa.
+const READ_TIMEOUT_MS = 90000;
+const readTimeoutSignal = () => (typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(READ_TIMEOUT_MS) : undefined);
 
 async function withReadRetries(run) {
   let lastError;
@@ -87,11 +142,11 @@ export class PersistenceReadError extends Error {}
 export async function readPersistent(key) {
   let data;
   try {
-    data = await withReadRetries(() => supabase.from("app_storage").select("value").eq("key", key).maybeSingle());
+    data = await withReadRetries(() => supabase.from("app_storage").select("value").eq("key", key).abortSignal(readTimeoutSignal()).maybeSingle());
   } catch (error) {
     console.error(`Falha ao ler "${key}" do Supabase (mesmo tentando de novo):`, error);
     try {
-      const fallback = localStorage.getItem(localKey(key));
+      const fallback = keepsLocalCopy(key) ? localStorage.getItem(localKey(key)) : null;
       if (fallback) return JSON.parse(fallback);
     } catch {
       /* cache local corrompido — ignora e cai no throw abaixo */
@@ -104,7 +159,9 @@ export async function readPersistent(key) {
   // The local copy is only a safety net for a temporary database/network
   // outage; Supabase remains the source of truth whenever it is reachable.
   if (data?.value !== undefined) {
-    try { localStorage.setItem(localKey(key), JSON.stringify(data.value)); } catch { /* storage can be unavailable */ }
+    if (keepsLocalCopy(key)) {
+      try { localStorage.setItem(localKey(key), JSON.stringify(data.value)); } catch { /* storage can be unavailable */ }
+    }
     return data.value;
   }
   return undefined;
@@ -125,7 +182,9 @@ async function upsertWithRetries(key, value) {
 }
 
 export function writePersistent(key, value) {
-  try { localStorage.setItem(localKey(key), JSON.stringify(value)); } catch { /* storage can be unavailable */ }
+  if (keepsLocalCopy(key)) {
+    try { localStorage.setItem(localKey(key), JSON.stringify(value)); } catch { /* storage can be unavailable */ }
+  }
   const previous = writeQueues.get(key) || Promise.resolve();
   const next = previous
     .catch(() => undefined) // a failed older save must not block later edits
@@ -228,7 +287,7 @@ export async function readStoredArray(key) {
 export async function readPersistentByPrefix(prefix) {
   let data;
   try {
-    data = await withReadRetries(() => supabase.from("app_storage").select("value").like("key", `${prefix}%`));
+    data = await withReadRetries(() => supabase.from("app_storage").select("value").like("key", `${prefix}%`).abortSignal(readTimeoutSignal()));
   } catch (error) {
     console.error(`Falha ao listar "${prefix}*" do Supabase (mesmo tentando de novo):`, error);
     // Antes voltava [] aqui — pra loadCompanies() isso é indistinguível de

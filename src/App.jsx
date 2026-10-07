@@ -103,15 +103,15 @@ function AuthedApp() {
     ])
       .then(async ([, companiesResult, , , adminFlag, , colaboradorFlag, email]) => {
         setData({ isAdmin: adminFlag, isColaborador: colaboradorFlag, userEmail: email });
-        // PRECISA aguardar de verdade — selectGroup só marca state.activeGroupId
-        // depois de buscar o razão de todos os membros (ver comentário lá em
-        // lib/groups.js), então disparar sem esperar fazia `ready` virar true
-        // com o grupo ainda "sem dono" por um instante. CompanyLayout, que só
-        // sabe checar activeCompanyId/activeGroupId, lia isso como "nenhuma
-        // empresa/grupo ativo" e chutava de volta pra /empresas assim que a
-        // rota tentava renderizar — um F5 dentro de um grupo nunca voltava
-        // pro grupo, ia sempre pra tela de escolher empresa.
-        if (companiesResult?.groupId) await selectGroup(companiesResult.groupId, { skipPersist: true });
+        // selectGroup marca state.activeGroupId de forma SÍNCRONA (antes de
+        // qualquer await) — isso basta pro CompanyLayout não chutar de volta
+        // pra /empresas num F5 dentro de um grupo. O razão dos membros chega
+        // depois, em segundo plano, com o percentual na barra do topo; NÃO
+        // espera por ele aqui, senão um grupo grande deixava o portal
+        // inteiro preso em "Carregando portal…" até baixar tudo.
+        if (companiesResult?.groupId) {
+          selectGroup(companiesResult.groupId, { skipPersist: true }).catch((error) => console.error("Falha ao reabrir o grupo:", error));
+        }
         // loadCompanies() já chama selectCompany() internamente, que por
         // sua vez chama refreshEffectivePlano() — mas isso roda em
         // paralelo com loadPlanosPadrao() aqui em cima (mesmo Promise.all),

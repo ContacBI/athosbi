@@ -459,14 +459,14 @@ export default function CompanyTopBar({ company }) {
       {appState.journalLoading && !appState.journalLoadFailed && (
         <div className="flex items-center gap-2 bg-accent-500 px-5 py-1.5 text-[12px] font-medium text-white">
           <Loader2 size={14} strokeWidth={2} className="shrink-0 animate-spin" />
-          Carregando o razão desta empresa{appState.journalLoadProgress !== null ? ` — ${Math.round(appState.journalLoadProgress * 100)}%` : "..."}
+          Carregando o razão {group ? "deste grupo" : "desta empresa"}{appState.journalLoadProgress !== null ? ` — ${Math.round(appState.journalLoadProgress * 100)}%` : "..."}
           {" "}— pode levar alguns segundos num razão grande; "0 lançamentos" ainda não é a palavra final.
         </div>
       )}
       {appState.journalLoadFailed && (
         <div className="flex items-center gap-2 bg-warning-500 px-5 py-1.5 text-[12px] font-medium text-warning-950">
           <TriangleAlert size={14} strokeWidth={2} className="shrink-0" />
-          Não consegui carregar o razão desta empresa agora (falha de conexão) — o que aparece pode estar incompleto. Nada será salvo por cima até recarregar a página.
+          Não consegui carregar o razão {group ? "de uma das empresas deste grupo" : "desta empresa"} agora (falha de conexão) — o que aparece pode estar incompleto. Nada será salvo por cima até recarregar a página.
           <button type="button" onClick={() => window.location.reload()} className="ml-1 shrink-0 rounded-md bg-warning-950/15 px-2 py-0.5 underline decoration-warning-950/40 hover:bg-warning-950/25">
             Recarregar agora
           </button>

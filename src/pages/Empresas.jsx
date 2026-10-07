@@ -69,33 +69,27 @@ function SortButton({ active, onClick, children }) {
   );
 }
 
-function CompanyRow({ company, isActive, isPending, disabled, onSelect, maxLancamentos }) {
+function CompanyRow({ company, isActive, onSelect, maxLancamentos }) {
   const contas = (company.accounts || []).length;
   const lancamentos = journalCountOf(company);
   return (
     <button
       type="button"
       onClick={onSelect}
-      disabled={disabled}
       className={`group grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 border-l-2 px-4 py-2.5 text-left transition-colors sm:grid-cols-[auto_1fr_auto_auto_auto] sm:gap-4 ${
         isActive ? "border-accent-500 bg-accent-50/50" : "border-transparent hover:bg-surface-muted"
-      } ${disabled && !isPending ? "opacity-40" : ""} ${disabled ? "cursor-wait" : ""}`}
+      }`}
     >
       <Avatar name={company.name} size={34} />
       <div className="min-w-0">
         <p className="truncate text-[13.5px] font-medium leading-tight text-ink-900">
           {company.codigo && <span className="mr-1.5 font-mono text-[11.5px] font-normal text-ink-400">{company.codigo}</span>}
           {company.name}
-          {isActive && !isPending && <span className="ml-2 rounded-full bg-accent-100 px-1.5 py-0.5 align-middle text-[10px] font-medium text-accent-700">ativa</span>}
+          {isActive && <span className="ml-2 rounded-full bg-accent-100 px-1.5 py-0.5 align-middle text-[10px] font-medium text-accent-700">ativa</span>}
         </p>
         <p className="truncate text-[11.5px] text-ink-400">{company.cnpj || "CNPJ não informado"}{company.atividade ? ` · ${company.atividade}` : ""}</p>
       </div>
-      {isPending ? (
-        <p className="col-span-2 hidden shrink-0 items-center gap-1.5 text-[11px] font-medium text-accent-600 sm:flex">
-          <span className="h-3 w-3 animate-spin rounded-full border-[1.5px] border-accent-300 border-t-accent-600" />
-          carregando…
-        </p>
-      ) : company.journalLoadFailed ? (
+      {company.journalLoadFailed ? (
         <p className="col-span-2 hidden shrink-0 items-center gap-1 text-[11px] font-medium text-warning-600 sm:flex">
           <TriangleAlert size={12} strokeWidth={2} />
           não carregou
@@ -111,16 +105,15 @@ function CompanyRow({ company, isActive, isPending, disabled, onSelect, maxLanca
   );
 }
 
-function GroupRow({ group, members, isActive, isPending, disabled, onSelect, maxLancamentos }) {
+function GroupRow({ group, members, isActive, onSelect, maxLancamentos }) {
   const lancamentos = members.reduce((sum, company) => sum + journalCountOf(company), 0);
   return (
     <button
       type="button"
       onClick={onSelect}
-      disabled={disabled}
       className={`group grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 border-l-2 px-4 py-2.5 text-left transition-colors sm:grid-cols-[auto_1fr_auto_auto_auto] sm:gap-4 ${
         isActive ? "border-accent-500 bg-accent-50/50" : "border-transparent hover:bg-surface-muted"
-      } ${disabled && !isPending ? "opacity-40" : ""} ${disabled ? "cursor-wait" : ""}`}
+      }`}
     >
       <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-accent-500 text-white">
         <Network size={14} strokeWidth={1.9} />
@@ -128,17 +121,10 @@ function GroupRow({ group, members, isActive, isPending, disabled, onSelect, max
       <div className="min-w-0">
         <p className="truncate text-[13.5px] font-medium leading-tight text-ink-900">
           {group.name}
-          {isActive && !isPending && <span className="ml-2 rounded-full bg-accent-100 px-1.5 py-0.5 align-middle text-[10px] font-medium text-accent-700">ativo</span>}
+          {isActive && <span className="ml-2 rounded-full bg-accent-100 px-1.5 py-0.5 align-middle text-[10px] font-medium text-accent-700">ativo</span>}
         </p>
         <p className="truncate text-[11.5px] text-ink-400">
-          {isPending ? (
-            <span className="inline-flex items-center gap-1.5 text-accent-600">
-              <span className="h-2.5 w-2.5 animate-spin rounded-full border-[1.5px] border-accent-300 border-t-accent-600" />
-              carregando o razão de {members.length} empresa{members.length === 1 ? "" : "s"}…
-            </span>
-          ) : (
-            `${members.length} empresa${members.length === 1 ? "" : "s"}`
-          )}
+          {`${members.length} empresa${members.length === 1 ? "" : "s"}`}
         </p>
       </div>
       <div className="hidden w-24 shrink-0 items-center sm:flex">
@@ -175,32 +161,21 @@ export default function Empresas() {
     return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
-  // selectCompany/selectGroup são assíncronas (buscam o razão antes de
-  // atualizar o estado ativo) — navegar ANTES delas terminarem fazia a tela
-  // renderizar com o activeCompanyId/activeGroupId ainda antigo (a última
-  // empresa aberta), então clicar num grupo podia abrir a empresa anterior
-  // em vez do grupo. `pendingId` trava o card clicado num estado de
-  // carregando pra ficar claro que algo está acontecendo enquanto espera.
-  const [pendingId, setPendingId] = useState(null);
-
-  async function handleAccess(id) {
-    setPendingId(id);
-    try {
-      await selectCompany(id);
-      navigate("/empresa");
-    } finally {
-      setPendingId(null);
-    }
+  // selectCompany/selectGroup marcam a empresa/grupo como ativo de forma
+  // SÍNCRONA (antes de qualquer await) e só depois baixam o razão em
+  // segundo plano — a barra do topo da empresa mostra o percentual. Então
+  // dá pra navegar na hora, sem esperar o download: esperar aqui é o que
+  // deixava a lista presa em "carregando…" por minutos num grupo grande.
+  // A checagem do id ativo antes de navegar garante que nunca abre a
+  // empresa/grupo ANTERIOR caso a seleção não tenha acontecido.
+  function handleAccess(id) {
+    selectCompany(id).catch((error) => console.error("Falha ao abrir a empresa:", error));
+    if (state.activeCompanyId === id && !state.activeGroupId) navigate("/empresa");
   }
 
-  async function handleAccessGroup(id) {
-    setPendingId(id);
-    try {
-      await selectGroup(id);
-      navigate("/empresa");
-    } finally {
-      setPendingId(null);
-    }
+  function handleAccessGroup(id) {
+    selectGroup(id).catch((error) => console.error("Falha ao abrir o grupo:", error));
+    if (state.activeGroupId === id) navigate("/empresa");
   }
 
   const totalLancamentos = state.companies.reduce((sum, company) => sum + journalCountOf(company), 0);
@@ -385,8 +360,6 @@ export default function Empresas() {
                     key={company.id}
                     company={company}
                     isActive={company.id === state.activeCompanyId && !state.activeGroupId}
-                    isPending={pendingId === company.id}
-                    disabled={pendingId !== null}
                     onSelect={() => handleAccess(company.id)}
                     maxLancamentos={maxCompanyLancamentos}
                   />
@@ -413,8 +386,6 @@ export default function Empresas() {
                   group={group}
                   members={groupCompanies(group)}
                   isActive={group.id === state.activeGroupId}
-                  isPending={pendingId === group.id}
-                  disabled={pendingId !== null}
                   onSelect={() => handleAccessGroup(group.id)}
                   maxLancamentos={maxGroupLancamentos}
                 />

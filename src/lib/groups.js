@@ -1,5 +1,5 @@
 import { state, setData } from "../data/useStore.js";
-import { ACTIVE_COMPANY_KEY, ACTIVE_GROUP_KEY, GROUPS_KEY, writePersistent } from "./persistence.js";
+import { ACTIVE_GROUP_KEY, GROUPS_KEY, writePersistent, rememberActiveWorkspace } from "./persistence.js";
 import { persistActiveCompany, replicateTabsToCompanies, ensureCompanyJournalLoaded } from "./companies.js";
 import { refreshEffectivePlano } from "./planosPadrao.js";
 
@@ -155,7 +155,7 @@ function namespaced(companyId, classificacao) {
   return `${companyId}::${classificacao}`;
 }
 
-function buildGroupDataset(companies) {
+function buildGroupDataset(companies, { withJournal = true } = {}) {
   const accounts = [];
   const journal = [];
   const mappings = [];
@@ -171,6 +171,7 @@ function buildGroupDataset(companies) {
     (company.mappings || []).forEach((mapping) => {
       mappings.push({ ...mapping, classificacao: namespaced(company.id, mapping.classificacao) });
     });
+    if (!withJournal) return;
     (company.journal || []).forEach((entry) => {
       journal.push({
         ...entry,
@@ -197,24 +198,25 @@ export async function selectGroup(id, { skipPersist = false } = {}) {
   if (!skipPersist) persistActiveCompany();
   const group = state.groups.find((item) => item.id === id);
   if (!group) return;
-  localStorage.setItem(ACTIVE_GROUP_KEY, id);
-  localStorage.removeItem(ACTIVE_COMPANY_KEY);
-  // Um grupo precisa do razão de TODOS os membros pra consolidar de
-  // verdade (buildGroupDataset abaixo) — diferente de abrir uma empresa só,
-  // aqui não dá pra adiar: busca (em paralelo) o de qualquer membro que
-  // `loadCompanies()` ainda não tinha carregado. ensureCompanyJournalLoaded
-  // é no-op pra quem já está carregado.
-  const companies = await Promise.all(groupCompanies(group).map((company) => ensureCompanyJournalLoaded(company)));
-  // Grupo pode ter mudado de novo (outro selectGroup já rodou e reescreveu
-  // essa chave) enquanto essas buscas ainda estavam em andamento.
-  if (localStorage.getItem(ACTIVE_GROUP_KEY) !== id) return;
-  const { accounts, journal, mappings } = buildGroupDataset(companies);
+  rememberActiveWorkspace({ groupId: id });
+  const members = groupCompanies(group);
+  const ready = members.every((company) => company.journalLoaded);
+  // Tudo que não depende de baixar nada (configurações do grupo, contas e
+  // De/Para dos membros, que já vêm no registro leve) entra JÁ, síncrono —
+  // igual selectCompany. Antes, o grupo só virava "ativo" depois de baixar
+  // o razão de TODOS os membros, e a tela de escolher empresa ficava presa
+  // em "carregando o razão de N empresas…" sem progresso nenhum até isso
+  // terminar (um grupo de 225 mil lançamentos = ~100MB de download). Agora
+  // quem chamou já pode navegar; a barra do topo mostra o percentual
+  // (journalLoading/journalLoadProgress) e o razão consolidado entra sozinho
+  // quando chegar.
   setData({
     activeGroupId: id,
     activeCompanyId: "",
-    accounts,
-    journal,
-    mappings,
+    ...buildGroupDataset(members, { withJournal: ready }),
+    journalLoading: !ready,
+    journalLoadProgress: ready ? null : 0,
+    journalLoadFailed: ready && members.some((company) => company.journalLoadFailed),
     periodStart: group.periodStart || "",
     periodEnd: group.periodEnd || "",
     hideNonOperatingResults: Boolean(group.hideNonOperatingResults),
@@ -229,4 +231,44 @@ export async function selectGroup(id, { skipPersist = false } = {}) {
   // compartilhado pelos membros do grupo (GroupModal.jsx já garante que
   // todos usam o mesmo).
   refreshEffectivePlano();
+  if (ready) return;
+
+  // Um grupo precisa do razão de TODOS os membros pra consolidar de
+  // verdade — busca (em paralelo) o de qualquer membro que ainda não estava
+  // carregado. Progresso ponderado pelo tamanho de cada razão (journalCount
+  // do registro leve), senão uma empresa pequena terminando primeiro faria
+  // a barra pular pra 33% sem o grosso ter chegado.
+  const weights = members.map((company) => Math.max(1, Number(company.journalCount) || 0));
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  const fractions = members.map((company) => (company.journalLoaded ? 1 : 0));
+  const reportProgress = () => {
+    if (state.activeGroupId !== id) return;
+    const done = fractions.reduce((sum, fraction, index) => sum + fraction * weights[index], 0);
+    setData({ journalLoadProgress: done / totalWeight });
+  };
+  const companies = await Promise.all(
+    members.map((company, index) =>
+      ensureCompanyJournalLoaded(company, {
+        onProgress: (fraction) => {
+          fractions[index] = fraction;
+          reportProgress();
+        },
+      }).then((loaded) => {
+        fractions[index] = 1;
+        reportProgress();
+        return loaded;
+      })
+    )
+  );
+  // O usuário pode ter trocado de empresa/grupo enquanto essas buscas ainda
+  // estavam em andamento — não pisa no que já é outra tela agora.
+  if (state.activeGroupId !== id) return;
+  setData({
+    ...buildGroupDataset(companies),
+    journalLoading: false,
+    journalLoadProgress: null,
+    // Um membro que não carregou deixaria o consolidado incompleto sem
+    // ninguém perceber — a barra do topo avisa (mesmo aviso da empresa).
+    journalLoadFailed: companies.some((company) => company?.journalLoadFailed),
+  });
 }
