@@ -135,6 +135,17 @@ export async function excluirSimulacao(id) {
   if (error) throw error;
 }
 
+// ── Notas fiscais da Domínio (resumo mandado pela Central, por CNPJ) ──
+// Só o escritório da Reforma lê (RLS). null = ainda não chegou nada.
+
+export async function carregarFiscal(cnpj) {
+  const digitos = String(cnpj || "").replace(/\D/g, "");
+  if (digitos.length !== 14) return null;
+  const { data, error } = await supabase.from("dominio_fiscal").select("*").eq("cnpj", digitos).maybeSingle().abortSignal(timeoutSignal());
+  if (error) throw error;
+  return data;
+}
+
 // ── Quem do escritório vê a Reforma (Parâmetros › Colaborar) ──
 
 export async function listarEscritorioReforma() {

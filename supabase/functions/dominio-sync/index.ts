@@ -13,10 +13,14 @@
 // Central não tem login de usuário — por isso esta função é publicada com
 // verify_jwt = false e confere o token ela mesma.
 //
-// ── GET  → { empresas: [{ codigo, codigo_portal, cnpj, nome }] }
-//    Empresas cadastradas no AthosBI (código = código da empresa na
-//    Domínio, cnpj só dígitos), pra Central saber quais sincronizar e
-//    conferir o CNPJ antes de mandar.
+// ── GET  → { empresas: [{ codigo, codigo_portal, cnpj, nome }],
+//            reforma: [{ cnpj, nome }] }
+//    `empresas`: as cadastradas no B.I. do AthosBI (código = código da
+//    empresa na Domínio, cnpj só dígitos), pra Central saber quais
+//    sincronizar e conferir o CNPJ antes de mandar.
+//    `reforma`: as empresas cadastradas no módulo Reforma Tributária (com
+//    CNPJ) — pra essas a Central manda o resumo fiscal (abaixo), achando a
+//    empresa na Domínio pelo CNPJ.
 //
 // ── POST → grava UMA parte de UM mês de UMA empresa:
 //    {
@@ -67,6 +71,36 @@
 //    Saldos com sinal: devedor positivo, credor negativo. Cada conta precisa
 //    fechar: saldo_anterior + debito - credito = saldo_atual (centavo a
 //    centavo), senão o envio é recusado (400) com o nome da conta.
+//
+// ── POST com "tipo": "fiscal" → resumo das notas fiscais (Escrita Fiscal) de
+//    uma empresa da Reforma Tributária, pra simulação por NCM (tabela
+//    public.dominio_fiscal; um resumo por CNPJ, o novo substitui o anterior):
+//    {
+//      "tipo": "fiscal",
+//      "cnpj": "07326871000220",        // CNPJ cadastrado na Reforma (GET)
+//      "empresas": ["341", "332"],      // códigos na Domínio somados (matriz + filiais)
+//      "inicio": "2025-10-01", "fim": "2026-09-30", "meses": 12,
+//      "vendas": [{                      // uma linha por NCM (produto) ou código de serviço
+//        "ncm": "90213190",              // 8 dígitos; "" em serviço ou produto sem NCM
+//        "servico": "",                  // código do serviço (LC 116, ex.: "4.03"); "" em produto
+//        "descricao": "PLACA DE TITANIO", "produtos": 12,
+//        "valor": 1250000.00,            // vendas do período, líquidas de devolução
+//        "valor_pj": 1100000.00,         // parte vendida pra CNPJ
+//        "icms": 150000.00, "icms_st": false, "ipi": 0, "iss": 0,
+//        "pis_cofins": "normal",         // "normal" | "monofasico" | "zero"
+//        "cfops": ["6102", "5102"]
+//      }],
+//      "compras": [{                     // por tipo + fornecedor; mercadoria/insumo também por NCM
+//        "tipo": "mercadoria",           // mercadoria | insumo | uso_consumo | ativo |
+//                                        // energia | comunicacao | servico | frete | aluguel | outros
+//        "fornecedor": "normal",         // "normal" | "simples" (nota com CSOSN = fornecedor do Simples)
+//        "ncm": "90213190", "descricao": "PLACA DE TITANIO",
+//        "valor": 400000.00,             // compras do período, sem o IPI, líquidas de devolução
+//        "icms": 48000.00,               // ICMS destacado nas notas
+//        "icms_creditado": 48000.00,     // quanto desse ICMS a empresa se creditou
+//        "ipi": 0, "iss": 0              // IPI destacado; ISS (serviço tomado)
+//      }]
+//    }
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -298,6 +332,123 @@ async function receberBalancete(admin: Admin, body: Record<string, unknown>) {
   return json({ ok: true, tipo: "balancete", empresa, inicio, fim, lote, parte, partes, recebidas: count ?? 0, completo, qtd: contas.length });
 }
 
+// ── Resumo fiscal (Reforma Tributária) ─────────────────────────────────────
+
+const MAX_LINHAS_FISCAL = 5000;
+const PIS_COFINS = new Set(["normal", "monofasico", "zero"]);
+const TIPOS_COMPRA = new Set(["mercadoria", "insumo", "uso_consumo", "ativo", "energia", "comunicacao", "servico", "frete", "aluguel", "outros"]);
+
+async function reformaCompanies(admin: Admin) {
+  const { data, error } = await admin.from("reforma_empresas").select("nome, cnpj").not("cnpj", "is", null);
+  if (error) throw error;
+  const vistos = new Set<string>();
+  return (data || [])
+    .map((row: Record<string, string>) => ({ cnpj: digits(row.cnpj), nome: row.nome }))
+    .filter((row: { cnpj: string }) => row.cnpj.length === 14 && !vistos.has(row.cnpj) && vistos.add(row.cnpj));
+}
+
+const numero = (raw: Record<string, unknown>, campo: string) => Number(raw?.[campo] ?? 0);
+
+function validarVendaFiscal(raw: Record<string, unknown>, index: number) {
+  const where = `vendas[${index}]`;
+  const ncm = digits(raw?.ncm);
+  if (ncm && ncm.length !== 8) return `${where}.ncm "${raw?.ncm}": 8 dígitos (ou "" em serviço)`;
+  const servico = String(raw?.servico ?? "").trim().slice(0, 20);
+  const valores = ["valor", "valor_pj", "icms", "ipi", "iss"].map((campo) => numero(raw, campo));
+  if (valores.some((valor) => !Number.isFinite(valor) || valor < 0)) return `${where}: valores precisam ser números >= 0`;
+  const [valor, valorPj, icms, ipi, iss] = valores.map(cents);
+  if (valor <= 0) return `${where}: valor precisa ser > 0 (não mande NCM sem venda líquida)`;
+  if (valorPj > valor + 0.01) return `${where}: valor_pj maior que o valor`;
+  const pisCofins = String(raw?.pis_cofins ?? "normal");
+  if (!PIS_COFINS.has(pisCofins)) return `${where}.pis_cofins: "normal", "monofasico" ou "zero"`;
+  const cfops = Array.isArray(raw?.cfops) ? (raw.cfops as unknown[]).map((cfop) => digits(cfop)).filter((cfop) => cfop.length === 4).slice(0, 10) : [];
+  return {
+    ncm,
+    servico,
+    descricao: String(raw?.descricao ?? "").trim().slice(0, 200),
+    produtos: Math.max(0, Math.round(numero(raw, "produtos")) || 0),
+    valor,
+    valor_pj: Math.min(valorPj, valor),
+    icms,
+    icms_st: Boolean(raw?.icms_st),
+    ipi,
+    iss,
+    pis_cofins: pisCofins,
+    cfops,
+  };
+}
+
+function validarCompraFiscal(raw: Record<string, unknown>, index: number) {
+  const where = `compras[${index}]`;
+  const tipo = String(raw?.tipo ?? "");
+  if (!TIPOS_COMPRA.has(tipo)) return `${where}.tipo "${tipo}": ${[...TIPOS_COMPRA].join(", ")}`;
+  const fornecedor = String(raw?.fornecedor ?? "normal");
+  if (fornecedor !== "normal" && fornecedor !== "simples") return `${where}.fornecedor: "normal" ou "simples"`;
+  const ncm = digits(raw?.ncm);
+  if (ncm && ncm.length !== 8) return `${where}.ncm "${raw?.ncm}": 8 dígitos (ou "")`;
+  const valores = ["valor", "icms", "icms_creditado", "ipi", "iss"].map((campo) => numero(raw, campo));
+  if (valores.some((valor) => !Number.isFinite(valor) || valor < 0)) return `${where}: valores precisam ser números >= 0`;
+  const [valor, icms, icmsCreditado, ipi, iss] = valores.map(cents);
+  if (valor <= 0) return `${where}: valor precisa ser > 0`;
+  if (icmsCreditado > icms + 0.01) return `${where}: icms_creditado maior que o ICMS destacado`;
+  return { tipo, fornecedor, ncm, descricao: String(raw?.descricao ?? "").trim().slice(0, 200), valor, icms, icms_creditado: Math.min(icmsCreditado, icms), ipi, iss };
+}
+
+// POST "tipo": "fiscal" (ver o cabeçalho). CNPJ é a identidade: precisa ser
+// de uma empresa cadastrada na Reforma Tributária ou no B.I. do portal.
+async function receberFiscal(admin: Admin, body: Record<string, unknown>) {
+  const cnpj = digits(body.cnpj);
+  const inicio = String(body.inicio ?? "");
+  const fim = String(body.fim ?? "");
+  const meses = Number(body.meses);
+  const empresas = Array.isArray(body.empresas) ? (body.empresas as unknown[]).map(normalizeCodigo) : [];
+  if (cnpj.length !== 14 || /^0+$/.test(cnpj)) return json({ error: "cnpj: 14 dígitos." }, 400);
+  if (!empresas.length || empresas.length > 50 || empresas.some((codigo) => !/^\d{1,10}$/.test(codigo))) return json({ error: "empresas: lista (1 a 50) com os códigos numéricos na Domínio que foram somados." }, 400);
+  if (!isDate(inicio) || !isDate(fim) || inicio > fim) return json({ error: "inicio/fim: datas AAAA-MM-DD, com inicio <= fim." }, 400);
+  if (!Number.isInteger(meses) || meses < 1 || meses > 24) return json({ error: "meses: inteiro entre 1 e 24 (meses do período)." }, 400);
+  if (!Array.isArray(body.vendas) || !Array.isArray(body.compras)) return json({ error: "vendas e compras: listas (podem ser vazias)." }, 400);
+  if (body.vendas.length > MAX_LINHAS_FISCAL || body.compras.length > MAX_LINHAS_FISCAL) return json({ error: `vendas/compras: no máximo ${MAX_LINHAS_FISCAL} linhas cada.` }, 400);
+
+  try {
+    const [reforma, portal] = await Promise.all([reformaCompanies(admin), portalCompanies(admin)]);
+    if (!reforma.some((item) => item.cnpj === cnpj) && !portal.some((item) => item.cnpj === cnpj)) {
+      return json({ error: `CNPJ ${cnpj} não está cadastrado no AthosBI (nem na Reforma, nem no B.I.). Nada foi gravado.` }, 409);
+    }
+  } catch (error) {
+    return json({ error: (error as Error).message }, 500);
+  }
+
+  const vendas = [];
+  for (let i = 0; i < body.vendas.length; i += 1) {
+    const result = validarVendaFiscal(body.vendas[i] as Record<string, unknown>, i);
+    if (typeof result === "string") return json({ error: result }, 400);
+    vendas.push(result);
+  }
+  const compras = [];
+  for (let i = 0; i < body.compras.length; i += 1) {
+    const result = validarCompraFiscal(body.compras[i] as Record<string, unknown>, i);
+    if (typeof result === "string") return json({ error: result }, 400);
+    compras.push(result);
+  }
+  const totalVendas = cents(vendas.reduce((soma, item) => soma + item.valor, 0));
+  const totalCompras = cents(compras.reduce((soma, item) => soma + item.valor, 0));
+
+  const { error } = await admin.from("dominio_fiscal").upsert({
+    cnpj,
+    empresas,
+    inicio,
+    fim,
+    meses,
+    vendas,
+    compras,
+    total_vendas: totalVendas,
+    total_compras: totalCompras,
+    synced_at: new Date().toISOString(),
+  });
+  if (error) return json({ error: error.message }, 500);
+  return json({ ok: true, tipo: "fiscal", cnpj, inicio, fim, meses, vendas: vendas.length, compras: compras.length, total_vendas: totalVendas, total_compras: totalCompras });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
   if (!SYNC_TOKEN) return json({ error: "DOMINIO_SYNC_TOKEN não configurado no Supabase." }, 500);
@@ -307,7 +458,16 @@ Deno.serve(async (req) => {
 
   if (req.method === "GET") {
     try {
-      return json({ empresas: await portalCompanies(admin) });
+      // A lista da Reforma nunca derruba a do B.I. (a sincronização dos
+      // lançamentos depende só de `empresas`).
+      const [empresas, reforma] = await Promise.all([
+        portalCompanies(admin),
+        reformaCompanies(admin).catch((error) => {
+          console.error("Falha ao listar as empresas da Reforma:", error);
+          return [];
+        }),
+      ]);
+      return json({ empresas, reforma });
     } catch (error) {
       return json({ error: (error as Error).message }, 500);
     }
@@ -323,6 +483,7 @@ Deno.serve(async (req) => {
   }
 
   if (body.tipo === "balancete") return receberBalancete(admin, body);
+  if (body.tipo === "fiscal") return receberFiscal(admin, body);
 
   const empresa = normalizeCodigo(body.empresa);
   const cnpj = body.cnpj === undefined || body.cnpj === null || body.cnpj === "" ? null : digits(body.cnpj);

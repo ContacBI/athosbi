@@ -7,6 +7,7 @@ import { calcularSimulacao, dadosIniciais } from "../../lib/reforma/calculo.js";
 import { PARAMETROS_PADRAO } from "../../lib/reforma/parametros.js";
 import ReformaShell from "../../components/reforma/ReformaShell.jsx";
 import EmpresaForm from "../../components/reforma/EmpresaForm.jsx";
+import DominioFiscal from "../../components/reforma/DominioFiscal.jsx";
 import { ComprasTabela, VendasTabela } from "../../components/reforma/ItensTabela.jsx";
 import ResultadoPainel from "../../components/reforma/ResultadoPainel.jsx";
 import { Cartao, botaoPrimario } from "../../components/reforma/ui.jsx";
@@ -252,6 +253,7 @@ export default function ReformaSimulacao() {
             </p>
           )}
           {aba === "empresa" && <EmpresaForm dados={dados} alterar={alterar} company={companyBi} />}
+          {escritorio && (aba === "vendas" || aba === "compras") && <DominioFiscal cnpj={empresa?.cnpj} dados={dados} alterar={alterar} />}
           {aba === "vendas" && <VendasTabela dados={dados} onVendas={(vendas) => alterar({ vendas })} />}
           {aba === "compras" && <ComprasTabela dados={dados} onCompras={(compras) => alterar({ compras })} />}
         </fieldset>
