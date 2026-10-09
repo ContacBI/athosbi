@@ -14,6 +14,8 @@ const arred = (valor, casas = 2) => Math.round(valor * 10 ** casas) / 10 ** casa
 const pctDe = (parte, total) => (total > 0 ? arred(((Number(parte) || 0) / total) * 100, 2) : 0);
 const somar = (linhas, campo) => linhas.reduce((total, linha) => total + (Number(linha[campo]) || 0), 0);
 
+// NBS (serviço) vem com 9 dígitos: 1.1103.22.00.
+export const nbsFormatado = (nbs) => (/^\d{9}$/.test(String(nbs || "")) ? `${nbs[0]}.${nbs.slice(1, 5)}.${nbs.slice(5, 7)}.${nbs.slice(7)}` : String(nbs || ""));
 export const ncmFormatado = (ncm) => (/^\d{8}$/.test(String(ncm || "")) ? `${ncm.slice(0, 4)}.${ncm.slice(4, 6)}.${ncm.slice(6)}` : String(ncm || ""));
 
 // As maiores linhas até cobrir 98% do valor (no máximo `max`, contando a
@@ -69,7 +71,7 @@ export function vendasDaDominio(fiscal, dados = {}) {
       id: novoId("v"),
       descricao: nomeVenda(linha).slice(0, 120),
       tipo: servico ? "servico" : "mercadoria",
-      codigo: servico ? (linha.servico === "*" ? "" : linha.servico || "") : ncmFormatado(linha.ncm),
+      codigo: servico ? (linha.servico === "*" ? "" : nbsFormatado(linha.servico)) : ncmFormatado(linha.ncm),
       receita: arred(linha.valor / meses),
       b2b: Math.round(pctDe(linha.valor_pj, linha.valor)),
       anexo: servico ? anexoServico : anexoProduto,
@@ -101,6 +103,10 @@ const NOME_COMPRA = {
 
 export function comprasDaDominio(fiscal) {
   const meses = Math.max(1, Number(fiscal?.meses) || 12);
+  // Produto que a empresa revende com PIS/Cofins zero ou monofásico não dá
+  // crédito de PIS/Cofins na compra (Lei 10.833, art. 3º, § 2º, II) — sem
+  // isso o "hoje" do Lucro Real sai com crédito a mais.
+  const semCreditoPisCofins = new Set((fiscal?.vendas || []).filter((linha) => linha.ncm && linha.pis_cofins && linha.pis_cofins !== "normal").map((linha) => linha.ncm));
   const linhas = (fiscal?.compras || []).filter((linha) => Number(linha.valor) > 0 && TIPO_COMPRA[linha.tipo]);
   const grupos = new Map(); // tipo|fornecedor → linhas
   linhas.forEach((linha) => {
@@ -123,24 +129,54 @@ export function comprasDaDominio(fiscal) {
       const padrao = padraoCompra(tipo);
       const servico = tipo === "servico";
       // Alíquota embutida no preço do fornecedor: ICMS (ou ISS, no serviço)
-      // destacado ÷ valor; sem destaque, a de partida do tipo.
-      const destacado = servico ? linha.iss : linha.icms;
+      // destacado ÷ valor; sem destaque, a de partida do tipo. No serviço
+      // tomado a Domínio só guarda o ISS RETIDO — abaixo do mínimo legal (2%)
+      // não é a alíquota do fornecedor, então vale a de partida.
+      const efetiva = pctDe(servico ? linha.iss : linha.icms, linha.valor);
+      const destacado = servico && efetiva < 2 ? 0 : efetiva;
       itens.push({
         id: novoId("c"),
         descricao: `${linha.nome}${sufixo}`.slice(0, 120),
         tipo,
-        aliquota: destacado > 0 ? pctDe(destacado, linha.valor) : fornecedor === "simples" ? 0 : padrao.aliquota,
+        aliquota: destacado > 0 ? destacado : fornecedor === "simples" ? 0 : padrao.aliquota,
         creditoIcms: !servico && Number(linha.icms_creditado) > 0.5 * Number(linha.icms || 0) && Number(linha.icms_creditado) > 0,
         // Valor da simulação é o que a empresa paga (com o IPI).
         valor: arred((linha.valor + (Number(linha.ipi) || 0)) / meses),
         fornecedor,
         ipi: pctDe(linha.ipi, linha.valor),
-        creditoPisCofins: true,
+        creditoPisCofins: !(linha.ncm && semCreditoPisCofins.has(linha.ncm)),
         categoria: "padrao",
+        // NCM da compra (quando veio por NCM) — pra categoria na reforma
+        // acompanhar a da venda do mesmo NCM (ver sincronizarCategorias).
+        ...(linha.ncm ? { ncm: linha.ncm } : {}),
       });
     }
   }
   return itens.sort((a, b) => b.valor - a.valor);
+}
+
+// Mudou a categoria na reforma de uma venda com NCM? A compra do mesmo NCM
+// (o produto que a empresa revende) vai junto — senão o crédito da compra
+// sairia pela alíquota cheia e a venda pela reduzida. Devolve as compras
+// novas, ou as mesmas se nada mudou.
+export function sincronizarCategorias(vendasAntes, vendasDepois, compras) {
+  const antes = new Map((vendasAntes || []).map((item) => [item.id, item.categoria]));
+  const mudou = new Map();
+  (vendasDepois || []).forEach((item) => {
+    const ncm = String(item.codigo || "").replace(/\D/g, "");
+    if (item.tipo !== "servico" && ncm.length === 8 && antes.has(item.id) && antes.get(item.id) !== item.categoria) mudou.set(ncm, item.categoria);
+  });
+  if (!mudou.size || !(compras || []).some((compra) => mudou.has(compra.ncm))) return compras;
+  return compras.map((compra) => (mudou.has(compra.ncm) ? { ...compra, categoria: mudou.get(compra.ncm) } : compra));
+}
+
+// Faturamento do ano (média mensal × 12) acima do limite do regime
+// escolhido — o regime real da empresa não pode ser esse.
+export function avisoDeRegime(fiscal, regime) {
+  const anual = resumoFiscal(fiscal).vendasMes * 12;
+  if (regime === "presumido" && anual > 78_000_000) return { anual, texto: "acima do limite do Lucro Presumido (R$ 78 milhões/ano) — a empresa é do Lucro Real" };
+  if (regime === "simples" && anual > 4_800_000) return { anual, texto: "acima do limite do Simples Nacional (R$ 4,8 milhões/ano)" };
+  return null;
 }
 
 // Resumo pra tela: período, total por mês e quantas linhas viram.

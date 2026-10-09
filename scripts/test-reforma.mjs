@@ -2,7 +2,7 @@
 // calculados à mão. Rodar: node scripts/test-reforma.mjs
 import { ANOS, PARAMETROS_PADRAO, SIMPLES_ANEXOS, aliquotasDoAno, mesclarParametros, simplesAliquota } from "../src/lib/reforma/parametros.js";
 import { calcularSimulacao } from "../src/lib/reforma/calculo.js";
-import { comprasDaDominio, ncmFormatado, resumoFiscal, vendasDaDominio } from "../src/lib/reforma/fiscal.js";
+import { avisoDeRegime, comprasDaDominio, nbsFormatado, ncmFormatado, resumoFiscal, sincronizarCategorias, vendasDaDominio } from "../src/lib/reforma/fiscal.js";
 
 let falhas = 0;
 const perto = (a, b, tol = 1e-6) => Math.abs(a - b) <= tol;
@@ -118,6 +118,7 @@ const fiscal = {
 const vendasF = vendasDaDominio(fiscal, { anexoPadrao: "I" });
 const placa = vendasF[0];
 confere("NCM formatado 9021.31.90", ncmFormatado("90213190") === "9021.31.90");
+confere("NBS formatado 1.1103.22.00; item da LC 116 fica como veio", nbsFormatado("111032200") === "1.1103.22.00" && nbsFormatado("01.05") === "01.05");
 confere("venda principal: receita/mês, % p/ empresas, ICMS e IPI efetivos", placa.codigo === "9021.31.90" && placa.receita === 100000 && placa.b2b === 90 && placa.icms === 12 && placa.ipi === 5 && placa.tipo === "mercadoria" && placa.descricao.includes("+11"), placa);
 const servF = vendasF.find((item) => item.tipo === "servico");
 confere("serviço: ISS 5%, anexo III, código do serviço", servF?.iss === 5 && servF.anexo === "III" && servF.codigo === "4.03" && servF.receita === 5000, servF);
@@ -134,10 +135,22 @@ const energiaC = comprasF.find((item) => item.tipo === "energia");
 confere("energia: ICMS 18% embutido, sem crédito hoje", energiaC?.aliquota === 18 && energiaC.creditoIcms === false && energiaC.descricao === "Energia elétrica", energiaC);
 const servC = comprasF.find((item) => item.tipo === "servico");
 confere("serviço tomado: ISS 5% como alíquota embutida", servC?.aliquota === 5 && servC.creditoIcms === false, servC);
+const retido = comprasDaDominio({ meses: 10, compras: [{ tipo: "servico", fornecedor: "normal", ncm: "", descricao: "", valor: 1000000, icms: 0, icms_creditado: 0, ipi: 0, iss: 5000 }] })[0];
+confere("serviço tomado com só o ISS retido (0,5%): usa a alíquota de partida (5%)", retido.aliquota === 5 && retido.valor === 100000, retido);
 const simF = calcularSimulacao({ regime: "real", vendas: vendasF, compras: comprasF }, P);
 confere("simulação com os itens da Domínio calcula sem erro", Number.isFinite(simF.resumo.carga2033) && simF.resumo.receitaMensal > 0, simF.resumo);
 const rf = resumoFiscal(fiscal);
 confere("resumo fiscal: vendas/mês, NCMs e serviços", perto(rf.vendasMes, totalF, 0.01) && rf.ncms === 61 && rf.servicos === 1, rf);
+const fiscalZero = { meses: 10, vendas: [{ ncm: "90213930", servico: "", descricao: "ENDOPROTESE", produtos: 1, valor: 900000, valor_pj: 900000, icms: 0, icms_st: false, ipi: 0, iss: 0, pis_cofins: "zero" }],
+  compras: [{ tipo: "mercadoria", fornecedor: "normal", ncm: "90213930", descricao: "ENDOPROTESE", valor: 200000, icms: 0, icms_creditado: 0, ipi: 0, iss: 0 }, { tipo: "mercadoria", fornecedor: "normal", ncm: "48025610", descricao: "PAPEL", valor: 1000, icms: 180, icms_creditado: 180, ipi: 0, iss: 0 }] };
+const comprasZero = comprasDaDominio(fiscalZero);
+confere("compra de NCM vendido com PIS/Cofins zero: sem crédito de PIS/Cofins; o resto com", comprasZero.find((c) => c.ncm === "90213930")?.creditoPisCofins === false && comprasZero.find((c) => c.ncm === "48025610")?.creditoPisCofins === true, comprasZero);
+const vendasZero = vendasDaDominio(fiscalZero);
+const vendasRed = vendasZero.map((venda) => ({ ...venda, categoria: "red60" }));
+const comprasSinc = sincronizarCategorias(vendasZero, vendasRed, comprasZero);
+confere("categoria da venda vai pra compra do mesmo NCM (e só pra ela)", comprasSinc.find((c) => c.ncm === "90213930").categoria === "red60" && comprasSinc.find((c) => c.ncm === "48025610").categoria === "padrao", comprasSinc);
+confere("sem mudança de categoria, compras ficam as mesmas", sincronizarCategorias(vendasZero, vendasZero.map((v) => ({ ...v, receita: 1 })), comprasZero) === comprasZero);
+confere("aviso de regime: 1,08 mi/ano no Presumido não avisa; 108 mi avisa", avisoDeRegime(fiscalZero, "presumido") === null && Boolean(avisoDeRegime({ ...fiscalZero, meses: 0.1 }, "presumido")) === false && Boolean(avisoDeRegime({ meses: 10, vendas: [{ valor: 900_000_000 }] }, "presumido")) && avisoDeRegime({ meses: 10, vendas: [{ valor: 900_000_000 }] }, "real") === null);
 confere("resumo vazio não quebra", vendasDaDominio({ meses: 12, vendas: [], compras: [] }).length === 0 && comprasDaDominio({}).length === 0);
 
 console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");

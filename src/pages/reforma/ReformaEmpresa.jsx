@@ -17,6 +17,7 @@ import {
   salvarEmpresa,
 } from "../../lib/reforma/api.js";
 import { calcularSimulacao, dadosDaConfig } from "../../lib/reforma/calculo.js";
+import { sincronizarCategorias } from "../../lib/reforma/fiscal.js";
 import { PARAMETROS_PADRAO, simplesAliquota } from "../../lib/reforma/parametros.js";
 import ReformaShell from "../../components/reforma/ReformaShell.jsx";
 import EmpresaForm from "../../components/reforma/EmpresaForm.jsx";
@@ -342,7 +343,7 @@ function ConfiguracaoAba({ empresa, onSalva, onSujo }) {
 
       <EmpresaForm dados={rascunho.config} alterar={mudarConfig} company={companyBi} />
       <DominioFiscal cnpj={soDigitos(rascunho.cnpj)} dados={rascunho.config} alterar={mudarConfig} />
-      <VendasTabela dados={rascunho.config} onVendas={(vendas) => mudarConfig({ vendas })} />
+      <VendasTabela dados={rascunho.config} onVendas={(vendas) => mudarConfig({ vendas, compras: sincronizarCategorias(rascunho.config.vendas, vendas, rascunho.config.compras) })} />
       <ComprasTabela dados={rascunho.config} onCompras={(compras) => mudarConfig({ compras })} />
 
       {previa && (

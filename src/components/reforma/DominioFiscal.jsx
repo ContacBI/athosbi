@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FileSpreadsheet } from "lucide-react";
 import { carregarFiscal } from "../../lib/reforma/api.js";
-import { comprasDaDominio, resumoFiscal, vendasDaDominio } from "../../lib/reforma/fiscal.js";
+import { avisoDeRegime, comprasDaDominio, resumoFiscal, vendasDaDominio } from "../../lib/reforma/fiscal.js";
 import { Cartao, botaoSecundario } from "./ui.jsx";
 import { reais } from "../../lib/reforma/formato.js";
 
@@ -41,6 +41,7 @@ export default function DominioFiscal({ cnpj, dados, alterar }) {
   }
 
   const resumo = fiscal ? resumoFiscal(fiscal) : null;
+  const regimeErrado = fiscal ? avisoDeRegime(fiscal, dados.regime) : null;
   return (
     <Cartao
       titulo="Notas fiscais da Domínio"
@@ -64,9 +65,14 @@ export default function DominioFiscal({ cnpj, dados, alterar }) {
         <p className="text-[12.5px] text-ink-400">Ainda não chegou nada da Domínio pra este CNPJ. A Central manda as notas das empresas cadastradas na Reforma (com CNPJ) uma vez por dia, com o DC04 ligado.</p>
       ) : (
         <p className="text-[12.5px] text-ink-600">
-          {data(fiscal.inicio)} a {data(fiscal.fim)} · vendas <strong className="font-mono text-ink-900">{reais(resumo.vendasMes)}</strong>/mês em {resumo.ncms} NCMs
+          {data(fiscal.inicio)} a {data(fiscal.fim)} ({resumo.meses} {resumo.meses === 1 ? "mês" : "meses"} com nota) · vendas <strong className="font-mono text-ink-900">{reais(resumo.vendasMes)}</strong>/mês em {resumo.ncms} NCMs
           {resumo.servicos ? ` e ${resumo.servicos} ${resumo.servicos === 1 ? "serviço" : "serviços"}` : ""} · compras <strong className="font-mono text-ink-900">{reais(resumo.comprasMes)}</strong>/mês · recebido em{" "}
           {new Date(fiscal.synced_at).toLocaleDateString("pt-BR")}
+        </p>
+      )}
+      {regimeErrado && (
+        <p className="mt-2 rounded-lg bg-warning-50 px-3 py-2 text-[12.5px] text-warning-700">
+          Pelas notas, a empresa fatura cerca de <strong>{reais(regimeErrado.anual)}</strong> por ano — {regimeErrado.texto}. Confira o regime na aba Empresa/Configuração.
         </p>
       )}
     </Cartao>
