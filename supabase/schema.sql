@@ -727,3 +727,28 @@ $$;
 drop trigger if exists reforma_simulacoes_carimbo on reforma_simulacoes;
 create trigger reforma_simulacoes_carimbo before insert or update on reforma_simulacoes
   for each row execute function reforma_simulacoes_carimbo();
+
+-- Resumo das notas fiscais (Escrita Fiscal da Domínio) pra simulação da
+-- Reforma por NCM — mandado pela Central (dominio-sync, POST "tipo":
+-- "fiscal") pra cada empresa da Reforma com CNPJ. Um resumo por CNPJ (o
+-- novo substitui o anterior): vendas por NCM/código de serviço e compras
+-- por tipo (e por NCM nas mercadorias/insumos), do período `inicio`..`fim`.
+-- Só o escritório da Reforma lê (é ele quem configura as empresas); só a
+-- Edge Function (service role) grava.
+create table if not exists public.dominio_fiscal (
+  cnpj text primary key check (cnpj ~ '^[0-9]{14}$'),
+  empresas text[] not null,
+  inicio date not null,
+  fim date not null,
+  meses integer not null check (meses between 1 and 24),
+  vendas jsonb not null,
+  compras jsonb not null,
+  total_vendas numeric(18, 2) not null default 0,
+  total_compras numeric(18, 2) not null default 0,
+  synced_at timestamptz not null default now(),
+  check (inicio <= fim)
+);
+alter table public.dominio_fiscal enable row level security;
+drop policy if exists "dominio_fiscal_read_reforma" on public.dominio_fiscal;
+create policy "dominio_fiscal_read_reforma" on public.dominio_fiscal for select to authenticated
+  using (is_reforma_escritorio());

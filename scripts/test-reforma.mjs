@@ -2,6 +2,7 @@
 // calculados à mão. Rodar: node scripts/test-reforma.mjs
 import { ANOS, PARAMETROS_PADRAO, SIMPLES_ANEXOS, aliquotasDoAno, mesclarParametros, simplesAliquota } from "../src/lib/reforma/parametros.js";
 import { calcularSimulacao } from "../src/lib/reforma/calculo.js";
+import { comprasDaDominio, ncmFormatado, resumoFiscal, vendasDaDominio } from "../src/lib/reforma/fiscal.js";
 
 let falhas = 0;
 const perto = (a, b, tol = 1e-6) => Math.abs(a - b) <= tol;
@@ -98,6 +99,46 @@ const vazio = calcularSimulacao({}, P);
 confere("simulação vazia não quebra (tudo zero)", vazio.cenarios.atual.anos.every((linha) => linha.aRecolher === 0 && linha.precoVar === 0));
 const lixo = calcularSimulacao({ regime: "x", vendas: [{ receita: "abc", icms: "-5", categoria: "?" }] }, P);
 confere("entrada inválida vira zero/padrão", lixo.dados.regime === "presumido" && lixo.dados.vendas[0].receita === 0 && lixo.dados.vendas[0].icms === 0 && lixo.dados.vendas[0].categoria === "padrao");
+
+// ── Notas fiscais da Domínio → itens da simulação ──
+const fiscal = {
+  meses: 12,
+  vendas: [
+    { ncm: "90213190", servico: "", descricao: "PLACA DE TITANIO", produtos: 12, valor: 1200000, valor_pj: 1080000, icms: 144000, icms_st: false, ipi: 60000, iss: 0, pis_cofins: "normal" },
+    { ncm: "", servico: "4.03", descricao: "Instrumentação", produtos: 1, valor: 60000, valor_pj: 60000, icms: 0, icms_st: false, ipi: 0, iss: 3000, pis_cofins: "normal" },
+    ...Array.from({ length: 60 }, (_, i) => ({ ncm: String(30049000 + i).padStart(8, "0"), servico: "", descricao: `ITEM ${i}`, produtos: 1, valor: 100 + i, valor_pj: 0, icms: 18 + i * 0.18, icms_st: i % 2 === 0, ipi: 0, iss: 0, pis_cofins: i < 40 ? "monofasico" : "normal" })),
+  ],
+  compras: [
+    { tipo: "mercadoria", fornecedor: "normal", ncm: "90213190", descricao: "PLACA", valor: 480000, icms: 57600, icms_creditado: 57600, ipi: 24000, iss: 0 },
+    { tipo: "mercadoria", fornecedor: "simples", ncm: "90213190", descricao: "PLACA", valor: 24000, icms: 0, icms_creditado: 0, ipi: 0, iss: 0 },
+    { tipo: "energia", fornecedor: "normal", ncm: "", descricao: "", valor: 24000, icms: 4320, icms_creditado: 0, ipi: 0, iss: 0 },
+    { tipo: "servico", fornecedor: "normal", ncm: "", descricao: "", valor: 12000, icms: 0, icms_creditado: 0, ipi: 0, iss: 600 },
+  ],
+};
+const vendasF = vendasDaDominio(fiscal, { anexoPadrao: "I" });
+const placa = vendasF[0];
+confere("NCM formatado 9021.31.90", ncmFormatado("90213190") === "9021.31.90");
+confere("venda principal: receita/mês, % p/ empresas, ICMS e IPI efetivos", placa.codigo === "9021.31.90" && placa.receita === 100000 && placa.b2b === 90 && placa.icms === 12 && placa.ipi === 5 && placa.tipo === "mercadoria" && placa.descricao.includes("+11"), placa);
+const servF = vendasF.find((item) => item.tipo === "servico");
+confere("serviço: ISS 5%, anexo III, código do serviço", servF?.iss === 5 && servF.anexo === "III" && servF.codigo === "4.03" && servF.receita === 5000, servF);
+const demais = vendasF.find((item) => item.descricao.startsWith("Demais produtos"));
+confere("NCMs pequenos viram uma linha de 'Demais produtos' (máx. 40 linhas)", vendasF.length <= 40 && Boolean(demais), vendasF.length);
+const totalF = fiscal.vendas.reduce((s, v) => s + v.valor, 0) / 12;
+confere("nenhum real se perde no agrupamento", perto(vendasF.reduce((s, v) => s + v.receita, 0), totalF, 0.05), [vendasF.reduce((s, v) => s + v.receita, 0), totalF]);
+const comprasF = comprasDaDominio(fiscal);
+const placaC = comprasF.find((item) => item.tipo === "mercadoria" && item.fornecedor === "normal");
+confere("compra de mercadoria: valor/mês com IPI, ICMS 12% com crédito, IPI 5%", placaC?.valor === 42000 && placaC.aliquota === 12 && placaC.creditoIcms === true && placaC.ipi === 5, placaC);
+const simplesC = comprasF.find((item) => item.fornecedor === "simples");
+confere("compra de fornecedor do Simples vira linha própria", simplesC?.valor === 2000 && simplesC.creditoIcms === false && /Simples/.test(simplesC.descricao), simplesC);
+const energiaC = comprasF.find((item) => item.tipo === "energia");
+confere("energia: ICMS 18% embutido, sem crédito hoje", energiaC?.aliquota === 18 && energiaC.creditoIcms === false && energiaC.descricao === "Energia elétrica", energiaC);
+const servC = comprasF.find((item) => item.tipo === "servico");
+confere("serviço tomado: ISS 5% como alíquota embutida", servC?.aliquota === 5 && servC.creditoIcms === false, servC);
+const simF = calcularSimulacao({ regime: "real", vendas: vendasF, compras: comprasF }, P);
+confere("simulação com os itens da Domínio calcula sem erro", Number.isFinite(simF.resumo.carga2033) && simF.resumo.receitaMensal > 0, simF.resumo);
+const rf = resumoFiscal(fiscal);
+confere("resumo fiscal: vendas/mês, NCMs e serviços", perto(rf.vendasMes, totalF, 0.01) && rf.ncms === 61 && rf.servicos === 1, rf);
+confere("resumo vazio não quebra", vendasDaDominio({ meses: 12, vendas: [], compras: [] }).length === 0 && comprasDaDominio({}).length === 0);
 
 console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");
 process.exit(falhas ? 1 : 0);
