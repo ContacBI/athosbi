@@ -38,7 +38,7 @@ export const AJUDA = {
   creditos: "Tributos pagos nas compras que a empresa abate do que deve (hoje: ICMS, PIS/Cofins, IPI; na reforma: CBS e IBS de quase tudo).",
   aRecolher: "Débitos menos créditos: o que sai do caixa por mês em tributos sobre consumo.",
   carga: "A recolher ÷ preço ao cliente. Quanto do que o cliente paga vai pra tributo sobre consumo.",
-  precoVar: "Quanto o preço teria de subir (ou poderia cair) pra empresa ficar com o mesmo valor líquido de hoje, considerando também o custo das compras.",
+  precoVar: "Quanto o preço de venda teria de subir (ou poderia cair) pra empresa receber, em cada venda, o mesmo valor líquido de tributos de hoje. Não inclui o ganho nas compras — esse aparece em \"Compras\" e em \"Se mantiver o preço\".",
   efeitoPrecoMantido: "Efeito no resultado do mês se a empresa NÃO mexer no preço ao cliente: a diferença de tributo (e do custo das compras) sai da margem.",
   creditoCliente: "Quanto um cliente empresa (regime normal) recupera de crédito a cada R$ 100 que paga — hoje e em 2033. Quanto maior, mais competitivo o preço pra empresas.",
   cargaItem: "Tributos sobre consumo do item ÷ preço ao cliente.",
