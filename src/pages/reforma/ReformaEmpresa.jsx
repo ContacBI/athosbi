@@ -23,7 +23,8 @@ import ReformaShell from "../../components/reforma/ReformaShell.jsx";
 import EmpresaForm from "../../components/reforma/EmpresaForm.jsx";
 import DominioFiscal from "../../components/reforma/DominioFiscal.jsx";
 import { ComprasTabela, VendasTabela } from "../../components/reforma/ItensTabela.jsx";
-import { Cartao, botaoPrimario } from "../../components/reforma/ui.jsx";
+import { Abas, Cartao, Dica, Esqueleto, botaoPrimario } from "../../components/reforma/ui.jsx";
+import { AJUDA } from "../../lib/reforma/textos.js";
 import { REGIME_NOME, cnpjFormatado, porcento, reais, soDigitos } from "../../lib/reforma/formato.js";
 
 const campo = "rounded-md border border-line-strong bg-surface-card px-2.5 py-1.5 text-[13px] text-ink-900 outline-none focus:border-accent-500";
@@ -130,7 +131,10 @@ function SimulacoesAba({ empresa, escritorio, eu }) {
       >
         {erro && <p className="mb-2 text-[12.5px] text-danger-600">{erro}</p>}
         {simulacoes === null ? (
-          <p className="text-[13px] text-ink-400">Carregando…</p>
+          <div className="flex flex-col gap-2" aria-busy="true" aria-label="Carregando">
+            <Esqueleto className="h-[62px] shadow-none ring-1 ring-line" />
+            <Esqueleto className="h-[62px] shadow-none ring-1 ring-line" />
+          </div>
         ) : simulacoes.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-line-strong px-6 py-10 text-center">
             <FileBarChart size={26} strokeWidth={1.5} className="text-accent-500" />
@@ -147,8 +151,8 @@ function SimulacoesAba({ empresa, escritorio, eu }) {
               const resumo = simulacao.resumo || {};
               const podeMexer = escritorio || simulacao.created_by === eu;
               return (
-                <div key={simulacao.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-line px-3 py-2.5 transition-colors hover:border-accent-200 hover:bg-surface-muted">
-                  <button type="button" onClick={() => navigate(`/reforma/simulacao/${simulacao.id}`)} className="min-w-[200px] flex-1 text-left">
+                <div key={simulacao.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 rounded-lg border border-line px-4 py-3 transition-colors hover:border-accent-200 hover:bg-surface-muted lg:grid-cols-[minmax(0,1fr)_170px_240px_72px]">
+                  <button type="button" onClick={() => navigate(`/reforma/simulacao/${simulacao.id}`)} className="min-w-0 text-left">
                     <p className="flex items-center gap-1.5 text-[13.5px] font-medium text-ink-900">
                       {simulacao.nome}
                       {!podeMexer && (
@@ -163,17 +167,21 @@ function SimulacoesAba({ empresa, escritorio, eu }) {
                       {simulacao.updated_by ? ` por ${simulacao.updated_by}` : ""}
                     </p>
                   </button>
-                  {resumo.receitaMensal > 0 && (
-                    <div className="flex flex-wrap gap-4 text-[12px]">
-                      <span className="text-ink-500">
-                        Faturamento <strong className="font-mono text-ink-800">{reais(resumo.receitaMensal)}</strong>/mês
-                      </span>
-                      <span className="text-ink-500">
-                        Carga hoje <strong className="font-mono text-ink-800">{porcento(resumo.cargaHoje)}</strong> → 2033 <strong className="font-mono text-ink-800">{porcento(resumo.carga2033)}</strong>
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-1">
+                  <Dica texto="Faturamento mensal somado dos itens da simulação." className="hidden lg:inline-flex">
+                    <span className="text-[12px] text-ink-500">{resumo.receitaMensal > 0 ? <><strong className="font-mono text-ink-800">{reais(resumo.receitaMensal)}</strong>/mês</> : "sem itens"}</span>
+                  </Dica>
+                  <Dica texto={AJUDA.carga} className="hidden lg:inline-flex">
+                    <span className="text-[12px] text-ink-500">
+                      {resumo.receitaMensal > 0 ? (
+                        <>
+                          Carga <strong className="font-mono text-ink-800">{porcento(resumo.cargaHoje)}</strong> hoje → <strong className="font-mono text-ink-800">{porcento(resumo.carga2033)}</strong> em 2033
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </span>
+                  </Dica>
+                  <div className="flex items-center justify-end gap-1">
                     <button type="button" onClick={() => duplicar(simulacao)} disabled={ocupado} title="Duplicar (pra testar outro cenário)" aria-label={`Duplicar ${simulacao.nome}`} className="flex h-8 w-8 items-center justify-center rounded-md text-ink-400 hover:bg-surface-card hover:text-ink-700">
                       <Copy size={14} />
                     </button>
@@ -286,7 +294,7 @@ function ConfiguracaoAba({ empresa, onSalva, onSujo }) {
 
   return (
     <>
-      <div className="sticky top-0 z-10 -mx-1 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface-card/95 px-4 py-2.5 shadow-sm backdrop-blur">
+      <div className="sticky top-[60px] z-20 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface-card/95 px-4 py-2.5 shadow-sm backdrop-blur">
         <p className="text-[12.5px] text-ink-600">
           {sujo ? (
             <span className="font-medium text-warning-600">Alterações não salvas</span>
@@ -303,43 +311,45 @@ function ConfiguracaoAba({ empresa, onSalva, onSujo }) {
       </div>
       {erro && <p className="text-[12.5px] text-danger-600">{erro}</p>}
 
-      <Cartao titulo="Cadastro">
-        <div className="grid gap-3 md:grid-cols-3">
-          <label className="flex flex-col gap-1 text-[12px] text-ink-600">
-            Nome da empresa
-            <input aria-label="Nome da empresa" value={rascunho.nome} onChange={(event) => mudar({ nome: event.target.value.slice(0, 160) })} className={campo} />
-          </label>
-          <label className="flex flex-col gap-1 text-[12px] text-ink-600">
-            CNPJ
-            <input aria-label="CNPJ" value={rascunho.cnpj} onChange={(event) => mudar({ cnpj: event.target.value.slice(0, 18) })} onBlur={() => mudar({ cnpj: cnpjFormatado(rascunho.cnpj) })} className={campo} placeholder="00.000.000/0000-00" inputMode="numeric" />
-          </label>
-          {carteira.length > 0 && (
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Cartao titulo="Cadastro" dica="Identificação da empresa na Reforma. O CNPJ é o que a Central usa pra achar a empresa na Domínio (matriz e filiais com a mesma raiz). Ligar a uma empresa do B.I. libera o botão Trazer da contabilidade (lançamentos contábeis).">
+          <div className="grid gap-3 md:grid-cols-3">
             <label className="flex flex-col gap-1 text-[12px] text-ink-600">
-              Empresa no B.I. (pra trazer da contabilidade)
-              <select aria-label="Empresa no B.I." value={rascunho.biCompanyId} onChange={(event) => mudar({ biCompanyId: event.target.value })} className={campo}>
-                <option value="">— Nenhuma —</option>
-                {carteira.map((company) => (
-                  <option key={company.id} value={company.id}>
-                    {company.codigo ? `${company.codigo} · ` : ""}
-                    {company.name}
-                  </option>
-                ))}
-              </select>
+              Nome da empresa
+              <input aria-label="Nome da empresa" value={rascunho.nome} onChange={(event) => mudar({ nome: event.target.value.slice(0, 160) })} className={campo} />
             </label>
-          )}
-        </div>
-      </Cartao>
+            <label className="flex flex-col gap-1 text-[12px] text-ink-600">
+              CNPJ
+              <input aria-label="CNPJ" value={rascunho.cnpj} onChange={(event) => mudar({ cnpj: event.target.value.slice(0, 18) })} onBlur={() => mudar({ cnpj: cnpjFormatado(rascunho.cnpj) })} className={campo} placeholder="00.000.000/0000-00" inputMode="numeric" />
+            </label>
+            {carteira.length > 0 && (
+              <label className="flex flex-col gap-1 text-[12px] text-ink-600">
+                Empresa no B.I. (pra trazer da contabilidade)
+                <select aria-label="Empresa no B.I." value={rascunho.biCompanyId} onChange={(event) => mudar({ biCompanyId: event.target.value })} className={campo}>
+                  <option value="">— Nenhuma —</option>
+                  {carteira.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.codigo ? `${company.codigo} · ` : ""}
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+        </Cartao>
 
-      <Cartao titulo="Recado para o cliente" subtitulo="Aparece no topo da tela dele — ex.: o que conferir, o que já foi considerado, próximos passos.">
-        <textarea
-          aria-label="Recado para o cliente"
-          value={rascunho.orientacao}
-          onChange={(event) => mudar({ orientacao: event.target.value.slice(0, 4000) })}
-          rows={3}
-          placeholder="Ex.: Já cadastramos seus principais produtos com base na contabilidade de 2025. Confira o faturamento de cada um e veja o resultado."
-          className={`${campo} w-full resize-y`}
-        />
-      </Cartao>
+        <Cartao titulo="Recado para o cliente" subtitulo="Aparece no topo da tela dele — ex.: o que conferir, o que já foi considerado, próximos passos.">
+          <textarea
+            aria-label="Recado para o cliente"
+            value={rascunho.orientacao}
+            onChange={(event) => mudar({ orientacao: event.target.value.slice(0, 4000) })}
+            rows={2}
+            placeholder="Ex.: Já cadastramos seus principais produtos com base na contabilidade de 2025. Confira o faturamento de cada um e veja o resultado."
+            className={`${campo} w-full resize-y`}
+          />
+        </Cartao>
+      </div>
 
       <EmpresaForm dados={rascunho.config} alterar={mudarConfig} company={companyBi} />
       <DominioFiscal cnpj={soDigitos(rascunho.cnpj)} dados={rascunho.config} alterar={mudarConfig} />
@@ -466,7 +476,9 @@ function AcessosAba({ empresa }) {
 
       <div className="mt-3 flex flex-col gap-1.5">
         {acessos === null ? (
-          <p className="text-[12.5px] text-ink-400">Carregando…</p>
+          <div className="flex flex-col gap-1.5" aria-busy="true" aria-label="Carregando">
+            <Esqueleto className="h-[52px] shadow-none ring-1 ring-line" />
+          </div>
         ) : acessos.length === 0 ? (
           <p className="text-[12.5px] text-ink-400">Ninguém liberado ainda.</p>
         ) : (
@@ -499,9 +511,9 @@ function AcessosAba({ empresa }) {
 // ── Página da empresa ──
 
 const ABAS = [
-  { id: "simulacoes", rotulo: "Simulações" },
-  { id: "configuracao", rotulo: "Configuração" },
-  { id: "acessos", rotulo: "Acesso do cliente" },
+  { id: "simulacoes", rotulo: "Simulações", dica: "Cenários desta empresa — os do escritório e os que o cliente fizer." },
+  { id: "configuracao", rotulo: "Configuração", dica: "Regime, produtos e compras de partida (a Domínio traz) e o recado pro cliente. Toda simulação nova começa daqui." },
+  { id: "acessos", rotulo: "Acesso do cliente", dica: "Quem do cliente entra nesta empresa — convite por e-mail." },
 ];
 
 export default function ReformaEmpresa() {
@@ -560,13 +572,17 @@ export default function ReformaEmpresa() {
 
   if (erro || !empresa) {
     return (
-      <ReformaShell titulo={erro ? "Não deu pra abrir" : "Carregando…"} voltarPara={voltar.para} voltarRotulo={voltar.rotulo}>
+      <ReformaShell titulo={erro ? "Não deu pra abrir" : "Abrindo a empresa…"} voltarPara={voltar.para} voltarRotulo={voltar.rotulo}>
         {erro ? (
           <Cartao>
             <p className="text-[13px] text-ink-600">{erro}</p>
           </Cartao>
         ) : (
-          <p className="text-[13px] text-ink-400">Carregando…</p>
+          <div className="flex flex-col gap-4" aria-busy="true" aria-label="Carregando">
+            <Esqueleto className="h-14" />
+            <Esqueleto className="h-40" />
+            <Esqueleto className="h-40" />
+          </div>
         )}
       </ReformaShell>
     );
@@ -578,26 +594,13 @@ export default function ReformaEmpresa() {
       subtitulo={[empresa.cnpj ? cnpjFormatado(empresa.cnpj) : null, resumoDaConfig(empresa.config)].filter(Boolean).join(" · ")}
       voltarPara={voltar.para}
       voltarRotulo={voltar.rotulo}
-      extra={
-        escritorio && (
-          <nav className="-mb-5 flex gap-1 overflow-x-auto" aria-label="Seções da empresa">
-            {ABAS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => trocarAba(item.id)}
-                className={`whitespace-nowrap rounded-t-lg px-3.5 py-2 text-[13px] font-medium transition-colors ${aba === item.id ? "bg-surface-page text-ink-900" : "text-white/60 hover:bg-white/10 hover:text-white"}`}
-              >
-                {item.rotulo}
-              </button>
-            ))}
-          </nav>
-        )
-      }
+      barra={escritorio && <Abas rotulo="Seções da empresa" itens={ABAS} ativa={aba} onTrocar={trocarAba} />}
     >
-      {aba === "simulacoes" && <SimulacoesAba empresa={empresa} escritorio={escritorio} eu={state.userEmail} />}
-      {aba === "configuracao" && <ConfiguracaoAba key={empresa.id} empresa={empresa} onSalva={salva} onSujo={marcarSujo} />}
-      {aba === "acessos" && <AcessosAba empresa={empresa} />}
+      <div key={aba} className="flex animate-entrar flex-col gap-4">
+        {aba === "simulacoes" && <SimulacoesAba empresa={empresa} escritorio={escritorio} eu={state.userEmail} />}
+        {aba === "configuracao" && <ConfiguracaoAba key={empresa.id} empresa={empresa} onSalva={salva} onSujo={marcarSujo} />}
+        {aba === "acessos" && <AcessosAba empresa={empresa} />}
+      </div>
     </ReformaShell>
   );
 }

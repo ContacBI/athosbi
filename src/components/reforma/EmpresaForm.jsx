@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Building2, Database, Factory, Store } from "lucide-react";
 import { SIMPLES_ANEXOS, simplesAliquota } from "../../lib/reforma/parametros.js";
 import { dadosDaContabilidade } from "../../lib/reforma/contabilidade.js";
-import { Cartao, NumeroInput, Selecao, botaoSecundario } from "./ui.jsx";
+import { Cartao, InfoDica, NumeroInput, Selecao, botaoSecundario } from "./ui.jsx";
 import { porcento, reais } from "../../lib/reforma/formato.js";
 
 const REGIMES = [
@@ -56,7 +56,11 @@ export default function EmpresaForm({ dados, alterar, company }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Cartao titulo="Regime tributário hoje" subtitulo="Escolha como a empresa recolhe os tributos atualmente.">
+      <Cartao
+        titulo="Regime tributário hoje"
+        subtitulo="Escolha como a empresa recolhe os tributos atualmente."
+        dica="O regime de hoje define o PIS/Cofins (cumulativo no Presumido, não cumulativo no Real), quais créditos existem e, no Simples, o DAS. Na reforma, Presumido e Real passam a recolher CBS/IBS do mesmo jeito; o Simples pode ficar no DAS ou recolher CBS/IBS por fora a partir de 2027."
+      >
         <div className="grid gap-2 md:grid-cols-3">
           {REGIMES.map((regime) => {
             const ativo = dados.regime === regime.id;
@@ -81,15 +85,24 @@ export default function EmpresaForm({ dados, alterar, company }) {
         {simples && (
           <div className="mt-4 grid gap-3 rounded-lg bg-surface-muted p-3 md:grid-cols-3">
             <label className="flex flex-col gap-1 text-[12px] text-ink-600">
-              Receita bruta dos últimos 12 meses (RBT12)
+              <span className="flex items-center gap-1">
+                Receita bruta dos últimos 12 meses (RBT12)
+                <InfoDica texto="Faturamento dos 12 meses anteriores ao mês de apuração. Define a faixa do Simples e, com ela, a alíquota efetiva do DAS." />
+              </span>
               <NumeroInput valor={dados.rbt12} onChange={(rbt12) => alterar({ rbt12 })} prefixo="R$" ariaLabel="RBT12" />
             </label>
             <label className="flex flex-col gap-1 text-[12px] text-ink-600">
-              Anexo principal
+              <span className="flex items-center gap-1">
+                Anexo principal
+                <InfoDica texto="Anexo I comércio, II indústria, III/IV/V serviços. Cada anexo tem sua tabela de alíquotas e sua divisão do DAS entre os tributos. Dá pra mudar item a item na aba Vendas." />
+              </span>
               <Selecao valor={dados.anexoPadrao} onChange={(anexoPadrao) => alterar({ anexoPadrao })} opcoes={Object.entries(SIMPLES_ANEXOS).map(([id, anexo]) => ({ valor: id, rotulo: anexo.nome }))} ariaLabel="Anexo" />
             </label>
             <div className="text-[12px] text-ink-600">
-              Alíquota efetiva do DAS
+              <span className="flex items-center gap-1">
+                Alíquota efetiva do DAS
+                <InfoDica texto="(RBT12 × alíquota nominal − parcela a deduzir) ÷ RBT12, pela tabela da LC 123. É a parte do faturamento que vai pro DAS hoje." />
+              </span>
               <p className="mt-1 font-mono text-[18px] font-semibold text-ink-900">{porcento(simples.efetiva, { casas: 2 })}</p>
               <p className="text-[11.5px] text-ink-400">
                 Faixa {simples.faixa} · nominal {simples.nominal.toLocaleString("pt-BR")}% − {reais(simples.deducao)}

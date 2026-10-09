@@ -4,7 +4,8 @@ import { Search, SlidersHorizontal } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { listarAcessos, listarEmpresas, listarSimulacoes } from "../../lib/reforma/api.js";
 import ReformaShell from "../../components/reforma/ReformaShell.jsx";
-import { Cartao, Indicador } from "../../components/reforma/ui.jsx";
+import { Cartao, Esqueleto, Indicador, RotuloDica } from "../../components/reforma/ui.jsx";
+import { AJUDA } from "../../lib/reforma/textos.js";
 import { porcento, reais } from "../../lib/reforma/formato.js";
 
 const REGIME = { simples: "Simples", presumido: "Presumido", real: "Real" };
@@ -68,9 +69,9 @@ export default function ReformaPainel() {
       }
     >
       <div className="grid gap-3 sm:grid-cols-3">
-        <Indicador rotulo="Simulações" valor={simulacoes ? String(simulacoes.length) : "…"} apoio={`${comSimulacao} de ${empresas.length} ${empresas.length === 1 ? "empresa" : "empresas"}`} />
-        <Indicador rotulo="Feitas por clientes" valor={simulacoes ? String(doCliente.length) : "…"} apoio={`${clientes} ${clientes === 1 ? "cliente já simulou" : "clientes já simularam"}`} />
-        <Indicador rotulo="Carga sobe em 2033" valor={simulacoes ? String(sobem) : "…"} apoio="Simulações em que o tributo sobre consumo aumenta" tom={sobem ? "negativo" : "neutro"} />
+        <Indicador rotulo="Simulações" valor={simulacoes ? String(simulacoes.length) : "…"} apoio={`${comSimulacao} de ${empresas.length} ${empresas.length === 1 ? "empresa" : "empresas"}`} dica="Todas as simulações salvas, de todas as empresas da Reforma — do escritório e dos clientes." />
+        <Indicador rotulo="Feitas por clientes" valor={simulacoes ? String(doCliente.length) : "…"} apoio={`${clientes} ${clientes === 1 ? "cliente já simulou" : "clientes já simularam"}`} dica="Simulações criadas por pessoas liberadas como cliente (aba Acesso do cliente) — o que o próprio dono testou." />
+        <Indicador rotulo="Carga sobe em 2033" valor={simulacoes ? String(sobem) : "…"} apoio="Simulações em que o tributo sobre consumo aumenta" tom={sobem ? "negativo" : "neutro"} dica="Quantas simulações terminam 2033 com carga maior que a de hoje — bom ponto de partida pra montar os estudos." />
       </div>
 
       <Cartao
@@ -84,7 +85,11 @@ export default function ReformaPainel() {
       >
         {erro && <p className="mb-2 text-[12.5px] text-danger-600">{erro}</p>}
         {simulacoes === null ? (
-          <p className="text-[13px] text-ink-400">Carregando…</p>
+          <div className="flex flex-col gap-2" aria-busy="true" aria-label="Carregando">
+            {[0, 1, 2, 3].map((item) => (
+              <Esqueleto key={item} className="h-11 shadow-none ring-1 ring-line" />
+            ))}
+          </div>
         ) : linhas.length === 0 ? (
           <p className="text-[13px] text-ink-400">{simulacoes.length ? "Nada encontrado nessa busca." : "Nenhuma simulação ainda. Cadastre a empresa em Empresas da Reforma, configure e libere o acesso do dono."}</p>
         ) : (
@@ -94,11 +99,21 @@ export default function ReformaPainel() {
                 <tr className="border-b border-line">
                   <th className={`${th} text-left`}>Empresa / simulação</th>
                   <th className={`${th} text-left`}>Regime</th>
-                  <th className={th}>Faturamento/mês</th>
-                  <th className={th}>Carga hoje</th>
-                  <th className={th}>Carga 2033</th>
-                  <th className={th}>Preço p/ margem</th>
-                  <th className={th}>Preço mantido 2033</th>
+                  <th className={th}>
+                    <RotuloDica texto={AJUDA.vendaReceita}>Faturamento/mês</RotuloDica>
+                  </th>
+                  <th className={th}>
+                    <RotuloDica texto={AJUDA.carga}>Carga hoje</RotuloDica>
+                  </th>
+                  <th className={th}>
+                    <RotuloDica texto={`${AJUDA.carga} Em 2033 só existem CBS e IBS.`}>Carga 2033</RotuloDica>
+                  </th>
+                  <th className={th}>
+                    <RotuloDica texto={AJUDA.precoVar}>Preço p/ margem</RotuloDica>
+                  </th>
+                  <th className={th}>
+                    <RotuloDica texto={AJUDA.efeitoPrecoMantido}>Preço mantido 2033</RotuloDica>
+                  </th>
                   <th className={`${th} text-left`}>Atualizada</th>
                 </tr>
               </thead>
