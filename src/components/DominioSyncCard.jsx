@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Check, RefreshCw, TriangleAlert } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { attachJournalMonths } from "../lib/journalMonths.js";
-import { compareMonth, dominioCodigo, fetchDominioEntries, fetchDominioMonths, unmappedAccounts } from "../lib/dominioSync.js";
+import { fetchDominioEntries, isDominioPending, unmappedAccounts } from "../lib/dominioSync.js";
 
 const MONTH_SHORT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
@@ -13,52 +13,31 @@ function monthLabel(competencia) {
 
 const STATUS_STYLE = {
   igual: "border-line bg-surface-muted text-ink-500",
-  novo: "border-accent-400 bg-accent-50 text-accent-700 hover:border-accent-500",
-  diferente: "border-warning-500/60 bg-warning-50 text-warning-700 hover:border-warning-500",
+  novo: "border-warning-500/60 bg-warning-50 text-warning-700 hover:border-warning-500",
+  pendente: "border-warning-500/60 bg-warning-50 text-warning-700 hover:border-warning-500",
   vazio: "border-line bg-surface-muted text-ink-400",
 };
 
 const STATUS_TITLE = {
   igual: "Igual ao que já está no portal",
-  novo: "Ainda não está no portal — clique pra trazer só este mês",
-  diferente: "Diferente do que está no portal — clique pra atualizar só este mês",
+  novo: "Pendente: mês que ainda não está no portal — clique pra trazer só este mês",
+  pendente: "Pendente: mudou na Domínio (lançamento novo ou excluído, valor, conta ou histórico) — clique pra atualizar só este mês",
   vazio: "Vazio na Domínio, mas o portal tem lançamentos — não é aplicado automaticamente; exclua o mês manualmente se for o caso",
 };
 
 // Cartão "Domínio" da tela Dados (RelatoriosMensais.jsx): mostra os meses
 // que a Central mandou direto do banco da Domínio (ver lib/dominioSync.js e
 // supabase/functions/dominio-sync) comparados com o razão atual, e aplica
-// no razão os que estão diferentes — sempre por clique, nunca sozinho.
-// As mensagens de andamento/erro usam a mesma faixa da página (props).
-export default function DominioSyncCard({ company, onBusy, onDone, onError, onProgress }) {
+// no razão os pendentes — sempre por clique, nunca sozinho. Os dados vêm
+// de useDominioSync (a página compartilha com os quadrados dos meses). As
+// mensagens de andamento/erro usam a mesma faixa da página (props).
+export default function DominioSyncCard({ dominio, onBusy, onDone, onError, onProgress }) {
   const state = useAppState();
-  const codigo = dominioCodigo(company);
-  const [months, setMonths] = useState(null); // null = carregando
-  const [loadError, setLoadError] = useState(false);
+  const { codigo, cnpj, months, loadError, reload } = dominio;
   const [applying, setApplying] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!codigo) {
-      setMonths([]);
-      return;
-    }
-    setMonths(null);
-    setLoadError(false);
-    try {
-      setMonths(await fetchDominioMonths(codigo));
-    } catch (error) {
-      console.error("Falha ao consultar os lançamentos da Domínio:", error);
-      setLoadError(true);
-      setMonths([]);
-    }
-  }, [codigo]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const withStatus = (months || []).map((month) => ({ ...month, status: compareMonth(month, state.journal) }));
-  const pending = withStatus.filter((month) => month.status === "novo" || month.status === "diferente");
+  const withStatus = months || [];
+  const pending = withStatus.filter((month) => isDominioPending(month.status));
   const lastSync = withStatus.reduce((latest, month) => (month.syncedAt > latest ? month.syncedAt : latest), "");
 
   async function apply(targets) {
@@ -66,7 +45,7 @@ export default function DominioSyncCard({ company, onBusy, onDone, onError, onPr
     setApplying(true);
     try {
       onBusy("Buscando os lançamentos da Domínio…");
-      const entries = await fetchDominioEntries(codigo, targets, state.mappings);
+      const entries = await fetchDominioEntries(codigo, cnpj, targets, state.mappings);
       const labels = targets.map((month) => monthLabel(month.competencia)).join(", ");
       const semDePara = unmappedAccounts(entries, state.mappings);
       const aviso = semDePara.length
@@ -89,8 +68,8 @@ export default function DominioSyncCard({ company, onBusy, onDone, onError, onPr
   }
 
   let body;
-  if (!codigo) {
-    body = <p className="text-[12.5px] text-ink-400">Cadastre o código da empresa (o mesmo da Domínio) em Parâmetros › Empresas pra receber os lançamentos direto de lá.</p>;
+  if (!codigo || !cnpj) {
+    body = <p className="text-[12.5px] text-ink-400">Cadastre o código e o CNPJ da empresa (os mesmos da Domínio) em Parâmetros › Empresas pra receber os lançamentos direto de lá.</p>;
   } else if (months === null) {
     body = <p className="text-[12.5px] text-ink-400">Verificando o que chegou da Domínio…</p>;
   } else if (loadError) {
@@ -101,17 +80,17 @@ export default function DominioSyncCard({ company, onBusy, onDone, onError, onPr
       </p>
     );
   } else if (!withStatus.length) {
-    body = <p className="text-[12.5px] text-ink-400">Nada recebido da Domínio ainda para o código {codigo}. Quando a Central sincronizar, os meses aparecem aqui.</p>;
+    body = <p className="text-[12.5px] text-ink-400">Nada recebido da Domínio ainda para o código {codigo} com o CNPJ desta empresa. Quando a Central sincronizar, os meses aparecem aqui.</p>;
   } else {
     body = (
       <>
         <p className="text-[12px] text-ink-400">
-          Código {codigo} · última sincronização {new Date(lastSync).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
-          {pending.length ? ` · ${pending.length} ${pending.length === 1 ? "mês diferente" : "meses diferentes"} do portal` : " · tudo igual ao portal"}
+          Código {codigo} · CNPJ conferido · última sincronização {new Date(lastSync).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+          {pending.length ? ` · ${pending.length} ${pending.length === 1 ? "mês pendente" : "meses pendentes"}` : " · tudo igual ao portal"}
         </p>
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           {withStatus.map((month) => {
-            const clickable = month.status === "novo" || month.status === "diferente";
+            const clickable = isDominioPending(month.status);
             return (
               <button
                 key={month.competencia}
@@ -123,8 +102,8 @@ export default function DominioSyncCard({ company, onBusy, onDone, onError, onPr
               >
                 {month.status === "igual" && <Check size={11} strokeWidth={2.2} />}
                 {monthLabel(month.competencia)}
-                {month.status === "novo" && <span className="font-normal">· novo</span>}
-                {month.status === "diferente" && <span className="font-normal">· diferente</span>}
+                {month.status === "novo" && <span className="font-normal">· pendente (novo)</span>}
+                {month.status === "pendente" && <span className="font-normal">· pendente</span>}
                 {month.status === "vazio" && <span className="font-normal">· vazio</span>}
               </button>
             );
@@ -141,10 +120,10 @@ export default function DominioSyncCard({ company, onBusy, onDone, onError, onPr
         <div className="mt-1">{body}</div>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
-        {codigo && (
+        {codigo && cnpj && (
           <button
             type="button"
-            onClick={load}
+            onClick={reload}
             disabled={months === null || applying}
             title="Verificar de novo o que chegou da Domínio"
             className="flex h-[30px] w-[30px] items-center justify-center rounded-md border border-line-strong text-ink-500 transition-colors hover:bg-surface-muted disabled:opacity-40"
