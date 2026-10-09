@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { ArrowLeft, Building2, ChevronRight, Layers, Network, Search, Settings, SlashSquare, TriangleAlert } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { selectCompany } from "../lib/companies.js";
@@ -223,6 +223,18 @@ export default function Empresas() {
     setPending(null);
   }
 
+  // A lista de grupos é lida por todo mundo; um grupo liberado pra um
+  // cliente traz TODAS as empresas dele (allowed_company_ids, ver
+  // supabase/schema.sql) — então pro cliente só aparece grupo que ele
+  // enxerga inteiro (antes via o nome de todos os grupos do escritório).
+  const staff = state.isAdmin || state.isColaborador;
+  const groupsList = useMemo(
+    () => (staff ? state.groups : state.groups.filter((group) => (group.companyIds || []).length > 0 && groupCompanies(group).length === group.companyIds.length)),
+    // groupCompanies lê state.companies por dentro — precisa recalcular quando ele muda.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [staff, state.groups, state.companies]
+  );
+
   const totalLancamentos = state.companies.reduce((sum, company) => sum + journalCountOf(company), 0);
 
   const visibleCompanies = useMemo(() => {
@@ -235,15 +247,20 @@ export default function Empresas() {
 
   const visibleGroups = useMemo(() => {
     const term = norm(search);
-    const groups = term ? state.groups.filter((group) => norm(group.name).includes(term)) : state.groups;
+    const groups = term ? groupsList.filter((group) => norm(group.name).includes(term)) : groupsList;
     return [...groups].sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR"));
-  }, [state.groups, search]);
+  }, [groupsList, search]);
 
   const maxCompanyLancamentos = Math.max(1, ...visibleCompanies.map(journalCountOf));
   const maxGroupLancamentos = Math.max(1, ...visibleGroups.map((group) => groupCompanies(group).reduce((sum, c) => sum + journalCountOf(c), 0)));
 
-  const showTabs = state.groups.length > 0;
+  const showTabs = groupsList.length > 0;
   const effectiveTab = showTabs ? tab : "empresas";
+
+  // Cliente só da Reforma Tributária (cadastro à parte) não tem carteira no B.I.
+  if (!staff && state.companies.length === 0 && state.reformaEmpresas.length > 0) {
+    return <Navigate to="/reforma" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-surface-page pb-16">
@@ -297,10 +314,10 @@ export default function Empresas() {
                 <span><strong className="font-mono font-semibold text-white">{state.companies.length}</strong> empresas</span>
                 <span className="text-white/25">·</span>
                 <span><strong className="font-mono font-semibold text-white">{totalLancamentos.toLocaleString("pt-BR")}</strong> lançamentos</span>
-                {state.groups.length > 0 && (
+                {groupsList.length > 0 && (
                   <>
                     <span className="text-white/25">·</span>
-                    <span><strong className="font-mono font-semibold text-white">{state.groups.length}</strong> grupos</span>
+                    <span><strong className="font-mono font-semibold text-white">{groupsList.length}</strong> grupos</span>
                   </>
                 )}
               </p>

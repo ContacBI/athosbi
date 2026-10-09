@@ -45,6 +45,13 @@ export const state = {
   // E-mail de quem está logado agora — usado só pra comparar contra
   // company.responsaveis na hora de mostrar/esconder botão de editar.
   userEmail: "",
+  // Reforma Tributária (ver lib/modulos.js): se a pessoa é do escritório
+  // da Reforma (cadastra/configura as empresas e vê as simulações de todos
+  // os clientes — tabela reforma_escritorio, à parte de admin/colaborador)
+  // e as empresas da Reforma que ela enxerga ({ id, nome, cnpj, ... } —
+  // cadastro próprio, não são as empresas do B.I.).
+  isReformaEscritorio: false,
+  reformaEmpresas: [],
   mappings: [],
   // Vínculo DFC por empresa — overrides de qual destino (DFC.OP.CLIENTES
   // etc.) uma conta gerencial usa nesta empresa, por cima do vínculo global

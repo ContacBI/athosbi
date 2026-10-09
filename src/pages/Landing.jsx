@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Settings, LayoutDashboard, FileText, BarChart3, LogOut } from "lucide-react";
+import { ArrowRight, Settings, LayoutDashboard, FileText, BarChart3, LogOut, Scale } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
+import { useAppState } from "../data/useStore.js";
+import { temBi as temModuloBi, temReforma as temModuloReforma } from "../lib/modulos.js";
 import ThemeToggle from "../components/ThemeToggle.jsx";
 
 const FEATURES = [
@@ -11,6 +13,11 @@ const FEATURES = [
 
 export default function Landing() {
   const navigate = useNavigate();
+  const state = useAppState();
+  // Um botão por módulo liberado (ver lib/modulos.js) — cliente só da
+  // Reforma Tributária nem vê o B.I.
+  const temBi = temModuloBi(state);
+  const temReforma = temModuloReforma(state);
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-navy-950 px-6 text-center text-white">
@@ -24,15 +31,17 @@ export default function Landing() {
 
       <div className="absolute right-6 top-6 flex items-center gap-1">
         <ThemeToggle />
-        <button
-          type="button"
-          onClick={() => navigate("/parametros")}
-          aria-label="Configurações"
-          title="Configurações"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white"
-        >
-          <Settings size={20} />
-        </button>
+        {(state.isAdmin || state.isColaborador) && (
+          <button
+            type="button"
+            onClick={() => navigate("/parametros")}
+            aria-label="Configurações"
+            title="Configurações"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <Settings size={20} />
+          </button>
+        )}
         <button
           type="button"
           onClick={() => supabase.auth.signOut()}
@@ -50,26 +59,49 @@ export default function Landing() {
         </span>
         <h1 className="text-5xl font-medium tracking-tight sm:text-6xl">AthosBI</h1>
         <p className="mt-3 max-w-md text-sm text-white/60">
-          Relatórios gerenciais, indicadores e demonstrações financeiras da sua carteira de empresas.
+          {temBi
+            ? "Relatórios gerenciais, indicadores e demonstrações financeiras da sua carteira de empresas."
+            : "Simule o impacto da Reforma Tributária na sua empresa, produto a produto."}
         </p>
 
-        <button
-          type="button"
-          onClick={() => navigate("/empresas")}
-          className="mt-9 flex items-center gap-2 rounded-full bg-accent-500 px-6 py-3 text-sm font-medium text-white shadow-lg shadow-accent-600/20 transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-xl"
-        >
-          Acessar empresas
-          <ArrowRight size={16} />
-        </button>
-
-        <div className="mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-          {FEATURES.map(({ icon: Icon, label }) => (
-            <span key={label} className="flex items-center gap-2 text-[12px] text-white/40">
-              <Icon size={14} strokeWidth={1.75} />
-              {label}
-            </span>
-          ))}
+        <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+          {temBi && (
+            <button
+              type="button"
+              onClick={() => navigate("/empresas")}
+              className="flex items-center gap-2 rounded-full bg-accent-500 px-6 py-3 text-sm font-medium text-white shadow-lg shadow-accent-600/20 transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-xl"
+            >
+              Acessar empresas
+              <ArrowRight size={16} />
+            </button>
+          )}
+          {temReforma && (
+            <button
+              type="button"
+              onClick={() => navigate("/reforma")}
+              className={`flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-all hover:-translate-y-0.5 ${
+                temBi
+                  ? "border border-white/25 text-white hover:border-white/50 hover:bg-white/10"
+                  : "bg-accent-500 text-white shadow-lg shadow-accent-600/20 hover:bg-accent-600 hover:shadow-xl"
+              }`}
+            >
+              <Scale size={16} />
+              Reforma Tributária
+            </button>
+          )}
+          {!temBi && !temReforma && <p className="text-[13px] text-white/60">Nenhum acesso liberado ainda — fale com o escritório.</p>}
         </div>
+
+        {temBi && (
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+            {FEATURES.map(({ icon: Icon, label }) => (
+              <span key={label} className="flex items-center gap-2 text-[12px] text-white/40">
+                <Icon size={14} strokeWidth={1.75} />
+                {label}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

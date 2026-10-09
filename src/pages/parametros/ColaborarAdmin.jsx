@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { Users, Trash2, ShieldCheck, Shield } from "lucide-react";
+import { Users, Trash2, ShieldCheck, Shield, Scale } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { listAdmins, addAdmin, removeAdmin, listColaboradores, addColaborador, removeColaborador } from "../../lib/colaboradores.js";
 import { inviteUser } from "../../lib/access.js";
+import { definirEscritorioReforma, listarEscritorioReforma } from "../../lib/reforma/api.js";
 import PageHeader from "../../components/PageHeader.jsx";
 
 // Admin-only mesmo pra colaborador Restrito — essa é uma das 3 telas
@@ -16,7 +17,11 @@ import PageHeader from "../../components/PageHeader.jsx";
 //   Restrito — colaboradores. Enxerga a carteira inteira, mas só edita
 //              as empresas onde está marcado em "Responsáveis" (ver
 //              CompanyModal.jsx) — nas demais, é só leitura.
-function PeopleSection({ title, description, icon: Icon, people, onAdd, onRemove, onInvited, categoryLabel }) {
+// `reforma` (só pra quem é do escritório da Reforma Tributária): { emails:
+// Set, eu: e-mail logado, onToggle(email, ligado) } — mostra em cada pessoa a
+// chave de acesso às simulações dos clientes. Quem não é do escritório da
+// Reforma nem vê a chave (e o banco recusaria a mudança).
+function PeopleSection({ title, description, icon: Icon, people, onAdd, onRemove, onInvited, reforma }) {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [saving, setSaving] = useState(false);
@@ -119,6 +124,28 @@ function PeopleSection({ title, description, icon: Icon, people, onAdd, onRemove
               {person.nome && <p className="truncate text-[11px] text-ink-400">{person.email}</p>}
             </div>
             <div className="flex shrink-0 items-center gap-1">
+              {reforma && (
+                <button
+                  type="button"
+                  onClick={() => reforma.onToggle(person.email, !reforma.emails.has(person.email.toLowerCase()))}
+                  disabled={person.email.toLowerCase() === reforma.eu}
+                  title={
+                    person.email.toLowerCase() === reforma.eu
+                      ? "Você mesmo — não dá pra se tirar daqui"
+                      : reforma.emails.has(person.email.toLowerCase())
+                        ? "Trabalha na Reforma Tributária (cadastra empresas, libera clientes, vê todas as simulações) — clique pra tirar"
+                        : "Não entra na Reforma Tributária — clique pra liberar"
+                  }
+                  className={`mr-1 flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors disabled:cursor-default ${
+                    reforma.emails.has(person.email.toLowerCase())
+                      ? "border-accent-500/60 bg-accent-50 text-accent-700"
+                      : "border-line-strong text-ink-400 hover:border-accent-300 hover:text-ink-600"
+                  }`}
+                >
+                  <Scale size={11} strokeWidth={2} />
+                  Reforma Tributária {reforma.emails.has(person.email.toLowerCase()) ? "· sim" : "· não"}
+                </button>
+              )}
               <button type="button" onClick={() => handleReinvite(person.email)} className="rounded-md px-2 py-1 text-[11px] text-accent-600 hover:underline">
                 Reenviar convite
               </button>
@@ -143,13 +170,20 @@ export default function ColaborarAdmin() {
   const [admins, setAdmins] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [reformaEmails, setReformaEmails] = useState(new Set());
+  const [reformaErro, setReformaErro] = useState("");
 
   async function reload() {
     setLoading(true);
     try {
-      const [adminList, colaboradorList] = await Promise.all([listAdmins(), listColaboradores()]);
+      const [adminList, colaboradorList, reformaList] = await Promise.all([
+        listAdmins(),
+        listColaboradores(),
+        state.isReformaEscritorio ? listarEscritorioReforma() : Promise.resolve([]),
+      ]);
       setAdmins(adminList);
       setColaboradores(colaboradorList);
+      setReformaEmails(new Set(reformaList));
     } catch (err) {
       console.error("Falha ao carregar colaboradores:", err);
     } finally {
@@ -157,9 +191,30 @@ export default function ColaborarAdmin() {
     }
   }
 
+  async function toggleReforma(email, ligado) {
+    const pessoa = email.toLowerCase();
+    if (ligado && !confirm(`Liberar a Reforma Tributária pra ${pessoa}? A pessoa passa a cadastrar empresas, liberar clientes e ver as simulações de TODOS.`)) return;
+    setReformaErro("");
+    try {
+      await definirEscritorioReforma(pessoa, ligado);
+      setReformaEmails((atual) => {
+        const proximo = new Set(atual);
+        if (ligado) proximo.add(pessoa);
+        else proximo.delete(pessoa);
+        return proximo;
+      });
+    } catch (err) {
+      setReformaErro(String(err?.message || err));
+    }
+  }
+  const reforma = state.isReformaEscritorio ? { emails: reformaEmails, eu: state.userEmail, onToggle: toggleReforma } : null;
+
+  // Recarrega quando o boot termina de dizer se a pessoa é do escritório
+  // da Reforma (a lista de quem vê a Reforma só é lida nesse caso).
   useEffect(() => {
     reload();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.isReformaEscritorio]);
 
   // Admin-only mesmo pra colaborador Restrito, que entra no resto de
   // Parâmetros — ver ParametrosLayout.jsx.
@@ -174,6 +229,15 @@ export default function ColaborarAdmin() {
         icon={Users}
       />
 
+      {reforma && (
+        <p className="mb-3 flex items-start gap-1.5 rounded-lg bg-accent-50 px-3 py-2 text-[12px] text-accent-700">
+          <Scale size={13} strokeWidth={2} className="mt-px shrink-0" />
+          <span>
+            <strong>Reforma Tributária:</strong> quem estiver com "sim" entra no módulo da Reforma — cadastra e configura as empresas, libera os clientes e vê as simulações de todos. Ser Total ou Restrito não dá esse acesso sozinho.
+          </span>
+        </p>
+      )}
+      {reformaErro && <p className="mb-3 text-[12px] text-danger-600">{reformaErro}</p>}
       {loading ? (
         <p className="text-[13px] text-ink-400">Carregando…</p>
       ) : (
@@ -186,6 +250,7 @@ export default function ColaborarAdmin() {
             onAdd={addAdmin}
             onRemove={removeAdmin}
             onInvited={reload}
+            reforma={reforma}
           />
           <PeopleSection
             title="Restrito"
@@ -195,6 +260,7 @@ export default function ColaborarAdmin() {
             onAdd={addColaborador}
             onRemove={removeColaborador}
             onInvited={reload}
+            reforma={reforma}
           />
         </div>
       )}

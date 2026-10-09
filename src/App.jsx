@@ -17,6 +17,8 @@ import { loadIndicatorOverrides } from "./lib/indicators.js";
 import { isPortalAdmin, currentUserEmail } from "./lib/access.js";
 import { isColaborador } from "./lib/colaboradores.js";
 import { loadPlanosPadrao, refreshEffectivePlano } from "./lib/planosPadrao.js";
+import { isReformaEscritorio } from "./lib/modulos.js";
+import { listarEmpresas as listarEmpresasReforma } from "./lib/reforma/api.js";
 import { setData } from "./data/useStore.js";
 
 // Carregadas sob demanda (React.lazy) em vez de no pacote inicial — são as
@@ -43,6 +45,11 @@ const Sistema = lazy(() => import("./pages/parametros/Sistema.jsx"));
 const PlanoGerencial = lazy(() => import("./pages/parametros/PlanoGerencial.jsx"));
 const PlanoPadraoAdmin = lazy(() => import("./pages/parametros/PlanoPadraoAdmin.jsx"));
 const ColaborarAdmin = lazy(() => import("./pages/parametros/ColaborarAdmin.jsx"));
+const ReformaParametros = lazy(() => import("./pages/parametros/ReformaParametros.jsx"));
+const ReformaHome = lazy(() => import("./pages/reforma/ReformaHome.jsx"));
+const ReformaSimulacao = lazy(() => import("./pages/reforma/ReformaSimulacao.jsx"));
+const ReformaPainel = lazy(() => import("./pages/reforma/ReformaPainel.jsx"));
+const ReformaEmpresa = lazy(() => import("./pages/reforma/ReformaEmpresa.jsx"));
 
 function RouteFallback() {
   return (
@@ -100,9 +107,16 @@ function AuthedApp() {
       loadPlanosPadrao(),
       isColaborador(),
       currentUserEmail(),
+      isReformaEscritorio(),
+      // Empresas da Reforma Tributária que a pessoa enxerga (RLS) — sem
+      // elas o portal abre normalmente, só sem o botão da Reforma.
+      listarEmpresasReforma().catch((error) => {
+        console.error("Falha ao listar as empresas da Reforma Tributária:", error);
+        return [];
+      }),
     ])
-      .then(async ([, companiesResult, , , adminFlag, , colaboradorFlag, email]) => {
-        setData({ isAdmin: adminFlag, isColaborador: colaboradorFlag, userEmail: email });
+      .then(async ([, companiesResult, , , adminFlag, , colaboradorFlag, email, reformaFlag, reformaEmpresas]) => {
+        setData({ isAdmin: adminFlag, isColaborador: colaboradorFlag, userEmail: email, isReformaEscritorio: reformaFlag, reformaEmpresas });
         // selectGroup marca state.activeGroupId de forma SÍNCRONA (antes de
         // qualquer await) — isso basta pro CompanyLayout não chutar de volta
         // pra /empresas num F5 dentro de um grupo. O razão dos membros chega
@@ -177,7 +191,12 @@ function AuthedApp() {
           <Route path="sistema/plano-gerencial" element={<PlanoGerencial />} />
           <Route path="planos-padrao" element={<PlanoPadraoAdmin />} />
           <Route path="colaborar" element={<ColaborarAdmin />} />
+          <Route path="reforma" element={<ReformaParametros />} />
         </Route>
+        <Route path="reforma" element={<ReformaHome />} />
+        <Route path="reforma/painel" element={<ReformaPainel />} />
+        <Route path="reforma/empresa/:id" element={<ReformaEmpresa />} />
+        <Route path="reforma/simulacao/:id" element={<ReformaSimulacao />} />
         <Route path="empresa" element={<CompanyLayout />}>
           <Route index element={<CompanyHome />} />
           <Route path="painel/:tabId" element={<PainelTab />} />
