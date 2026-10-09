@@ -253,9 +253,16 @@ export default function ResultadoPainel({ resultado, params }) {
         />
         <Indicador
           rotulo="Preço p/ manter a margem (2033)"
-          valor={porcento(fim.precoConsumidorVar ?? fim.precoVar, { sinal: true })}
-          apoio={fim.custoClienteEmpresaVar !== null ? `Cliente empresa: custo líquido ${porcento(fim.custoClienteEmpresaVar, { sinal: true })}` : "Preço ao consumidor final"}
-          dica={`${AJUDA.precoVar} O número grande é pro consumidor final; o "custo líquido" é pra quem compra como empresa e recupera o crédito.`}
+          valor={porcento(fim.precoVar, { sinal: true })}
+          apoio={
+            [
+              fim.precoConsumidorVar !== null && `Consumidor final ${porcento(fim.precoConsumidorVar, { sinal: true })}`,
+              fim.custoClienteEmpresaVar !== null && `Cliente empresa (custo líquido) ${porcento(fim.custoClienteEmpresaVar, { sinal: true })}`,
+            ]
+              .filter(Boolean)
+              .join(" · ") || null
+          }
+          dica={`${AJUDA.precoVar} O número grande é a média de todas as vendas (o mesmo da barra do topo). Embaixo, por tipo de cliente: o consumidor final paga o preço cheio; o cliente empresa desconta o crédito, então o que conta pra ele é o custo líquido.`}
         />
         <Indicador rotulo="Se mantiver o preço (2033)" valor={efeito(fim.efeitoPrecoMantido)} apoio="Efeito no resultado do mês, já com as compras" tom={tomDe(fim.efeitoPrecoMantido)} dica={AJUDA.efeitoPrecoMantido} />
         <Indicador
