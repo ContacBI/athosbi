@@ -1002,6 +1002,37 @@ export function replaceAccounts(newAccounts, meta) {
   setLastBalanceteMeta(meta);
 }
 
+// Balancete que veio direto da Domínio (lib/dominioSync.js): troca as
+// contas E o De/Para juntos — o De/Para pode ter acompanhado conta
+// renumerada na Domínio (migrateMappings) — e, ao contrário de
+// replaceAccounts, ESPERA o Supabase confirmar e desfaz tudo se falhar
+// (mesmo contrato de attachJournalMonths: quem chama TEM que dar await e
+// mostrar o erro). Guarda o mesmo backup de um nível pro "voltar ao
+// balancete anterior", mas só quando o De/Para não mudou: voltar só as
+// contas com o De/Para já renumerado deixaria os dois desencontrados.
+// O razão NÃO é remapeado aqui: lançamento antigo, na numeração anterior,
+// continua com o destino que já tinha; os meses que vêm da Domínio chegam
+// na numeração nova, carimbados com o De/Para novo (fetchDominioEntries).
+export async function applyBalancete(newAccounts, newMappings, meta) {
+  const company = state.companies.find((item) => item.id === state.activeCompanyId);
+  if (!company || state.activeGroupId) throw new Error("Abra a empresa (não um grupo) pra atualizar o balancete — recarregue a página e tente de novo.");
+  const before = { companies: state.companies, accounts: state.accounts, mappings: state.mappings };
+  const mappingsChanged = newMappings !== state.mappings;
+  const previousBalancete = mappingsChanged
+    ? null
+    : (state.accounts || []).length
+      ? { accounts: state.accounts, meta: company.lastBalanceteMeta || null, savedAt: new Date().toISOString() }
+      : company.previousBalancete || null;
+  const companies = state.companies.map((item) => (item.id === company.id ? { ...item, previousBalancete, lastBalanceteMeta: meta } : item));
+  setData({ companies, accounts: newAccounts, mappings: newMappings });
+  try {
+    await persistActiveCompany();
+  } catch (error) {
+    setData(before);
+    throw error;
+  }
+}
+
 // Consumes the backup on restore — it's a one-shot undo, not a toggle, so
 // "restaurar" twice in a row does nothing the second time (nothing further
 // back to recover) rather than bouncing between two states forever.
