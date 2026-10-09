@@ -4,6 +4,7 @@ import { Check, CloudOff, Copy, Loader2, Lock } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { carregarEmpresa, carregarParametros, carregarSimulacao, criarSimulacao, salvarSimulacao } from "../../lib/reforma/api.js";
 import { calcularSimulacao, dadosIniciais } from "../../lib/reforma/calculo.js";
+import { sincronizarCategorias } from "../../lib/reforma/fiscal.js";
 import { PARAMETROS_PADRAO } from "../../lib/reforma/parametros.js";
 import ReformaShell from "../../components/reforma/ReformaShell.jsx";
 import EmpresaForm from "../../components/reforma/EmpresaForm.jsx";
@@ -254,7 +255,7 @@ export default function ReformaSimulacao() {
           )}
           {aba === "empresa" && <EmpresaForm dados={dados} alterar={alterar} company={companyBi} />}
           {escritorio && (aba === "vendas" || aba === "compras") && <DominioFiscal cnpj={empresa?.cnpj} dados={dados} alterar={alterar} />}
-          {aba === "vendas" && <VendasTabela dados={dados} onVendas={(vendas) => alterar({ vendas })} />}
+          {aba === "vendas" && <VendasTabela dados={dados} onVendas={(vendas) => alterar({ vendas, compras: sincronizarCategorias(dados.vendas, vendas, dados.compras) })} />}
           {aba === "compras" && <ComprasTabela dados={dados} onCompras={(compras) => alterar({ compras })} />}
         </fieldset>
       )}
