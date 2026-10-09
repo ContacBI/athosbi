@@ -258,11 +258,14 @@ const accountLine = (account) =>
 // Balancete da Domínio × balancete atual do portal, conta a conta (código,
 // tipo, nome e os quatro valores): "novo" se o portal não tem balancete,
 // "pendente" se qualquer conta mudou, entrou ou saiu, "igual" se não.
+// Chave = classificação + código: há plano com contas diferentes no mesmo
+// número (o da 349/350/351), e o balancete traz as duas.
+const accountKey = (account) => `${String(account.classificacao ?? "").trim()}|${String(account.codigo ?? "")}`;
 export function compareBalancete(dominio, portalAccounts) {
   if (!portalAccounts?.length) return "novo";
-  const portal = new Map(portalAccounts.map((account) => [String(account.classificacao ?? "").trim(), accountLine(account)]));
-  if (portal.size !== dominio.accounts.length) return "pendente";
-  return dominio.accounts.every((account) => portal.get(account.classificacao) === accountLine(account)) ? "igual" : "pendente";
+  const portal = new Map(portalAccounts.map((account) => [accountKey(account), accountLine(account)]));
+  if (portal.size !== portalAccounts.length || portal.size !== dominio.accounts.length) return "pendente";
+  return dominio.accounts.every((account) => portal.get(accountKey(account)) === accountLine(account)) ? "igual" : "pendente";
 }
 
 const MONTH_SHORT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -307,16 +310,22 @@ export function checkBalancete(dominio, journal, dominioMonths = []) {
     movimento.set(classificacao, (movimento.get(classificacao) || 0) + cents(entry.debito) - cents(entry.credito));
   });
   const analiticas = dominio.accounts.filter((account) => account.tipo_sintetica === "nao");
-  const diferencas = [];
-  const vistas = new Set();
+  // Por classificação: o lançamento só traz o número da conta, então contas
+  // diferentes no mesmo número (plano da 349/350/351) se somam.
+  const porClassificacao = new Map();
   analiticas.forEach((account) => {
-    vistas.add(account.classificacao);
-    const balancete = cents(account.debito) - cents(account.credito);
-    const lancamentos = movimento.get(account.classificacao) || 0;
-    if (balancete !== lancamentos) diferencas.push({ classificacao: account.classificacao, nome: account.nome_conta, balancete: balancete / 100, lancamentos: lancamentos / 100 });
+    const item = porClassificacao.get(account.classificacao) || { nomes: [], movimento: 0 };
+    item.nomes.push(account.nome_conta);
+    item.movimento += cents(account.debito) - cents(account.credito);
+    porClassificacao.set(account.classificacao, item);
+  });
+  const diferencas = [];
+  porClassificacao.forEach((item, classificacao) => {
+    const lancamentos = movimento.get(classificacao) || 0;
+    if (item.movimento !== lancamentos) diferencas.push({ classificacao, nome: item.nomes.join(" + "), balancete: item.movimento / 100, lancamentos: lancamentos / 100 });
   });
   movimento.forEach((valor, classificacao) => {
-    if (!vistas.has(classificacao) && valor !== 0) diferencas.push({ classificacao, nome: "conta fora do balancete", balancete: 0, lancamentos: valor / 100 });
+    if (!porClassificacao.has(classificacao) && valor !== 0) diferencas.push({ classificacao, nome: "conta fora do balancete", balancete: 0, lancamentos: valor / 100 });
   });
   diferencas.sort((a, b) => Math.abs(b.balancete - b.lancamentos) - Math.abs(a.balancete - a.lancamentos));
   const recebidos = new Set(dominioMonths.map((month) => month.competencia));
@@ -353,13 +362,17 @@ const sameName = (a, b) => {
 export function migrateMappings(mappings, accounts) {
   const analiticas = accounts.filter((account) => account.tipo_sintetica === "nao");
   const byCodigo = new Map(analiticas.map((account) => [account.codigo, account]));
-  const byClassificacao = new Map(analiticas.map((account) => [account.classificacao, account]));
+  // Códigos das contas de cada número (pode haver mais de uma: plano da
+  // 349/350/351 tem contas diferentes no mesmo número).
+  const codigosDoNumero = new Map();
+  analiticas.forEach((account) => codigosDoNumero.set(account.classificacao, (codigosDoNumero.get(account.classificacao) || new Set()).add(account.codigo)));
   const codigoDe = (row) => String(row.codigo_conta ?? "").trim();
+  const ehDona = (row) => Boolean(codigosDoNumero.get(row.classificacao)?.has(codigoDe(row)));
   // Conta que JÁ tem vínculo no número de hoje: esse vínculo vale (é o que
   // os relatórios usam) e vínculo antigo dela em outro número não se move —
   // De/Para costuma guardar vínculo velho da mesma conta, às vezes com
   // outro destino.
-  const jaVinculada = new Set((mappings || []).filter((row) => byClassificacao.get(row.classificacao)?.codigo === codigoDe(row)).map((row) => row.classificacao));
+  const jaVinculada = new Set((mappings || []).filter(ehDona).map((row) => row.classificacao));
   const renumeradas = [];
   const movidas = (mappings || []).map((row) => {
     const conta = codigoDe(row) ? byCodigo.get(codigoDe(row)) : null;
@@ -368,13 +381,13 @@ export function migrateMappings(mappings, accounts) {
     return { ...row, classificacao: conta.classificacao, nome_conta: conta.nome_conta };
   });
   const destinos = new Set(renumeradas.map((item) => item.para));
-  const temProprio = new Set(movidas.filter((row) => destinos.has(row.classificacao) && byClassificacao.get(row.classificacao)?.codigo === codigoDe(row)).map((row) => row.classificacao));
+  const temProprio = new Set(movidas.filter((row) => destinos.has(row.classificacao) && ehDona(row)).map((row) => row.classificacao));
   const removidas = [];
   const vistas = new Set();
   const next = movidas.filter((row) => {
     if (!temProprio.has(row.classificacao)) return true;
-    // Fica só UM vínculo, o da conta dona do número.
-    if (byClassificacao.get(row.classificacao).codigo === codigoDe(row) && !vistas.has(row.classificacao)) {
+    // Fica só UM vínculo, o de uma conta dona do número.
+    if (ehDona(row) && !vistas.has(row.classificacao)) {
       vistas.add(row.classificacao);
       return true;
     }
