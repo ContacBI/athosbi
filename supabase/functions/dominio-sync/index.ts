@@ -255,13 +255,17 @@ async function receberBalancete(admin: Admin, body: Record<string, unknown>) {
   const recusa = await conferirEmpresa(admin, empresa, cnpj);
   if (recusa) return recusa;
 
+  // Classificação PODE repetir: há plano com contas diferentes no mesmo
+  // número (o da 349/350/351 tem 44 — o balancete exportado da Domínio
+  // também traz as duas linhas, e o portal soma as duas). O código
+  // reduzido, não.
   const contas: Conta[] = [];
   const vistas = new Set<string>();
   for (let i = 0; i < lista.length; i += 1) {
     const result = validarConta(lista[i] as Record<string, unknown>, i);
     if (typeof result === "string") return json({ error: result }, 400);
-    if (vistas.has(result.classificacao)) return json({ error: `contas[${i}]: classificação ${result.classificacao} repetida.` }, 400);
-    vistas.add(result.classificacao);
+    if (vistas.has(result.codigo)) return json({ error: `contas[${i}]: código ${result.codigo} repetido.` }, 400);
+    vistas.add(result.codigo);
     contas.push(result);
   }
 

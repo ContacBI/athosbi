@@ -985,7 +985,7 @@ function ListWidgetCard({ definition, ctx, maxRows }) {
         </p>
         <div className="flex flex-col gap-2">
           {ctx.missing.slice(0, 8).map((account) => (
-            <div key={account.classificacao} className="flex items-center justify-between gap-3 text-[13px]">
+            <div key={`${account.classificacao}|${account.codigo}`} className="flex items-center justify-between gap-3 text-[13px]">
               <span className="truncate text-ink-700">{account.nome_conta || account.classificacao}</span>
               <span className="shrink-0 text-[11px] text-ink-400">{account.classificacao}</span>
             </div>
