@@ -484,3 +484,246 @@ create policy "dominio_balancete_read_staff"
   on public.dominio_balancete for select
   to authenticated
   using (is_portal_admin() or is_colaborador());
+
+-- ============================================================================
+-- Acesso de clientes externos + módulo Reforma Tributária (out/2026)
+-- ============================================================================
+
+-- Gavetas compartilhadas: cliente (quem não é admin nem colaborador) só lê
+-- o que o B.I. dele precisa pra montar os relatórios. Fica de fora o que é
+-- interno: a gaveta antiga companies.v2 (cadastro + balancetes de várias
+-- empresas, só usada na migração de formato), representantes (CPFs) e o
+-- backup do plano. Gaveta nova também nasce fechada até entrar nesta lista.
+alter policy "app_storage_select_scoped" on app_storage
+  using (
+    is_portal_admin()
+    or is_colaborador()
+    or key in (
+      'portalGerencial.groups.v1',
+      'portalGerencial.planoSnapshot.v1',
+      'portalGerencial.planoOverrides.v1',
+      'portalGerencial.planosPadrao.v1',
+      'portalGerencial.indicatorOverrides.v1'
+    )
+    or (
+      (key like 'portalGerencial.company.%' or key like 'portalGerencial.companyJournal.%')
+      and split_part(key, '.', 3) = any (allowed_company_ids())
+    )
+  );
+
+-- Anexos (relatórios mensais em PDF): o caminho começa pelo id da empresa
+-- (`<empresa>/<mês>/<arquivo>`, ver companies.js). Antes qualquer logado
+-- baixava de qualquer empresa sabendo o caminho.
+alter policy "monthly_reports_read_authenticated" on storage.objects
+  using (
+    bucket_id = 'monthly-reports'
+    and (is_portal_admin() or is_colaborador() or split_part(name, '/', 1) = any (allowed_company_ids()))
+  );
+
+-- Limpeza de uma primeira versão (nunca usada) em que a Reforma era um
+-- "módulo" marcado na concessão do B.I. — a Reforma agora tem cadastro e
+-- acessos próprios (abaixo), e access_grants volta a ser só do B.I.
+alter table access_grants drop constraint if exists access_grants_modulos_validos;
+alter table access_grants drop column if exists modulos;
+drop function if exists allowed_company_ids_for(text);
+
+-- ── Reforma Tributária ──────────────────────────────────────────────────────
+-- Módulo à parte do B.I.: o escritório cadastra a empresa DENTRO da Reforma
+-- (reforma_empresas — não é a carteira do B.I.), configura caso a caso
+-- (regime, Simples, produtos e compras de partida) e libera o dono por
+-- e-mail (reforma_acessos). O dono entra direto na empresa dele, com a
+-- configuração do escritório, e faz as simulações.
+
+-- Quem do ESCRITÓRIO trabalha na Reforma (cadastra/configura empresas,
+-- libera clientes, vê todas as simulações, mexe nos parâmetros). É à parte
+-- de portal_admins de propósito: nem todo admin/colaborador vê. Quem já está
+-- aqui liga/desliga os outros em Parâmetros > Colaborar (chave "Reforma
+-- Tributária" em cada pessoa); quem não está nem vê a chave.
+create table if not exists reforma_escritorio (
+  email text primary key,
+  created_at timestamptz not null default now()
+);
+alter table reforma_escritorio enable row level security;
+insert into reforma_escritorio (email) values ('izaiascontac@gmail.com') on conflict (email) do nothing;
+
+create or replace function is_reforma_escritorio()
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from reforma_escritorio where email = lower(coalesce(auth.jwt()->>'email', ''))
+  );
+$$;
+
+drop policy if exists "reforma_escritorio_gestao" on reforma_escritorio;
+create policy "reforma_escritorio_gestao" on reforma_escritorio for all to authenticated
+  using (is_reforma_escritorio()) with check (is_reforma_escritorio());
+
+-- Empresas da Reforma. `config` = configuração do escritório, no mesmo
+-- formato de reforma_simulacoes.dados (toda simulação nova começa dela);
+-- `bi_company_id` = empresa do B.I. ligada (opcional, só pra trazer os
+-- números da contabilidade); `orientacao` = recado que o cliente vê.
+create table if not exists reforma_empresas (
+  id uuid primary key default gen_random_uuid(),
+  nome text not null check (length(btrim(nome)) between 1 and 160),
+  cnpj text,
+  bi_company_id text,
+  config jsonb not null default '{}'::jsonb,
+  orientacao text check (orientacao is null or length(orientacao) <= 4000),
+  created_by text,
+  updated_by text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table reforma_empresas enable row level security;
+
+-- Quem do cliente entra em cada empresa (convidado por e-mail).
+create table if not exists reforma_acessos (
+  id uuid primary key default gen_random_uuid(),
+  empresa_id uuid not null references reforma_empresas (id) on delete cascade,
+  email text not null check (email = lower(btrim(email)) and email like '%_@_%'),
+  created_by text,
+  created_at timestamptz not null default now(),
+  unique (empresa_id, email)
+);
+create index if not exists reforma_acessos_email_idx on reforma_acessos (email);
+alter table reforma_acessos enable row level security;
+
+create or replace function reforma_empresa_ids()
+returns uuid[]
+language sql stable security definer set search_path = public as $$
+  select array(
+    select empresa_id from reforma_acessos where email = lower(coalesce(auth.jwt()->>'email', ''))
+  );
+$$;
+
+-- Escritório faz tudo; cliente só LÊ a(s) empresa(s) dele — a configuração
+-- é do escritório.
+drop policy if exists "reforma_empresas_escritorio" on reforma_empresas;
+create policy "reforma_empresas_escritorio" on reforma_empresas for all to authenticated
+  using (is_reforma_escritorio()) with check (is_reforma_escritorio());
+drop policy if exists "reforma_empresas_cliente_leitura" on reforma_empresas;
+create policy "reforma_empresas_cliente_leitura" on reforma_empresas for select to authenticated
+  using (id = any (reforma_empresa_ids()));
+
+drop policy if exists "reforma_acessos_escritorio" on reforma_acessos;
+create policy "reforma_acessos_escritorio" on reforma_acessos for all to authenticated
+  using (is_reforma_escritorio()) with check (is_reforma_escritorio());
+drop policy if exists "reforma_acessos_proprio_leitura" on reforma_acessos;
+create policy "reforma_acessos_proprio_leitura" on reforma_acessos for select to authenticated
+  using (email = lower(coalesce(auth.jwt()->>'email', '')));
+
+-- Autor e data carimbados pelo banco (não dá pra forjar pelo navegador).
+create or replace function reforma_empresas_carimbo()
+returns trigger
+language plpgsql set search_path = public as $$
+begin
+  new.updated_at := now();
+  new.updated_by := lower(coalesce(auth.jwt()->>'email', ''));
+  if tg_op = 'INSERT' then
+    new.created_at := now();
+    new.created_by := new.updated_by;
+  else
+    new.created_at := old.created_at;
+    new.created_by := old.created_by;
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists reforma_empresas_carimbo on reforma_empresas;
+create trigger reforma_empresas_carimbo before insert or update on reforma_empresas
+  for each row execute function reforma_empresas_carimbo();
+
+create or replace function reforma_acessos_carimbo()
+returns trigger
+language plpgsql set search_path = public as $$
+begin
+  if tg_op = 'INSERT' then
+    new.created_at := now();
+    new.created_by := lower(coalesce(auth.jwt()->>'email', ''));
+  else
+    new.created_at := old.created_at;
+    new.created_by := old.created_by;
+    new.empresa_id := old.empresa_id;
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists reforma_acessos_carimbo on reforma_acessos;
+create trigger reforma_acessos_carimbo before insert or update on reforma_acessos
+  for each row execute function reforma_acessos_carimbo();
+
+-- Parâmetros da simulação (alíquotas de referência, transição, tabelas do
+-- Simples) — uma linha só. Todo logado lê (o cliente precisa pra calcular);
+-- só o escritório da Reforma altera. Sem linha = valores padrão do código
+-- (src/lib/reforma/parametros.js).
+create table if not exists reforma_parametros (
+  id integer primary key default 1 check (id = 1),
+  dados jsonb not null,
+  updated_at timestamptz not null default now(),
+  updated_by text
+);
+alter table reforma_parametros enable row level security;
+drop policy if exists "reforma_parametros_read" on reforma_parametros;
+create policy "reforma_parametros_read" on reforma_parametros for select to authenticated using (true);
+drop policy if exists "reforma_parametros_write" on reforma_parametros;
+create policy "reforma_parametros_write" on reforma_parametros for all to authenticated
+  using (is_reforma_escritorio()) with check (is_reforma_escritorio());
+
+-- Simulações, uma linha por simulação, sempre de uma empresa da Reforma.
+-- `dados` = regime, itens de venda e de compra; `resumo` = números
+-- principais já calculados, pro painel do escritório.
+create table if not exists reforma_simulacoes (
+  id uuid primary key default gen_random_uuid(),
+  empresa_id uuid not null references reforma_empresas (id) on delete cascade,
+  nome text not null check (length(nome) between 1 and 120),
+  dados jsonb not null default '{}'::jsonb,
+  resumo jsonb,
+  created_by text,
+  updated_by text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists reforma_simulacoes_empresa_idx on reforma_simulacoes (empresa_id);
+alter table reforma_simulacoes enable row level security;
+
+-- Escritório da Reforma: tudo. Cliente: vê todas as simulações da empresa
+-- dele (inclusive os estudos do escritório), cria as dele e só altera/
+-- exclui as que ele mesmo criou. Admin/colaborador comum NÃO enxerga nada.
+drop policy if exists "reforma_simulacoes_escritorio" on reforma_simulacoes;
+create policy "reforma_simulacoes_escritorio" on reforma_simulacoes for all to authenticated
+  using (is_reforma_escritorio()) with check (is_reforma_escritorio());
+drop policy if exists "reforma_simulacoes_cliente_leitura" on reforma_simulacoes;
+create policy "reforma_simulacoes_cliente_leitura" on reforma_simulacoes for select to authenticated
+  using (empresa_id = any (reforma_empresa_ids()));
+drop policy if exists "reforma_simulacoes_cliente_criacao" on reforma_simulacoes;
+create policy "reforma_simulacoes_cliente_criacao" on reforma_simulacoes for insert to authenticated
+  with check (empresa_id = any (reforma_empresa_ids()));
+drop policy if exists "reforma_simulacoes_cliente_edicao" on reforma_simulacoes;
+create policy "reforma_simulacoes_cliente_edicao" on reforma_simulacoes for update to authenticated
+  using (empresa_id = any (reforma_empresa_ids()) and created_by = lower(coalesce(auth.jwt()->>'email', '')))
+  with check (empresa_id = any (reforma_empresa_ids()));
+drop policy if exists "reforma_simulacoes_cliente_exclusao" on reforma_simulacoes;
+create policy "reforma_simulacoes_cliente_exclusao" on reforma_simulacoes for delete to authenticated
+  using (empresa_id = any (reforma_empresa_ids()) and created_by = lower(coalesce(auth.jwt()->>'email', '')));
+
+-- Autor e data carimbados pelo banco; a empresa de uma simulação não muda.
+create or replace function reforma_simulacoes_carimbo()
+returns trigger
+language plpgsql set search_path = public as $$
+begin
+  new.updated_at := now();
+  new.updated_by := lower(coalesce(auth.jwt()->>'email', ''));
+  if tg_op = 'INSERT' then
+    new.created_at := now();
+    new.created_by := new.updated_by;
+  else
+    new.created_at := old.created_at;
+    new.created_by := old.created_by;
+    new.empresa_id := old.empresa_id;
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists reforma_simulacoes_carimbo on reforma_simulacoes;
+create trigger reforma_simulacoes_carimbo before insert or update on reforma_simulacoes
+  for each row execute function reforma_simulacoes_carimbo();

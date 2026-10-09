@@ -76,6 +76,12 @@
 
   --color-line: #e3e8ef;
   --color-line-strong: #cbd3df;
+
+  /* Séries de gráfico com 2 categorias (ex.: Reforma Tributária — ficar no
+     Simples × recolher por fora). Validadas pra daltonismo e contraste nos
+     dois temas (skill dataviz); o azul tem passo próprio no escuro. */
+  --color-viz-1: #e8691f;
+  --color-viz-2: #2a78d6;
 }
 
 :root[data-theme="dark"] {
@@ -137,6 +143,7 @@
   --color-navy-800: #2f5488;
   --color-navy-700: #5c8fd6;
   --color-navy-400: #7fa8e0;
+  --color-viz-2: #3987e5;
 
   /* Barras de rolagem, selects, campos de data, checkboxes e o menu nativo
      do navegador seguem o tema — sem isso continuavam claros (ex.: a barra
@@ -182,6 +189,7 @@
   --color-navy-800: #123a61;
   --color-navy-700: #1a4c7a;
   --color-navy-400: #3d6fa8;
+  --color-viz-2: #2a78d6;
 }
 
 * {

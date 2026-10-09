@@ -25,14 +25,18 @@
 //      "<SITE_URL>/definir-senha" (e a mesma coisa com localhost:5173 se
 //      quiser testar convite em desenvolvimento).
 //
-// Quem pode chamar: admin (portal_admins) OU colaborador Restrito
-// (colaboradores) — verificado abaixo com as mesmas funções que a RLS usa,
+// Quem pode chamar: admin (portal_admins), colaborador Restrito
+// (colaboradores) OU quem é do escritório da Reforma Tributária
+// (reforma_escritorio) — verificado abaixo com as mesmas funções que a RLS usa,
 // com o token de quem chamou. Um colaborador Restrito convida tanto
 // cliente (Acessos) quanto, indiretamente, ninguém em Colaborar (essa tela
 // é admin-only no front, mas o convite em si não distingue "pra quê" —
 // quem decide se a pessoa vira Total/Restrito/cliente é a linha que já foi
 // criada em portal_admins/colaboradores/access_grants antes de chamar
-// aqui).
+// aqui). Quem não é admin só convida e-mail que já foi liberado antes:
+// colaborador, numa empresa dele no B.I. (access_grants); escritório da
+// Reforma, numa empresa da Reforma (reforma_acessos) — ver a checagem logo
+// depois de ler o e-mail.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -62,12 +66,13 @@ Deno.serve(async (req) => {
   const callerClient = createClient(SUPABASE_URL, ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
   });
-  const [{ data: isAdmin, error: adminError }, { data: isColaborador, error: colaboradorError }] = await Promise.all([
+  const [{ data: isAdmin }, { data: isColaborador }, { data: isReforma }] = await Promise.all([
     callerClient.rpc("is_portal_admin"),
     callerClient.rpc("is_colaborador"),
+    callerClient.rpc("is_reforma_escritorio"),
   ]);
-  if ((adminError && colaboradorError) || (!isAdmin && !isColaborador)) {
-    return json({ error: "Só admin ou colaborador pode convidar." }, 403);
+  if (!isAdmin && !isColaborador && !isReforma) {
+    return json({ error: "Só admin, colaborador ou o escritório da Reforma pode convidar." }, 403);
   }
 
   let email = "";
@@ -78,6 +83,23 @@ Deno.serve(async (req) => {
   }
   const cleanEmail = String(email || "").trim().toLowerCase();
   if (!cleanEmail) return json({ error: "E-mail inválido." }, 400);
+
+  // Quem não é admin só convida quem já liberou antes (a tela cria o acesso
+  // ANTES de chamar aqui), lido com o token de quem chamou — a RLS só mostra
+  // pro colaborador as concessões das empresas onde ele é responsável, e
+  // reforma_acessos só pro escritório da Reforma. Sem nenhuma pra esse
+  // e-mail, não convida. Sem isso, qualquer um deles criava conta pra
+  // qualquer e-mail.
+  if (!isAdmin) {
+    const liberado = async (tabela) => {
+      const { data, error } = await callerClient.from(tabela).select("id").eq("email", cleanEmail).limit(1);
+      return !error && data?.length > 0;
+    };
+    const ok = (isColaborador && (await liberado("access_grants"))) || (isReforma && (await liberado("reforma_acessos")));
+    if (!ok) {
+      return json({ error: "Libere primeiro o acesso dessa pessoa a uma empresa (Parâmetros > Acessos, ou na própria empresa da Reforma)." }, 403);
+    }
+  }
 
   // Só a service role pode criar usuário/disparar convite — bypassa a RLS
   // por completo, então essa chave nunca pode sair desta função.
