@@ -449,3 +449,38 @@ create policy "dominio_sync_read_staff"
   on public.dominio_sync for select
   to authenticated
   using (is_portal_admin() or is_colaborador());
+
+-- Balancete direto da Domínio — mesma área de espera, mesma Central, mesma
+-- Edge Function (POST com "tipo": "balancete"). Um balancete por empresa
+-- (o lote completo mais recente; a Edge Function apaga os anteriores):
+-- período `inicio`..`fim` e, em `contas`, as contas com saldo ou movimento
+-- (sintéticas e analíticas), cada uma com saldo anterior, débitos, créditos
+-- e saldo atual — o mesmo que o balancete exportado da Domínio. O portal
+-- compara com o balancete atual da empresa, aplica por clique (trocando o
+-- De/Para de conta renumerada pelo código reduzido) e confere saldo inicial
+-- + lançamentos = saldo final.
+create table if not exists public.dominio_balancete (
+  company_codigo text not null,
+  cnpj text not null,
+  lote text not null,
+  parte integer not null check (parte >= 1),
+  partes integer not null check (partes >= 1 and partes <= 100),
+  inicio date not null,
+  fim date not null,
+  contas jsonb not null,
+  qtd integer not null,
+  synced_at timestamptz not null default now(),
+  primary key (company_codigo, lote, parte),
+  check (parte <= partes),
+  check (inicio <= fim)
+);
+
+alter table public.dominio_balancete enable row level security;
+
+-- Mesmo acesso de dominio_sync: leitura só admin e colaboradores; escrita só
+-- pela Edge Function (service role).
+drop policy if exists "dominio_balancete_read_staff" on public.dominio_balancete;
+create policy "dominio_balancete_read_staff"
+  on public.dominio_balancete for select
+  to authenticated
+  using (is_portal_admin() or is_colaborador());

@@ -45,7 +45,29 @@
 //    esta função recusa (409) um envio cujo código+CNPJ não bate com nenhuma
 //    empresa do portal. Envio sem CNPJ ainda é aceito (compatibilidade), mas
 //    fica invisível no portal.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+//
+// ── POST com "tipo": "balancete" → grava UMA parte do balancete da empresa
+//    (tabela public.dominio_balancete; o portal aplica por clique, igual aos
+//    meses):
+//    {
+//      "tipo": "balancete",
+//      "empresa": "305", "cnpj": "51636275000157",   // CNPJ obrigatório aqui
+//      "inicio": "2026-01-01", "fim": "2026-09-30",  // período do balancete
+//      "lote": "c2a1…", "parte": 1, "partes": 1,     // até 5000 contas por parte
+//      "contas": [{
+//        "codigo": "12",                  // código reduzido (codi_cta)
+//        "classificacao": "1.1.10.200.2", // MESMA regra dos lançamentos
+//        "nome": "SICOOB - COOL GIRLS",
+//        "tipo": "A",                     // "S" sintética, "A" analítica
+//        "saldo_anterior": 136974.37,     // saldo no dia anterior ao início
+//        "debito": 3004629.04, "credito": 3014645.51,  // movimento do período
+//        "saldo_atual": 126957.90         // saldo no fim
+//      }]
+//    }
+//    Saldos com sinal: devedor positivo, credor negativo. Cada conta precisa
+//    fechar: saldo_anterior + debito - credito = saldo_atual (centavo a
+//    centavo), senão o envio é recusado (400) com o nome da conta.
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -111,12 +133,15 @@ function assinatura(linhas: Lancamento[]) {
   return `${a.toString(16)}.${b.toString(16)}`;
 }
 
-async function portalCompanies(admin: ReturnType<typeof createClient>) {
+type Admin = SupabaseClient;
+
+async function portalCompanies(admin: Admin) {
   const { data, error } = await admin.from("app_storage").select("key, value->>codigo, value->>name, value->>cnpj").like("key", "portalGerencial.company.%");
   if (error) throw error;
   return (data || [])
     .filter((row: Record<string, string>) => row.key.startsWith("portalGerencial.company.") && normalizeCodigo(row.codigo))
-    .map((row: Record<string, string>) => ({ codigo: normalizeCodigo(row.codigo), codigo_portal: row.codigo, cnpj: digits(row.cnpj), nome: row.name }));
+    // CNPJ zerado (empresas de demonstração) sai vazio: não casa com nada.
+    .map((row: Record<string, string>) => ({ codigo: normalizeCodigo(row.codigo), codigo_portal: row.codigo, cnpj: digits(row.cnpj).replace(/^0+$/, ""), nome: row.name }));
 }
 
 type Lancamento = {
@@ -150,6 +175,125 @@ function validarLancamento(raw: Record<string, unknown>, competencia: string, in
   };
 }
 
+// Código + CNPJ precisam bater com uma empresa do portal (ver o cabeçalho).
+// Devolve a resposta de recusa, ou null se está tudo certo.
+async function conferirEmpresa(admin: Admin, empresa: string, cnpj: string): Promise<Response | null> {
+  if (cnpj.length !== 14 && cnpj.length !== 11) return json({ error: "cnpj: 14 dígitos (ou 11, se for CPF)." }, 400);
+  if (/^0+$/.test(cnpj)) return json({ error: "cnpj zerado não identifica empresa nenhuma." }, 400);
+  let empresas;
+  try {
+    empresas = await portalCompanies(admin);
+  } catch (error) {
+    return json({ error: (error as Error).message }, 500);
+  }
+  if (!empresas.some((item) => item.codigo === empresa && item.cnpj === cnpj)) {
+    return json({ error: `Nenhuma empresa do portal com código ${empresa} e CNPJ ${cnpj} — confira o cadastro no AthosBI. Nada foi gravado.` }, 409);
+  }
+  return null;
+}
+
+const MAX_CONTAS_POR_PARTE = 5000;
+
+type Conta = {
+  codigo: string;
+  classificacao: string;
+  nome: string;
+  tipo: "S" | "A";
+  saldo_anterior: number;
+  debito: number;
+  credito: number;
+  saldo_atual: number;
+};
+
+function isDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function validarConta(raw: Record<string, unknown>, index: number): Conta | string {
+  const where = `contas[${index}]`;
+  const codigo = String(raw?.codigo ?? "").trim();
+  if (!/^\d{1,12}$/.test(codigo)) return `${where}.codigo "${codigo}": use o código reduzido da conta (só números)`;
+  const classificacao = String(raw?.classificacao ?? "").trim();
+  if (!/^\d+(\.\d+)*$/.test(classificacao) || classificacao.length > 64) return `${where}.classificacao "${classificacao}": só dígitos e pontos`;
+  const nome = String(raw?.nome ?? "").trim().slice(0, 200);
+  if (!nome) return `${where}.nome vazio`;
+  const tipo = String(raw?.tipo ?? "").trim().toUpperCase();
+  if (tipo !== "S" && tipo !== "A") return `${where}.tipo: "S" (sintética) ou "A" (analítica)`;
+  const valores = ["saldo_anterior", "debito", "credito", "saldo_atual"].map((campo) => Number(raw?.[campo] ?? 0));
+  if (valores.some((valor) => !Number.isFinite(valor))) return `${where}: saldos e movimento precisam ser números`;
+  const [saldoAnterior, debito, credito, saldoAtual] = valores.map(cents);
+  if (debito < 0 || credito < 0) return `${where}: débito/crédito do período precisam ser >= 0`;
+  // Em centavos inteiros — sem erro de arredondamento de ponto flutuante.
+  if (Math.round(saldoAnterior * 100) + Math.round(debito * 100) - Math.round(credito * 100) !== Math.round(saldoAtual * 100)) {
+    return `${where} (${classificacao} ${nome}): saldo anterior + débito - crédito não dá o saldo atual`;
+  }
+  return { codigo: String(Number(codigo)), classificacao, nome, tipo: tipo as "S" | "A", saldo_anterior: saldoAnterior, debito, credito, saldo_atual: saldoAtual };
+}
+
+// POST "tipo": "balancete" (ver o cabeçalho). Mesmo esquema de lote/partes
+// dos meses: quando o lote completa, os balancetes anteriores da empresa
+// são apagados — o portal só enxerga o lote completo mais recente.
+async function receberBalancete(admin: Admin, body: Record<string, unknown>) {
+  const empresa = normalizeCodigo(body.empresa);
+  const cnpj = digits(body.cnpj);
+  const inicio = String(body.inicio ?? "");
+  const fim = String(body.fim ?? "");
+  const lote = String(body.lote ?? "");
+  const parte = Number(body.parte);
+  const partes = Number(body.partes);
+  const lista = body.contas;
+  if (!/^\d{1,10}$/.test(empresa)) return json({ error: "empresa: informe o código numérico da empresa na Domínio." }, 400);
+  if (!cnpj) return json({ error: "cnpj: obrigatório no balancete." }, 400);
+  if (!isDate(inicio) || !isDate(fim) || inicio > fim) return json({ error: "inicio/fim: datas AAAA-MM-DD, com inicio <= fim." }, 400);
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(lote)) return json({ error: "lote: 1 a 64 caracteres (letras, números, - ou _)." }, 400);
+  if (!Number.isInteger(partes) || partes < 1 || partes > 100) return json({ error: "partes: inteiro entre 1 e 100." }, 400);
+  if (!Number.isInteger(parte) || parte < 1 || parte > partes) return json({ error: "parte: inteiro entre 1 e partes." }, 400);
+  if (!Array.isArray(lista) || !lista.length) return json({ error: "contas: lista com pelo menos uma conta." }, 400);
+  if (lista.length > MAX_CONTAS_POR_PARTE) return json({ error: `contas: no máximo ${MAX_CONTAS_POR_PARTE} por parte — divida em mais partes.` }, 400);
+  const recusa = await conferirEmpresa(admin, empresa, cnpj);
+  if (recusa) return recusa;
+
+  const contas: Conta[] = [];
+  const vistas = new Set<string>();
+  for (let i = 0; i < lista.length; i += 1) {
+    const result = validarConta(lista[i] as Record<string, unknown>, i);
+    if (typeof result === "string") return json({ error: result }, 400);
+    if (vistas.has(result.classificacao)) return json({ error: `contas[${i}]: classificação ${result.classificacao} repetida.` }, 400);
+    vistas.add(result.classificacao);
+    contas.push(result);
+  }
+
+  const { error: upsertError } = await admin.from("dominio_balancete").upsert({
+    company_codigo: empresa,
+    cnpj,
+    lote,
+    parte,
+    partes,
+    inicio,
+    fim,
+    contas,
+    qtd: contas.length,
+    synced_at: new Date().toISOString(),
+  });
+  if (upsertError) return json({ error: upsertError.message }, 500);
+
+  const { count, error: countError } = await admin
+    .from("dominio_balancete")
+    .select("parte", { count: "exact", head: true })
+    .eq("company_codigo", empresa)
+    .eq("lote", lote);
+  if (countError) return json({ error: countError.message }, 500);
+  const completo = (count ?? 0) >= partes;
+  if (completo) {
+    const { error: cleanupError } = await admin.from("dominio_balancete").delete().eq("company_codigo", empresa).neq("lote", lote);
+    if (cleanupError) return json({ error: cleanupError.message }, 500);
+  }
+
+  return json({ ok: true, tipo: "balancete", empresa, inicio, fim, lote, parte, partes, recebidas: count ?? 0, completo, qtd: contas.length });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
   if (!SYNC_TOKEN) return json({ error: "DOMINIO_SYNC_TOKEN não configurado no Supabase." }, 500);
@@ -174,6 +318,8 @@ Deno.serve(async (req) => {
     return json({ error: "Corpo não é um JSON válido." }, 400);
   }
 
+  if (body.tipo === "balancete") return receberBalancete(admin, body);
+
   const empresa = normalizeCodigo(body.empresa);
   const cnpj = body.cnpj === undefined || body.cnpj === null || body.cnpj === "" ? null : digits(body.cnpj);
   const competencia = String(body.competencia ?? "");
@@ -190,16 +336,8 @@ Deno.serve(async (req) => {
   if (lista.length > MAX_LINHAS_POR_PARTE) return json({ error: `lancamentos: no máximo ${MAX_LINHAS_POR_PARTE} por parte — divida o mês em mais partes.` }, 400);
   if (lista.length === 0 && partes !== 1) return json({ error: "Mês vazio: mande partes = 1 e lancamentos = []." }, 400);
   if (cnpj !== null) {
-    if (cnpj.length !== 14 && cnpj.length !== 11) return json({ error: "cnpj: 14 dígitos (ou 11, se for CPF)." }, 400);
-    let empresas;
-    try {
-      empresas = await portalCompanies(admin);
-    } catch (error) {
-      return json({ error: (error as Error).message }, 500);
-    }
-    if (!empresas.some((item) => item.codigo === empresa && item.cnpj === cnpj)) {
-      return json({ error: `Nenhuma empresa do portal com código ${empresa} e CNPJ ${cnpj} — confira o cadastro no AthosBI. Nada foi gravado.` }, 409);
-    }
+    const recusa = await conferirEmpresa(admin, empresa, cnpj);
+    if (recusa) return recusa;
   }
 
   const lancamentos: Lancamento[] = [];

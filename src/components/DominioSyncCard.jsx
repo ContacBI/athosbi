@@ -2,14 +2,8 @@ import { useState } from "react";
 import { Check, RefreshCw, TriangleAlert } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { attachJournalMonths } from "../lib/journalMonths.js";
-import { fetchDominioEntries, isDominioPending, unmappedAccounts } from "../lib/dominioSync.js";
-
-const MONTH_SHORT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-
-function monthLabel(competencia) {
-  const [year, month] = competencia.split("-");
-  return `${MONTH_SHORT[Number(month) - 1]}/${year.slice(2)}`;
-}
+import { applyBalancete } from "../lib/companies.js";
+import { fetchDominioEntries, isDominioPending, migrateMappings, monthLabel, unmappedAccounts, unmappedBalanceteAccounts } from "../lib/dominioSync.js";
 
 const STATUS_STYLE = {
   igual: "border-line bg-surface-muted text-ink-500",
@@ -25,43 +19,127 @@ const STATUS_TITLE = {
   vazio: "Vazio na Domínio, mas o portal tem lançamentos — não é aplicado automaticamente; exclua o mês manualmente se for o caso",
 };
 
-// Cartão "Domínio" da tela Dados (RelatoriosMensais.jsx): mostra os meses
-// que a Central mandou direto do banco da Domínio (ver lib/dominioSync.js e
-// supabase/functions/dominio-sync) comparados com o razão atual, e aplica
-// no razão os pendentes — sempre por clique, nunca sozinho. Os dados vêm
-// de useDominioSync (a página compartilha com os quadrados dos meses). As
-// mensagens de andamento/erro usam a mesma faixa da página (props).
+const BALANCETE_TITLE = {
+  igual: "Igual ao balancete que já está no portal",
+  novo: "Pendente: a empresa ainda não tem balancete no portal — clique pra trazer só o balancete",
+  pendente: "Pendente: o balancete da Domínio mudou (saldo, movimento, conta nova ou renomeada) — clique pra atualizar só o balancete",
+};
+
+const brl = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const dataBr = (iso) => {
+  const [year, month, day] = String(iso).slice(0, 10).split("-");
+  return `${day}/${month}/${year}`;
+};
+const periodo = (balancete) => `${dataBr(balancete.inicio)} a ${dataBr(balancete.fim)}`;
+const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
+
+// "Saldo inicial + lançamentos = saldo final" — ver checkBalancete.
+function Conferencia({ check }) {
+  const problemas = [];
+  if (check.mesesSemEnvio.length) {
+    problemas.push(`${check.mesesSemEnvio.map(monthLabel).join(", ")} não ${check.mesesSemEnvio.length === 1 ? "veio" : "vieram"} da Domínio`);
+  }
+  if (Math.abs(check.naoFecha) >= 0.01) problemas.push(`o balancete da Domínio não fecha (diferença de ${brl(check.naoFecha)})`);
+  if (check.diferencas.length) {
+    const exemplo = check.diferencas[0];
+    problemas.push(
+      `${plural(check.diferencas.length, "conta", "contas")} com movimento diferente dos lançamentos do portal — ex.: ${exemplo.classificacao} ${exemplo.nome}: balancete ${brl(exemplo.balancete)} × lançamentos ${brl(exemplo.lancamentos)}`
+    );
+  }
+  if (!problemas.length) {
+    return (
+      <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-success-600">
+        <Check size={12} strokeWidth={2.2} />
+        Conferência: saldo inicial + lançamentos = saldo final {check.contas === 1 ? "na conta" : `nas ${check.contas} contas`}.
+      </p>
+    );
+  }
+  return (
+    <p className="mt-1.5 flex items-start gap-1.5 text-[12px] text-warning-600">
+      <TriangleAlert size={13} strokeWidth={2} className="mt-px shrink-0" />
+      <span>Conferência: {problemas.join("; ")}.</span>
+    </p>
+  );
+}
+
+// Cartão "Domínio" da tela Dados (RelatoriosMensais.jsx): mostra os meses e
+// o balancete que a Central mandou direto do banco da Domínio (ver
+// lib/dominioSync.js e supabase/functions/dominio-sync) comparados com o
+// que está no portal, e aplica os pendentes — sempre por clique, nunca
+// sozinho. Os dados vêm de useDominioSync (a página compartilha com os
+// quadrados dos meses). As mensagens de andamento/erro usam a mesma faixa
+// da página (props).
 export default function DominioSyncCard({ dominio, onBusy, onDone, onError, onProgress }) {
   const state = useAppState();
-  const { codigo, cnpj, months, loadError, reload } = dominio;
+  const { codigo, cnpj, months, balancete, loadError, balanceteError, reload } = dominio;
   const [applying, setApplying] = useState(false);
 
   const withStatus = months || [];
   const pending = withStatus.filter((month) => isDominioPending(month.status));
-  const lastSync = withStatus.reduce((latest, month) => (month.syncedAt > latest ? month.syncedAt : latest), "");
+  const balancetePendente = Boolean(balancete && balancete.status !== "igual");
+  const pendingCount = pending.length + (balancetePendente ? 1 : 0);
+  const lastSync = [...withStatus.map((month) => month.syncedAt), balancete?.syncedAt || ""].reduce((latest, at) => (at > latest ? at : latest), "");
 
-  async function apply(targets) {
-    if (!targets.length || applying) return;
+  async function apply(targets, withBalancete) {
+    const bal = withBalancete && balancete ? balancete : null;
+    if ((!targets.length && !bal) || applying) return;
     setApplying(true);
+    let balanceteSalvo = false;
     try {
-      onBusy("Buscando os lançamentos da Domínio…");
-      const entries = await fetchDominioEntries(codigo, cnpj, targets, state.mappings);
+      onBusy("Buscando os dados da Domínio…");
+      // Balancete primeiro: o De/Para pode acompanhar conta renumerada na
+      // Domínio, e os meses têm que chegar já carimbados com o De/Para novo.
+      const migracao = bal ? migrateMappings(state.mappings, bal.accounts) : { mappings: state.mappings, renumeradas: [], removidas: [] };
+      const entries = targets.length ? await fetchDominioEntries(codigo, cnpj, targets, migracao.mappings) : [];
       const labels = targets.map((month) => monthLabel(month.competencia)).join(", ");
-      const semDePara = unmappedAccounts(entries, state.mappings);
-      const aviso = semDePara.length
-        ? `\n\nAtenção: ${semDePara.length} conta${semDePara.length === 1 ? "" : "s"} ainda sem De/Para (ex.: ${semDePara.slice(0, 3).join(", ")}). Os lançamentos entram, mas essas contas ficam fora dos relatórios até serem vinculadas.`
-        : "";
-      if (!window.confirm(`Substituir ${targets.length === 1 ? "o mês" : `${targets.length} meses`} ${labels} pelos ${entries.length} lançamentos da Domínio? Os outros meses não são afetados.${aviso}`)) {
+      const itens = [];
+      if (bal) itens.push(`o balancete (${periodo(bal)}, ${plural(bal.accounts.length, "conta", "contas")})`);
+      if (targets.length) itens.push(`${targets.length === 1 ? "o mês" : "os meses"} ${labels} (${plural(entries.length, "lançamento", "lançamentos")})`);
+
+      const avisos = [];
+      if (migracao.renumeradas.length) {
+        const ex = migracao.renumeradas[0];
+        avisos.push(`${plural(migracao.renumeradas.length, "conta mudou", "contas mudaram")} de número na Domínio — o De/Para acompanha, pelo código da conta (ex.: ${ex.nome}: ${ex.de} → ${ex.para}).`);
+      }
+      if (migracao.removidas.length) {
+        const ex = migracao.removidas[0];
+        avisos.push(`${plural(migracao.removidas.length, "vínculo antigo sai", "vínculos antigos saem")} do De/Para: o número agora é de outra conta, que já tem o vínculo dela (ex.: ${ex.classificacao}, antes ${ex.nome_conta}).`);
+      }
+      if (migracao.mappings !== state.mappings) {
+        avisos.push(`Desta vez não dá pra "voltar ao balancete anterior", porque o De/Para também muda.`);
+        const outrosMeses = pending.filter((month) => !targets.includes(month));
+        if (outrosMeses.length) avisos.push(`Atualize também ${outrosMeses.length === 1 ? "o mês pendente" : "os meses pendentes"} (${outrosMeses.map((month) => monthLabel(month.competencia)).join(", ")}) — vêm na numeração nova.`);
+      }
+      const semDePara = [...new Set([...unmappedAccounts(entries, migracao.mappings), ...(bal ? unmappedBalanceteAccounts(bal.accounts, migracao.mappings).map((account) => account.classificacao) : [])])];
+      if (semDePara.length) {
+        avisos.push(`${plural(semDePara.length, "conta ainda sem", "contas ainda sem")} De/Para (ex.: ${semDePara.slice(0, 3).join(", ")}). Os valores entram, mas essas contas ficam fora dos relatórios até serem vinculadas.`);
+      }
+      const pergunta = `Substituir ${itens.join(" e ")} pelo que veio da Domínio?${targets.length ? " Os outros meses não são afetados." : ""}`;
+      if (!window.confirm(`${pergunta}${avisos.length ? `\n\n${avisos.map((aviso) => `• ${aviso}`).join("\n")}` : ""}`)) {
         onDone("");
         return;
       }
+      if (bal) {
+        onBusy("Salvando o balancete da Domínio…");
+        await applyBalancete(bal.accounts, migracao.mappings, {
+          name: `Domínio · ${periodo(bal)}`,
+          uploadedAt: new Date().toISOString(),
+          accountsCount: bal.accounts.length,
+          origem: "dominio",
+          inicio: bal.inicio,
+          fim: bal.fim,
+          syncedAt: bal.syncedAt,
+        });
+        balanceteSalvo = true;
+      }
       // Mesmo caminho da importação de diário: troca só esses meses e só
       // resolve depois que o Supabase confirmou (desfaz tudo se falhar).
-      await attachJournalMonths(entries, { onProgress: onProgress("Salvando os lançamentos da Domínio...") });
-      onDone(`Atualizado com a Domínio: ${labels}.`);
+      if (entries.length) await attachJournalMonths(entries, { onProgress: onProgress("Salvando os lançamentos da Domínio...") });
+      onDone(`Atualizado com a Domínio: ${[bal ? "balancete" : "", labels].filter(Boolean).join(", ")}.`);
     } catch (error) {
-      console.error("Falha ao aplicar os lançamentos da Domínio:", error);
-      onError(error?.message?.includes("recarregue") ? error.message : "Não consegui trazer os lançamentos da Domínio — nada foi alterado. Tenta de novo.");
+      console.error("Falha ao aplicar os dados da Domínio:", error);
+      if (balanceteSalvo) onError("O balancete foi atualizado, mas os meses não — tente de novo os meses pendentes.");
+      else onError(error?.message?.includes("recarregue") ? error.message : "Não consegui trazer os dados da Domínio — nada foi alterado. Tenta de novo.");
     } finally {
       setApplying(false);
     }
@@ -79,14 +157,15 @@ export default function DominioSyncCard({ dominio, onBusy, onDone, onError, onPr
         Não consegui consultar a Domínio agora.
       </p>
     );
-  } else if (!withStatus.length) {
+  } else if (!withStatus.length && !balancete) {
     body = <p className="text-[12.5px] text-ink-400">Nada recebido da Domínio ainda para o código {codigo} com o CNPJ desta empresa. Quando a Central sincronizar, os meses aparecem aqui.</p>;
   } else {
+    const pendentes = [pending.length ? plural(pending.length, "mês", "meses") : "", balancetePendente ? "o balancete" : ""].filter(Boolean);
     body = (
       <>
         <p className="text-[12px] text-ink-400">
           Código {codigo} · CNPJ conferido · última sincronização {new Date(lastSync).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
-          {pending.length ? ` · ${pending.length} ${pending.length === 1 ? "mês pendente" : "meses pendentes"}` : " · tudo igual ao portal"}
+          {pendingCount ? ` · ${pendentes.join(" e ")} ${pendingCount === 1 ? "pendente" : "pendentes"}` : " · tudo igual ao portal"}
         </p>
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           {withStatus.map((month) => {
@@ -96,7 +175,7 @@ export default function DominioSyncCard({ dominio, onBusy, onDone, onError, onPr
                 key={month.competencia}
                 type="button"
                 disabled={!clickable || applying}
-                onClick={() => apply([month])}
+                onClick={() => apply([month], false)}
                 title={`${STATUS_TITLE[month.status]} · ${month.qtd} lançamentos na Domínio`}
                 className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11.5px] font-medium transition-colors disabled:cursor-default ${STATUS_STYLE[month.status]}`}
               >
@@ -109,6 +188,29 @@ export default function DominioSyncCard({ dominio, onBusy, onDone, onError, onPr
             );
           })}
         </div>
+        {balancete && (
+          <div className="mt-2.5 border-t border-line pt-2.5">
+            <button
+              type="button"
+              disabled={!balancetePendente || applying}
+              onClick={() => apply([], true)}
+              title={`${BALANCETE_TITLE[balancete.status]} · ${balancete.accounts.length} contas na Domínio`}
+              className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11.5px] font-medium transition-colors disabled:cursor-default ${STATUS_STYLE[balancete.status]}`}
+            >
+              {balancete.status === "igual" && <Check size={11} strokeWidth={2.2} />}
+              Balancete {periodo(balancete)}
+              {balancete.status === "novo" && <span className="font-normal">· pendente (novo)</span>}
+              {balancete.status === "pendente" && <span className="font-normal">· pendente</span>}
+            </button>
+            <Conferencia check={balancete.check} />
+          </div>
+        )}
+        {balanceteError && (
+          <p className="mt-2 flex items-center gap-1.5 text-[12px] text-warning-600">
+            <TriangleAlert size={13} strokeWidth={2} />
+            Não consegui consultar o balancete da Domínio agora.
+          </p>
+        )}
       </>
     );
   }
@@ -133,11 +235,11 @@ export default function DominioSyncCard({ dominio, onBusy, onDone, onError, onPr
         )}
         <button
           type="button"
-          onClick={() => apply(pending)}
-          disabled={!pending.length || applying}
+          onClick={() => apply(pending, balancetePendente)}
+          disabled={!pendingCount || applying}
           className="flex items-center gap-1.5 rounded-md bg-accent-500 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
         >
-          Atualizar com a Domínio{pending.length ? ` (${pending.length})` : ""}
+          Atualizar com a Domínio{pendingCount ? ` (${pendingCount})` : ""}
         </button>
       </div>
     </div>
