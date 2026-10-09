@@ -401,3 +401,39 @@ create policy "monthly_reports_delete_admin_only"
 -- entra por convite: Parâmetros > Acessos, no app, dispara um e-mail (via
 -- supabase/functions/invite-user) com um link pra ela criar a senha —
 -- ninguém mais se auto-cadastra pela tela de login.
+
+-- ============================================================================
+-- Integração com a Domínio sem arquivo (out/2026) — a Central (app no
+-- computador do escritório, com acesso ao banco da Domínio) lê os
+-- lançamentos e manda pra Edge Function dominio-sync
+-- (supabase/functions/dominio-sync), que grava aqui. É uma ÁREA DE ESPERA:
+-- nada entra no razão sozinho — a tela Dados do portal mostra o que chegou
+-- e aplica por clique ("Atualizar com a Domínio", ver src/lib/dominioSync.js).
+-- Um mês grande chega em várias partes (até 5000 linhas cada) de um mesmo
+-- `lote`; o portal só considera lote completo, e a Edge Function apaga os
+-- lotes anteriores do mês assim que um novo completa.
+-- ============================================================================
+create table if not exists public.dominio_sync (
+  company_codigo text not null,
+  competencia text not null check (competencia ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),
+  lote text not null,
+  parte integer not null check (parte >= 1),
+  partes integer not null check (partes >= 1 and partes <= 1000),
+  lancamentos jsonb not null,
+  qtd integer not null,
+  total_debito numeric(18, 2) not null default 0,
+  total_credito numeric(18, 2) not null default 0,
+  synced_at timestamptz not null default now(),
+  primary key (company_codigo, competencia, lote, parte),
+  check (parte <= partes)
+);
+
+alter table public.dominio_sync enable row level security;
+
+-- Leitura: só admin e colaboradores (quem aplica no razão). Sem política de
+-- escrita de propósito: só a Edge Function (service role) grava.
+drop policy if exists "dominio_sync_read_staff" on public.dominio_sync;
+create policy "dominio_sync_read_staff"
+  on public.dominio_sync for select
+  to authenticated
+  using (is_portal_admin() or is_colaborador());

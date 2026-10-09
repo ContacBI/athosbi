@@ -4,6 +4,7 @@ import { useAppState } from "../data/useStore.js";
 import { attachMonthlyReport, fetchMonthlyReportBlob, removeMonthlyReport, replaceAccounts, restorePreviousBalancete } from "../lib/companies.js";
 import { importBalancete, importDiario } from "../importers/dominio.js";
 import { attachJournalMonths, journalCountForMonth, journalMonthsPresent, removeJournalMonth, removeJournalMonths } from "../lib/journalMonths.js";
+import DominioSyncCard from "../components/DominioSyncCard.jsx";
 
 const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -318,6 +319,16 @@ export default function RelatoriosMensais() {
           </button>
         </div>
       )}
+
+      {/* Lançamentos direto do banco da Domínio, sem arquivo (ver
+          lib/dominioSync.js) — mesma faixa de andamento/erro da página. */}
+      <DominioSyncCard
+        company={company}
+        onBusy={(message) => { setBusyIsError(false); setProgress(null); setBusy(message); }}
+        onDone={(message) => (message ? flashBusy(message) : setBusy(""))}
+        onError={flashError}
+        onProgress={reportSaveProgress}
+      />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-card p-4 shadow-sm">
