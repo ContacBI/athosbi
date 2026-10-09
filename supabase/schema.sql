@@ -428,6 +428,18 @@ create table if not exists public.dominio_sync (
   check (parte <= partes)
 );
 
+-- CNPJ (só dígitos) da empresa NA DOMÍNIO, mandado pela Central. O código
+-- sozinho é ambíguo ("001" e "01" no portal viram o mesmo "1"): o portal só
+-- mostra um mês pra empresa com o mesmo CNPJ, e a Edge Function recusa um
+-- envio cujo código+CNPJ não bate com nenhuma empresa do portal.
+alter table public.dominio_sync add column if not exists cnpj text;
+
+-- Assinatura do conteúdo de cada parte (soma de hashes de cada linha,
+-- calculada pela Edge Function). O portal soma as partes e compara com a
+-- mesma assinatura do razão: qualquer mudança — lançamento novo, valor,
+-- reclassificação de conta, histórico editado — deixa o mês "pendente".
+alter table public.dominio_sync add column if not exists assinatura text;
+
 alter table public.dominio_sync enable row level security;
 
 -- Leitura: só admin e colaboradores (quem aplica no razão). Sem política de

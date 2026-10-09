@@ -13,13 +13,15 @@
 // Central não tem login de usuário — por isso esta função é publicada com
 // verify_jwt = false e confere o token ela mesma.
 //
-// ── GET  → { empresas: [{ codigo, nome }] }
+// ── GET  → { empresas: [{ codigo, codigo_portal, cnpj, nome }] }
 //    Empresas cadastradas no AthosBI (código = código da empresa na
-//    Domínio), pra Central saber quais sincronizar.
+//    Domínio, cnpj só dígitos), pra Central saber quais sincronizar e
+//    conferir o CNPJ antes de mandar.
 //
 // ── POST → grava UMA parte de UM mês de UMA empresa:
 //    {
 //      "empresa": "305",              // código da empresa na Domínio
+//      "cnpj": "51636275000157",      // CNPJ da empresa NA DOMÍNIO (só dígitos)
 //      "competencia": "2026-07",      // mês, AAAA-MM
 //      "lote": "b1f0…",               // id único desta sincronização do mês
 //      "parte": 1, "partes": 3,       // mês dividido em partes de até 5000
@@ -37,6 +39,12 @@
 //    Um mês sem lançamentos na Domínio: partes = 1 e lancamentos = [].
 //    Quando todas as partes de um lote chegam, os lotes anteriores daquele
 //    mês são apagados — o portal só enxerga lote completo.
+//
+//    CNPJ: o código sozinho é ambíguo ("001" e "01" no portal viram o mesmo
+//    "1"), então o portal só mostra um mês pra empresa com o MESMO CNPJ, e
+//    esta função recusa (409) um envio cujo código+CNPJ não bate com nenhuma
+//    empresa do portal. Envio sem CNPJ ainda é aceito (compatibilidade), mas
+//    fica invisível no portal.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -71,6 +79,45 @@ function normalizeCodigo(value: unknown) {
 }
 
 const cents = (value: number) => Math.round(value * 100) / 100;
+const digits = (value: unknown) => String(value ?? "").replace(/\D/g, "");
+
+// Assinatura do conteúdo — IGUAL à de src/lib/dominioSync.js (o portal
+// calcula a mesma coisa pro razão dele e compara): duas somas (mod 2^32) de
+// hashes de cada linha, uma FNV-1a e uma djb2. Soma não depende da ordem,
+// então a assinatura do mês é a soma das assinaturas das partes. Qualquer
+// mudança em data, conta, valor ou histórico muda a assinatura — é o que
+// faz uma reclassificação (mesmo valor, outra conta) aparecer pendente.
+function fnv1a(text: string) {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+function djb2(text: string) {
+  let hash = 5381;
+  for (let i = 0; i < text.length; i += 1) hash = (Math.imul(hash, 33) + text.charCodeAt(i)) | 0;
+  return hash >>> 0;
+}
+function assinatura(linhas: Lancamento[]) {
+  let a = 0;
+  let b = 0;
+  for (const linha of linhas) {
+    const texto = `${linha.data}|${linha.classificacao}|${Math.round(linha.debito * 100)}|${Math.round(linha.credito * 100)}|${linha.historico}`;
+    a = (a + fnv1a(texto)) >>> 0;
+    b = (b + djb2(texto)) >>> 0;
+  }
+  return `${a.toString(16)}.${b.toString(16)}`;
+}
+
+async function portalCompanies(admin: ReturnType<typeof createClient>) {
+  const { data, error } = await admin.from("app_storage").select("key, value->>codigo, value->>name, value->>cnpj").like("key", "portalGerencial.company.%");
+  if (error) throw error;
+  return (data || [])
+    .filter((row: Record<string, string>) => row.key.startsWith("portalGerencial.company.") && normalizeCodigo(row.codigo))
+    .map((row: Record<string, string>) => ({ codigo: normalizeCodigo(row.codigo), codigo_portal: row.codigo, cnpj: digits(row.cnpj), nome: row.name }));
+}
 
 type Lancamento = {
   data: string;
@@ -111,12 +158,11 @@ Deno.serve(async (req) => {
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
   if (req.method === "GET") {
-    const { data, error } = await admin.from("app_storage").select("key, value->>codigo, value->>name").like("key", "portalGerencial.company.%");
-    if (error) return json({ error: error.message }, 500);
-    const empresas = (data || [])
-      .filter((row: Record<string, string>) => row.key.startsWith("portalGerencial.company.") && normalizeCodigo(row.codigo))
-      .map((row: Record<string, string>) => ({ codigo: normalizeCodigo(row.codigo), codigo_portal: row.codigo, nome: row.name }));
-    return json({ empresas });
+    try {
+      return json({ empresas: await portalCompanies(admin) });
+    } catch (error) {
+      return json({ error: (error as Error).message }, 500);
+    }
   }
 
   if (req.method !== "POST") return json({ error: "Método não permitido." }, 405);
@@ -129,6 +175,7 @@ Deno.serve(async (req) => {
   }
 
   const empresa = normalizeCodigo(body.empresa);
+  const cnpj = body.cnpj === undefined || body.cnpj === null || body.cnpj === "" ? null : digits(body.cnpj);
   const competencia = String(body.competencia ?? "");
   const lote = String(body.lote ?? "");
   const parte = Number(body.parte);
@@ -142,6 +189,18 @@ Deno.serve(async (req) => {
   if (!Array.isArray(lista)) return json({ error: "lancamentos: precisa ser uma lista." }, 400);
   if (lista.length > MAX_LINHAS_POR_PARTE) return json({ error: `lancamentos: no máximo ${MAX_LINHAS_POR_PARTE} por parte — divida o mês em mais partes.` }, 400);
   if (lista.length === 0 && partes !== 1) return json({ error: "Mês vazio: mande partes = 1 e lancamentos = []." }, 400);
+  if (cnpj !== null) {
+    if (cnpj.length !== 14 && cnpj.length !== 11) return json({ error: "cnpj: 14 dígitos (ou 11, se for CPF)." }, 400);
+    let empresas;
+    try {
+      empresas = await portalCompanies(admin);
+    } catch (error) {
+      return json({ error: (error as Error).message }, 500);
+    }
+    if (!empresas.some((item) => item.codigo === empresa && item.cnpj === cnpj)) {
+      return json({ error: `Nenhuma empresa do portal com código ${empresa} e CNPJ ${cnpj} — confira o cadastro no AthosBI. Nada foi gravado.` }, 409);
+    }
+  }
 
   const lancamentos: Lancamento[] = [];
   for (let i = 0; i < lista.length; i += 1) {
@@ -154,11 +213,13 @@ Deno.serve(async (req) => {
 
   const { error: upsertError } = await admin.from("dominio_sync").upsert({
     company_codigo: empresa,
+    cnpj,
     competencia,
     lote,
     parte,
     partes,
     lancamentos,
+    assinatura: assinatura(lancamentos),
     qtd: lancamentos.length,
     total_debito: totalDebito,
     total_credito: totalCredito,

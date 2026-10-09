@@ -5,6 +5,8 @@ import { attachMonthlyReport, fetchMonthlyReportBlob, removeMonthlyReport, repla
 import { importBalancete, importDiario } from "../importers/dominio.js";
 import { attachJournalMonths, journalCountForMonth, journalMonthsPresent, removeJournalMonth, removeJournalMonths } from "../lib/journalMonths.js";
 import DominioSyncCard from "../components/DominioSyncCard.jsx";
+import { isDominioPending } from "../lib/dominioSync.js";
+import { useDominioSync } from "../lib/useDominioSync.js";
 
 const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -55,6 +57,9 @@ export default function RelatoriosMensais() {
   const balanceteInputRef = useRef(null);
   const pendingMonthRef = useRef(null);
 
+  // O que chegou da Domínio, comparado com o razão — o mesmo resultado
+  // alimenta o cartão "Domínio" e o selo "pendente" nos quadrados dos meses.
+  const dominio = useDominioSync(company);
   const monthlyReports = company?.monthlyReports || {};
   const lastBalancete = company?.lastBalanceteMeta;
   const attachedMonths = journalMonthsPresent();
@@ -323,7 +328,7 @@ export default function RelatoriosMensais() {
       {/* Lançamentos direto do banco da Domínio, sem arquivo (ver
           lib/dominioSync.js) — mesma faixa de andamento/erro da página. */}
       <DominioSyncCard
-        company={company}
+        dominio={dominio}
         onBusy={(message) => { setBusyIsError(false); setProgress(null); setBusy(message); }}
         onDone={(message) => (message ? flashBusy(message) : setBusy(""))}
         onError={flashError}
@@ -404,6 +409,7 @@ export default function RelatoriosMensais() {
           const archiveCount = (monthlyReports[key] || []).filter((report) => (report.kind || "outro") === "outro").length;
           const isOpen = openMonth === index;
           const isSelected = selectedKeys.has(key);
+          const dominioPendente = isDominioPending(dominio.statusByMonth.get(key));
           return (
             <button
               key={label}
@@ -422,6 +428,14 @@ export default function RelatoriosMensais() {
                       : "border-dashed border-line-strong bg-surface-page"
               }`}
             >
+              {dominioPendente && !selectMode && (
+                <span
+                  title="A Domínio tem mudanças neste mês que ainda não estão no portal — use “Atualizar com a Domínio” no cartão acima"
+                  className="absolute left-2 top-2 rounded-full border border-warning-500/60 bg-warning-50 px-2 py-0.5 text-[10px] font-medium text-warning-700"
+                >
+                  Domínio: pendente
+                </span>
+              )}
               {selectMode && hasJournal && (
                 <span
                   className={`absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full border-2 ${
