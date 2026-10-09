@@ -1,4 +1,5 @@
 import { novoId, padraoCompra } from "./calculo.js";
+import { categoriaSugerida } from "./lc214.js";
 
 // Converte o resumo das notas fiscais da Domínio (tabela dominio_fiscal,
 // mandado pela Central — ver supabase/functions/dominio-sync) em itens de
@@ -6,9 +7,10 @@ import { novoId, padraoCompra } from "./calculo.js";
 // alíquotas efetivas (tributo destacado ÷ valor). Puro: sem banco, pra dar
 // pra testar (scripts/test-reforma.mjs).
 
-const MAX_VENDAS = 40;
-const MAX_COMPRAS_POR_TIPO = 15;
-const COBERTURA = 0.98;
+// Um item por NCM/serviço; só junta numa linha de "Demais" quando passa
+// disso (empresa com centenas de NCMs).
+const MAX_VENDAS = 80;
+const MAX_COMPRAS_POR_TIPO = 40;
 
 const arred = (valor, casas = 2) => Math.round(valor * 10 ** casas) / 10 ** casas;
 const pctDe = (parte, total) => (total > 0 ? arred(((Number(parte) || 0) / total) * 100, 2) : 0);
@@ -18,20 +20,12 @@ const somar = (linhas, campo) => linhas.reduce((total, linha) => total + (Number
 export const nbsFormatado = (nbs) => (/^\d{9}$/.test(String(nbs || "")) ? `${nbs[0]}.${nbs.slice(1, 5)}.${nbs.slice(5, 7)}.${nbs.slice(7)}` : String(nbs || ""));
 export const ncmFormatado = (ncm) => (/^\d{8}$/.test(String(ncm || "")) ? `${ncm.slice(0, 4)}.${ncm.slice(4, 6)}.${ncm.slice(6)}` : String(ncm || ""));
 
-// As maiores linhas até cobrir 98% do valor (no máximo `max`, contando a
-// linha de "demais"); o resto vai somado numa linha só.
+// Todas as linhas, da maior pra menor; acima de `max`, as menores vão
+// somadas numa linha só (contando com ela, no máximo `max`).
 function principais(linhas, max) {
   const ordenadas = [...linhas].sort((a, b) => b.valor - a.valor);
-  const total = somar(ordenadas, "valor");
-  const ficam = [];
-  let acumulado = 0;
-  for (const linha of ordenadas) {
-    if (ficam.length >= max - 1 || (ficam.length > 0 && acumulado >= COBERTURA * total)) break;
-    ficam.push(linha);
-    acumulado += linha.valor;
-  }
-  const resto = ordenadas.slice(ficam.length);
-  return resto.length === 1 ? { ficam: [...ficam, resto[0]], resto: [] } : { ficam, resto };
+  if (ordenadas.length <= max) return { ficam: ordenadas, resto: [] };
+  return { ficam: ordenadas.slice(0, max - 1), resto: ordenadas.slice(max - 1) };
 }
 
 // Junta várias linhas numa só (soma valores; o "jeito" de PIS/Cofins e o
@@ -80,7 +74,9 @@ export function vendasDaDominio(fiscal, dados = {}) {
       ipi: servico ? 0 : pctDe(linha.ipi, linha.valor),
       pisCofins: ["normal", "monofasico", "zero"].includes(linha.pis_cofins) ? linha.pis_cofins : "normal",
       icmsSt: Boolean(linha.icms_st),
-      categoria: "padrao",
+      // Já sai com a categoria dos anexos da LC 214 pelo NCM/NBS (sugestão —
+      // a tela mostra o item do anexo pra conferir).
+      categoria: categoriaSugerida(servico ? linha.servico : linha.ncm, servico ? "servico" : "mercadoria") || "padrao",
       seletivo: 0,
     };
   });
@@ -121,7 +117,7 @@ export function comprasDaDominio(fiscal) {
     const { ficam, resto } = porNcm ? principais(doGrupo, MAX_COMPRAS_POR_TIPO) : { ficam: [], resto: doGrupo };
     const sufixo = fornecedor === "simples" ? " — fornecedor do Simples" : "";
     const linhasFinais = [
-      ...ficam.map((linha) => ({ ...linha, nome: `${linha.descricao || NOME_COMPRA[tipoDominio]}${linha.ncm ? ` (NCM ${ncmFormatado(linha.ncm)})` : ""}` })),
+      ...ficam.map((linha) => ({ ...linha, nome: linha.descricao || (linha.ncm ? `${NOME_COMPRA[tipoDominio]} — NCM ${ncmFormatado(linha.ncm)}` : NOME_COMPRA[tipoDominio]) })),
       ...(resto.length ? [{ ...juntar(resto, {}), nome: `${porNcm && ficam.length ? `Demais ${NOME_COMPRA[tipoDominio].toLowerCase()}` : NOME_COMPRA[tipoDominio]}` }] : []),
     ];
     for (const linha of linhasFinais) {
@@ -129,23 +125,29 @@ export function comprasDaDominio(fiscal) {
       const padrao = padraoCompra(tipo);
       const servico = tipo === "servico";
       // Alíquota embutida no preço do fornecedor: ICMS (ou ISS, no serviço)
-      // destacado ÷ valor; sem destaque, a de partida do tipo. No serviço
-      // tomado a Domínio só guarda o ISS RETIDO — abaixo do mínimo legal (2%)
-      // não é a alíquota do fornecedor, então vale a de partida.
+      // destacado ÷ valor. Sem destaque: mercadoria/insumo de fornecedor
+      // normal é isenta ou não tributada (a Domínio escritura o ICMS de toda
+      // compra pra revenda) → 0; nos demais tipos a Domínio só guarda o que
+      // foi creditado → alíquota de partida do tipo. No serviço tomado ela só
+      // guarda o ISS RETIDO — abaixo do mínimo legal (2%) também vale a de
+      // partida.
       const efetiva = pctDe(servico ? linha.iss : linha.icms, linha.valor);
       const destacado = servico && efetiva < 2 ? 0 : efetiva;
+      const semDestaque = fornecedor === "simples" || ["mercadoria", "insumo"].includes(tipoDominio) ? 0 : padrao.aliquota;
       itens.push({
         id: novoId("c"),
         descricao: `${linha.nome}${sufixo}`.slice(0, 120),
         tipo,
-        aliquota: destacado > 0 ? destacado : fornecedor === "simples" ? 0 : padrao.aliquota,
+        aliquota: destacado > 0 ? destacado : semDestaque,
         creditoIcms: !servico && Number(linha.icms_creditado) > 0.5 * Number(linha.icms || 0) && Number(linha.icms_creditado) > 0,
         // Valor da simulação é o que a empresa paga (com o IPI).
         valor: arred((linha.valor + (Number(linha.ipi) || 0)) / meses),
         fornecedor,
         ipi: pctDe(linha.ipi, linha.valor),
         creditoPisCofins: !(linha.ncm && semCreditoPisCofins.has(linha.ncm)),
-        categoria: "padrao",
+        // Mesma categoria da venda do mesmo NCM (o crédito sai pela alíquota
+        // reduzida que o fornecedor cobra).
+        categoria: (linha.ncm && categoriaSugerida(linha.ncm, "mercadoria")) || "padrao",
         // NCM da compra (quando veio por NCM) — pra categoria na reforma
         // acompanhar a da venda do mesmo NCM (ver sincronizarCategorias).
         ...(linha.ncm ? { ncm: linha.ncm } : {}),

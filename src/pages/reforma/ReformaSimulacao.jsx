@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Check, CloudOff, Copy, Loader2, Lock } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CloudOff, Copy, Loader2, Lock } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { carregarEmpresa, carregarParametros, carregarSimulacao, criarSimulacao, salvarSimulacao } from "../../lib/reforma/api.js";
 import { calcularSimulacao, dadosIniciais } from "../../lib/reforma/calculo.js";
@@ -11,14 +11,15 @@ import EmpresaForm from "../../components/reforma/EmpresaForm.jsx";
 import DominioFiscal from "../../components/reforma/DominioFiscal.jsx";
 import { ComprasTabela, VendasTabela } from "../../components/reforma/ItensTabela.jsx";
 import ResultadoPainel from "../../components/reforma/ResultadoPainel.jsx";
-import { Cartao, botaoPrimario } from "../../components/reforma/ui.jsx";
+import { Abas, Cartao, Dica, Esqueleto, botaoPrimario, botaoSecundario } from "../../components/reforma/ui.jsx";
+import { AJUDA } from "../../lib/reforma/textos.js";
 import { porcento, reais } from "../../lib/reforma/formato.js";
 
 const ABAS = [
-  { id: "empresa", rotulo: "1. Empresa" },
-  { id: "vendas", rotulo: "2. Vendas" },
-  { id: "compras", rotulo: "3. Compras e despesas" },
-  { id: "resultado", rotulo: "4. Resultado" },
+  { id: "empresa", rotulo: "1. Empresa", dica: "Regime tributário de hoje (Simples, Presumido ou Real) e, no Simples, faturamento e anexo." },
+  { id: "vendas", rotulo: "2. Vendas", dica: "O que a empresa vende, item a item (NCM/NBS), com os tributos de hoje e a categoria na reforma." },
+  { id: "compras", rotulo: "3. Compras e despesas", dica: "O que a empresa compra — é daqui que vêm os créditos, hoje e na reforma." },
+  { id: "resultado", rotulo: "4. Resultado", dica: "Tributos ano a ano de hoje a 2033, preço pra manter a margem e o efeito produto a produto." },
 ];
 const ESPERA_SALVAR_MS = 1200;
 
@@ -36,6 +37,7 @@ export default function ReformaSimulacao() {
   const [params, setParams] = useState(PARAMETROS_PADRAO);
   const [erro, setErro] = useState("");
   const [aba, setAba] = useState("empresa");
+  const topoRef = useRef(null);
   const [situacao, setSituacao] = useState("salvo"); // salvo | pendente | salvando | erro
   const [salvoEm, setSalvoEm] = useState(null);
   const pendenteRef = useRef(null); // { nome, dados } ainda não gravado
@@ -150,6 +152,16 @@ export default function ReformaSimulacao() {
     agendar(proximoNome, dados);
   }
 
+  // Troca de etapa sem pulo: se a pessoa rolou pra baixo, volta suave pro
+  // começo do conteúdo (logo abaixo da barra fixa).
+  function trocarAba(proxima) {
+    setAba(proxima);
+    const topo = topoRef.current;
+    if (!topo) return;
+    const alvo = topo.getBoundingClientRect().top + window.scrollY - 64;
+    if (window.scrollY > alvo) window.scrollTo({ top: alvo, behavior: "smooth" });
+  }
+
   // Empresa do B.I. ligada (só o escritório usa, pra trazer da contabilidade).
   const companyBi = (escritorio && state.companies.find((item) => item.id === empresa?.bi_company_id)) || null;
   const voltarPara = simulacao ? `/reforma/empresa/${simulacao.empresa_id}` : "/reforma";
@@ -165,8 +177,14 @@ export default function ReformaSimulacao() {
   }
   if (!dados || !resultado) {
     return (
-      <ReformaShell titulo="Carregando a simulação…" voltarPara={voltarPara} voltarRotulo="Simulações">
-        <p className="text-[13px] text-ink-400">Carregando…</p>
+      <ReformaShell titulo="Abrindo a simulação…" voltarPara={voltarPara} voltarRotulo="Simulações">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-busy="true" aria-label="Carregando">
+          {[0, 1, 2, 3].map((item) => (
+            <Esqueleto key={item} className="h-24" />
+          ))}
+        </div>
+        <Esqueleto className="h-72" />
+        <Esqueleto className="h-48" />
       </ReformaShell>
     );
   }
@@ -174,104 +192,109 @@ export default function ReformaSimulacao() {
   const hoje = resultado.cenarios.atual.anos[0];
   const fim = resultado.cenarios.atual.anos[resultado.cenarios.atual.anos.length - 1];
   const statusSalvo = {
-    salvo: { icone: Check, texto: salvoEm ? `Salvo ${new Date(salvoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : "Salvo", cor: "text-white/60" },
-    pendente: { icone: Loader2, texto: "Alterações a salvar…", cor: "text-white/60" },
-    salvando: { icone: Loader2, texto: "Salvando…", cor: "text-white/60" },
-    erro: { icone: CloudOff, texto: "Não salvou — clique pra tentar de novo", cor: "text-warning-500" },
+    salvo: { icone: Check, texto: salvoEm ? `Salvo ${new Date(salvoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : "Salvo", cor: "text-ink-400" },
+    pendente: { icone: Loader2, texto: "Salvando…", cor: "text-ink-400" },
+    salvando: { icone: Loader2, texto: "Salvando…", cor: "text-ink-400" },
+    erro: { icone: CloudOff, texto: "Não salvou — clique pra tentar de novo", cor: "text-danger-600" },
   }[situacao];
   const IconeStatus = statusSalvo.icone;
+  const indice = ABAS.findIndex((item) => item.id === aba);
+  const numeros = dados.vendas.length
+    ? [
+        { rotulo: "Tributos/mês", valor: `${reais(hoje.aRecolher)} → ${reais(fim.aRecolher)}`, ajuda: `${AJUDA.aRecolher} Hoje → 2033, já com as compras.` },
+        { rotulo: "Carga", valor: `${porcento(hoje.carga)} → ${porcento(fim.carga)}`, ajuda: AJUDA.carga },
+        { rotulo: "Preço p/ margem", valor: porcento(fim.precoVar, { sinal: true }), ajuda: AJUDA.precoVar },
+      ]
+    : [];
 
   return (
     <ReformaShell
       titulo={empresa?.nome || "Simulação"}
       voltarPara={voltarPara}
       voltarRotulo="Simulações"
-      acoes={
-        <button type="button" onClick={() => situacao === "erro" && gravar()} className={`flex items-center gap-1.5 text-[12.5px] ${statusSalvo.cor}`} disabled={situacao !== "erro"}>
-          <IconeStatus size={14} className={situacao === "salvando" || situacao === "pendente" ? "animate-spin" : ""} />
-          {statusSalvo.texto}
-        </button>
-      }
       extra={
-        <div className="flex flex-col gap-3">
-          <input
-            aria-label="Nome da simulação"
-            value={nome}
-            onChange={(event) => renomear(event.target.value.slice(0, 120))}
-            readOnly={somenteLeitura}
-            className="w-full max-w-[520px] rounded-md border border-white/15 bg-white/5 px-2.5 py-1.5 text-[14px] text-white outline-none placeholder:text-white/40 focus:border-accent-400"
-            placeholder="Nome da simulação"
+        <input
+          aria-label="Nome da simulação"
+          value={nome}
+          onChange={(event) => renomear(event.target.value.slice(0, 120))}
+          readOnly={somenteLeitura}
+          className="w-full max-w-[520px] rounded-md border border-white/15 bg-white/5 px-2.5 py-1.5 text-[14px] text-white outline-none transition-colors placeholder:text-white/40 hover:border-white/30 focus:border-accent-400"
+          placeholder="Nome da simulação"
+        />
+      }
+      barra={
+        <>
+          <Abas
+            rotulo="Etapas da simulação"
+            ativa={aba}
+            onTrocar={trocarAba}
+            itens={ABAS.map((item) => ({ ...item, contador: item.id === "vendas" ? dados.vendas.length : item.id === "compras" ? dados.compras.length : 0, dica: item.dica }))}
           />
-          {dados.vendas.length > 0 && (
-            <p className="flex flex-wrap gap-x-5 gap-y-1 text-[12.5px] text-white/60">
-              <span>
-                Tributos/mês <strong className="font-mono text-white">{reais(hoje.aRecolher)}</strong> hoje → <strong className="font-mono text-white">{reais(fim.aRecolher)}</strong> em 2033
-              </span>
-              <span>
-                Carga <strong className="font-mono text-white">{porcento(hoje.carga)}</strong> → <strong className="font-mono text-white">{porcento(fim.carga)}</strong>
-              </span>
-              <span>
-                Preço p/ manter margem <strong className="font-mono text-white">{porcento(fim.precoVar, { sinal: true })}</strong>
-              </span>
-            </p>
-          )}
-          <nav className="-mb-5 flex gap-1 overflow-x-auto" aria-label="Etapas da simulação">
-            {ABAS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setAba(item.id)}
-                className={`whitespace-nowrap rounded-t-lg px-3.5 py-2 text-[13px] font-medium transition-colors ${aba === item.id ? "bg-surface-page text-ink-900" : "text-white/60 hover:bg-white/10 hover:text-white"}`}
-              >
-                {item.rotulo}
-                {item.id === "vendas" && dados.vendas.length > 0 && <span className="ml-1 text-[11px] opacity-60">({dados.vendas.length})</span>}
-                {item.id === "compras" && dados.compras.length > 0 && <span className="ml-1 text-[11px] opacity-60">({dados.compras.length})</span>}
-              </button>
+          <div className="flex items-center gap-2 py-2">
+            {numeros.map((item) => (
+              <Dica key={item.rotulo} titulo={item.rotulo} texto={item.ajuda} className="hidden xl:inline-flex">
+                <span tabIndex={0} className="flex cursor-help items-center gap-2 rounded-md bg-surface-card px-2.5 py-1 text-[12px] text-ink-500 shadow-sm outline-none ring-1 ring-line transition-colors hover:ring-accent-200 focus-visible:ring-accent-400">
+                  {item.rotulo}
+                  <strong className="font-mono font-semibold tabular-nums text-ink-900">{item.valor}</strong>
+                </span>
+              </Dica>
             ))}
-          </nav>
-        </div>
+            <button type="button" onClick={() => situacao === "erro" && gravar()} className={`ml-1 flex items-center gap-1.5 whitespace-nowrap text-[12px] ${statusSalvo.cor}`} disabled={situacao !== "erro"}>
+              <IconeStatus size={13} className={situacao === "salvando" || situacao === "pendente" ? "animate-spin" : ""} />
+              {statusSalvo.texto}
+            </button>
+          </div>
+        </>
       }
     >
-      {somenteLeitura && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface-card px-4 py-2.5 shadow-sm">
-          <p className="flex items-center gap-1.5 text-[12.5px] text-ink-600">
-            <Lock size={14} className="text-ink-400" />
-            Simulação feita por {simulacao.created_by} — só leitura. Pra mudar algo, faça a sua versão.
-          </p>
-          <button type="button" onClick={duplicarPraMim} disabled={duplicando} className={botaoPrimario}>
-            <Copy size={14} />
-            {duplicando ? "Duplicando…" : "Fazer a minha versão"}
-          </button>
-        </div>
-      )}
-      {/* fieldset desabilitado trava todos os campos e botões de dentro de uma vez. */}
-      {aba !== "resultado" && (
-        <fieldset disabled={somenteLeitura || (aba === "empresa" && !escritorio)} className="flex min-w-0 flex-col gap-4">
-          {aba === "empresa" && !escritorio && !somenteLeitura && (
-            <p className="flex items-center gap-1.5 rounded-lg bg-accent-50 px-3 py-2 text-[12.5px] text-accent-700">
-              <Lock size={13} />
-              Regime e Simples definidos pela contabilidade. Se algo estiver diferente da realidade da empresa, fale com o escritório.
+      <div ref={topoRef} className="-mt-5 h-0" aria-hidden="true" />
+      <div key={aba} className="flex animate-entrar flex-col gap-4">
+        {somenteLeitura && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface-card px-4 py-2.5 shadow-sm">
+            <p className="flex items-center gap-1.5 text-[12.5px] text-ink-600">
+              <Lock size={14} className="text-ink-400" />
+              Simulação feita por {simulacao.created_by} — só leitura. Pra mudar algo, faça a sua versão.
             </p>
-          )}
-          {aba === "empresa" && <EmpresaForm dados={dados} alterar={alterar} company={companyBi} />}
-          {escritorio && (aba === "vendas" || aba === "compras") && <DominioFiscal cnpj={empresa?.cnpj} dados={dados} alterar={alterar} />}
-          {aba === "vendas" && <VendasTabela dados={dados} onVendas={(vendas) => alterar({ vendas, compras: sincronizarCategorias(dados.vendas, vendas, dados.compras) })} />}
-          {aba === "compras" && <ComprasTabela dados={dados} onCompras={(compras) => alterar({ compras })} />}
-        </fieldset>
-      )}
-      {aba === "resultado" && <ResultadoPainel resultado={resultado} params={params} />}
+            <button type="button" onClick={duplicarPraMim} disabled={duplicando} className={botaoPrimario}>
+              <Copy size={14} />
+              {duplicando ? "Duplicando…" : "Fazer a minha versão"}
+            </button>
+          </div>
+        )}
+        {/* fieldset desabilitado trava todos os campos e botões de dentro de uma vez. */}
+        {aba !== "resultado" && (
+          <fieldset disabled={somenteLeitura || (aba === "empresa" && !escritorio)} className="flex min-w-0 flex-col gap-4">
+            {aba === "empresa" && !escritorio && !somenteLeitura && (
+              <p className="flex items-center gap-1.5 rounded-lg bg-accent-50 px-3 py-2 text-[12.5px] text-accent-700">
+                <Lock size={13} />
+                Regime e Simples definidos pela contabilidade. Se algo estiver diferente da realidade da empresa, fale com o escritório.
+              </p>
+            )}
+            {aba === "empresa" && <EmpresaForm dados={dados} alterar={alterar} company={companyBi} />}
+            {escritorio && (aba === "vendas" || aba === "compras") && <DominioFiscal cnpj={empresa?.cnpj} dados={dados} alterar={alterar} />}
+            {aba === "vendas" && <VendasTabela dados={dados} onVendas={(vendas) => alterar({ vendas, compras: sincronizarCategorias(dados.vendas, vendas, dados.compras) })} />}
+            {aba === "compras" && <ComprasTabela dados={dados} onCompras={(compras) => alterar({ compras })} />}
+          </fieldset>
+        )}
+        {aba === "resultado" && <ResultadoPainel resultado={resultado} params={params} />}
 
-      {aba !== "resultado" && (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => setAba(ABAS[ABAS.findIndex((item) => item.id === aba) + 1].id)}
-            className="rounded-md bg-accent-500 px-4 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md"
-          >
-            Próximo: {ABAS[ABAS.findIndex((item) => item.id === aba) + 1].rotulo.replace(/^\d+\. /, "")}
-          </button>
+        <div className="flex items-center justify-between gap-3">
+          {indice > 0 ? (
+            <button type="button" onClick={() => trocarAba(ABAS[indice - 1].id)} className={botaoSecundario}>
+              <ArrowLeft size={14} />
+              {ABAS[indice - 1].rotulo.replace(/^\d+\. /, "")}
+            </button>
+          ) : (
+            <span />
+          )}
+          {indice < ABAS.length - 1 && (
+            <button type="button" onClick={() => trocarAba(ABAS[indice + 1].id)} className={`${botaoPrimario} h-9 px-4 text-[13px]`}>
+              Próximo: {ABAS[indice + 1].rotulo.replace(/^\d+\. /, "")}
+              <ArrowRight size={14} />
+            </button>
+          )}
         </div>
-      )}
+      </div>
       {state.isReformaEscritorio && simulacao.created_by && (
         <p className="text-right text-[11.5px] text-ink-400">
           Criada por {simulacao.created_by} em {new Date(simulacao.created_at).toLocaleDateString("pt-BR")}

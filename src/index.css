@@ -82,6 +82,25 @@
      dois temas (skill dataviz); o azul tem passo próprio no escuro. */
   --color-viz-1: #e8691f;
   --color-viz-2: #2a78d6;
+
+  /* Movimento da Reforma Tributária: entrada suave do conteúdo de cada aba,
+     das linhas novas e das explicações (Dica). Desligado pra quem pede menos
+     movimento no sistema (ver o @media no fim deste arquivo). */
+  --animate-entrar: entrar 220ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-surgir: surgir 120ms ease-out both;
+  --animate-brilho: brilho 1.4s ease-in-out infinite;
+  @keyframes entrar {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes surgir {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes brilho {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+  }
 }
 
 :root[data-theme="dark"] {
@@ -268,4 +287,12 @@ body * {
 .scrollbar-thin::-webkit-scrollbar-thumb {
   background: var(--color-line-strong);
   border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-entrar,
+  .animate-surgir,
+  .animate-brilho {
+    animation: none;
+  }
 }

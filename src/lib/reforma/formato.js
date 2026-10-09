@@ -24,11 +24,14 @@ export function cnpjFormatado(cnpj) {
 
 export const REGIME_NOME = { simples: "Simples Nacional", presumido: "Lucro Presumido", real: "Lucro Real" };
 
-// "1.234,56", "1234,56", "1234.56" → número. Vazio → 0.
+// "1.234,56", "1234,56", "1234.56", "3.642.286" → número. Vazio → 0. Sem
+// vírgula, ponto seguido de grupos de 3 dígitos é separador de milhar (é
+// assim que o próprio campo mostra um valor redondo).
 export function lerNumero(texto) {
   const limpo = String(texto ?? "").trim().replace(/\s|R\$/g, "");
   if (!limpo) return 0;
-  const normalizado = limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : limpo;
+  const milhar = /^-?\d{1,3}(\.\d{3})+$/.test(limpo);
+  const normalizado = limpo.includes(",") || milhar ? limpo.replace(/\./g, "").replace(",", ".") : limpo;
   const numero = Number(normalizado);
   return Number.isFinite(numero) ? numero : NaN;
 }

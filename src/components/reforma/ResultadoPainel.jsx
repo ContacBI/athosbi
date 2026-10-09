@@ -1,19 +1,40 @@
 import { Bar, BarChart, CartesianGrid, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CATEGORIAS } from "../../lib/reforma/parametros.js";
-import { Cartao, Indicador } from "./ui.jsx";
+import { Cartao, Indicador, RotuloDica } from "./ui.jsx";
 import { porcento, reais } from "../../lib/reforma/formato.js";
+import { AJUDA, AJUDA_CATEGORIA } from "../../lib/reforma/textos.js";
 
 const NOME_CATEGORIA = Object.fromEntries(CATEGORIAS.map((categoria) => [categoria.id, categoria.nome]));
 const rotuloAno = (ano) => (ano === "hoje" ? "Hoje" : String(ano));
 const tributosAntigos = (linha) => linha.debitos.pisCofins + linha.debitos.icms + linha.debitos.iss + linha.debitos.ipi;
 const totalCreditos = (linha) => Object.values(linha.creditos).reduce((soma, valor) => soma + valor, 0);
+// Eixo com passos "redondos" (1, 2, 2,5 ou 5 × 10ⁿ) e rótulo com as casas
+// que o passo pede — antes 1.300 aparecia como "1 mil" e 1.950 como "2 mil".
+function eixo(valores) {
+  const minimo = Math.min(0, ...valores);
+  const maximo = Math.max(0, ...valores);
+  const bruto = (maximo - minimo) / 4 || 1;
+  const potencia = 10 ** Math.floor(Math.log10(bruto));
+  const passo = [1, 2, 2.5, 5, 10].map((fator) => fator * potencia).find((candidato) => candidato >= bruto);
+  const ticks = [];
+  for (let valor = Math.floor(minimo / passo) * passo; valor <= Math.ceil(maximo / passo) * passo + passo / 2; valor += passo) ticks.push(Math.round(valor * 100) / 100);
+  return { ticks, dominio: [ticks[0], ticks[ticks.length - 1]] };
+}
 const compactar = (valor) => {
   const abs = Math.abs(valor);
-  if (abs >= 1e6) return `${(valor / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mi`;
-  if (abs >= 1e3) return `${(valor / 1e3).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} mil`;
+  if (abs >= 1e6) return `${(valor / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} mi`;
+  if (abs >= 1e3) return `${(valor / 1e3).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} mil`;
   return valor.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
 };
 const th = "whitespace-nowrap px-2 py-2 text-right text-[11px] font-medium uppercase tracking-wide text-ink-400 first:text-left";
+// Cabeçalho de coluna com explicação ao passar o mouse.
+const Th = ({ ajuda, children }) => (
+  <th className={th}>
+    <RotuloDica texto={ajuda} titulo={typeof children === "string" ? children : undefined}>
+      {children}
+    </RotuloDica>
+  </th>
+);
 const td = "whitespace-nowrap px-2 py-1.5 text-right font-mono text-[12.5px] tabular-nums text-ink-800 first:text-left first:font-sans";
 
 // Efeito no resultado: positivo é bom pra empresa.
@@ -27,13 +48,14 @@ function GraficoAnos({ resultado }) {
     atual: linha.aRecolher,
     ...(hibrido ? { hibrido: hibrido.anos[index].aRecolher } : {}),
   }));
+  const { ticks, dominio } = eixo(dados.flatMap((linha) => [linha.atual, linha.hibrido ?? 0]));
   return (
     <div className="h-[260px] w-full" role="img" aria-label="Tributos sobre consumo a recolher por mês, de hoje a 2033">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={dados} margin={{ top: 8, right: 8, bottom: 0, left: 8 }} barGap={2} barCategoryGap="22%">
           <CartesianGrid vertical={false} stroke="var(--color-line)" />
           <XAxis dataKey="ano" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
-          <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={compactar} axisLine={false} tickLine={false} width={54} />
+          <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={compactar} axisLine={false} tickLine={false} width={64} ticks={ticks} domain={dominio} />
           <ReferenceLine y={0} stroke="var(--color-line-strong)" />
           <Tooltip
             cursor={{ fill: "var(--color-surface-muted)" }}
@@ -57,16 +79,16 @@ function TabelaAnos({ cenario, simples }) {
         <thead>
           <tr className="border-b border-line">
             <th className={th}>Ano</th>
-            <th className={th} title="PIS/Cofins, ICMS, ISS e IPI">Tributos de hoje</th>
-            {simples && <th className={th}>DAS (consumo)</th>}
-            <th className={th}>CBS</th>
-            <th className={th}>IBS</th>
-            {temSeletivo && <th className={th}>Seletivo</th>}
-            <th className={th}>Créditos</th>
-            <th className={th}>A recolher</th>
-            <th className={th}>Carga</th>
-            <th className={th} title="Quanto o preço precisa mudar pra empresa manter a mesma margem">Preço p/ manter margem</th>
-            <th className={th} title="Efeito no resultado do mês se a empresa NÃO mexer no preço (inclui o efeito das compras)">Se mantiver o preço</th>
+            <Th ajuda={AJUDA.tributosHoje}>Tributos de hoje</Th>
+            {simples && <Th ajuda={AJUDA.das}>DAS (consumo)</Th>}
+            <Th ajuda={AJUDA.cbs}>CBS</Th>
+            <Th ajuda={AJUDA.ibs}>IBS</Th>
+            {temSeletivo && <Th ajuda={AJUDA.seletivo}>Seletivo</Th>}
+            <Th ajuda={AJUDA.creditos}>Créditos</Th>
+            <Th ajuda={AJUDA.aRecolher}>A recolher</Th>
+            <Th ajuda={AJUDA.carga}>Carga</Th>
+            <Th ajuda={AJUDA.precoVar}>Preço p/ manter margem</Th>
+            <Th ajuda={AJUDA.efeitoPrecoMantido}>Se mantiver o preço</Th>
           </tr>
         </thead>
         <tbody>
@@ -99,22 +121,26 @@ function TabelaItens({ resultado }) {
         <thead>
           <tr className="border-b border-line">
             <th className={th}>Produto / serviço</th>
-            <th className={th}>Na reforma</th>
-            <th className={th}>Faturamento</th>
-            <th className={th} title="Tributos sobre consumo ÷ preço ao cliente">Carga hoje</th>
-            <th className={th}>Carga 2033</th>
-            <th className={th}>Preço p/ manter margem</th>
-            <th className={th} title="Quanto o cliente empresa recupera de crédito a cada R$ 100 que paga">Crédito do cliente / R$ 100</th>
+            <Th ajuda={AJUDA.vendaCategoria}>Na reforma</Th>
+            <Th ajuda={AJUDA.vendaReceita}>Faturamento</Th>
+            <Th ajuda={AJUDA.cargaItem}>Carga hoje</Th>
+            <Th ajuda={`${AJUDA.cargaItem} Em 2033, só CBS + IBS (e Seletivo, se houver).`}>Carga 2033</Th>
+            <Th ajuda={AJUDA.precoVar}>Preço p/ manter margem</Th>
+            <Th ajuda={AJUDA.creditoCliente}>Crédito do cliente / R$ 100</Th>
           </tr>
         </thead>
         <tbody>
           {resultado.itens.map((item) => (
             <tr key={item.id} className="border-b border-line last:border-0">
               <td className={td}>
-                <span className="block max-w-[260px] truncate text-[12.5px] text-ink-800">{item.descricao}</span>
+                <span className="block max-w-[640px] truncate text-[12.5px] text-ink-800" title={item.descricao}>
+                  {item.descricao}
+                </span>
                 {item.codigo && <span className="font-mono text-[11px] text-ink-400">{item.codigo}</span>}
               </td>
-              <td className={`${td} font-sans text-[12px] text-ink-600`}>{NOME_CATEGORIA[item.categoria]}</td>
+              <td className={`${td} font-sans text-[12px] text-ink-600`} title={AJUDA_CATEGORIA[item.categoria]}>
+                {NOME_CATEGORIA[item.categoria]}
+              </td>
               <td className={td}>{reais(item.receita)}</td>
               <td className={td}>{porcento(item.cargaHoje)}</td>
               <td className={td}>{porcento(item.carga2033)}</td>
@@ -223,14 +249,22 @@ export default function ResultadoPainel({ resultado, params }) {
           valor={`${reais(hoje.aRecolher)} → ${reais(fim.aRecolher)}`}
           apoio={`Carga ${porcento(hoje.carga)} hoje → ${porcento(fim.carga)} em 2033 (${diffRecolher >= 0 ? "+" : "−"}${reais(Math.abs(diffRecolher))})`}
           tom={diffRecolher > 0.5 ? "negativo" : diffRecolher < -0.5 ? "positivo" : "neutro"}
+          dica={`${AJUDA.aRecolher} Compara hoje com 2033, quando só existirem CBS e IBS. A carga é o a recolher ÷ preço ao cliente.`}
         />
         <Indicador
           rotulo="Preço p/ manter a margem (2033)"
           valor={porcento(fim.precoConsumidorVar ?? fim.precoVar, { sinal: true })}
           apoio={fim.custoClienteEmpresaVar !== null ? `Cliente empresa: custo líquido ${porcento(fim.custoClienteEmpresaVar, { sinal: true })}` : "Preço ao consumidor final"}
+          dica={`${AJUDA.precoVar} O número grande é pro consumidor final; o "custo líquido" é pra quem compra como empresa e recupera o crédito.`}
         />
-        <Indicador rotulo="Se mantiver o preço (2033)" valor={efeito(fim.efeitoPrecoMantido)} apoio="Efeito no resultado do mês, já com as compras" tom={tomDe(fim.efeitoPrecoMantido)} />
-        <Indicador rotulo="Compras (2033)" valor={efeito(fim.efeitoCompras)} apoio="Custo líquido das compras com o crédito amplo" tom={tomDe(fim.efeitoCompras)} />
+        <Indicador rotulo="Se mantiver o preço (2033)" valor={efeito(fim.efeitoPrecoMantido)} apoio="Efeito no resultado do mês, já com as compras" tom={tomDe(fim.efeitoPrecoMantido)} dica={AJUDA.efeitoPrecoMantido} />
+        <Indicador
+          rotulo="Compras (2033)"
+          valor={efeito(fim.efeitoCompras)}
+          apoio="Custo líquido das compras com o crédito amplo"
+          tom={tomDe(fim.efeitoCompras)}
+          dica="Quanto o custo das compras muda por mês em 2033: na reforma quase tudo dá crédito de CBS/IBS (inclusive serviço, energia e uso e consumo), o que costuma baratear o custo líquido."
+        />
       </div>
 
       <Cartao titulo="Tributos a recolher por mês, ano a ano" subtitulo="Débitos menos créditos de tributos sobre consumo. Barra abaixo de zero = crédito a receber.">

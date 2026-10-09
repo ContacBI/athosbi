@@ -205,9 +205,19 @@ export default function ReformaHome() {
 
       {escritorio && (
         <div className="grid gap-3 sm:grid-cols-3">
-          <Indicador rotulo="Empresas cadastradas" valor={String(empresas.length)} />
-          <Indicador rotulo="Com o dono liberado" valor={acessos ? String(comAcesso) : "…"} apoio={acessos ? `${acessos.length} ${acessos.length === 1 ? "pessoa liberada" : "pessoas liberadas"}` : ""} />
-          <Indicador rotulo="Com simulação" valor={simulacoes ? String(clientesComSimulacao) : "…"} apoio={simulacoes ? `${simulacoes.length} ${simulacoes.length === 1 ? "simulação" : "simulações"} no total` : ""} />
+          <Indicador rotulo="Empresas cadastradas" valor={String(empresas.length)} dica="Empresas cadastradas no módulo da Reforma — um cadastro à parte da carteira do B.I." />
+          <Indicador
+            rotulo="Com o dono liberado"
+            valor={acessos ? String(comAcesso) : "…"}
+            apoio={acessos ? `${acessos.length} ${acessos.length === 1 ? "pessoa liberada" : "pessoas liberadas"}` : ""}
+            dica="Empresas com pelo menos uma pessoa do cliente liberada (aba Acesso do cliente). Essa pessoa recebe o convite por e-mail e entra direto na empresa."
+          />
+          <Indicador
+            rotulo="Com simulação"
+            valor={simulacoes ? String(clientesComSimulacao) : "…"}
+            apoio={simulacoes ? `${simulacoes.length} ${simulacoes.length === 1 ? "simulação" : "simulações"} no total` : ""}
+            dica="Empresas com pelo menos uma simulação salva, feita pelo escritório ou pelo cliente. Todas aparecem no Painel do escritório."
+          />
         </div>
       )}
 
@@ -259,27 +269,29 @@ export default function ReformaHome() {
                   key={empresa.id}
                   type="button"
                   onClick={() => navigate(`/reforma/empresa/${empresa.id}`)}
-                  className="flex flex-wrap items-center gap-3 rounded-lg border border-line px-3 py-2.5 text-left transition-colors hover:border-accent-200 hover:bg-surface-muted"
+                  className="grid grid-cols-[minmax(0,1fr)_16px] items-center gap-x-4 gap-y-1 rounded-lg border border-line px-4 py-3 text-left transition-colors hover:border-accent-200 hover:bg-surface-muted md:grid-cols-[minmax(0,1fr)_110px_130px_150px_16px]"
                 >
-                  <span className="min-w-[220px] flex-1">
-                    <span className="block text-[13.5px] font-medium text-ink-900">{empresa.nome}</span>
-                    <span className="block text-[11.5px] text-ink-400">
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13.5px] font-medium text-ink-900">{empresa.nome}</span>
+                    <span className="block font-mono text-[11.5px] text-ink-400">
                       {empresa.cnpj ? cnpjFormatado(empresa.cnpj) : "Sem CNPJ"}
-                      {empresa.bi_company_id ? " · ligada ao B.I." : ""}
+                      {empresa.bi_company_id ? <span className="font-sans"> · ligada ao B.I.</span> : ""}
                     </span>
                   </span>
                   {escritorio && (
-                    <span className="flex flex-wrap gap-4 text-[12px] text-ink-500">
-                      <span>
+                    <>
+                      <span className="hidden text-[12px] text-ink-500 md:block" title="Pessoas do cliente liberadas nesta empresa (aba Acesso do cliente)">
                         <strong className="font-mono text-ink-800">{info?.acessos || 0}</strong> {info?.acessos === 1 ? "acesso" : "acessos"}
                       </span>
-                      <span>
+                      <span className="hidden text-[12px] text-ink-500 md:block" title="Simulações feitas nesta empresa (escritório e cliente)">
                         <strong className="font-mono text-ink-800">{info?.simulacoes || 0}</strong> {info?.simulacoes === 1 ? "simulação" : "simulações"}
                       </span>
-                      <span className="min-w-[120px]">{info?.ultima ? `última ${new Date(info.ultima).toLocaleDateString("pt-BR")}` : "sem simulação"}</span>
-                    </span>
+                      <span className="hidden text-[12px] text-ink-500 md:block" title="Data da última simulação salva">
+                        {info?.ultima ? `última ${new Date(info.ultima).toLocaleDateString("pt-BR")}` : "sem simulação"}
+                      </span>
+                    </>
                   )}
-                  <ChevronRight size={16} className="text-ink-300" />
+                  <ChevronRight size={16} className={`text-ink-300 ${escritorio ? "" : "md:col-start-5"}`} />
                 </button>
               );
             })}

@@ -2,6 +2,8 @@
 // calculados à mão. Rodar: node scripts/test-reforma.mjs
 import { ANOS, PARAMETROS_PADRAO, SIMPLES_ANEXOS, aliquotasDoAno, mesclarParametros, simplesAliquota } from "../src/lib/reforma/parametros.js";
 import { calcularSimulacao } from "../src/lib/reforma/calculo.js";
+import { categoriaSugerida, sugestaoLc214 } from "../src/lib/reforma/lc214.js";
+import { lerNumero } from "../src/lib/reforma/formato.js";
 import { avisoDeRegime, comprasDaDominio, nbsFormatado, ncmFormatado, resumoFiscal, sincronizarCategorias, vendasDaDominio } from "../src/lib/reforma/fiscal.js";
 
 let falhas = 0;
@@ -122,8 +124,10 @@ confere("NBS formatado 1.1103.22.00; item da LC 116 fica como veio", nbsFormatad
 confere("venda principal: receita/mês, % p/ empresas, ICMS e IPI efetivos", placa.codigo === "9021.31.90" && placa.receita === 100000 && placa.b2b === 90 && placa.icms === 12 && placa.ipi === 5 && placa.tipo === "mercadoria" && placa.descricao.includes("+11"), placa);
 const servF = vendasF.find((item) => item.tipo === "servico");
 confere("serviço: ISS 5%, anexo III, código do serviço", servF?.iss === 5 && servF.anexo === "III" && servF.codigo === "4.03" && servF.receita === 5000, servF);
-const demais = vendasF.find((item) => item.descricao.startsWith("Demais produtos"));
-confere("NCMs pequenos viram uma linha de 'Demais produtos' (máx. 40 linhas)", vendasF.length <= 40 && Boolean(demais), vendasF.length);
+confere("um item por NCM/serviço quando cabem (62 linhas, sem 'Demais')", vendasF.length === 62 && !vendasF.some((item) => item.descricao.startsWith("Demais")), vendasF.length);
+const muitos = { meses: 1, vendas: Array.from({ length: 120 }, (_, i) => ({ ncm: String(84710000 + i), servico: "", descricao: `X${i}`, produtos: 1, valor: 1000 - i, valor_pj: 0, icms: 0, ipi: 0, iss: 0, pis_cofins: "normal" })) };
+const vendasMuitos = vendasDaDominio(muitos);
+confere("acima de 80 NCMs, os menores viram 'Demais produtos' (80 linhas, sem perder valor)", vendasMuitos.length === 80 && vendasMuitos[79].descricao.startsWith("Demais produtos (41") && perto(vendasMuitos.reduce((s, v) => s + v.receita, 0), muitos.vendas.reduce((s, v) => s + v.valor, 0), 0.01), vendasMuitos.length);
 const totalF = fiscal.vendas.reduce((s, v) => s + v.valor, 0) / 12;
 confere("nenhum real se perde no agrupamento", perto(vendasF.reduce((s, v) => s + v.receita, 0), totalF, 0.05), [vendasF.reduce((s, v) => s + v.receita, 0), totalF]);
 const comprasF = comprasDaDominio(fiscal);
@@ -151,6 +155,20 @@ const comprasSinc = sincronizarCategorias(vendasZero, vendasRed, comprasZero);
 confere("categoria da venda vai pra compra do mesmo NCM (e só pra ela)", comprasSinc.find((c) => c.ncm === "90213930").categoria === "red60" && comprasSinc.find((c) => c.ncm === "48025610").categoria === "padrao", comprasSinc);
 confere("sem mudança de categoria, compras ficam as mesmas", sincronizarCategorias(vendasZero, vendasZero.map((v) => ({ ...v, receita: 1 })), comprasZero) === comprasZero);
 confere("aviso de regime: 1,08 mi/ano no Presumido não avisa; 108 mi avisa", avisoDeRegime(fiscalZero, "presumido") === null && Boolean(avisoDeRegime({ ...fiscalZero, meses: 0.1 }, "presumido")) === false && Boolean(avisoDeRegime({ meses: 10, vendas: [{ valor: 900_000_000 }] }, "presumido")) && avisoDeRegime({ meses: 10, vendas: [{ valor: 900_000_000 }] }, "real") === null);
+// ── Anexos da LC 214 ──
+const lc = (codigo, tipo) => sugestaoLc214(codigo, tipo);
+confere("LC 214: endoprótese 9021.39.30 → zero, Anexo XII item 5 (prótese)", lc("9021.39.30").principal?.categoria === "zero" && lc("9021.39.30").principal.anexo === "XII" && lc("90213930").principal.itens[0].item === "XII/5");
+confere("LC 214: 9021.39.91 está nas exceções do Anexo XII → sem redução", lc("90213991").principal === null && categoriaSugerida("90213991") === "padrao");
+const cateter = lc("90183929");
+confere("LC 214: cateter 9018.39.29 → 60% (Anexo IV) e zero só na venda ao poder público/SUS", cateter.principal?.categoria === "red60" && cateter.principal.anexo === "IV" && cateter.alternativas.some((a) => a.reducao === 100 && /SUS/.test(a.condicao)));
+confere("LC 214: arroz 1006.30.21 → cesta básica (zero)", categoriaSugerida("10063021") === "zero" && lc("10063021").principal.titulo.startsWith("Cesta Básica"));
+confere("LC 214: notebook 8471.30.12 → sem anexo (padrão); NCM incompleto → sem sugestão", categoriaSugerida("84713012") === "padrao" && categoriaSugerida("9021") === null);
+const vendasLc = vendasDaDominio({ meses: 1, vendas: [{ ncm: "90213930", servico: "", descricao: "ENDOPROTESE", produtos: 1, valor: 100, valor_pj: 100, icms: 0, ipi: 0, iss: 0, pis_cofins: "zero" }, { ncm: "90183929", servico: "", descricao: "CATETER", produtos: 1, valor: 50, valor_pj: 50, icms: 0, ipi: 0, iss: 0, pis_cofins: "zero" }],
+  compras: [] });
+confere("trazer da Domínio já aplica a categoria da LC 214 (zero e 60%)", vendasLc[0].categoria === "zero" && vendasLc[1].categoria === "red60", vendasLc.map((v) => v.categoria));
+const comprasLc = comprasDaDominio({ meses: 1, vendas: [], compras: [{ tipo: "mercadoria", fornecedor: "normal", ncm: "90213930", descricao: "ENDOPROTESE", valor: 100, icms: 0, icms_creditado: 0, ipi: 0, iss: 0 }, { tipo: "uso_consumo", fornecedor: "normal", ncm: "", descricao: "", valor: 10, icms: 0, icms_creditado: 0, ipi: 0, iss: 0 }] });
+confere("compra de mercadoria sem ICMS = isenta (0%), categoria do NCM; uso e consumo sem destaque = 18% de partida", comprasLc[0].aliquota === 0 && comprasLc[0].categoria === "zero" && comprasLc[1].aliquota === 18, comprasLc);
+confere("lerNumero entende ponto de milhar (3.642.286) e vírgula decimal", lerNumero("3.642.286") === 3642286 && lerNumero("10.432.364,67") === 10432364.67 && lerNumero("1.5") === 1.5);
 confere("resumo vazio não quebra", vendasDaDominio({ meses: 12, vendas: [], compras: [] }).length === 0 && comprasDaDominio({}).length === 0);
 
 console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");

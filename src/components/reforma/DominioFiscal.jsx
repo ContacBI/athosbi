@@ -35,8 +35,8 @@ export default function DominioFiscal({ cnpj, dados, alterar }) {
     const compras = comprasDaDominio(fiscal);
     alterar({ vendas, compras });
     setAviso(
-      `Trouxe ${vendas.length} ${vendas.length === 1 ? "linha" : "linhas"} de venda e ${compras.length} de compra (média por mês). ` +
-        `Agora confira, NCM a NCM, a coluna "Na reforma" — é ela que diz se o produto tem alíquota reduzida ou zero.`
+      `Trouxe ${vendas.length} ${vendas.length === 1 ? "linha" : "linhas"} de venda e ${compras.length} de compra (média por mês), com a coluna "Na reforma" já sugerida pelos anexos da LC 214. ` +
+        `Passe o mouse no selo embaixo de cada categoria pra ver o item do anexo e conferir se o produto é o descrito.`
     );
   }
 
@@ -44,8 +44,9 @@ export default function DominioFiscal({ cnpj, dados, alterar }) {
   const regimeErrado = fiscal ? avisoDeRegime(fiscal, dados.regime) : null;
   return (
     <Cartao
+      dica="A Central (no computador do escritório) lê a Escrita Fiscal da Domínio uma vez por dia e manda o resumo: vendas por NCM/serviço e compras por tipo, somando matriz e filiais (mesma raiz de CNPJ). Ao trazer, os valores viram média por mês, as alíquotas viram efetivas (tributo ÷ valor) e a coluna Na reforma já vem pela LC 214."
       titulo="Notas fiscais da Domínio"
-      subtitulo="Vendas por NCM (e serviços) e compras, direto da Escrita Fiscal — média por mês dos últimos 12 meses fechados."
+      subtitulo="Vendas por NCM (e serviços) e compras, direto da Escrita Fiscal — média por mês dos meses com nota. A categoria na reforma já vem sugerida pela LC 214."
       acoes={
         fiscal && (
           <button type="button" onClick={trazer} className={botaoSecundario}>
