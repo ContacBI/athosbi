@@ -62,9 +62,10 @@ export async function fetchDominioMonths(codigo, cnpj) {
     if (row.synced_at > lote.syncedAt) lote.syncedAt = row.synced_at;
     lotes.set(id, lote);
   });
-  // Mais de um lote completo pro mesmo mês só existe por um instante (a
-  // Edge Function apaga o anterior assim que o novo completa) — fica com o
-  // mais recente.
+  // Mais de um lote completo pro mesmo mês: o novo completou e ainda não
+  // apagou o anterior, ou duas rodadas da Central mandaram o mês ao mesmo
+  // tempo (a Edge Function não deixa uma apagar a outra; a próxima
+  // sincronização limpa) — fica com o mais recente.
   const porMes = new Map();
   [...lotes.values()]
     .filter((lote) => lote.recebidas >= lote.partes)
