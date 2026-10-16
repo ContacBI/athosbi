@@ -42,7 +42,9 @@
 //    um lançamento da Domínio com conta débito e conta crédito vira duas.
 //    Um mês sem lançamentos na Domínio: partes = 1 e lancamentos = [].
 //    Quando todas as partes de um lote chegam, os lotes anteriores daquele
-//    mês são apagados — o portal só enxerga lote completo.
+//    mês (mesma empresa e CNPJ) são apagados — o portal só enxerga lote
+//    completo, e o mais recente. Dois envios do mesmo mês ao mesmo tempo
+//    não se apagam (ver apagarLotesAnteriores).
 //
 //    CNPJ: o código sozinho é ambíguo ("001" e "01" no portal viram o mesmo
 //    "1"), então o portal só mostra um mês pra empresa com o MESMO CNPJ, e
@@ -169,6 +171,35 @@ function assinatura(linhas: Lancamento[]) {
 
 type Admin = SupabaseClient;
 
+// Quando um lote completa, apaga os lotes ANTERIORES da mesma empresa, do
+// mesmo CNPJ (e do mesmo mês, nos lançamentos): só os que terminaram antes
+// de este começar. Duas rodadas da Central mandando o mesmo mês ao mesmo
+// tempo se sobrepõem no tempo — aí nenhuma apaga a outra, as duas ficam, o
+// portal usa a mais recente e a próxima sincronização limpa a sobra. Antes
+// cada lote completo apagava "todos os outros": numa corrida, os dois se
+// apagavam e o mês sumia do portal com a Central achando que tinha mandado
+// (foi o que levou agosto/2026 da empresa 1).
+// deno-lint-ignore no-explicit-any
+type Filtravel = any;
+async function apagarLotesAnteriores(admin: Admin, tabela: string, filtros: Record<string, string | null>, lote: string) {
+  const filtrar = (query: Filtravel) => Object.entries(filtros).reduce((q, [coluna, valor]) => (valor === null ? q.is(coluna, null) : q.eq(coluna, valor)), query);
+  const { data, error } = await filtrar(admin.from(tabela).select("lote, synced_at"));
+  if (error) return error;
+  const inicio = new Map<string, number>();
+  const fim = new Map<string, number>();
+  for (const row of (data || []) as Array<{ lote: string; synced_at: string }>) {
+    const quando = Date.parse(row.synced_at);
+    inicio.set(row.lote, Math.min(inicio.get(row.lote) ?? Infinity, quando));
+    fim.set(row.lote, Math.max(fim.get(row.lote) ?? -Infinity, quando));
+  }
+  const comeco = inicio.get(lote);
+  if (comeco === undefined) return null;
+  const anteriores = [...fim].filter(([id, quando]) => id !== lote && quando < comeco).map(([id]) => id);
+  if (!anteriores.length) return null;
+  const { error: deleteError } = await filtrar(admin.from(tabela).delete()).in("lote", anteriores);
+  return deleteError;
+}
+
 async function portalCompanies(admin: Admin) {
   const { data, error } = await admin.from("app_storage").select("key, value->>codigo, value->>name, value->>cnpj").like("key", "portalGerencial.company.%");
   if (error) throw error;
@@ -268,7 +299,8 @@ function validarConta(raw: Record<string, unknown>, index: number): Conta | stri
 
 // POST "tipo": "balancete" (ver o cabeçalho). Mesmo esquema de lote/partes
 // dos meses: quando o lote completa, os balancetes anteriores da empresa
-// são apagados — o portal só enxerga o lote completo mais recente.
+// (mesmo CNPJ) são apagados — o portal só enxerga o lote completo mais
+// recente.
 async function receberBalancete(admin: Admin, body: Record<string, unknown>) {
   const empresa = normalizeCodigo(body.empresa);
   const cnpj = digits(body.cnpj);
@@ -325,7 +357,7 @@ async function receberBalancete(admin: Admin, body: Record<string, unknown>) {
   if (countError) return json({ error: countError.message }, 500);
   const completo = (count ?? 0) >= partes;
   if (completo) {
-    const { error: cleanupError } = await admin.from("dominio_balancete").delete().eq("company_codigo", empresa).neq("lote", lote);
+    const cleanupError = await apagarLotesAnteriores(admin, "dominio_balancete", { company_codigo: empresa, cnpj }, lote);
     if (cleanupError) return json({ error: cleanupError.message }, 500);
   }
 
@@ -531,8 +563,9 @@ Deno.serve(async (req) => {
   if (upsertError) return json({ error: upsertError.message }, 500);
 
   // Lote completo? Então ele vira "o" mês dessa empresa: apaga os lotes
-  // anteriores. Se faltar parte, o lote anterior (completo) continua sendo
-  // o que o portal enxerga até esse terminar.
+  // anteriores (ver apagarLotesAnteriores). Se faltar parte, o lote
+  // anterior (completo) continua sendo o que o portal enxerga até esse
+  // terminar.
   const { count, error: countError } = await admin
     .from("dominio_sync")
     .select("parte", { count: "exact", head: true })
@@ -542,12 +575,7 @@ Deno.serve(async (req) => {
   if (countError) return json({ error: countError.message }, 500);
   const completo = (count ?? 0) >= partes;
   if (completo) {
-    const { error: cleanupError } = await admin
-      .from("dominio_sync")
-      .delete()
-      .eq("company_codigo", empresa)
-      .eq("competencia", competencia)
-      .neq("lote", lote);
+    const cleanupError = await apagarLotesAnteriores(admin, "dominio_sync", { company_codigo: empresa, competencia, cnpj }, lote);
     if (cleanupError) return json({ error: cleanupError.message }, 500);
   }
 
