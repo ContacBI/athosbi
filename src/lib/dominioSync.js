@@ -275,7 +275,9 @@ export function monthLabel(competencia) {
   return `${MONTH_SHORT[Number(month) - 1]}/${year.slice(2)}`;
 }
 
-function monthsBetween(inicio, fim) {
+// Competências ("AAAA-MM") de inicio a fim, inclusive — aceita data inteira
+// ("2026-01-01") ou só o mês.
+export function monthsBetween(inicio, fim) {
   const months = [];
   let [year, month] = String(inicio).slice(0, 7).split("-").map(Number);
   const last = String(fim).slice(0, 7);
@@ -290,6 +292,49 @@ function monthsBetween(inicio, fim) {
     }
   }
   return months;
+}
+
+// ── Pedido de período à Central ────────────────────────────────────────
+// A rodada normal da Central só manda o ano corrente. Pra outro período
+// (ex.: 2025 inteiro, ou só mar–jun), a tela Dados grava um pedido em
+// public.dominio_pedidos; a Central vê no GET da dominio-sync, manda os meses
+// pra área de espera e marca feito/erro. Aplicar continua sendo por clique.
+
+export const isPedidoAberto = (pedido) => pedido?.status === "pendente" || pedido?.status === "andamento";
+
+export function periodoLabel(inicio, fim) {
+  return inicio === fim ? monthLabel(inicio) : `${monthLabel(inicio)} a ${monthLabel(fim)}`;
+}
+
+// O pedido mais recente da empresa (aberto ou não) — ou null.
+export async function fetchDominioPedido(codigo, cnpj) {
+  if (!codigo || !cnpj) return null;
+  const { data, error } = await supabase
+    .from("dominio_pedidos")
+    .select("id, inicio, fim, status, meses, mensagem, pedido_por, created_at, updated_at")
+    .eq("company_codigo", codigo)
+    .eq("cnpj", cnpj)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .abortSignal(timeoutSignal());
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
+export async function pedirDominio(codigo, cnpj, inicio, fim) {
+  const { error } = await supabase.from("dominio_pedidos").insert({ company_codigo: codigo, cnpj, inicio, fim });
+  if (!error) return;
+  // Índice "um pedido aberto por empresa" (ver supabase/schema.sql).
+  if (error.code === "23505") throw new Error("Já tem um pedido aberto pra esta empresa — espere a Central terminar ou cancele o pedido.");
+  throw error;
+}
+
+// Cancelar = apagar o pedido ainda pendente (ou parado há mais de 15 min) —
+// a política do banco recusa os outros.
+export async function cancelarPedidoDominio(id) {
+  const { data, error } = await supabase.from("dominio_pedidos").delete().eq("id", id).select("id");
+  if (error) throw error;
+  if (!data?.length) throw new Error("A Central já começou a trazer esse período — espere terminar.");
 }
 
 // Conferência "saldo inicial + lançamentos = saldo final": cada conta do

@@ -329,6 +329,7 @@ export default function RelatoriosMensais() {
           lib/dominioSync.js) — mesma faixa de andamento/erro da página. */}
       <DominioSyncCard
         dominio={dominio}
+        year={year}
         onBusy={(message) => { setBusyIsError(false); setProgress(null); setBusy(message); }}
         onDone={(message) => (message ? flashBusy(message) : setBusy(""))}
         onError={flashError}
