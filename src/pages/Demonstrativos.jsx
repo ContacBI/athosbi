@@ -436,7 +436,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
     return map;
   }, [mode, tab, rows, appState.reportCompare, appState.bpMonthlyMode, months]);
 
-  const missing = useMemo(() => (hasData ? missingMappingAccounts() : []), [hasData, appState.mappings, appState.accounts]);
+  const missing = useMemo(() => (hasData ? missingMappingAccounts() : []), [hasData, appState.mappings, appState.accounts, appState.periodStart, appState.companies]);
 
   function toggle(code) {
     const next = new Set(appState.expandedLines);

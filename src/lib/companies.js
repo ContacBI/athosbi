@@ -1023,8 +1023,41 @@ export async function applyBalancete(newAccounts, newMappings, meta) {
     : (state.accounts || []).length
       ? { accounts: state.accounts, meta: company.lastBalanceteMeta || null, savedAt: new Date().toISOString() }
       : company.previousBalancete || null;
-  const companies = state.companies.map((item) => (item.id === company.id ? { ...item, previousBalancete, lastBalanceteMeta: meta } : item));
+  // Virada de ano (o balancete de 2027 chegando no lugar do de 2026): o do
+  // ano que acabou não se perde — vai pra balancetesAno, e o Balanço daquele
+  // ano continua saindo dele (ver applyBalanceteAno abaixo).
+  const anoAntigo = String(company.lastBalanceteMeta?.inicio || "").slice(0, 4);
+  const anoNovo = String(meta?.inicio || "").slice(0, 4);
+  const balancetesAno =
+    anoAntigo && anoNovo > anoAntigo && (state.accounts || []).length
+      ? { ...(company.balancetesAno || {}), [anoAntigo]: { accounts: state.accounts, meta: company.lastBalanceteMeta } }
+      : company.balancetesAno;
+  const companies = state.companies.map((item) => (item.id === company.id ? { ...item, previousBalancete, lastBalanceteMeta: meta, ...(balancetesAno ? { balancetesAno } : {}) } : item));
   setData({ companies, accounts: newAccounts, mappings: newMappings });
+  try {
+    await persistActiveCompany();
+  } catch (error) {
+    setData(before);
+    throw error;
+  }
+}
+
+// Balancete de um ano ANTERIOR ao do balancete principal (ex.: o de 2025,
+// pedido à Central): não troca as contas da empresa nem o De/Para dela —
+// fica guardado em company.balancetesAno[ano] e só entra nos relatórios
+// quando o período da tela começa naquele ano (balanceteDoPeriodo em
+// data/calculations.js). `newMappings` traz os vínculos sugeridos pras
+// contas que só existiam naquele ano (sugerirVinculos em lib/dominioSync.js);
+// o razão é remapeado junto, como no De/Para. Mesmo contrato de
+// applyBalancete: espera o Supabase e desfaz tudo se falhar.
+export async function applyBalanceteAno(ano, newAccounts, newMappings, meta) {
+  const company = state.companies.find((item) => item.id === state.activeCompanyId);
+  if (!company || state.activeGroupId) throw new Error("Abra a empresa (não um grupo) pra atualizar o balancete — recarregue a página e tente de novo.");
+  const before = { companies: state.companies, mappings: state.mappings, journal: state.journal };
+  const balancetesAno = { ...(company.balancetesAno || {}), [ano]: { accounts: newAccounts, meta } };
+  const companies = state.companies.map((item) => (item.id === company.id ? { ...item, balancetesAno } : item));
+  const mappingsChanged = newMappings !== state.mappings;
+  setData({ companies, ...(mappingsChanged ? { mappings: newMappings, journal: remapJournal(state.journal, newMappings) } : {}) });
   try {
     await persistActiveCompany();
   } catch (error) {

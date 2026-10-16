@@ -62,6 +62,7 @@ export default function RelatoriosMensais() {
   const dominio = useDominioSync(company);
   const monthlyReports = company?.monthlyReports || {};
   const lastBalancete = company?.lastBalanceteMeta;
+  const balanceteDoAno = company?.balancetesAno?.[String(year)];
   const attachedMonths = journalMonthsPresent();
 
   function monthKey(index) {
@@ -358,11 +359,18 @@ export default function RelatoriosMensais() {
         <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-card p-4 shadow-sm">
           <div className="min-w-0">
             <p className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Balancete</p>
-            <p className="mt-1 text-[14px] font-medium text-ink-900">{state.accounts.length} contas carregadas</p>
+            {/* Ano com balancete próprio (ex.: 2025, pedido à Central — ver
+                applyBalanceteAno): mostra o dele; o principal continua valendo
+                pros outros anos. */}
+            <p className="mt-1 text-[14px] font-medium text-ink-900">
+              {balanceteDoAno ? `${balanceteDoAno.accounts.length} contas · balancete de ${year}` : `${state.accounts.length} contas carregadas`}
+            </p>
             <p className="mt-0.5 truncate text-[12px] text-ink-400">
-              {lastBalancete
-                ? `Enviado em ${new Date(lastBalancete.uploadedAt).toLocaleDateString("pt-BR")} · ${lastBalancete.name}`
-                : "Nenhum balancete enviado ainda."}
+              {balanceteDoAno
+                ? `${balanceteDoAno.meta?.name || "Domínio"} · o atual${lastBalancete ? ` (${lastBalancete.name})` : ""} continua valendo pros outros anos`
+                : lastBalancete
+                  ? `Enviado em ${new Date(lastBalancete.uploadedAt).toLocaleDateString("pt-BR")} · ${lastBalancete.name}`
+                  : "Nenhum balancete enviado ainda."}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
