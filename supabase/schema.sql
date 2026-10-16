@@ -485,6 +485,63 @@ create policy "dominio_balancete_read_staff"
   to authenticated
   using (is_portal_admin() or is_colaborador());
 
+-- Pedido de período à Central: a tela Dados pede "traga da Domínio os
+-- lançamentos de jan/2025 a dez/2025" (meses que a Central não manda nas
+-- rodadas normais) e a Central, que consulta o GET da dominio-sync a cada
+-- poucos minutos, pega o pedido, manda os meses pelo caminho de sempre
+-- (área de espera, aplica por clique) e marca feito/erro pela Edge Function.
+-- Só lançamentos — o balancete continua o da rodada normal. Um pedido aberto
+-- por empresa de cada vez (índice abaixo); até 36 meses por pedido.
+create table if not exists public.dominio_pedidos (
+  id uuid primary key default gen_random_uuid(),
+  company_codigo text not null check (company_codigo ~ '^[0-9]{1,10}$'),
+  cnpj text not null check (cnpj ~ '^([0-9]{11}|[0-9]{14})$'),
+  inicio text not null check (inicio ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),
+  fim text not null check (fim ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),
+  status text not null default 'pendente' check (status in ('pendente', 'andamento', 'feito', 'erro')),
+  meses integer,
+  mensagem text,
+  pedido_por text default (auth.jwt() ->> 'email'),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (inicio <= fim),
+  check ((left(fim, 4)::int * 12 + right(fim, 2)::int) - (left(inicio, 4)::int * 12 + right(inicio, 2)::int) < 36)
+);
+
+create unique index if not exists dominio_pedidos_um_aberto
+  on public.dominio_pedidos (company_codigo, cnpj)
+  where status in ('pendente', 'andamento');
+
+alter table public.dominio_pedidos enable row level security;
+
+-- Quem lê a área de espera (admin e colaboradores) pede e acompanha; só a
+-- Edge Function (service role) muda o status. Cancelar = apagar o pedido
+-- ainda pendente, ou um "andamento" parado há mais de 15 minutos.
+drop policy if exists "dominio_pedidos_read_staff" on public.dominio_pedidos;
+create policy "dominio_pedidos_read_staff"
+  on public.dominio_pedidos for select
+  to authenticated
+  using (is_portal_admin() or is_colaborador());
+
+drop policy if exists "dominio_pedidos_insert_staff" on public.dominio_pedidos;
+create policy "dominio_pedidos_insert_staff"
+  on public.dominio_pedidos for insert
+  to authenticated
+  with check (
+    (is_portal_admin() or is_colaborador())
+    and status = 'pendente' and meses is null and mensagem is null
+    and pedido_por is not distinct from (auth.jwt() ->> 'email')
+  );
+
+drop policy if exists "dominio_pedidos_cancel_staff" on public.dominio_pedidos;
+create policy "dominio_pedidos_cancel_staff"
+  on public.dominio_pedidos for delete
+  to authenticated
+  using (
+    (is_portal_admin() or is_colaborador())
+    and (status = 'pendente' or (status = 'andamento' and updated_at < now() - interval '15 minutes'))
+  );
+
 -- ============================================================================
 -- Acesso de clientes externos + módulo Reforma Tributária (out/2026)
 -- ============================================================================

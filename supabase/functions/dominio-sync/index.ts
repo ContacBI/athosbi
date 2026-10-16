@@ -14,13 +14,26 @@
 // verify_jwt = false e confere o token ela mesma.
 //
 // ── GET  → { empresas: [{ codigo, codigo_portal, cnpj, nome }],
-//            reforma: [{ cnpj, nome }] }
+//            reforma: [{ cnpj, nome }],
+//            pedidos: [{ id, empresa, cnpj, inicio, fim }] }
 //    `empresas`: as cadastradas no B.I. do AthosBI (código = código da
 //    empresa na Domínio, cnpj só dígitos), pra Central saber quais
 //    sincronizar e conferir o CNPJ antes de mandar.
 //    `reforma`: as empresas cadastradas no módulo Reforma Tributária (com
 //    CNPJ) — pra essas a Central manda o resumo fiscal (abaixo), achando a
 //    empresa na Domínio pelo CNPJ.
+//    `pedidos`: períodos que alguém pediu na tela Dados (ex.: o ano de 2025,
+//    que a rodada normal não manda) — ver POST "tipo": "pedido" abaixo.
+//
+// ── POST com "tipo": "pedido" → a Central avisa o andamento de um pedido:
+//    1. { "tipo": "pedido", "id": "…", "status": "andamento" } — pega o
+//       pedido (409 se outra rodada já pegou ou ele já terminou: pule);
+//    2. manda os meses de inicio a fim pelo POST de sempre (um lote por mês,
+//       mês sem lançamento vai vazio). Só lançamentos — balancete não;
+//    3. { "tipo": "pedido", "id": "…", "status": "feito", "meses": 12 } ou
+//       { "tipo": "pedido", "id": "…", "status": "erro", "mensagem": "…" }.
+//    Pedido "andamento" parado há mais de 15 minutos volta pro GET (a rodada
+//    que pegou caiu) e pode ser pego de novo.
 //
 // ── POST → grava UMA parte de UM mês de UMA empresa:
 //    {
@@ -364,6 +377,68 @@ async function receberBalancete(admin: Admin, body: Record<string, unknown>) {
   return json({ ok: true, tipo: "balancete", empresa, inicio, fim, lote, parte, partes, recebidas: count ?? 0, completo, qtd: contas.length });
 }
 
+// ── Pedido de período (tela Dados → Central) ───────────────────────────────
+
+const PEDIDO_PARADO_MS = 15 * 60 * 1000;
+const ID_PEDIDO = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+type Pedido = { id: string; company_codigo: string; cnpj: string; inicio: string; fim: string; status: string; updated_at: string };
+const parado = (pedido: Pedido) => pedido.status === "andamento" && Date.parse(pedido.updated_at) < Date.now() - PEDIDO_PARADO_MS;
+
+// Pedidos pra Central atender: os pendentes e os "andamento" parados.
+async function pedidosAbertos(admin: Admin) {
+  const { data, error } = await admin
+    .from("dominio_pedidos")
+    .select("id, company_codigo, cnpj, inicio, fim, status, updated_at")
+    .in("status", ["pendente", "andamento"])
+    .order("created_at");
+  if (error) throw error;
+  return ((data || []) as Pedido[])
+    .filter((pedido) => pedido.status === "pendente" || parado(pedido))
+    .map((pedido) => ({ id: pedido.id, empresa: pedido.company_codigo, cnpj: pedido.cnpj, inicio: pedido.inicio, fim: pedido.fim }));
+}
+
+// POST "tipo": "pedido" (ver o cabeçalho). Cada mudança só vale se o pedido
+// ainda está como foi lido (mesmo status e mesmo updated_at): duas rodadas
+// da Central ao mesmo tempo não pegam o mesmo pedido.
+async function atualizarPedido(admin: Admin, body: Record<string, unknown>) {
+  const id = String(body.id ?? "");
+  const status = String(body.status ?? "");
+  if (!ID_PEDIDO.test(id)) return json({ error: "id: o id do pedido que veio no GET." }, 400);
+  if (!["andamento", "feito", "erro"].includes(status)) return json({ error: 'status: "andamento", "feito" ou "erro".' }, 400);
+
+  const { data: atual, error: readError } = await admin
+    .from("dominio_pedidos")
+    .select("id, company_codigo, cnpj, inicio, fim, status, updated_at")
+    .eq("id", id)
+    .maybeSingle();
+  if (readError) return json({ error: readError.message }, 500);
+  if (!atual) return json({ error: "Pedido não encontrado (foi cancelado na tela Dados?) — pule." }, 404);
+  const pedido = atual as Pedido;
+
+  let mudanca: Record<string, unknown>;
+  if (status === "andamento") {
+    if (pedido.status !== "pendente" && !parado(pedido)) return json({ ok: false, error: `Pedido já está "${pedido.status}" — pule.` }, 409);
+    mudanca = { status, mensagem: null, meses: null };
+  } else {
+    if (pedido.status !== "andamento") return json({ ok: false, error: 'Marque o pedido como "andamento" antes de terminar.' }, 409);
+    const meses = Number(body.meses);
+    const mensagem = String(body.mensagem ?? "").trim().slice(0, 500);
+    if (status === "erro" && !mensagem) return json({ error: "mensagem: diga o que deu errado." }, 400);
+    mudanca = { status, meses: Number.isInteger(meses) && meses >= 0 ? meses : null, mensagem: mensagem || null };
+  }
+
+  const { data: gravado, error: updateError } = await admin
+    .from("dominio_pedidos")
+    .update({ ...mudanca, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("status", pedido.status)
+    .eq("updated_at", pedido.updated_at)
+    .select("id");
+  if (updateError) return json({ error: updateError.message }, 500);
+  if (!gravado?.length) return json({ ok: false, error: "Outra rodada mexeu nesse pedido agora mesmo — pule." }, 409);
+  return json({ ok: true, tipo: "pedido", id, status, empresa: pedido.company_codigo, cnpj: pedido.cnpj, inicio: pedido.inicio, fim: pedido.fim });
+}
+
 // ── Resumo fiscal (Reforma Tributária) ─────────────────────────────────────
 
 const MAX_LINHAS_FISCAL = 5000;
@@ -490,16 +565,20 @@ Deno.serve(async (req) => {
 
   if (req.method === "GET") {
     try {
-      // A lista da Reforma nunca derruba a do B.I. (a sincronização dos
-      // lançamentos depende só de `empresas`).
-      const [empresas, reforma] = await Promise.all([
+      // A lista da Reforma e os pedidos nunca derrubam a do B.I. (a
+      // sincronização dos lançamentos depende só de `empresas`).
+      const [empresas, reforma, pedidos] = await Promise.all([
         portalCompanies(admin),
         reformaCompanies(admin).catch((error) => {
           console.error("Falha ao listar as empresas da Reforma:", error);
           return [];
         }),
+        pedidosAbertos(admin).catch((error) => {
+          console.error("Falha ao listar os pedidos de período:", error);
+          return [];
+        }),
       ]);
-      return json({ empresas, reforma });
+      return json({ empresas, reforma, pedidos });
     } catch (error) {
       return json({ error: (error as Error).message }, 500);
     }
@@ -516,6 +595,7 @@ Deno.serve(async (req) => {
 
   if (body.tipo === "balancete") return receberBalancete(admin, body);
   if (body.tipo === "fiscal") return receberFiscal(admin, body);
+  if (body.tipo === "pedido") return atualizarPedido(admin, body);
 
   const empresa = normalizeCodigo(body.empresa);
   const cnpj = body.cnpj === undefined || body.cnpj === null || body.cnpj === "" ? null : digits(body.cnpj);

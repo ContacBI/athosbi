@@ -1768,13 +1768,18 @@ function normalize(value) {
 // precisa continuar valendo pro Balan\u00e7o \u2014 mas contado dentro do DRE ele
 // aparece como um estorno gigante bem no m\u00eas do fechamento (ex.: EBITDA de
 // dezembro caindo pra v\u00e1rios milh\u00f5es negativos), o que n\u00e3o \u00e9 o resultado
-// real daquele m\u00eas. O hist\u00f3rico desse lan\u00e7amento \u00e9 sempre gerado
-// automaticamente pelo Dom\u00ednio com esse texto fixo (c\u00f3digo de hist\u00f3rico
-// 47), ent\u00e3o d\u00e1 pra reconhecer com seguran\u00e7a sem depender de data.
-const RESULT_CLOSING_HISTORICO_PREFIX = "referente a apuracao do resultado do exercicio em";
+// real daquele m\u00eas. O hist\u00f3rico desse lan\u00e7amento \u00e9 gerado
+// automaticamente pelo Dom\u00ednio, ent\u00e3o d\u00e1 pra reconhecer com seguran\u00e7a sem
+// depender de data. Dois textos conhecidos: "Referente a apura\u00e7\u00e3o do
+// resultado do exerc\u00edcio em \u2026" (c\u00f3digo de hist\u00f3rico 47, nos di\u00e1rios
+// exportados) e "Apura\u00e7\u00e3o de resultado em 31.03.2026." (zeramento
+// trimestral da TERMOPLEX e da 229, vindo direto do banco \u2014 conferido: s\u00f3
+// contas de resultado contra Lucros/Preju\u00edzos). "Apura\u00e7\u00e3o de estoque
+// final/inicial" (CMV) N\u00c3O \u00e9 zeramento e n\u00e3o casa aqui.
+const RESULT_CLOSING_HISTORICO = /^(referente a )?apuracao d[eo] resultado (do exercicio )?em\b/;
 
 function isResultClosingEntry(entry) {
-  return normalize(entry?.historico).startsWith(RESULT_CLOSING_HISTORICO_PREFIX);
+  return RESULT_CLOSING_HISTORICO.test(normalize(entry?.historico));
 }
 
 

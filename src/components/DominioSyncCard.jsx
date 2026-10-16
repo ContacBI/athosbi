@@ -1,9 +1,92 @@
-import { useState } from "react";
-import { Check, RefreshCw, TriangleAlert } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Clock, LoaderCircle, RefreshCw, Send, TriangleAlert } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { attachJournalMonths } from "../lib/journalMonths.js";
 import { applyBalancete } from "../lib/companies.js";
-import { fetchDominioEntries, isDominioPending, migrateMappings, monthLabel, unmappedAccounts, unmappedBalanceteAccounts } from "../lib/dominioSync.js";
+import {
+  fetchDominioEntries,
+  isDominioPending,
+  isPedidoAberto,
+  migrateMappings,
+  monthLabel,
+  monthsBetween,
+  periodoLabel,
+  unmappedAccounts,
+  unmappedBalanceteAccounts,
+} from "../lib/dominioSync.js";
+
+const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const pad = (month) => String(month).padStart(2, "0");
+const mesAtual = () => {
+  const hoje = new Date();
+  return `${hoje.getFullYear()}-${pad(hoje.getMonth() + 1)}`;
+};
+const hora = (iso) => new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+const PEDIDO_PARADO_MS = 15 * 60 * 1000;
+const PEDIDO_RECENTE_MS = 24 * 60 * 60 * 1000;
+const SELECT_CLASS = "h-7 rounded-md border border-line-strong bg-surface-card px-1.5 text-[12px] text-ink-800 outline-none transition-colors focus:border-accent-500";
+
+// Competências em sequência viram faixa: "Jan/25 a Mar/25, Mai/25".
+function faixas(competencias) {
+  const grupos = [];
+  competencias.forEach((competencia) => {
+    const ultimo = grupos[grupos.length - 1];
+    const seguinte = ultimo && monthsBetween(ultimo.fim, competencia).length === 2;
+    if (seguinte) ultimo.fim = competencia;
+    else grupos.push({ inicio: competencia, fim: competencia });
+  });
+  return grupos.map((grupo) => periodoLabel(grupo.inicio, grupo.fim)).join(", ");
+}
+
+// Situação do último pedido de período à Central (ver lib/dominioSync.js).
+function PedidoStatus({ pedido, months, onCancelar, cancelando }) {
+  const periodo = periodoLabel(pedido.inicio, pedido.fim);
+  const desde = Date.now() - new Date(pedido.updated_at).getTime();
+  const cancelar = (
+    <button type="button" onClick={onCancelar} disabled={cancelando} className="ml-1 font-medium text-ink-500 underline decoration-dotted underline-offset-2 hover:text-ink-800 disabled:opacity-50">
+      cancelar pedido
+    </button>
+  );
+  if (pedido.status === "pendente") {
+    return (
+      <p className="flex flex-wrap items-center gap-1.5 text-[12px] text-ink-500">
+        <Clock size={12} strokeWidth={2} className="shrink-0 text-accent-500" />
+        Pedido à Central: {periodo} · feito em {hora(pedido.created_at)} · aguardando a Central pegar
+        {desde > 2 * PEDIDO_PARADO_MS ? " (está demorando — confira se a Central está ligada e atualizada)" : ""} ·{cancelar}
+      </p>
+    );
+  }
+  if (pedido.status === "andamento") {
+    const doPedido = monthsBetween(pedido.inicio, pedido.fim);
+    const chegaram = (months || []).filter((month) => doPedido.includes(month.competencia) && month.syncedAt >= pedido.created_at).length;
+    const parado = desde > PEDIDO_PARADO_MS;
+    return (
+      <p className="flex flex-wrap items-center gap-1.5 text-[12px] text-ink-500">
+        <LoaderCircle size={12} strokeWidth={2} className={`shrink-0 text-accent-500 ${parado ? "" : "animate-spin"}`} />
+        A Central está trazendo {periodo} · {chegaram} de {doPedido.length} {doPedido.length === 1 ? "mês" : "meses"} já chegaram
+        {parado ? <> · parece parada há {Math.round(desde / 60000)} min ·{cancelar}</> : ""}
+      </p>
+    );
+  }
+  if (desde > PEDIDO_RECENTE_MS) return null;
+  if (pedido.status === "erro") {
+    return (
+      <p className="flex items-start gap-1.5 text-[12px] text-warning-600">
+        <TriangleAlert size={13} strokeWidth={2} className="mt-px shrink-0" />
+        <span>
+          A Central não conseguiu trazer {periodo}: {pedido.mensagem || "sem detalhe"}.
+        </span>
+      </p>
+    );
+  }
+  return (
+    <p className="flex items-center gap-1.5 text-[12px] text-success-600">
+      <Check size={12} strokeWidth={2.2} className="shrink-0" />
+      A Central trouxe {periodo} em {hora(pedido.updated_at)}
+      {Number.isInteger(pedido.meses) ? ` (${pedido.meses} ${pedido.meses === 1 ? "mês" : "meses"})` : ""} — os que mudaram aparecem como pendentes.
+    </p>
+  );
+}
 
 const STATUS_STYLE = {
   igual: "border-line bg-surface-muted text-ink-500",
@@ -62,23 +145,75 @@ function Conferencia({ check }) {
   );
 }
 
-// Cartão "Domínio" da tela Dados (RelatoriosMensais.jsx): mostra os meses e
-// o balancete que a Central mandou direto do banco da Domínio (ver
-// lib/dominioSync.js e supabase/functions/dominio-sync) comparados com o
-// que está no portal, e aplica os pendentes — sempre por clique, nunca
-// sozinho. Os dados vêm de useDominioSync (a página compartilha com os
-// quadrados dos meses). As mensagens de andamento/erro usam a mesma faixa
-// da página (props).
-export default function DominioSyncCard({ dominio, onBusy, onDone, onError, onProgress }) {
+// Cartão "Domínio" da tela Dados (RelatoriosMensais.jsx): mostra os meses
+// (do ano escolhido na tela) e o balancete que a Central mandou direto do
+// banco da Domínio (ver lib/dominioSync.js e supabase/functions/dominio-sync)
+// comparados com o que está no portal, e aplica os pendentes do período
+// escolhido — sempre por clique, nunca sozinho. Mês que não está na área de
+// espera (ex.: 2025, que a rodada normal da Central não manda) se pede à
+// Central pelo mesmo período. Os dados vêm de useDominioSync (a página
+// compartilha com os quadrados dos meses). As mensagens de andamento/erro
+// usam a mesma faixa da página (props).
+export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError, onProgress }) {
   const state = useAppState();
-  const { codigo, cnpj, months, balancete, loadError, balanceteError, reload } = dominio;
+  const { codigo, cnpj, months, balancete, pedido, loadError, balanceteError, reload, pedir, cancelarPedido } = dominio;
   const [applying, setApplying] = useState(false);
+  const [pedindo, setPedindo] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
 
-  const withStatus = months || [];
-  const pending = withStatus.filter((month) => isDominioPending(month.status));
+  // Período dentro do ano da tela: o ano inteiro (até o mês atual, no ano
+  // corrente) — volta pra isso ao trocar de ano.
+  const agora = mesAtual();
+  const ultimoMes = String(year) === agora.slice(0, 4) ? Number(agora.slice(5, 7)) : 12;
+  const [de, setDe] = useState(1);
+  const [ate, setAte] = useState(ultimoMes);
+  useEffect(() => {
+    setDe(1);
+    setAte(ultimoMes);
+  }, [year, ultimoMes]);
+  const inicio = `${year}-${pad(de)}`;
+  const fim = `${year}-${pad(ate)}`;
+  const noPeriodo = (competencia) => competencia >= inicio && competencia <= fim;
+
+  const withStatus = (months || []).filter((month) => month.competencia.startsWith(`${year}-`));
+  const pending = withStatus.filter((month) => isDominioPending(month.status) && noPeriodo(month.competencia));
   const balancetePendente = Boolean(balancete && balancete.status !== "igual");
   const pendingCount = pending.length + (balancetePendente ? 1 : 0);
   const lastSync = [...withStatus.map((month) => month.syncedAt), balancete?.syncedAt || ""].reduce((latest, at) => (at > latest ? at : latest), "");
+  const recebidos = new Set(withStatus.map((month) => month.competencia));
+  // Só dá pra pedir mês que já começou.
+  const pedivel = monthsBetween(inicio, fim < agora ? fim : agora);
+  const faltando = pedivel.filter((competencia) => !recebidos.has(competencia));
+  const pedidoAberto = isPedidoAberto(pedido);
+
+  async function handlePedir() {
+    if (!pedivel.length || pedindo || pedidoAberto) return;
+    const ultimo = pedivel[pedivel.length - 1];
+    setPedindo(true);
+    try {
+      await pedir(inicio, ultimo);
+      onDone(`Pedido enviado à Central: ${periodoLabel(inicio, ultimo)}. Ela confere os pedidos a cada poucos minutos — os meses aparecem aqui como pendentes.`);
+    } catch (error) {
+      console.error("Falha ao pedir o período à Central:", error);
+      onError(error?.message?.startsWith("Já tem um pedido") ? error.message : "Não consegui registrar o pedido — tenta de novo.");
+    } finally {
+      setPedindo(false);
+    }
+  }
+
+  async function handleCancelar() {
+    if (!pedido || cancelando || !window.confirm(`Cancelar o pedido de ${periodoLabel(pedido.inicio, pedido.fim)}?`)) return;
+    setCancelando(true);
+    try {
+      await cancelarPedido();
+      onDone("Pedido cancelado.");
+    } catch (error) {
+      console.error("Falha ao cancelar o pedido:", error);
+      onError(error?.message?.startsWith("A Central já começou") ? error.message : "Não consegui cancelar o pedido — tenta de novo.");
+    } finally {
+      setCancelando(false);
+    }
+  }
 
   async function apply(targets, withBalancete) {
     const bal = withBalancete && balancete ? balancete : null;
@@ -107,7 +242,7 @@ export default function DominioSyncCard({ dominio, onBusy, onDone, onError, onPr
       }
       if (migracao.mappings !== state.mappings) {
         avisos.push(`Desta vez não dá pra "voltar ao balancete anterior", porque o De/Para também muda.`);
-        const outrosMeses = pending.filter((month) => !targets.includes(month));
+        const outrosMeses = (months || []).filter((month) => isDominioPending(month.status) && !targets.some((target) => target.competencia === month.competencia));
         if (outrosMeses.length) avisos.push(`Atualize também ${outrosMeses.length === 1 ? "o mês pendente" : "os meses pendentes"} (${outrosMeses.map((month) => monthLabel(month.competencia)).join(", ")}) — vêm na numeração nova.`);
       }
       const semDePara = [...new Set([...unmappedAccounts(entries, migracao.mappings), ...(bal ? unmappedBalanceteAccounts(bal.accounts, migracao.mappings).map((account) => account.classificacao) : [])])];
@@ -157,37 +292,107 @@ export default function DominioSyncCard({ dominio, onBusy, onDone, onError, onPr
         Não consegui consultar a Domínio agora.
       </p>
     );
-  } else if (!withStatus.length && !balancete) {
-    body = <p className="text-[12.5px] text-ink-400">Nada recebido da Domínio ainda para o código {codigo} com o CNPJ desta empresa. Quando a Central sincronizar, os meses aparecem aqui.</p>;
   } else {
     const pendentes = [pending.length ? plural(pending.length, "mês", "meses") : "", balancetePendente ? "o balancete" : ""].filter(Boolean);
+    const ultimoPedivel = pedivel[pedivel.length - 1];
     body = (
       <>
         <p className="text-[12px] text-ink-400">
-          Código {codigo} · CNPJ conferido · última sincronização {new Date(lastSync).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
-          {pendingCount ? ` · ${pendentes.join(" e ")} ${pendingCount === 1 ? "pendente" : "pendentes"}` : " · tudo igual ao portal"}
+          Código {codigo} · CNPJ conferido
+          {lastSync ? ` · última sincronização ${hora(lastSync)}` : ""}
+          {pendingCount ? ` · ${pendentes.join(" e ")} ${pendingCount === 1 ? "pendente" : "pendentes"}` : withStatus.length ? " · tudo igual ao portal" : ""}
         </p>
-        <div className="mt-2.5 flex flex-wrap gap-1.5">
-          {withStatus.map((month) => {
-            const clickable = isDominioPending(month.status);
-            return (
-              <button
-                key={month.competencia}
-                type="button"
-                disabled={!clickable || applying}
-                onClick={() => apply([month], false)}
-                title={`${STATUS_TITLE[month.status]} · ${month.qtd} lançamentos na Domínio`}
-                className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11.5px] font-medium transition-colors disabled:cursor-default ${STATUS_STYLE[month.status]}`}
-              >
-                {month.status === "igual" && <Check size={11} strokeWidth={2.2} />}
-                {monthLabel(month.competencia)}
-                {month.status === "novo" && <span className="font-normal">· pendente (novo)</span>}
-                {month.status === "pendente" && <span className="font-normal">· pendente</span>}
-                {month.status === "vazio" && <span className="font-normal">· vazio</span>}
-              </button>
-            );
-          })}
+        {withStatus.length ? (
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {withStatus.map((month) => {
+              const clickable = isDominioPending(month.status);
+              return (
+                <button
+                  key={month.competencia}
+                  type="button"
+                  disabled={!clickable || applying}
+                  onClick={() => apply([month], false)}
+                  title={`${STATUS_TITLE[month.status]} · ${month.qtd} lançamentos na Domínio${noPeriodo(month.competencia) ? "" : " · fora do período escolhido"}`}
+                  className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11.5px] font-medium transition-all disabled:cursor-default ${STATUS_STYLE[month.status]} ${noPeriodo(month.competencia) ? "" : "opacity-45"}`}
+                >
+                  {month.status === "igual" && <Check size={11} strokeWidth={2.2} />}
+                  {monthLabel(month.competencia)}
+                  {month.status === "novo" && <span className="font-normal">· pendente (novo)</span>}
+                  {month.status === "pendente" && <span className="font-normal">· pendente</span>}
+                  {month.status === "vazio" && <span className="font-normal">· vazio</span>}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="mt-2 text-[12.5px] text-ink-400">Nada de {year} chegou da Domínio ainda — a rodada normal da Central só manda o ano corrente. Peça o período abaixo.</p>
+        )}
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12px] text-ink-500">
+          <span>Período</span>
+          <select
+            aria-label="Mês inicial do período"
+            value={de}
+            onChange={(event) => {
+              const valor = Number(event.target.value);
+              setDe(valor);
+              if (valor > ate) setAte(valor);
+            }}
+            className={SELECT_CLASS}
+          >
+            {MESES.map((mes, index) => (
+              <option key={mes} value={index + 1}>
+                {mes}
+              </option>
+            ))}
+          </select>
+          <span>a</span>
+          <select
+            aria-label="Mês final do período"
+            value={ate}
+            onChange={(event) => {
+              const valor = Number(event.target.value);
+              setAte(valor);
+              if (valor < de) setDe(valor);
+            }}
+            className={SELECT_CLASS}
+          >
+            {MESES.map((mes, index) => (
+              <option key={mes} value={index + 1}>
+                {mes}
+              </option>
+            ))}
+          </select>
+          <span>de {year}</span>
+          <button
+            type="button"
+            onClick={handlePedir}
+            disabled={!pedivel.length || pedindo || pedidoAberto}
+            title={
+              pedidoAberto
+                ? "Já tem um pedido aberto pra esta empresa — espere a Central terminar"
+                : pedivel.length
+                  ? `Pede à Central os lançamentos de ${periodoLabel(inicio, ultimoPedivel)} direto da Domínio (os que já estão aqui vêm de novo, pra conferir)`
+                  : "Esse período ainda não começou"
+            }
+            className="ml-1 flex h-7 items-center gap-1.5 rounded-md border border-line-strong px-2.5 font-medium text-ink-700 transition-colors hover:border-accent-300 hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Send size={12.5} strokeWidth={1.9} />
+            {pedindo ? "Pedindo…" : "Pedir à Central"}
+          </button>
+          {faltando.length > 0 && !pedidoAberto && (
+            <span className="text-ink-400">
+              {faltando.length === pedivel.length
+                ? "nenhum mês desse período chegou da Domínio ainda"
+                : `${plural(faltando.length, "mês", "meses")} desse período ainda não ${faltando.length === 1 ? "chegou" : "chegaram"} da Domínio`}{" "}
+              ({faixas(faltando)})
+            </span>
+          )}
         </div>
+        {pedido && (
+          <div className="mt-1.5">
+            <PedidoStatus pedido={pedido} months={months} onCancelar={handleCancelar} cancelando={cancelando} />
+          </div>
+        )}
         {balancete && (
           <div className="mt-2.5 border-t border-line pt-2.5">
             <button
@@ -237,6 +442,7 @@ export default function DominioSyncCard({ dominio, onBusy, onDone, onError, onPr
           type="button"
           onClick={() => apply(pending, balancetePendente)}
           disabled={!pendingCount || applying}
+          title={`Traz pro portal os meses pendentes de ${periodoLabel(inicio, fim)}${balancetePendente ? " e o balancete" : ""} — os outros meses não mudam`}
           className="flex items-center gap-1.5 rounded-md bg-accent-500 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
         >
           Atualizar com a Domínio{pendingCount ? ` (${pendingCount})` : ""}
