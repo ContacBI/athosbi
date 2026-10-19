@@ -7,7 +7,9 @@ import {
   compareMonth,
   dominioCnpj,
   dominioCodigo,
-  fetchDominioBalancete,
+  destinoBalancete,
+  anoDoBalancete,
+  fetchDominioBalancetes,
   fetchDominioMonths,
   fetchDominioPedido,
   isPedidoAberto,
@@ -30,7 +32,7 @@ export function useDominioSync(company) {
   const codigo = dominioCodigo(company);
   const cnpj = dominioCnpj(company);
   const [rawMonths, setRawMonths] = useState(null); // null = carregando
-  const [rawBalancete, setRawBalancete] = useState(null);
+  const [rawBalancetes, setRawBalancetes] = useState([]);
   const [pedido, setPedido] = useState(null);
   const [loadError, setLoadError] = useState(false);
   const [balanceteError, setBalanceteError] = useState(false);
@@ -38,7 +40,7 @@ export function useDominioSync(company) {
   const reload = useCallback(async () => {
     if (!codigo || !cnpj) {
       setRawMonths([]);
-      setRawBalancete(null);
+      setRawBalancetes([]);
       setPedido(null);
       return;
     }
@@ -47,7 +49,7 @@ export function useDominioSync(company) {
     setBalanceteError(false);
     // Separados: se só o balancete (ou o pedido) falhar, os meses continuam
     // aparecendo.
-    const [months, balancete, ultimoPedido] = await Promise.allSettled([fetchDominioMonths(codigo, cnpj), fetchDominioBalancete(codigo, cnpj), fetchDominioPedido(codigo, cnpj)]);
+    const [months, balancete, ultimoPedido] = await Promise.allSettled([fetchDominioMonths(codigo, cnpj), fetchDominioBalancetes(codigo, cnpj), fetchDominioPedido(codigo, cnpj)]);
     if (months.status === "rejected") {
       console.error("Falha ao consultar os lançamentos da Domínio:", months.reason);
       setLoadError(true);
@@ -57,7 +59,7 @@ export function useDominioSync(company) {
       setBalanceteError(true);
     }
     if (ultimoPedido.status === "rejected") console.error("Falha ao consultar o pedido de período:", ultimoPedido.reason);
-    setRawBalancete(balancete.status === "fulfilled" ? balancete.value : null);
+    setRawBalancetes(balancete.status === "fulfilled" ? balancete.value : []);
     setPedido(ultimoPedido.status === "fulfilled" ? ultimoPedido.value : null);
     setRawMonths(months.status === "fulfilled" ? months.value : []);
   }, [codigo, cnpj]);
@@ -75,12 +77,12 @@ export function useDominioSync(company) {
     const timer = setInterval(async () => {
       try {
         const atual = await fetchDominioPedido(codigo, cnpj);
+        // Meses antes de trocar o pedido: os dois mudam no mesmo render (senão
+        // "trazendo… 0 de 12" aparecia por um instante com meses já chegados).
+        const months = !isPedidoAberto(atual) || atual.status === "andamento" ? await fetchDominioMonths(codigo, cnpj) : null;
         if (!ativo) return;
+        if (months) setRawMonths(months);
         setPedido(atual);
-        if (!isPedidoAberto(atual) || atual.status === "andamento") {
-          const months = await fetchDominioMonths(codigo, cnpj);
-          if (ativo) setRawMonths(months);
-        }
       } catch (error) {
         console.error("Falha ao acompanhar o pedido de período:", error);
       }
@@ -116,10 +118,19 @@ export function useDominioSync(company) {
     [rawMonths, stats]
   );
   const statusByMonth = useMemo(() => new Map((months || []).map((month) => [month.competencia, month.status])), [months]);
-  const balancete = useMemo(() => {
-    if (!rawBalancete || rawMonths === null) return null;
-    return { ...rawBalancete, status: compareBalancete(rawBalancete, accounts), check: checkBalancete(rawBalancete, journal, rawMonths) };
-  }, [rawBalancete, rawMonths, accounts, journal]);
+  // Um balancete por ano: cada um comparado com o que o portal tem PRA AQUELE
+  // ano — o principal (company.accounts) ou o guardado em balancetesAno (ver
+  // destinoBalancete em dominioSync.js).
+  const balancetes = useMemo(() => {
+    if (rawMonths === null) return [];
+    const anos = rawBalancetes.map(anoDoBalancete);
+    return rawBalancetes.map((item) => {
+      const ano = anoDoBalancete(item);
+      const destino = destinoBalancete(company, ano, anos);
+      const doPortal = destino === "principal" ? accounts : company?.balancetesAno?.[ano]?.accounts || [];
+      return { ...item, ano, destino, status: compareBalancete(item, doPortal), check: checkBalancete(item, journal, rawMonths) };
+    });
+  }, [rawBalancetes, rawMonths, accounts, journal, company]);
 
-  return { codigo, cnpj, months, balancete, pedido, loadError, balanceteError, reload, statusByMonth, pedir, cancelarPedido };
+  return { codigo, cnpj, months, balancetes, pedido, loadError, balanceteError, reload, statusByMonth, pedir, cancelarPedido };
 }

@@ -227,11 +227,12 @@ function balanceteAccounts(contas) {
     .sort(planOrder);
 }
 
-// O balancete que a Central mandou pra essa empresa — o lote COMPLETO mais
-// recente (a Edge Function apaga os anteriores quando um novo completa) —
-// ou null se não chegou nenhum.
-export async function fetchDominioBalancete(codigo, cnpj) {
-  if (!codigo || !cnpj) return null;
+// Os balancetes que a Central mandou pra essa empresa — um por período (o
+// do ano corrente, da rodada normal, e o de ano anterior, de pedido à
+// Central): de cada início, o lote COMPLETO mais recente (a Edge Function
+// apaga os anteriores quando um novo completa). Mais recente primeiro.
+export async function fetchDominioBalancetes(codigo, cnpj) {
+  if (!codigo || !cnpj) return [];
   const { data, error } = await supabase
     .from("dominio_balancete")
     .select("lote, parte, partes, inicio, fim, contas, synced_at")
@@ -248,9 +249,140 @@ export async function fetchDominioBalancete(codigo, cnpj) {
     if (row.synced_at > lote.syncedAt) lote.syncedAt = row.synced_at;
     lotes.set(row.lote, lote);
   });
-  const completo = [...lotes.values()].filter((lote) => lote.recebidas >= lote.partes).sort((a, b) => b.syncedAt.localeCompare(a.syncedAt))[0];
-  if (!completo) return null;
-  return { lote: completo.lote, inicio: completo.inicio, fim: completo.fim, syncedAt: completo.syncedAt, accounts: balanceteAccounts(completo.contas) };
+  const porInicio = new Map();
+  [...lotes.values()]
+    .filter((lote) => lote.recebidas >= lote.partes)
+    .forEach((lote) => {
+      const atual = porInicio.get(lote.inicio);
+      if (!atual || lote.syncedAt > atual.syncedAt) porInicio.set(lote.inicio, lote);
+    });
+  return [...porInicio.values()]
+    .sort((a, b) => String(b.inicio).localeCompare(String(a.inicio)))
+    .map((lote) => ({ lote: lote.lote, inicio: lote.inicio, fim: lote.fim, syncedAt: lote.syncedAt, accounts: balanceteAccounts(lote.contas) }));
+}
+
+// ── Balancete de cada ano ──────────────────────────────────────────────
+// O balancete "principal" da empresa (company.accounts, o do ano corrente)
+// é o que alimenta o De/Para e os relatórios do ano. Um balancete de ano
+// ANTERIOR (pedido à Central) fica guardado à parte, em
+// company.balancetesAno[ano] (ver applyBalanceteAno em lib/companies.js), e
+// os relatórios usam ele quando o período da tela começa naquele ano (ver
+// balanceteDoPeriodo em data/calculations.js).
+
+export const anoDoBalancete = (balancete) => String(balancete?.inicio || "").slice(0, 4);
+
+// "principal" (troca o balancete da empresa, como sempre) ou "ano" (guarda
+// como balancete daquele ano). O principal tem o ano do período dele; se
+// veio de arquivo (sem período), vale o mais recente entre os da Domínio e o
+// ano corrente — balancete de ano que já passou nunca toma o lugar dele.
+export function destinoBalancete(company, ano, anosDaDominio = []) {
+  const principal = String(company?.lastBalanceteMeta?.inicio || "").slice(0, 4);
+  const referencia = principal || [...anosDaDominio, String(new Date().getFullYear())].reduce((maior, item) => (item > maior ? item : maior), "");
+  return ano >= referencia ? "principal" : "ano";
+}
+
+const nomeComparavel = (value) =>
+  String(value ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim();
+const contaPai = (classificacao) => String(classificacao || "").replace(/\.[^.]+$/, "");
+const grupo = (classificacao) => String(classificacao || "").split(".")[0];
+// Dois primeiros níveis ("9.3" custos × "9.4" despesas, "1.1" circulante…):
+// conta com o mesmo nome em outro subgrupo é outra coisa (salário da
+// produção não é salário administrativo).
+const subgrupo = (classificacao) => String(classificacao || "").split(".").slice(0, 2).join(".");
+
+// Destino mais comum de uma lista de vínculos: { row, parcela, total }.
+function maisComum(vinculos) {
+  const contagem = new Map();
+  vinculos.forEach((row) => {
+    const item = contagem.get(row.codigo_gerencial) || { row, n: 0 };
+    item.n += 1;
+    contagem.set(row.codigo_gerencial, item);
+  });
+  const [primeiro] = [...contagem.values()].sort((a, b) => b.n - a.n);
+  return primeiro ? { row: primeiro.row, parcela: primeiro.n / vinculos.length, total: vinculos.length } : null;
+}
+
+// Contas de um balancete de ano anterior que não têm De/Para (cliente ou
+// fornecedor que parou de movimentar, conta que mudou de número…) — sem
+// vínculo, ficam fora dos relatórios daquele ano. Sugere o vínculo, nesta
+// ordem:
+//  1. mesma conta em outro número: vínculo com o mesmo código reduzido e o
+//     mesmo nome (a mesma regra de migrateMappings);
+//  2. conta já vinculada com o MESMO nome, no mesmo subgrupo (dois primeiros
+//     níveis: custo "9.3" não pega o destino de despesa "9.4") — ex.:
+//     cliente cadastrado de novo com outro número;
+//  3. contas irmãs (mesma conta-pai): no Ativo/Passivo/PL (grupos 1 e 2), o
+//     destino mais comum entre pelo menos 3 irmãs; no resultado, só quando
+//     TODAS as irmãs (pelo menos 2) vão pro mesmo destino — despesa irmã não
+//     é necessariamente a mesma linha do DRE.
+// O que não se encaixa fica pendente pro De/Para. Vínculo sugerido leva a
+// regra na observação ("Sugerido: …"), pra dar pra revisar.
+export function sugerirVinculos(accounts, mappings) {
+  const atuais = mappings || [];
+  const vinculadas = new Set(atuais.map((row) => row.classificacao));
+  const porCodigo = new Map();
+  const porNome = new Map();
+  const porPai = new Map();
+  atuais.forEach((row) => {
+    const codigo = String(row.codigo_conta ?? "").trim();
+    if (codigo) porCodigo.set(codigo, [...(porCodigo.get(codigo) || []), row]);
+    const nome = `${subgrupo(row.classificacao)}|${nomeComparavel(row.nome_conta)}`;
+    porNome.set(nome, [...(porNome.get(nome) || []), row]);
+    const pai = contaPai(row.classificacao);
+    porPai.set(pai, [...(porPai.get(pai) || []), row]);
+  });
+  const novas = [];
+  const pendentes = [];
+  const contagem = { mesmaConta: 0, mesmoNome: 0, irmas: 0 };
+  accounts
+    .filter((account) => account.tipo_sintetica === "nao" && !vinculadas.has(account.classificacao))
+    .forEach((account) => {
+      vinculadas.add(account.classificacao);
+      let escolha = null;
+      let regra = "";
+      const mesmaConta = (porCodigo.get(String(account.codigo ?? "").trim()) || []).filter((row) => sameName(row.nome_conta, account.nome_conta));
+      if (mesmaConta.length) {
+        escolha = maisComum(mesmaConta).row;
+        regra = "mesmaConta";
+      }
+      if (!escolha) {
+        const mesmoNome = porNome.get(`${subgrupo(account.classificacao)}|${nomeComparavel(account.nome_conta)}`) || [];
+        if (nomeComparavel(account.nome_conta) && mesmoNome.length) {
+          escolha = maisComum(mesmoNome).row;
+          regra = "mesmoNome";
+        }
+      }
+      if (!escolha) {
+        const irmas = maisComum(porPai.get(contaPai(account.classificacao)) || []);
+        const patrimonial = ["1", "2"].includes(grupo(account.classificacao));
+        if (irmas && (patrimonial ? irmas.total >= 3 : irmas.total >= 2 && irmas.parcela === 1)) {
+          escolha = irmas.row;
+          regra = "irmas";
+        }
+      }
+      if (!escolha) {
+        pendentes.push(account);
+        return;
+      }
+      contagem[regra] += 1;
+      novas.push({
+        codigo_conta: account.codigo,
+        classificacao: account.classificacao,
+        nome_conta: account.nome_conta,
+        tipo_conta: "",
+        codigo_gerencial: escolha.codigo_gerencial,
+        categoria_gerencial: escolha.categoria_gerencial,
+        demonstrativo: escolha.demonstrativo,
+        grupo_macro: escolha.grupo_macro,
+        observacao: `Sugerido: ${regra === "mesmaConta" ? "mesma conta em outro número" : regra === "mesmoNome" ? "conta com o mesmo nome" : "contas irmãs"} (${escolha.classificacao})`,
+      });
+    });
+  return { mappings: novas.length ? [...atuais, ...novas] : atuais, novas, pendentes, contagem };
 }
 
 const accountLine = (account) =>

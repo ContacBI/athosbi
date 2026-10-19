@@ -29,7 +29,9 @@
 //    1. { "tipo": "pedido", "id": "…", "status": "andamento" } — pega o
 //       pedido (409 se outra rodada já pegou ou ele já terminou: pule);
 //    2. manda os meses de inicio a fim pelo POST de sempre (um lote por mês,
-//       mês sem lançamento vai vazio). Só lançamentos — balancete não;
+//       mês sem lançamento vai vazio) e, pra cada ano do pedido que não seja
+//       o ano corrente, o balancete daquele ano (01/01 a 31/12, POST "tipo":
+//       "balancete") — é dele que sai o Balanço daquele ano no portal;
 //    3. { "tipo": "pedido", "id": "…", "status": "feito", "meses": 12 } ou
 //       { "tipo": "pedido", "id": "…", "status": "erro", "mensagem": "…" }.
 //    Pedido "andamento" parado há mais de 15 minutos volta pro GET (a rodada
@@ -312,8 +314,9 @@ function validarConta(raw: Record<string, unknown>, index: number): Conta | stri
 
 // POST "tipo": "balancete" (ver o cabeçalho). Mesmo esquema de lote/partes
 // dos meses: quando o lote completa, os balancetes anteriores da empresa
-// (mesmo CNPJ) são apagados — o portal só enxerga o lote completo mais
-// recente.
+// (mesmo CNPJ e mesmo início) são apagados — o portal enxerga o lote
+// completo mais recente de cada período (o do ano corrente e, pedido à
+// Central, o de um ano anterior).
 async function receberBalancete(admin: Admin, body: Record<string, unknown>) {
   const empresa = normalizeCodigo(body.empresa);
   const cnpj = digits(body.cnpj);
@@ -370,7 +373,9 @@ async function receberBalancete(admin: Admin, body: Record<string, unknown>) {
   if (countError) return json({ error: countError.message }, 500);
   const completo = (count ?? 0) >= partes;
   if (completo) {
-    const cleanupError = await apagarLotesAnteriores(admin, "dominio_balancete", { company_codigo: empresa, cnpj }, lote);
+    // Um balancete por período (inicio): o de 2025 (pedido à Central) não
+    // apaga o do ano corrente, e vice-versa.
+    const cleanupError = await apagarLotesAnteriores(admin, "dominio_balancete", { company_codigo: empresa, cnpj, inicio }, lote);
     if (cleanupError) return json({ error: cleanupError.message }, 500);
   }
 

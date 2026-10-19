@@ -398,7 +398,7 @@ function PendingMappingsBadge({ company }) {
   const appState = useAppState();
   const navigate = useNavigate();
   const hasData = appState.accounts.length > 0;
-  const missing = useMemo(() => (hasData ? missingMappingAccounts() : []), [hasData, appState.accounts, appState.mappings]);
+  const missing = useMemo(() => (hasData ? missingMappingAccounts() : []), [hasData, appState.accounts, appState.mappings, appState.periodStart, appState.companies]);
   if (!missing.length) return null;
 
   const label = `${missing.length} conta${missing.length === 1 ? "" : "s"} sem De/Para`;

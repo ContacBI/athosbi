@@ -9,6 +9,20 @@ export function filteredJournal() {
   });
 }
 
+// Balancete que vale pro período da tela: o do ano em que o período começa,
+// quando a empresa tem um guardado pra esse ano (company.balancetesAno — ver
+// applyBalanceteAno em lib/companies.js; ex.: o de 2025, pedido à Central);
+// senão o principal (state.accounts). É dele que saem o saldo anterior e o
+// saldo final do Balanço, as disponibilidades do DFC e a lista de contas.
+// Grupo e B.I. consolidado usam sempre state.accounts (já montado pra eles).
+export function balanceteDoPeriodo() {
+  const ano = String(state.periodStart || "").slice(0, 4);
+  if (!ano || state.activeGroupId) return state.accounts;
+  const company = state.companies.find((item) => item.id === state.activeCompanyId);
+  const doAno = company?.balancetesAno?.[ano]?.accounts;
+  return doAno?.length ? doAno : state.accounts;
+}
+
 export function reportMonths() {
   const periodMonths = monthsFromSelectedPeriod();
   if (periodMonths.length) return periodMonths;
@@ -301,7 +315,7 @@ export function buildReportTree(type) {
     });
   });
 
-  state.accounts
+  balanceteDoPeriodo()
     .filter((account) => account.tipo_sintetica === "nao")
     .forEach((account) => {
       const map = mapping.get(account.classificacao);
@@ -930,7 +944,7 @@ function cashBalanceAtEnd() {
 }
 
 function cashEquivalentAccounts() {
-  return state.accounts
+  return balanceteDoPeriodo()
     .filter((account) => account.tipo_sintetica === "nao")
     .filter((account) => isCashEntry({ ...account, descricao_conta: account.nome_conta, historico: "" }));
 }
@@ -1362,7 +1376,7 @@ export function analyticRowsForLine(line) {
   const type = line.demonstrativo;
   const periodMovementByAccount = movementByAccount(entries, type);
   const previousMovementByAccount = type === "DRE" ? movementByAccount(entriesBeforePeriodStart(), type) : new Map();
-  const analyticAccounts = state.accounts.filter((account) => account.tipo_sintetica === "nao");
+  const analyticAccounts = balanceteDoPeriodo().filter((account) => account.tipo_sintetica === "nao");
   const classFrequency = analyticAccounts.reduce((counts, account) => {
     const key = String(account.classificacao || "");
     counts.set(key, (counts.get(key) || 0) + 1);
@@ -1457,7 +1471,7 @@ export function kpis() {
   };
   const receita = rowPeriodValue(dre, "DRE.03");
   const resultado = rowPeriodValue(dre, "DRE.17") || rowPeriodValue(dre, "DRE.12");
-  const analyticAccounts = state.accounts.filter((account) => account.tipo_sintetica === "nao");
+  const analyticAccounts = balanceteDoPeriodo().filter((account) => account.tipo_sintetica === "nao");
   const totalAtivoBalancete = analyticAccounts
     .filter((account) => String(account.classificacao || "").startsWith("1"))
     .reduce((sum, account) => sum + Number(account.saldo_atual || 0), 0);
@@ -1618,7 +1632,7 @@ export function entriesForDfcAnalytic(parentCode, classificacao) {
 
 export function missingMappingAccounts() {
   const mapping = mappingByClassification();
-  return state.accounts
+  return balanceteDoPeriodo()
     .filter((account) => account.tipo_sintetica === "nao")
     .filter((account) => !mapping.has(account.classificacao));
 }
