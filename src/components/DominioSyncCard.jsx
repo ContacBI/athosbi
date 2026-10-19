@@ -428,7 +428,11 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
               type="button"
               disabled={!balancetePendente || applying}
               onClick={() => apply([], true)}
-              title={`${BALANCETE_TITLE[balancete.status]} · ${balancete.accounts.length} contas na Domínio${balancete.destino === "ano" ? ` · fica guardado como balancete de ${balancete.ano} (o atual da empresa não muda)` : ""}`}
+              title={`${
+                balancete.destino === "ano" && balancete.status === "novo"
+                  ? `Pendente: o portal ainda não tem o balancete de ${balancete.ano} — clique pra trazer só ele`
+                  : BALANCETE_TITLE[balancete.status]
+              } · ${balancete.accounts.length} contas na Domínio${balancete.destino === "ano" ? ` · fica guardado como balancete de ${balancete.ano} (o atual da empresa não muda)` : ""}`}
               className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11.5px] font-medium transition-colors disabled:cursor-default ${STATUS_STYLE[balancete.status]}`}
             >
               {balancete.status === "igual" && <Check size={11} strokeWidth={2.2} />}

@@ -77,12 +77,12 @@ export function useDominioSync(company) {
     const timer = setInterval(async () => {
       try {
         const atual = await fetchDominioPedido(codigo, cnpj);
+        // Meses antes de trocar o pedido: os dois mudam no mesmo render (senão
+        // "trazendo… 0 de 12" aparecia por um instante com meses já chegados).
+        const months = !isPedidoAberto(atual) || atual.status === "andamento" ? await fetchDominioMonths(codigo, cnpj) : null;
         if (!ativo) return;
+        if (months) setRawMonths(months);
         setPedido(atual);
-        if (!isPedidoAberto(atual) || atual.status === "andamento") {
-          const months = await fetchDominioMonths(codigo, cnpj);
-          if (ativo) setRawMonths(months);
-        }
       } catch (error) {
         console.error("Falha ao acompanhar o pedido de período:", error);
       }
