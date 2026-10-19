@@ -241,14 +241,17 @@ export function buildDfcIndirect() {
   return rows;
 }
 
-export function buildReportTree(type) {
+// `comZeramento`: só pro Balanço (applyBpPeriodResult) — o DRE com o
+// lançamento de zeramento DENTRO dá o resultado que ainda não foi levado pro
+// PL (ver isResultClosingEntry).
+export function buildReportTree(type, { comZeramento = false } = {}) {
   const mapping = mappingByClassification();
   const plan = planByCode();
   const entries = filteredJournal();
   const entryCountByPlan = new Map();
   const monthByPlan = new Map();
-  const periodMovementByAccount = movementByAccount(entries, type);
-  const previousMovementByAccount = type === "DRE" ? movementByAccount(entriesBeforePeriodStart(), type) : new Map();
+  const periodMovementByAccount = movementByAccount(entries, type, comZeramento);
+  const previousMovementByAccount = type === "DRE" ? movementByAccount(entriesBeforePeriodStart(), type, comZeramento) : new Map();
   const rows = new Map();
 
   state.plano
@@ -297,7 +300,7 @@ export function buildReportTree(type) {
   entries.forEach((entry) => {
     // Só ignora o zeramento dentro do DRE — o Balanço (BP) precisa dele pra
     // fechar o PL de verdade (ver isResultClosingEntry acima).
-    if (type === "DRE" && isResultClosingEntry(entry)) return;
+    if (type === "DRE" && !comZeramento && isResultClosingEntry(entry)) return;
     const mapped = mapping.get(entry.classificacao) || {};
     const codigoGerencial = entry.codigo_gerencial || mapped.codigo_gerencial || "";
     if (!codigoGerencial) return;
@@ -354,9 +357,16 @@ export function buildReportTree(type) {
     .sort((a, b) => a.codigo_gerencial.localeCompare(b.codigo_gerencial, "pt-BR", { numeric: true }));
 }
 
+// "Resultado do exercício" no PL: o resultado do período que AINDA está nas
+// contas de resultado. O que o zeramento (trimestral ou anual) já levou pra
+// Lucros/Prejuízos acumulados está no saldo dessas contas de PL — somar o
+// resultado inteiro do DRE de novo contava duas vezes (o Balanço da
+// TERMOPLEX não fechava: em 2025 pelo resultado do ano, em 2026 pelo do 1º
+// semestre). Por isso aqui o DRE é calculado COM o zeramento; o DRE da tela
+// continua sem ele.
 function applyBpPeriodResult(rows) {
   const targetCode = "03.02.01.05";
-  const dreRows = buildReportTree("DRE");
+  const dreRows = buildReportTree("DRE", { comZeramento: true });
   const resultRow = dreRows.find((row) => row.codigo_gerencial === "DRE.17")
     || dreRows.find((row) => row.codigo_gerencial === "DRE.12");
   if (!resultRow) return;
@@ -366,7 +376,7 @@ function applyBpPeriodResult(rows) {
     ? sumObjectValues(resultRow.monthValues)
     : Number(resultRow.saldo || 0);
   const bpValue = Number(periodResult || 0);
-  const previousValue = dreResultBeforePeriodStart();
+  const previousValue = dreResultBeforePeriodStart({ comZeramento: true });
   const totalValue = previousValue + bpValue;
   const target = ensureSyntheticRow(rows, targetCode, {
     demonstrativo: "BP",
@@ -402,7 +412,7 @@ function applyBpPeriodResult(rows) {
   });
 }
 
-function dreResultBeforePeriodStart() {
+function dreResultBeforePeriodStart({ comZeramento = false } = {}) {
   const entries = entriesBeforePeriodStart();
   if (!entries.length) return 0;
   const mapping = mappingByClassification();
@@ -410,7 +420,7 @@ function dreResultBeforePeriodStart() {
   const values = new Map();
 
   entries.forEach((entry) => {
-    if (isResultClosingEntry(entry)) return;
+    if (!comZeramento && isResultClosingEntry(entry)) return;
     const codigoGerencial = entry.codigo_gerencial || mapping.get(entry.classificacao)?.codigo_gerencial || "";
     if (!codigoGerencial) return;
     const planRow = plan.get(codigoGerencial);
@@ -1227,7 +1237,7 @@ function bpBalanceValue(value, planRow) {
   return isPassiveOrEquityPlan(planRow) ? -numeric : numeric;
 }
 
-function movementByAccount(entries, type) {
+function movementByAccount(entries, type, comZeramento = false) {
   const mapping = mappingByClassification();
   const plan = planByCode();
   const result = new Map();
@@ -1238,7 +1248,7 @@ function movementByAccount(entries, type) {
     // fechamento (o lançamento de zeramento, por definição, zera o
     // movimento da conta no período): "Receita bruta" e "Resultado líquido
     // do período" apareciam como "-" mesmo com o ano inteiro selecionado.
-    if (type === "DRE" && isResultClosingEntry(entry)) return;
+    if (type === "DRE" && !comZeramento && isResultClosingEntry(entry)) return;
     const codigoGerencial = entry.codigo_gerencial || mapping.get(entry.classificacao)?.codigo_gerencial || "";
     const planRow = plan.get(codigoGerencial);
     if (planRow && planRow.demonstrativo !== type) return;

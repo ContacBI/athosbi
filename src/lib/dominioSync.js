@@ -352,8 +352,15 @@ export function sugerirVinculos(accounts, mappings) {
       }
       if (!escolha) {
         const mesmoNome = porNome.get(`${subgrupo(account.classificacao)}|${nomeComparavel(account.nome_conta)}`) || [];
-        if (nomeComparavel(account.nome_conta) && mesmoNome.length) {
-          escolha = maisComum(mesmoNome).row;
+        const candidato = nomeComparavel(account.nome_conta) && mesmoNome.length ? maisComum(mesmoNome).row : null;
+        // Vínculo do mesmo nome que destoa das irmãs (menos de 20% delas vão
+        // pra lá, com 3 ou mais irmãs) costuma ser engano no De/Para — ex.:
+        // cliente vinculado a "PIS a recuperar". Não espalha: cai na regra
+        // das irmãs.
+        const irmas = porPai.get(contaPai(account.classificacao)) || [];
+        const destoa = candidato && irmas.length >= 3 && irmas.filter((row) => row.codigo_gerencial === candidato.codigo_gerencial).length / irmas.length < 0.2;
+        if (candidato && !destoa) {
+          escolha = candidato;
           regra = "mesmoNome";
         }
       }
