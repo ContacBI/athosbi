@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import { ChevronRight, Maximize2, Minimize2, Search, TriangleAlert } from "lucide-react";
 import { useAppState, setData, state } from "../data/useStore.js";
-import { visibleReportRows, missingMappingAccounts, reportMonths, buildReportTree } from "../data/calculations.js";
+import { visibleReportRows, missingMappingAccounts, reportMonths, buildReportTree, balanceteCobrePeriodo } from "../data/calculations.js";
 import { rowsForPeriod, rowValue, rowKey } from "../lib/periodCompare.js";
 import { reportColumns, columnLabel, columnValue, isZeroNoMovement, horizontalPercent, groupMonths } from "../lib/reportColumns.js";
 import { exportDemonstrativoPdf } from "../lib/reportPdf.js";
@@ -705,7 +705,10 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
         </div>
       )}
 
-      {mode === "comparativo" && compareMap && tab === "BP" && (
+      {/* Balancete da Domínio sabe o intervalo que cobre: aí o Balanço sai
+          na data de cada período (ver balanceteNoPeriodo em calculations.js)
+          e o aviso não vale. */}
+      {mode === "comparativo" && compareMap && tab === "BP" && !balanceteCobrePeriodo() && (
         <div className="rounded-xl bg-surface-muted px-4 py-2.5 text-[12px] text-ink-500">
           O balanço reflete sempre o balancete mais recente importado — por isso Ativo e Passivo aparecem iguais nos dois períodos. Só os
           Resultados acumulados mudam, porque são calculados a partir do resultado de cada período.
