@@ -20,7 +20,7 @@ import { BarChart3, ImageIcon, Table2 } from "lucide-react";
 import { WidgetBody, WidgetFillContext } from "../dashboard/WidgetGrid.jsx";
 import { formatWidgetValue } from "../../lib/dashboardWidgets.js";
 import { describeIndicatorFormula, isSingleLineFormula } from "../../lib/indicatorFormula.js";
-import { SLIDE_H, SLIDE_W, fillTokens, fontStack, isDark, mix, patternCss, resolveColor, rgba, shadowCss, widgetDefinition } from "../../lib/presentations.js";
+import { SLIDE_H, SLIDE_W, compactValue, fillTokens, fontStack, isDark, kpiSeries, mix, patternCss, resolveColor, rgba, shadowCss, widgetDefinition } from "../../lib/presentations.js";
 import { BUILTIN_LOGOS, athosLogoFor } from "../../lib/brand.js";
 import { SLIDE_ICONS } from "./slideIcons.js";
 
@@ -33,6 +33,7 @@ import { SLIDE_ICONS } from "./slideIcons.js";
 
 export function slideBackground(slide, theme) {
   const bg = slide.bg || { type: "theme" };
+  if ((!bg.type || bg.type === "theme") && theme.background) return slideBackground({ bg: theme.background }, theme);
   const c1 = resolveColor(bg.color, theme) || theme.colors.bg;
   if (bg.type === "solid") return { base: c1, css: { background: c1 } };
   if (bg.type === "gradient") {
@@ -155,6 +156,45 @@ export function Decoration({ id, theme }) {
         </>
       );
     }
+    case "aura":
+      // Brilho vindo do canto de cima, com um anel fino — a "luz" dos temas
+      // premium.
+      return svg(
+        <>
+          <defs>
+            <radialGradient id={`au1${uid}`}>
+              <stop offset="0" stopColor={a} stopOpacity="0.42" />
+              <stop offset="0.55" stopColor={a} stopOpacity="0.1" />
+              <stop offset="1" stopColor={a} stopOpacity="0" />
+            </radialGradient>
+            <radialGradient id={`au2${uid}`}>
+              <stop offset="0" stopColor={theme.colors.accent3} stopOpacity="0.2" />
+              <stop offset="1" stopColor={theme.colors.accent3} stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <circle cx="1190" cy="-70" r="600" fill={`url(#au1${uid})`} />
+          <circle cx="-120" cy="790" r="480" fill={`url(#au2${uid})`} />
+          <circle cx="1190" cy="-70" r="400" fill="none" stroke={a} strokeOpacity="0.22" strokeWidth="1" />
+          <circle cx="1190" cy="-70" r="520" fill="none" stroke={a} strokeOpacity="0.1" strokeWidth="1" />
+        </>
+      );
+    case "arcos":
+      return svg(
+        <>
+          {[240, 340, 440, 540, 640].map((r, i) => (
+            <circle key={r} cx="1280" cy="720" r={r} fill="none" stroke={a} strokeOpacity={0.4 - i * 0.07} strokeWidth="1.2" />
+          ))}
+          <circle cx="1280" cy="720" r="140" fill={a} opacity="0.12" />
+        </>
+      );
+    case "editorial":
+      return svg(
+        <>
+          <line x1="80" y1="34" x2="1200" y2="34" stroke={theme.colors.text} strokeOpacity="0.16" strokeWidth="1" />
+          <rect x="80" y="32" width="56" height="4" fill={a} />
+          <line x1="80" y1="668" x2="1200" y2="668" stroke={theme.colors.text} strokeOpacity="0.16" strokeWidth="1" />
+        </>
+      );
     case "brilho":
       return svg(
         <>
@@ -175,6 +215,21 @@ export function Decoration({ id, theme }) {
     default:
       return null;
   }
+}
+
+// Textura granulada bem leve por cima do fundo (papel/filme) — tira o
+// aspecto "chapado" dos fundos lisos e degradês.
+function Grain({ amount }) {
+  const uid = useId().replace(/:/g, "");
+  return (
+    <svg viewBox={`0 0 ${SLIDE_W} ${SLIDE_H}`} style={{ position: "absolute", inset: 0, width: SLIDE_W, height: SLIDE_H, pointerEvents: "none", opacity: Math.min(1, amount / 100) * 0.55, mixBlendMode: "overlay" }} aria-hidden="true">
+      <filter id={`gr${uid}`}>
+        <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch" />
+        <feColorMatrix type="saturate" values="0" />
+      </filter>
+      <rect width={SLIDE_W} height={SLIDE_H} filter={`url(#gr${uid})`} />
+    </svg>
+  );
 }
 
 // Cores dos gráficos/tabelas do B.I. dentro do bloco: os widgets do painel
@@ -215,6 +270,33 @@ function widgetVars(theme, base, chartColors) {
   };
 }
 
+const CARD_KINDS = new Set(["kpi", "widget", "chart", "table", "meta"]);
+
+// Cartão "do tema" (preenchimento @surface): o estilo vem do tema —
+// sólido, elevado (sombra longa e suave + fio de borda), contorno fino ou
+// vidro (translúcido com reflexo, deixa o brilho do fundo aparecer).
+function applyCardStyle(css, block, theme, fill, alpha) {
+  const s = block.style || {};
+  const style = s.cardStyle ?? theme.cardStyle ?? "solid";
+  const dark = isDark(theme.colors.bg);
+  const hasShadow = s.shadow != null;
+  if (style === "elevated") {
+    if (!hasShadow) css.boxShadow = dark ? "0 18px 44px rgba(0, 0, 0, 0.45)" : "0 1px 2px rgba(15, 23, 42, 0.05), 0 14px 36px rgba(15, 23, 42, 0.10)";
+    css.border = css.border || `1px solid ${rgba(theme.colors.text, dark ? 0.08 : 0.06)}`;
+  } else if (style === "outline") {
+    css.backgroundColor = rgba(fill, 0.3 * alpha);
+    css.border = css.border || `1px solid ${rgba(theme.colors.text, 0.16)}`;
+    if (!hasShadow) css.boxShadow = "none";
+  } else if (style === "glass") {
+    css.backgroundColor = rgba(fill, (dark ? 0.55 : 0.6) * alpha);
+    css.backgroundImage = dark
+      ? "linear-gradient(150deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.02) 55%)"
+      : "linear-gradient(150deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.45) 60%)";
+    css.border = css.border || `1px solid ${dark ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.85)"}`;
+    if (!hasShadow) css.boxShadow = dark ? "inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 20px 50px rgba(0, 0, 0, 0.35)" : "0 12px 34px rgba(15, 23, 42, 0.10)";
+  }
+}
+
 function boxStyle(block, theme) {
   const s = block.style || {};
   const fill = resolveColor(s.fill, theme);
@@ -233,6 +315,7 @@ function boxStyle(block, theme) {
     else css.backgroundColor = rgba(fill, alpha);
   }
   if (s.border && s.borderWidth > 0) css.border = `${s.borderWidth}px ${s.borderStyle || "solid"} ${resolveColor(s.border, theme)}`;
+  if (CARD_KINDS.has(block.kind) && s.fill === "@surface" && !s.fill2) applyCardStyle(css, block, theme, fill, alpha);
   return { css, base: fill && fill !== "transparent" ? fill : null };
 }
 
@@ -247,6 +330,20 @@ function inline(text) {
     if (/^\*[^*]+\*$/.test(part)) return <em key={index}>{part.slice(1, -1)}</em>;
     return part;
   });
+}
+
+// Texto em degradê (da cor do texto até a cor escolhida em "gradient").
+function gradientText(block, theme) {
+  const to = resolveColor(block.gradient, theme);
+  if (!to) return {};
+  const from = resolveColor(block.color, theme) || theme.colors.text;
+  return {
+    backgroundImage: `linear-gradient(${block.gradientAngle ?? 90}deg, ${from}, ${to})`,
+    WebkitBackgroundClip: "text",
+    backgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    color: "transparent",
+  };
 }
 
 function TextContent({ block, theme, env }) {
@@ -274,6 +371,10 @@ function TextContent({ block, theme, env }) {
         color: resolveColor(block.color, theme) || theme.colors.text,
         whiteSpace: "pre-wrap",
         overflowWrap: "break-word",
+        // Títulos com as linhas do mesmo tamanho (sem uma palavra sozinha
+        // na última linha).
+        textWrap: block.size >= 30 ? "balance" : "pretty",
+        ...gradientText(block, theme),
       }}
     >
       {lines.map((line, index) => {
@@ -282,7 +383,7 @@ function TextContent({ block, theme, env }) {
           counter += 1;
           return (
             <div key={index} style={{ display: "flex", gap: "0.55em", justifyContent: block.align === "center" ? "center" : block.align === "right" ? "flex-end" : "flex-start" }}>
-              <span style={{ color: markerColor, flexShrink: 0, fontWeight: 700, fontSize: block.list === "bullet" ? "0.6em" : "1em", lineHeight: block.list === "bullet" ? `${block.lineHeight / 0.6}` : undefined }}>
+              <span style={{ color: markerColor, WebkitTextFillColor: markerColor, flexShrink: 0, fontWeight: 700, fontSize: block.list === "bullet" ? "0.6em" : "1em", lineHeight: block.list === "bullet" ? `${block.lineHeight / 0.6}` : undefined }}>
                 {block.list === "number" ? `${counter}.` : marker}
               </span>
               <span>{inline(line)}</span>
@@ -295,6 +396,54 @@ function TextContent({ block, theme, env }) {
   );
 }
 
+// Minigráfico do indicador mês a mês: linha com área em degradê e o último
+// ponto marcado.
+function Sparkline({ values, color, width, height }) {
+  const uid = useId().replace(/:/g, "");
+  const points = values.map((value, i) => [i, value]).filter(([, value]) => value != null && Number.isFinite(value));
+  if (points.length < 2) return null;
+  const W = Math.max(40, width);
+  const H = Math.max(16, height);
+  const min = Math.min(...points.map(([, v]) => v));
+  const max = Math.max(...points.map(([, v]) => v));
+  const span = max - min || 1;
+  const last = values.length - 1 || 1;
+  const xy = points.map(([i, v]) => [(i / last) * W, H - 6 - ((v - min) / span) * (H - 12)]);
+  const line = xy.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  const area = `${line} L${xy[xy.length - 1][0].toFixed(1)} ${H} L${xy[0][0].toFixed(1)} ${H} Z`;
+  const [lx, ly] = xy[xy.length - 1];
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: W, height: H, display: "block", overflow: "visible" }} aria-hidden="true">
+      <defs>
+        <linearGradient id={`sp${uid}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={color} stopOpacity="0.32" />
+          <stop offset="1" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#sp${uid})`} />
+      <path d={line} fill="none" stroke={color} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={lx} cy={ly} r="3.5" fill={color} />
+    </svg>
+  );
+}
+
+// Variação do último mês contra o anterior: em pontos percentuais pra
+// margens (%), em % pro resto.
+function monthDelta(series, format) {
+  const values = series.filter((value) => value != null && Number.isFinite(value));
+  if (values.length < 2) return null;
+  const last = values[values.length - 1];
+  const prev = values[values.length - 2];
+  if (format === "percent") {
+    const diff = last - prev;
+    return { up: diff >= 0, text: `${Math.abs(diff).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} p.p.` };
+  }
+  if (!prev) return null;
+  const pct = ((last - prev) / Math.abs(prev)) * 100;
+  if (!Number.isFinite(pct)) return null;
+  return { up: pct >= 0, text: `${Math.abs(pct).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` };
+}
+
 function KpiContent({ block, theme, env }) {
   const definition = widgetDefinition(block.widgetId);
   if (!definition) return <Missing label="Indicador não encontrado" theme={theme} />;
@@ -305,7 +454,7 @@ function KpiContent({ block, theme, env }) {
   } catch {
     value = null;
   }
-  const display = env.ctx && value != null ? formatWidgetValue(value, format) : "—";
+  const display = env.ctx && value != null ? (block.numberStyle === "compact" ? compactValue(value, format) : formatWidgetValue(value, format)) : "—";
   const numeric = Number(value || 0);
   let valueColor = theme.colors.text;
   if (block.valueColor === "auto") valueColor = numeric < 0 ? theme.colors.negative : theme.colors.text;
@@ -316,33 +465,52 @@ function KpiContent({ block, theme, env }) {
   const caption = block.showCaption && definition.formula && !isSingleLineFormula(definition.formula) ? describeIndicatorFormula(definition.formula) : "";
   const pad = (block.style?.padding || 0) * 2;
   const innerW = Math.max(40, block.w - pad);
+  const innerH = Math.max(40, block.h - pad);
   // Valor comprido (R$ 12.345.678,90) num cartão estreito: diminui a letra
   // até caber, em vez de cortar o número.
   const valueSize = Math.min(block.valueSize, innerW / (display.length * 0.6));
   const center = block.align === "center";
+  const series = env.ctx && (block.trend || block.delta) ? kpiSeries(definition, env.ctx) : [];
+  const delta = block.delta ? monthDelta(series, format) : null;
+  const accent = resolveColor(block.iconColor, theme) || theme.colors.accent;
+  const sparkH = Math.max(22, Math.min(64, innerH * 0.26));
+  const showSpark = block.trend && series.filter((v) => v != null).length >= 2 && innerH > 120;
+  const deltaColor = delta ? (delta.up ? theme.colors.positive : theme.colors.negative) : "";
+  const labelSize = block.labelSize;
   return (
-    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: center ? "center" : block.align === "right" ? "flex-end" : "flex-start", height: "100%", textAlign: block.align, fontFamily: fontStack(block.font, theme), gap: 6 }}>
-      {block.showIcon && Icon && center && (
-        <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: 12, background: rgba(resolveColor(block.iconColor, theme) || theme.colors.accent, 0.14), color: resolveColor(block.iconColor, theme) || theme.colors.accent }}>
-          <Icon size={22} strokeWidth={1.9} />
-        </span>
-      )}
-      {(block.showLabel || (block.showIcon && !center)) && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, width: "100%" }}>
-          {block.showLabel ? (
-            <span style={{ fontFamily: fontStack(block.labelFont || "@body", theme), fontSize: block.labelSize, color: resolveColor(block.labelColor, theme) || theme.colors.muted, fontWeight: 500, lineHeight: 1.2, flex: 1 }}>{fillTokens(label, env.ctx, env.info)}</span>
-          ) : (
-            <span />
-          )}
-          {block.showIcon && Icon && !center && (
-            <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, flexShrink: 0, borderRadius: 10, background: rgba(resolveColor(block.iconColor, theme) || theme.colors.accent, 0.14), color: resolveColor(block.iconColor, theme) || theme.colors.accent }}>
-              <Icon size={19} strokeWidth={1.9} />
+    <div style={{ display: "flex", flexDirection: "column", justifyContent: showSpark ? "space-between" : "center", alignItems: center ? "center" : block.align === "right" ? "flex-end" : "flex-start", height: "100%", textAlign: block.align, fontFamily: fontStack(block.font, theme), gap: 6 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", alignItems: center ? "center" : block.align === "right" ? "flex-end" : "flex-start" }}>
+        {block.showIcon && Icon && center && (
+          <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: 12, background: rgba(accent, 0.14), color: accent }}>
+            <Icon size={22} strokeWidth={1.9} />
+          </span>
+        )}
+        {(block.showLabel || (block.showIcon && !center)) && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: center ? "center" : "space-between", gap: 10, width: "100%" }}>
+            {block.showLabel ? (
+              <span style={{ fontFamily: fontStack(block.labelFont || "@body", theme), fontSize: labelSize, color: resolveColor(block.labelColor, theme) || theme.colors.muted, fontWeight: 500, lineHeight: 1.25, flex: center ? undefined : 1 }}>{fillTokens(label, env.ctx, env.info)}</span>
+            ) : (
+              <span />
+            )}
+            {block.showIcon && Icon && !center && (
+              <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, flexShrink: 0, borderRadius: 10, background: rgba(accent, 0.14), color: accent }}>
+                <Icon size={18} strokeWidth={1.9} />
+              </span>
+            )}
+          </div>
+        )}
+        <span style={{ fontSize: valueSize, fontWeight: 700, color: valueColor, lineHeight: 1.05, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", letterSpacing: valueSize > 30 ? "-0.025em" : undefined }}>{display}</span>
+        {delta && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: fontStack("@body", theme), fontSize: Math.max(11, labelSize * 0.8, valueSize * 0.15), lineHeight: 1 }}>
+            <span style={{ padding: "4px 8px", borderRadius: 999, background: rgba(deltaColor, 0.14), color: deltaColor, fontWeight: 700 }}>
+              {delta.up ? "▲" : "▼"} {delta.text}
             </span>
-          )}
-        </div>
-      )}
-      <span style={{ fontSize: valueSize, fontWeight: 700, color: valueColor, lineHeight: 1.1, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{display}</span>
-      {caption && <span style={{ fontFamily: fontStack("@body", theme), fontSize: Math.max(11, block.labelSize * 0.75), color: theme.colors.muted, lineHeight: 1.3 }}>{caption}</span>}
+            <span style={{ color: theme.colors.muted }}>no último mês</span>
+          </span>
+        )}
+        {caption && <span style={{ fontFamily: fontStack("@body", theme), fontSize: Math.max(11, labelSize * 0.75), color: theme.colors.muted, lineHeight: 1.3 }}>{caption}</span>}
+      </div>
+      {showSpark && <Sparkline values={series} color={accent} width={innerW} height={sparkH} />}
     </div>
   );
 }
@@ -379,7 +547,7 @@ function WidgetContent({ block, theme, env, base }) {
   const maxRows = isRows ? rowsThatFit(block, definition.type === "list" ? 30 : 26) : undefined;
   return (
     <WidgetFillContext.Provider value={{ fill: true, animate: env.mode !== "export", tableColumns: block.tableColumns }}>
-      <div style={{ position: "relative", width: "100%", height: "100%", ...widgetVars(theme, base, block.chartColors) }}>
+      <div style={{ position: "relative", width: "100%", height: "100%", fontFamily: fontStack("@body", theme), ...widgetVars(theme, base, block.chartColors) }}>
         <div
           className={block.showTitle ? "" : "slide-hide-title"}
           style={{ position: "absolute", left: 0, top: 0, width: `${100 / zoom}%`, height: `${100 / zoom}%`, transform: `scale(${zoom})`, transformOrigin: "0 0", display: "flex", flexDirection: "column" }}
@@ -581,6 +749,7 @@ function formatChartValue(value, format) {
 }
 
 function ChartContent({ block, theme, env, base }) {
+  const uid = useId().replace(/:/g, "");
   const rows = parseRows(block.data);
   const animate = env.mode === "present" || env.mode === "edit";
   if (rows.length < 2) return <Missing label="Cole os dados do gráfico no painel à direita" theme={theme} />;
@@ -596,6 +765,18 @@ function ChartContent({ block, theme, env, base }) {
   const colors = (block.colors || []).map((value) => resolveColor(value, theme)).filter(Boolean);
   const palette = colors.length ? colors : [theme.colors.accent, theme.colors.accent2, theme.colors.accent3, theme.colors.positive, theme.colors.negative];
   const colorAt = (i) => palette[i % palette.length];
+  const horizontal = block.chartType === "barh";
+  const paintAt = (i) => `url(#cg${uid}${i})`;
+  const gradients = (
+    <defs>
+      {series.map((name, i) => (
+        <linearGradient key={name} id={`cg${uid}${i}`} x1="0" y1={horizontal ? "0" : "0"} x2={horizontal ? "1" : "0"} y2={horizontal ? "0" : "1"}>
+          <stop offset="0" stopColor={colorAt(i)} stopOpacity={block.chartType === "area" ? 0.45 : horizontal ? 0.6 : 1} />
+          <stop offset="1" stopColor={colorAt(i)} stopOpacity={block.chartType === "area" ? 0.02 : horizontal ? 1 : 0.62} />
+        </linearGradient>
+      ))}
+    </defs>
+  );
   const text = theme.colors.text;
   const grid = mix(text, base, 0.86);
   const tick = { fontSize: block.fontSize, fill: theme.colors.muted, fontFamily: fontStack(block.font || "@body", theme) };
@@ -620,7 +801,8 @@ function ChartContent({ block, theme, env, base }) {
     const Chart = block.chartType === "line" ? LineChart : AreaChart;
     chart = (
       <Chart data={data} margin={{ top: 18, right: 16, left: 4, bottom: 0 }}>
-        {block.showGrid && <CartesianGrid vertical={false} stroke={grid} />}
+        {gradients}
+        {block.showGrid && <CartesianGrid vertical={false} stroke={grid} strokeDasharray="3 5" />}
         <XAxis dataKey="name" tick={tick} axisLine={{ stroke: grid }} tickLine={false} />
         <YAxis tick={tick} tickFormatter={fmt} axisLine={false} tickLine={false} width={block.format === "money" ? 92 : 56} />
         {tooltip}
@@ -630,7 +812,7 @@ function ChartContent({ block, theme, env, base }) {
               {labels}
             </Line>
           ) : (
-            <Area isAnimationActive={animate} key={name} dataKey={name} stroke={colorAt(i)} strokeWidth={2.5} fill={colorAt(i)} fillOpacity={0.22} stackId={block.stacked ? "s" : undefined}>
+            <Area isAnimationActive={animate} key={name} dataKey={name} stroke={colorAt(i)} strokeWidth={2.5} fill={paintAt(i)} fillOpacity={1} stackId={block.stacked ? "s" : undefined}>
               {labels}
             </Area>
           )
@@ -638,10 +820,10 @@ function ChartContent({ block, theme, env, base }) {
       </Chart>
     );
   } else {
-    const horizontal = block.chartType === "barh";
     chart = (
-      <BarChart data={data} layout={horizontal ? "vertical" : "horizontal"} margin={{ top: 18, right: 16, left: 4, bottom: 0 }}>
-        {block.showGrid && <CartesianGrid vertical={horizontal} horizontal={!horizontal} stroke={grid} />}
+      <BarChart data={data} layout={horizontal ? "vertical" : "horizontal"} margin={{ top: 18, right: 16, left: 4, bottom: 0 }} barGap={6}>
+        {gradients}
+        {block.showGrid && <CartesianGrid vertical={horizontal} horizontal={!horizontal} stroke={grid} strokeDasharray="3 5" />}
         {horizontal ? (
           <>
             <XAxis type="number" tick={tick} tickFormatter={fmt} axisLine={false} tickLine={false} />
@@ -655,7 +837,7 @@ function ChartContent({ block, theme, env, base }) {
         )}
         {tooltip}
         {series.map((name, i) => (
-          <Bar isAnimationActive={animate} key={name} dataKey={name} fill={colorAt(i)} radius={horizontal ? [0, 6, 6, 0] : [6, 6, 0, 0]} stackId={block.stacked ? "s" : undefined} maxBarSize={64}>
+          <Bar isAnimationActive={animate} key={name} dataKey={name} fill={paintAt(i)} radius={block.stacked ? 0 : horizontal ? [0, 8, 8, 0] : [8, 8, 0, 0]} stackId={block.stacked ? "s" : undefined} maxBarSize={56}>
             {block.showValues && <LabelList position={horizontal ? "right" : "top"} formatter={fmt} style={{ fontSize: block.fontSize * 0.85, fill: text }} />}
           </Bar>
         ))}
@@ -811,6 +993,7 @@ export default function SlideView({ slide, deck, env, number, total, editingId, 
   const bg = slideBackground(slide, theme);
   const decoration = slide.decoration === "@theme" || !slide.decoration ? theme.decoration : slide.decoration;
   const overlay = slide.bg?.type === "image" && slide.bg?.image ? (slide.bg.overlay ?? 40) / 100 : 0;
+  const grain = slide.bg?.grain ?? theme.grain ?? 0;
   const footer = deck.footer || {};
   const showFooter = footer.show !== false && !slide.hideFooter;
   const footerTheme = readableTheme(theme, bg.base);
@@ -824,6 +1007,7 @@ export default function SlideView({ slide, deck, env, number, total, editingId, 
       style={{ position: "relative", width: SLIDE_W, height: SLIDE_H, overflow: "hidden", fontFamily: fontStack("@body", theme), color: theme.colors.text, ...bg.css }}
     >
       {overlay > 0 && <div style={{ position: "absolute", inset: 0, background: rgba(resolveColor(slide.bg.overlayColor, theme) || "#000000", overlay) }} />}
+      {grain > 0 && env.mode !== "thumb" && <Grain amount={grain} />}
       <Decoration id={decoration} theme={theme} />
       {slide.blocks.map((block) => {
         if (block.hidden && env.mode !== "edit") return null;

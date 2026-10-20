@@ -346,3 +346,8 @@ body * {
 .slide-stage * {
   transition: none !important;
 }
+
+/* Gráficos do B.I. dentro de um slide: grade tracejada e mais leve. */
+.slide-stage .recharts-cartesian-grid line {
+  stroke-dasharray: 3 5;
+}
