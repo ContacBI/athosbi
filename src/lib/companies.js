@@ -538,6 +538,7 @@ export function createCompany({
     hideNonOperatingResults: false,
     excludedNonOperatingCodes: [],
     dashboardTabs: [],
+    presentations: [],
   };
   const companies = state.companies.concat(company);
   writeStoredCompanies(companies);
@@ -553,6 +554,8 @@ export function createCompany({
     periodStart: "",
     periodEnd: "",
     natureRules,
+    dashboardTabs: [],
+    presentations: [],
   });
   refreshEffectivePlano();
   return company;
@@ -666,6 +669,7 @@ export async function selectCompany(id, { skipPersist = false } = {}) {
     showReportTotalDFC: company.showReportTotalDFC ?? false,
     bpMonthlyMode: company.bpMonthlyMode === "movement" ? "movement" : "accumulated",
     dashboardTabs: migrateDashboardTabs(company),
+    presentations: company.presentations || [],
     natureRules: company.natureRules || DEFAULT_NATURE_RULES,
     selectedLine: null,
     selectedAccount: null,
@@ -731,6 +735,7 @@ export function persistActiveCompany({ allowEmptyJournal = false, onProgress } =
       showReportTotalDFC: Boolean(state.showReportTotalDFC),
       bpMonthlyMode: state.bpMonthlyMode === "movement" ? "movement" : "accumulated",
       dashboardTabs: state.dashboardTabs || [],
+      presentations: state.presentations || [],
     };
   });
   setData({ companies });
@@ -752,6 +757,7 @@ function persistActiveGroupWorkspace() {
       hideNonOperatingResults: Boolean(state.hideNonOperatingResults),
       excludedNonOperatingCodes: state.excludedNonOperatingCodes || [],
       dashboardTabs: state.dashboardTabs || [],
+      presentations: state.presentations || [],
     };
   });
   setData({ groups });

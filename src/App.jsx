@@ -34,6 +34,7 @@ const Dfc = lazy(() => import("./pages/Dfc.jsx"));
 const Depara = lazy(() => import("./pages/Depara.jsx"));
 const VinculoDfc = lazy(() => import("./pages/VinculoDfc.jsx"));
 const RelatoriosMensais = lazy(() => import("./pages/RelatoriosMensais.jsx"));
+const Apresentacoes = lazy(() => import("./pages/Apresentacoes.jsx"));
 const CompaniesAdmin = lazy(() => import("./pages/parametros/CompaniesAdmin.jsx"));
 const GruposAdmin = lazy(() => import("./pages/parametros/GruposAdmin.jsx"));
 const DeParaAdmin = lazy(() => import("./pages/parametros/DeParaAdmin.jsx"));
@@ -206,6 +207,8 @@ function AuthedApp() {
           <Route path="de-para" element={<Depara />} />
           <Route path="vinculo-dfc" element={<VinculoDfc />} />
           <Route path="relatorios" element={<RelatoriosMensais />} />
+          <Route path="apresentacoes" element={<Apresentacoes />} />
+          <Route path="apresentacoes/:deckId" element={<Apresentacoes />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

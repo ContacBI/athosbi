@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, LayoutGrid, Network, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, LayoutGrid, Network, Presentation, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
 import { useAppState, setData, state } from "../data/useStore.js";
 import { missingMappingAccounts } from "../data/calculations.js";
 import { groupCompanies, activeWorkspaceName } from "../lib/groups.js";
@@ -273,6 +273,7 @@ async function downloadConsolidatedAndIndividualExcel(group, reportKind) {
 // Resumo com widgets, que não tem um "relatório completo" equivalente).
 function ReportsMenu() {
   const appState = useAppState();
+  const navigate = useNavigate();
   const actions = usePageActions();
   const [open, setOpen] = useState(false);
   const [builderOpen, setBuilderOpen] = useState(false);
@@ -338,6 +339,20 @@ function ReportsMenu() {
                   </span>
                 </label>
               )}
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  navigate("/empresa/apresentacoes");
+                }}
+                className="mb-1 flex w-full items-start gap-2.5 rounded-lg border-b border-line px-2.5 pb-2.5 pt-2 text-left hover:bg-surface-muted"
+              >
+                <Presentation size={15} strokeWidth={1.8} className="mt-0.5 shrink-0 text-accent-500" />
+                <span>
+                  <span className="block text-[13px] font-medium text-ink-800">Apresentação em slides</span>
+                  <span className="block text-[11px] text-ink-400">Monte do seu jeito, apresente e baixe em PDF</span>
+                </span>
+              </button>
               <button
                 type="button"
                 onClick={() => handleCurrent("pdf")}

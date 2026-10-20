@@ -42,6 +42,7 @@ export function createGroup({ name, companyIds = [] }) {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     dashboardTabs: [],
+    presentations: [],
     periodStart: "",
     periodEnd: "",
     hideNonOperatingResults: false,
@@ -139,7 +140,7 @@ export function deleteGroup(id) {
   setData({ groups });
   if (state.activeGroupId === id) {
     localStorage.removeItem(ACTIVE_GROUP_KEY);
-    setData({ activeGroupId: "", accounts: [], journal: [], mappings: [], dashboardTabs: [] });
+    setData({ activeGroupId: "", accounts: [], journal: [], mappings: [], dashboardTabs: [], presentations: [] });
   }
 }
 
@@ -231,6 +232,7 @@ export async function selectGroup(id, { skipPersist = false } = {}) {
     hideNonOperatingResults: Boolean(group.hideNonOperatingResults),
     excludedNonOperatingCodes: group.excludedNonOperatingCodes || [],
     dashboardTabs: group.dashboardTabs || [],
+    presentations: group.presentations || [],
     selectedLine: null,
     selectedAccount: null,
     expandedLines: new Set(),
