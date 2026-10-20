@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient.js";
 import { useAppState } from "../data/useStore.js";
 import { temBi as temModuloBi, temReforma as temModuloReforma } from "../lib/modulos.js";
 import ThemeToggle from "../components/ThemeToggle.jsx";
+import AthosMark from "../components/AthosMark.jsx";
 
 const FEATURES = [
   { icon: LayoutDashboard, label: "Dashboards por empresa" },
@@ -54,9 +55,7 @@ export default function Landing() {
       </div>
 
       <div className="relative flex flex-col items-center">
-        <span className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-500 text-2xl font-medium shadow-lg shadow-accent-600/30">
-          BI
-        </span>
+        <AthosMark size={72} className="mb-6 drop-shadow-[0_10px_28px_rgba(232,105,31,0.35)]" />
         <h1 className="text-5xl font-medium tracking-tight sm:text-6xl">AthosBI</h1>
         <p className="mt-3 max-w-md text-sm text-white/60">
           {temBi
