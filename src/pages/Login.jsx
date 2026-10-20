@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { LogIn } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
+import AthosMark from "../components/AthosMark.jsx";
 
 // Same visual language as Landing.jsx (navy background, accent badge) — this
 // is the very first thing anyone sees now that the portal is online with
@@ -57,9 +58,7 @@ export default function Login() {
       />
 
       <div className="relative flex w-full max-w-[340px] flex-col items-center">
-        <span className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-500 text-2xl font-medium shadow-lg shadow-accent-600/30">
-          BI
-        </span>
+        <AthosMark size={64} className="mb-6 drop-shadow-[0_10px_28px_rgba(232,105,31,0.35)]" />
         <h1 className="text-3xl font-medium tracking-tight">AthosBI</h1>
         <p className="mt-2 max-w-xs text-sm text-white/60">Entre com o acesso da sua equipe pra ver a carteira de empresas.</p>
 

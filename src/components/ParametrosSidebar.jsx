@@ -3,6 +3,7 @@ import { Building2, Network, Repeat, Users, SlidersHorizontal, ChevronLeft, BarC
 import { supabase } from "../lib/supabaseClient.js";
 import { useAppState } from "../data/useStore.js";
 import ThemeToggle from "./ThemeToggle.jsx";
+import AthosMark from "./AthosMark.jsx";
 
 const ITEMS = [
   { to: "/parametros/empresas", label: "Empresas", icon: Building2 },
@@ -52,9 +53,7 @@ export default function ParametrosSidebar() {
   return (
     <aside className="flex h-screen w-[232px] shrink-0 flex-col bg-navy-950 text-white">
       <button type="button" onClick={() => navigate("/")} className="flex items-center gap-2.5 px-5 py-5 text-left">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-500 text-sm font-medium">
-          A
-        </span>
+        <AthosMark size={30} className="shrink-0" />
         <span className="text-[15px] font-medium leading-tight">AthosBI</span>
       </button>
 
