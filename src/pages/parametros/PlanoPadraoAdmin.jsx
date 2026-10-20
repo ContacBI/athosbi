@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ChevronRight, Download, Layers, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, ChevronRight, Download, Layers, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { RESET_SECTION_EVENT } from "../../components/ParametrosSidebar.jsx";
 import {
@@ -10,8 +10,11 @@ import {
   previewNewExtraAccount,
   addExtraAccount,
   removeExtraAccount,
+  renameExtraAccount,
   hasExtraChildren,
+  setPlanoMaiusculo,
 } from "../../lib/planosPadrao.js";
+import { planNameCase } from "../../lib/planCase.js";
 import { hasAnyResponsibility } from "../../lib/colaboradores.js";
 import { exportPlanoPadraoExcel } from "../../lib/planoExcel.js";
 import PageHeader from "../../components/PageHeader.jsx";
@@ -32,7 +35,7 @@ function buildTree(rows) {
 // Nome novo pra tela nova: "adicionada" (badge do Plano gerencial) fica
 // "extra deste plano" aqui — deixa claro que essa conta só existe pra quem
 // usa ESTE plano padrão, não é uma conta nova no plano gerencial global.
-function TreeNode({ node, depth, expanded, toggle, onAddChild, onDeleteExtra, canEdit }) {
+function TreeNode({ node, depth, expanded, toggle, onAddChild, onEditExtra, onDeleteExtra, canEdit }) {
   const isOpen = expanded.has(node.codigo_gerencial);
   const hasChildren = node.children.length > 0;
   return (
@@ -72,6 +75,16 @@ function TreeNode({ node, depth, expanded, toggle, onAddChild, onDeleteExtra, ca
             {node.extra && (
               <button
                 type="button"
+                onClick={() => onEditExtra(node)}
+                title="Editar o nome desta conta extra"
+                className="flex h-6 w-6 items-center justify-center rounded-md text-ink-400 hover:bg-accent-50 hover:text-accent-600"
+              >
+                <Pencil size={12.5} strokeWidth={2} />
+              </button>
+            )}
+            {node.extra && (
+              <button
+                type="button"
                 onClick={() => onDeleteExtra(node)}
                 title="Excluir esta conta extra"
                 className="flex h-6 w-6 items-center justify-center rounded-md text-ink-400 hover:bg-danger-50 hover:text-danger-600"
@@ -85,7 +98,7 @@ function TreeNode({ node, depth, expanded, toggle, onAddChild, onDeleteExtra, ca
       {hasChildren && isOpen && (
         <div>
           {node.children.map((child) => (
-            <TreeNode key={child.codigo_gerencial} node={child} depth={depth + 1} expanded={expanded} toggle={toggle} onAddChild={onAddChild} onDeleteExtra={onDeleteExtra} canEdit={canEdit} />
+            <TreeNode key={child.codigo_gerencial} node={child} depth={depth + 1} expanded={expanded} toggle={toggle} onAddChild={onAddChild} onEditExtra={onEditExtra} onDeleteExtra={onDeleteExtra} canEdit={canEdit} />
           ))}
         </div>
       )}
@@ -131,6 +144,58 @@ function NewPlanoModal({ onClose, onCreated }) {
           </button>
           <button type="submit" className="rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-accent-600">
             Criar
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function EditExtraAccountModal({ planoPadraoId, node, upper, onClose }) {
+  const [nome, setNome] = useState(node.nomeOriginal || node.nome);
+  const [error, setError] = useState("");
+  function handleSubmit(event) {
+    event.preventDefault();
+    if (!renameExtraAccount(planoPadraoId, node.codigo_gerencial, nome)) {
+      setError("Dê um nome pra conta.");
+      return;
+    }
+    onClose();
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/40 px-4 backdrop-blur-sm" onClick={onClose}>
+      <form onSubmit={handleSubmit} className="w-full max-w-md rounded-2xl bg-surface-card p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Editar conta extra</p>
+            <h2 className="mt-0.5 font-mono text-[14px] text-ink-700">{node.codigo_gerencial}</h2>
+          </div>
+          <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-md text-ink-400 hover:bg-surface-muted hover:text-ink-700">
+            <X size={16} />
+          </button>
+        </div>
+        <label className="mt-4 block text-[13px] text-ink-600">
+          Nome da conta
+          <input
+            autoFocus
+            value={nome}
+            onChange={(event) => setNome(event.target.value)}
+            className="mt-1 w-full rounded-md border border-line-strong px-3 py-2 text-sm outline-none focus:border-accent-500"
+          />
+        </label>
+        <div className="mt-3 rounded-lg bg-surface-muted p-3 text-[12px] text-ink-500">
+          <p>
+            Vai aparecer assim: <span className="font-medium text-ink-800">{planNameCase(nome || "—", upper)}</span>
+          </p>
+          <p className="mt-1">Maiúsculas seguem o botão "M" do plano. Código, tipo e os vínculos de De/Para continuam iguais.</p>
+        </div>
+        {error && <p className="mt-3 text-[12px] text-danger-600">{error}</p>}
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-md border border-line-strong px-3.5 py-2 text-[13px] text-ink-600 hover:bg-surface-muted">
+            Cancelar
+          </button>
+          <button type="submit" className="rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-accent-600">
+            Salvar
           </button>
         </div>
       </form>
@@ -234,13 +299,16 @@ function PlanoEditor({ plano, onBack }) {
   const [expanded, setExpanded] = useState(() => new Set());
   const [activeLevel, setActiveLevel] = useState(null);
   const [addingUnder, setAddingUnder] = useState(null);
+  const [editing, setEditing] = useState(null);
   const companies = companiesUsingPlano(plano.id);
   const canEdit = state.isAdmin || (state.isColaborador && hasAnyResponsibility(state));
 
   const effective = useMemo(() => {
     const base = effectivePlano(plano.id);
     const extraCodes = new Set(plano.extraAccounts.map((row) => row.codigo_gerencial));
-    return base.map((row) => (extraCodes.has(row.codigo_gerencial) ? { ...row, extra: true } : row));
+    // Nomes no formato escolhido no botão "M" (só exibição — ver planCase.js).
+    const upper = Boolean(plano.nomesMaiusculos);
+    return base.map((row) => ({ ...row, nomeOriginal: row.nome, nome: planNameCase(row.nome, upper), ...(extraCodes.has(row.codigo_gerencial) ? { extra: true } : {}) }));
   }, [plano]);
   const demonstrativos = useMemo(() => [...new Set(effective.map((row) => row.demonstrativo))].sort(), [effective]);
   const rows = useMemo(() => effective.filter((row) => row.demonstrativo === tab), [effective, tab]);
@@ -294,6 +362,25 @@ function PlanoEditor({ plano, onBack }) {
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <PageHeader eyebrow="Plano padrão" title={plano.nome} icon={Layers} />
+        <div className="flex shrink-0 items-center gap-2">
+          {/* "M": nomes das linhas em MAIÚSCULAS nos relatórios das empresas
+              deste plano. Desligado (o padrão): só a primeira letra
+              maiúscula. */}
+          <div className="flex items-center gap-2 rounded-md border border-line-strong bg-surface-card py-1 pl-1 pr-2.5">
+            <button
+              type="button"
+              aria-pressed={Boolean(plano.nomesMaiusculos)}
+              disabled={!canEdit}
+              onClick={() => setPlanoMaiusculo(plano.id, !plano.nomesMaiusculos)}
+              title={plano.nomesMaiusculos ? "Ligado: nomes em MAIÚSCULAS. Clique pra deixar só a primeira letra maiúscula." : "Desligado: só a primeira letra maiúscula. Clique pra deixar tudo em MAIÚSCULAS."}
+              className={`flex h-7 w-7 items-center justify-center rounded text-[14px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                plano.nomesMaiusculos ? "bg-accent-500 text-white shadow-sm" : "bg-surface-muted text-ink-500 hover:bg-line hover:text-ink-800"
+              }`}
+            >
+              M
+            </button>
+            <span className="text-[12px] text-ink-600">{plano.nomesMaiusculos ? "TUDO MAIÚSCULO" : "Só a primeira maiúscula"}</span>
+          </div>
         <button
           type="button"
           onClick={() => exportPlanoPadraoExcel(plano)}
@@ -302,6 +389,7 @@ function PlanoEditor({ plano, onBack }) {
           <Download size={14} strokeWidth={1.8} />
           Baixar Excel
         </button>
+        </div>
       </div>
       <p className="-mt-2 mb-4 text-[13px] text-ink-500">
         {plano.extraAccounts.length} conta{plano.extraAccounts.length === 1 ? "" : "s"} extra · usado por {companies.length} empresa{companies.length === 1 ? "" : "s"}
@@ -360,13 +448,14 @@ function PlanoEditor({ plano, onBack }) {
 
         <div className="mt-2 max-h-[560px] overflow-y-auto scrollbar-thin">
           {tree.map((node) => (
-            <TreeNode key={node.codigo_gerencial} node={node} depth={0} expanded={expanded} toggle={toggle} onAddChild={setAddingUnder} onDeleteExtra={handleDeleteExtra} canEdit={canEdit} />
+            <TreeNode key={node.codigo_gerencial} node={node} depth={0} expanded={expanded} toggle={toggle} onAddChild={setAddingUnder} onEditExtra={setEditing} onDeleteExtra={handleDeleteExtra} canEdit={canEdit} />
           ))}
           {tree.length === 0 && <p className="px-3 py-6 text-center text-[13px] text-ink-400">Nenhum código carregado.</p>}
         </div>
       </div>
 
       {addingUnder && <AddExtraAccountModal planoPadraoId={plano.id} parent={addingUnder} onClose={() => setAddingUnder(null)} onCreated={handleCreated} />}
+      {editing && <EditExtraAccountModal planoPadraoId={plano.id} node={editing} upper={Boolean(plano.nomesMaiusculos)} onClose={() => setEditing(null)} />}
     </div>
   );
 }
@@ -433,7 +522,14 @@ export default function PlanoPadraoAdmin() {
                   <Layers size={14} strokeWidth={1.8} />
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-[12.5px] font-medium text-ink-900">{plano.nome}</p>
+                  <p className="flex items-center gap-1.5 truncate text-[12.5px] font-medium text-ink-900">
+                    {plano.nome}
+                    {plano.nomesMaiusculos && (
+                      <span title="Nomes em MAIÚSCULAS" className="rounded bg-accent-500 px-1 text-[10px] font-bold leading-4 text-white">
+                        M
+                      </span>
+                    )}
+                  </p>
                   <p className="text-[11px] text-ink-400">
                     {plano.extraAccounts.length} conta{plano.extraAccounts.length === 1 ? "" : "s"} extra · {companies.length} empresa{companies.length === 1 ? "" : "s"}
                   </p>

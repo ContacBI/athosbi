@@ -7,6 +7,9 @@ export const state = {
   // calculations.js, Depara.jsx etc. mexem — nunca editem direto: quem
   // edita de verdade é o plano gerencial global, abaixo.
   plano: [],
+  // Nomes das linhas em MAIÚSCULAS (botão "M" do plano padrão de quem está
+  // ativo) — ver lib/planCase.js.
+  planoMaiusculo: false,
   // O Plano gerencial de verdade (compartilhado por todo mundo) — só ele é
   // lido/escrito por planoStore.js, planoOverrides.js, planoExcel.js e pela
   // tela Parâmetros > Sistema > Plano gerencial. `plano` acima é sempre

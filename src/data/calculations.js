@@ -1,4 +1,5 @@
 ﻿import { state, mappingByClassification, planByCode } from "./store.js";
+import { planNameCase } from "../lib/planCase.js";
 
 export function filteredJournal() {
   return state.journal.filter((entry) => {
@@ -41,7 +42,7 @@ export function buildDfcDirect() {
     kind: "synthetic",
     demonstrativo: "DFC",
     codigo_gerencial: item.code,
-    categoria_gerencial: item.name,
+    categoria_gerencial: planNameCase(item.name),
     grupo_macro: item.group,
     nivel: item.level,
     natureza: item.nature,
@@ -177,7 +178,7 @@ export function buildDfcIndirect() {
   const add = (code, name, saldo, group, natureza = "analytic", monthValues = {}, contas = []) =>
     rows.push({
       codigo_gerencial: code,
-      categoria_gerencial: name,
+      categoria_gerencial: planNameCase(name),
       saldo,
       grupo_macro: group,
       natureza,
@@ -385,7 +386,7 @@ function applyBpPeriodResult(rows) {
     nivel: 5,
   });
 
-  target.categoria_gerencial = "Resultado do exercicio";
+  target.categoria_gerencial = planNameCase("Resultado do exercicio");
   target.saldo = totalValue;
   target.saldo_final = totalValue;
   target.movimento_periodo = bpValue;
@@ -991,7 +992,7 @@ function cashEquivalentAnalyticRows(balanceField, parentCode) {
       codigo: account.codigo || "",
       codigo_gerencial: parentCode,
       nome_conta: account.nome_conta || account.descricao_conta || account.classificacao,
-      categoria_gerencial: "Caixa e equivalentes",
+      categoria_gerencial: planNameCase("Caixa e equivalentes"),
       grupo_macro: "Disponibilidades",
       nivel: 2,
       qtd_lancamentos: accountEntries.length,
@@ -1019,7 +1020,7 @@ function ensureSyntheticRow(rows, code, values) {
     kind: "synthetic",
     demonstrativo: values.demonstrativo,
     codigo_gerencial: code,
-    categoria_gerencial: values.categoria_gerencial,
+    categoria_gerencial: planNameCase(values.categoria_gerencial),
     grupo_macro: values.grupo_macro,
     nivel: Number(values.nivel || levelFromCode(code)),
     aceita_depara: "nao",

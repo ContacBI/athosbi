@@ -1,3 +1,4 @@
+import { planNameCase } from "./planCase.js";
 // Faithful port of the legacy portal's "DRE Executiva" mapping — a fixed,
 // flat, investor-style rollup of the same managerial DRE tree, plus the
 // derived EBITDA and EBITDA-margin lines.
@@ -59,7 +60,7 @@ export function buildExecutiveDreRows(dreRows, map = EXECUTIVE_DRE_MAP) {
     const sum = (key) => factor * sources.reduce((total, row) => total + Number(row[key] || 0), 0);
     return {
       codigo_gerencial: definition.code,
-      categoria_gerencial: definition.name,
+      categoria_gerencial: planNameCase(definition.name),
       demonstrativo: "DRE",
       kind: "synthetic",
       nivel: definition.formula ? 1 : 2,

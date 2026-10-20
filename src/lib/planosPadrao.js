@@ -1,5 +1,6 @@
 import { state, setData } from "../data/useStore.js";
 import { PLANOS_PADRAO_KEY, PLANO_SNAPSHOT_KEY, readStoredArray, writePersistent } from "./persistence.js";
+import { withPlanCase } from "./planCase.js";
 
 // Planos padrão — cada um é o Plano gerencial global MAIS uma lista pequena
 // de contas extras, exclusivas de quem usa aquele plano (uma empresa
@@ -10,7 +11,10 @@ import { PLANOS_PADRAO_KEY, PLANO_SNAPSHOT_KEY, readStoredArray, writePersistent
 // futuro (ver o resumo em PlanoGerencial.jsx).
 //
 // Formato de cada plano: { id, nome, extraAccounts: [...linhas no mesmo
-// formato do plano gerencial], createdAt, updatedAt }.
+// formato do plano gerencial], nomesMaiusculos, createdAt, updatedAt }.
+// nomesMaiusculos (o botão "M"): nomes das linhas em MAIÚSCULAS em vez de
+// só a primeira letra maiúscula — ausente/false nos planos antigos, que é o
+// padrão (ver lib/planCase.js).
 
 export async function loadPlanosPadrao() {
   const planos = await readStoredArray(PLANOS_PADRAO_KEY);
@@ -54,6 +58,10 @@ export function createPlanoPadrao(nome) {
   };
   persist([...state.planosPadrao, plano]);
   return plano;
+}
+
+export function setPlanoMaiusculo(id, nomesMaiusculos) {
+  persist(state.planosPadrao.map((plano) => (plano.id === id ? { ...plano, nomesMaiusculos: Boolean(nomesMaiusculos), updatedAt: new Date().toISOString() } : plano)));
 }
 
 export function renamePlanoPadrao(id, nome) {
@@ -127,15 +135,26 @@ export function refreshEffectivePlano() {
     // trava o app por causa de um grupo antigo que ainda não bate com essa
     // regra.
     let extra = [];
+    let upper = false;
     planoIds.forEach((id) => {
       const plano = state.planosPadrao.find((item) => item.id === id);
       if (plano) extra = extra.concat(plano.extraAccounts);
+      if (plano?.nomesMaiusculos) upper = true;
     });
-    setData({ plano: extra.length ? [...state.planoGlobal, ...extra] : state.planoGlobal });
+    setEffective(extra.length ? [...state.planoGlobal, ...extra] : state.planoGlobal, upper);
     return;
   }
   const company = state.companies.find((item) => item.id === state.activeCompanyId);
-  setData({ plano: effectivePlano(company?.planoPadraoId) });
+  const plano = state.planosPadrao.find((item) => item.id === company?.planoPadraoId);
+  setEffective(effectivePlano(company?.planoPadraoId), Boolean(plano?.nomesMaiusculos));
+}
+
+// state.plano já sai com os nomes no formato do plano padrão (MAIÚSCULAS ou
+// só a primeira) — assim relatórios, De/Para, exportações e slides seguem
+// todos sem cada um ter que lembrar disso. planoMaiusculo vale pros nomes
+// que não vêm do plano (DRE gerencial/EBITDA, DFC; ver planNameCase).
+function setEffective(rows, upper) {
+  setData({ plano: withPlanCase(rows, upper), planoMaiusculo: upper });
 }
 
 export function previewNewExtraAccount(planoPadraoId, parentCode, natureza) {
@@ -176,6 +195,24 @@ export function addExtraAccount(planoPadraoId, { parentCode, nome, natureza }) {
   );
   persist(planos);
   return row;
+}
+
+// Só o nome muda — código, tipo e lugar na árvore ficam, então os vínculos
+// de De/Para que já apontam pra ela continuam valendo.
+export function renameExtraAccount(planoPadraoId, codigoGerencial, nome) {
+  const trimmed = String(nome || "").trim();
+  if (!trimmed) return false;
+  const planos = state.planosPadrao.map((plano) =>
+    plano.id === planoPadraoId
+      ? {
+          ...plano,
+          extraAccounts: plano.extraAccounts.map((row) => (row.codigo_gerencial === codigoGerencial ? { ...row, nome: trimmed } : row)),
+          updatedAt: new Date().toISOString(),
+        }
+      : plano
+  );
+  persist(planos);
+  return true;
 }
 
 export function removeExtraAccount(planoPadraoId, codigoGerencial) {
