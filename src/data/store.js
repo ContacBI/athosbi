@@ -126,6 +126,10 @@ export const state = {
   // the user creates/names/orders these tabs themselves; nothing is
   // pre-built. widget id matches WIDGET_CATALOG, size is "sm" | "md" | "lg".
   dashboardTabs: [],
+  // Apresentações (slides) da empresa/grupo — ver lib/presentations.js e
+  // pages/Apresentacoes.jsx. Mesmo caminho de dashboardTabs: entra em
+  // selectCompany/selectGroup e sai em persistActiveCompany.
+  presentations: [],
   // Ajuste pessoal de espaçamento das linhas dos demonstrativos — ver
   // lib/density.js. Fica só neste navegador (nunca entra em
   // persistActiveCompany), por isso mora aqui já inicializado do

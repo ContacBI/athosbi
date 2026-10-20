@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "../../data/useStore.js";
 import RGL, { WidthProvider } from "react-grid-layout/legacy";
@@ -33,6 +33,26 @@ import ReportSettingsMenu from "../ReportSettingsMenu.jsx";
 import { GRID_COLS, ROW_HEIGHT, layoutFor, marginPxFor, DEFAULT_SPACING } from "./gridLayout.js";
 
 const GridLayout = WidthProvider(RGL);
+
+// Widget dentro de um slide (ver components/slides): o bloco tem tamanho
+// fixo, então as pizzas crescem junto com ele (em vez dos 192px fixos do
+// painel), a engrenagem de colunas some (cada bloco escolhe as suas em
+// `tableColumns`) e, no PDF, `animate: false` desliga a animação dos
+// gráficos — o print sai com as barras inteiras mesmo se a aba estiver em
+// segundo plano (sem requestAnimationFrame a animação nunca terminaria).
+// Fora de um slide o valor é null e tudo fica como sempre foi.
+export const WidgetFillContext = createContext(null);
+
+function useAnimate() {
+  return useContext(WidgetFillContext)?.animate !== false;
+}
+
+function useFill() {
+  return Boolean(useContext(WidgetFillContext)?.fill);
+}
+
+const PIE_BOX = "h-48 w-full";
+const PIE_BOX_FILL = "min-h-0 w-full flex-1";
 
 function moneyClass(value) {
   const numeric = Number(value || 0);
@@ -94,6 +114,8 @@ const PALETTE = [
 ];
 
 function BalanceChartWidget({ ctx }) {
+  const anim = useAnimate();
+  const fill = useFill();
   const [path, setPath] = useState([]);
 
   const segments = useMemo(() => {
@@ -145,7 +167,7 @@ function BalanceChartWidget({ ctx }) {
   return (
     <div className="flex h-full flex-col items-center">
       <div className="mb-1 flex w-full items-center justify-between gap-2">
-        <p className="text-[13px] font-medium text-ink-900">Composição do balanço</p>
+        <p data-widget-title className="text-[13px] font-medium text-ink-900">Composição do balanço</p>
         {path.length > 0 && (
           <button
             type="button"
@@ -173,11 +195,11 @@ function BalanceChartWidget({ ctx }) {
           </span>
         ))}
       </div>
-      <div className="h-48 w-full">
+      <div className={fill ? PIE_BOX_FILL : PIE_BOX}>
         {activeSegments.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie data={activeSegments} dataKey="value" nameKey="label" innerRadius={50} outerRadius={78} paddingAngle={2} onClick={handleSliceClick} style={{ cursor: "pointer" }}>
+              <Pie isAnimationActive={anim} data={activeSegments} dataKey="value" nameKey="label" innerRadius={fill ? "50%" : 50} outerRadius={fill ? "80%" : 78} paddingAngle={2} onClick={handleSliceClick} style={{ cursor: "pointer" }}>
                 {activeSegments.map((entry, index) => (
                   <Cell key={entry.code} fill={PALETTE[index % PALETTE.length]} />
                 ))}
@@ -202,7 +224,7 @@ function BalanceChartWidget({ ctx }) {
   );
 }
 
-function renderLineOrBarChart(kind, ctx) {
+function renderLineOrBarChart(kind, ctx, anim = true) {
   const grid = <CartesianGrid vertical={false} stroke="var(--color-line)" />;
   const tooltipMoney = <Tooltip formatter={(value) => money(value)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />;
   const moneyAxis = <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={compactMoney} axisLine={false} tickLine={false} width={48} />;
@@ -214,7 +236,7 @@ function renderLineOrBarChart(kind, ctx) {
         <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
         {moneyAxis}
         {tooltipMoney}
-        <Line dataKey="receita" name="Receita líquida" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
+        <Line isAnimationActive={anim} dataKey="receita" name="Receita líquida" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
       </ComposedChart>
     );
   }
@@ -225,8 +247,8 @@ function renderLineOrBarChart(kind, ctx) {
         <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
         {moneyAxis}
         {tooltipMoney}
-        <Bar dataKey="ebitda" name="EBITDA" fill="var(--color-accent-500)" radius={[3, 3, 0, 0]} />
-        <Line dataKey="revenue" name="Receita líquida" stroke="var(--color-navy-700)" strokeWidth={2} dot={{ r: 2 }} />
+        <Bar isAnimationActive={anim} dataKey="ebitda" name="EBITDA" fill="var(--color-accent-500)" radius={[3, 3, 0, 0]} />
+        <Line isAnimationActive={anim} dataKey="revenue" name="Receita líquida" stroke="var(--color-navy-700)" strokeWidth={2} dot={{ r: 2 }} />
       </ComposedChart>
     );
   }
@@ -237,7 +259,7 @@ function renderLineOrBarChart(kind, ctx) {
         <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
         <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={(v) => `${v.toFixed(0)}%`} axisLine={false} tickLine={false} width={44} />
         <Tooltip formatter={(value) => `${Number(value).toFixed(1).replace(".", ",")}%`} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-        <Line dataKey="margin" name="Margem EBITDA" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
+        <Line isAnimationActive={anim} dataKey="margin" name="Margem EBITDA" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
       </ComposedChart>
     );
   }
@@ -248,7 +270,7 @@ function renderLineOrBarChart(kind, ctx) {
         <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
         {moneyAxis}
         {tooltipMoney}
-        <Bar dataKey="resultado" name="Lucro líquido" radius={[3, 3, 0, 0]}>
+        <Bar isAnimationActive={anim} dataKey="resultado" name="Lucro líquido" radius={[3, 3, 0, 0]}>
           {ctx.series.map((entry, index) => (
             <Cell key={index} fill={entry.resultado < 0 ? "var(--color-danger-500)" : "var(--color-success-500)"} />
           ))}
@@ -268,7 +290,7 @@ function renderLineOrBarChart(kind, ctx) {
         <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
         <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={(v) => `${v.toFixed(0)}%`} axisLine={false} tickLine={false} width={44} />
         <Tooltip formatter={(value) => `${Number(value).toFixed(1).replace(".", ",")}%`} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-        <Bar dataKey="value" name="Margem" radius={[3, 3, 0, 0]}>
+        <Bar isAnimationActive={anim} dataKey="value" name="Margem" radius={[3, 3, 0, 0]}>
           {data.map((entry, index) => (
             <Cell key={index} fill={PALETTE[index % PALETTE.length]} />
           ))}
@@ -283,7 +305,7 @@ function renderLineOrBarChart(kind, ctx) {
         <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
         {moneyAxis}
         {tooltipMoney}
-        <Line dataKey="saldo" name="Saldo de caixa" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
+        <Line isAnimationActive={anim} dataKey="saldo" name="Saldo de caixa" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
       </ComposedChart>
     );
   }
@@ -294,9 +316,9 @@ function renderLineOrBarChart(kind, ctx) {
         <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
         {moneyAxis}
         {tooltipMoney}
-        <Line dataKey="ativo" name="Ativo" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
-        <Line dataKey="passivo" name="Passivo" stroke="var(--color-danger-500)" strokeWidth={2} dot={{ r: 2 }} />
-        <Line dataKey="pl" name="Patrimônio líquido" stroke="var(--color-navy-700)" strokeWidth={2} dot={{ r: 2 }} />
+        <Line isAnimationActive={anim} dataKey="ativo" name="Ativo" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
+        <Line isAnimationActive={anim} dataKey="passivo" name="Passivo" stroke="var(--color-danger-500)" strokeWidth={2} dot={{ r: 2 }} />
+        <Line isAnimationActive={anim} dataKey="pl" name="Patrimônio líquido" stroke="var(--color-navy-700)" strokeWidth={2} dot={{ r: 2 }} />
       </ComposedChart>
     );
   }
@@ -308,10 +330,10 @@ function renderLineOrBarChart(kind, ctx) {
         <YAxis yAxisId="money" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={compactMoney} axisLine={false} tickLine={false} width={48} />
         <YAxis yAxisId="pct" orientation="right" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={(v) => `${v.toFixed(0)}%`} axisLine={false} tickLine={false} width={40} />
         <Tooltip formatter={(value, name) => (name === "Margem líquida" ? `${Number(value).toFixed(1).replace(".", ",")}%` : money(value))} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-        <Bar yAxisId="money" dataKey="receita" name="Receita" fill="var(--color-accent-500)" radius={[3, 3, 0, 0]} />
-        <Bar yAxisId="money" dataKey="custo" name="Custo" fill="var(--color-danger-500)" radius={[3, 3, 0, 0]} />
-        <Bar yAxisId="money" dataKey="despesa" name="Despesa" fill="var(--color-warning-500)" radius={[3, 3, 0, 0]} />
-        <Line yAxisId="pct" dataKey="margem" name="Margem líquida" stroke="var(--color-navy-700)" strokeWidth={2.5} dot={{ r: 3 }} />
+        <Bar isAnimationActive={anim} yAxisId="money" dataKey="receita" name="Receita" fill="var(--color-accent-500)" radius={[3, 3, 0, 0]} />
+        <Bar isAnimationActive={anim} yAxisId="money" dataKey="custo" name="Custo" fill="var(--color-danger-500)" radius={[3, 3, 0, 0]} />
+        <Bar isAnimationActive={anim} yAxisId="money" dataKey="despesa" name="Despesa" fill="var(--color-warning-500)" radius={[3, 3, 0, 0]} />
+        <Line isAnimationActive={anim} yAxisId="pct" dataKey="margem" name="Margem líquida" stroke="var(--color-navy-700)" strokeWidth={2.5} dot={{ r: 3 }} />
       </ComposedChart>
     );
   }
@@ -323,7 +345,7 @@ function renderLineOrBarChart(kind, ctx) {
         {moneyAxis}
         {tooltipMoney}
         <ReferenceLine y={0} stroke="var(--color-line-strong)" />
-        <Line dataKey="value" name="Capital de giro" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
+        <Line isAnimationActive={anim} dataKey="value" name="Capital de giro" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
       </ComposedChart>
     );
   }
@@ -334,8 +356,8 @@ function renderLineOrBarChart(kind, ctx) {
         <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
         <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={(v) => `${v.toFixed(0)}%`} axisLine={false} tickLine={false} width={44} />
         <Tooltip formatter={(value) => `${Number(value).toFixed(1).replace(".", ",")}%`} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-        <Line dataKey="margemBruta" name="Margem bruta" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
-        <Line dataKey="margemLiquida" name="Margem líquida" stroke="var(--color-navy-700)" strokeWidth={2} dot={{ r: 2 }} />
+        <Line isAnimationActive={anim} dataKey="margemBruta" name="Margem bruta" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
+        <Line isAnimationActive={anim} dataKey="margemLiquida" name="Margem líquida" stroke="var(--color-navy-700)" strokeWidth={2} dot={{ r: 2 }} />
       </ComposedChart>
     );
   }
@@ -347,8 +369,8 @@ function renderLineOrBarChart(kind, ctx) {
         <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={(v) => v.toFixed(1)} axisLine={false} tickLine={false} width={36} />
         <Tooltip formatter={(value) => (value == null ? "—" : Number(value).toFixed(2).replace(".", ","))} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
         <ReferenceLine y={1} stroke="var(--color-line-strong)" strokeDasharray="3 3" />
-        <Line dataKey="corrente" name="Liquidez corrente" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
-        <Line dataKey="geral" name="Liquidez geral" stroke="var(--color-navy-700)" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+        <Line isAnimationActive={anim} dataKey="corrente" name="Liquidez corrente" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+        <Line isAnimationActive={anim} dataKey="geral" name="Liquidez geral" stroke="var(--color-navy-700)" strokeWidth={2} dot={{ r: 2 }} connectNulls />
       </ComposedChart>
     );
   }
@@ -360,7 +382,7 @@ function renderLineOrBarChart(kind, ctx) {
         <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
         <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={(v) => v.toFixed(1)} axisLine={false} tickLine={false} width={36} />
         <Tooltip formatter={(value) => (value == null ? "—" : Number(value).toFixed(2).replace(".", ","))} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-        <Line dataKey="ratio" name="Passivo / PL" stroke="var(--color-danger-500)" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+        <Line isAnimationActive={anim} dataKey="ratio" name="Passivo / PL" stroke="var(--color-danger-500)" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
       </ComposedChart>
     );
   }
@@ -377,9 +399,9 @@ function renderLineOrBarChart(kind, ctx) {
         <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
         <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={(v) => `${v.toFixed(0)}%`} axisLine={false} tickLine={false} width={44} />
         <Tooltip formatter={(value) => `${Number(value).toFixed(1).replace(".", ",")}%`} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-        <Bar dataKey="custoPct" name="Custo" stackId="dre" fill="var(--color-danger-500)" />
-        <Bar dataKey="despesaPct" name="Despesa" stackId="dre" fill="var(--color-warning-500)" />
-        <Bar dataKey="resultadoPct" name="Resultado" stackId="dre" fill="var(--color-success-500)" radius={[3, 3, 0, 0]} />
+        <Bar isAnimationActive={anim} dataKey="custoPct" name="Custo" stackId="dre" fill="var(--color-danger-500)" />
+        <Bar isAnimationActive={anim} dataKey="despesaPct" name="Despesa" stackId="dre" fill="var(--color-warning-500)" />
+        <Bar isAnimationActive={anim} dataKey="resultadoPct" name="Resultado" stackId="dre" fill="var(--color-success-500)" radius={[3, 3, 0, 0]} />
       </ComposedChart>
     );
   }
@@ -391,8 +413,8 @@ function renderLineOrBarChart(kind, ctx) {
         {moneyAxis}
         {tooltipMoney}
         <ReferenceLine y={0} stroke="var(--color-line-strong)" />
-        <Bar dataKey="divida" name="Dívida financeira" fill="var(--color-danger-500)" radius={[3, 3, 0, 0]} />
-        <Line dataKey="value" name="Capital de giro" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
+        <Bar isAnimationActive={anim} dataKey="divida" name="Dívida financeira" fill="var(--color-danger-500)" radius={[3, 3, 0, 0]} />
+        <Line isAnimationActive={anim} dataKey="value" name="Capital de giro" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
       </ComposedChart>
     );
   }
@@ -403,7 +425,7 @@ function renderLineOrBarChart(kind, ctx) {
         <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
         {moneyAxis}
         {tooltipMoney}
-        <Bar dataKey="pl" name="Patrimônio líquido" fill="var(--color-accent-500)" radius={[3, 3, 0, 0]} />
+        <Bar isAnimationActive={anim} dataKey="pl" name="Patrimônio líquido" fill="var(--color-accent-500)" radius={[3, 3, 0, 0]} />
       </ComposedChart>
     );
   }
@@ -415,8 +437,8 @@ function renderLineOrBarChart(kind, ctx) {
         <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={(v) => `${v.toFixed(0)}%`} axisLine={false} tickLine={false} width={44} />
         <Tooltip formatter={(value) => (value == null ? "—" : `${Number(value).toFixed(1).replace(".", ",")}%`)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
         <ReferenceLine y={0} stroke="var(--color-line-strong)" />
-        <Line dataKey="roe" name="ROE" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
-        <Line dataKey="roa" name="ROA" stroke="var(--color-navy-700)" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+        <Line isAnimationActive={anim} dataKey="roe" name="ROE" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+        <Line isAnimationActive={anim} dataKey="roa" name="ROA" stroke="var(--color-navy-700)" strokeWidth={2} dot={{ r: 2 }} connectNulls />
       </ComposedChart>
     );
   }
@@ -427,13 +449,15 @@ function renderLineOrBarChart(kind, ctx) {
       <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
       {moneyAxis}
       {tooltipMoney}
-      <Bar dataKey="receita" name="Receita líquida" fill="var(--color-accent-500)" radius={[3, 3, 0, 0]} />
-      <Line dataKey="resultado" name="Resultado" stroke="var(--color-success-500)" strokeWidth={2} dot={{ r: 2 }} />
+      <Bar isAnimationActive={anim} dataKey="receita" name="Receita líquida" fill="var(--color-accent-500)" radius={[3, 3, 0, 0]} />
+      <Line isAnimationActive={anim} dataKey="resultado" name="Resultado" stroke="var(--color-success-500)" strokeWidth={2} dot={{ r: 2 }} />
     </ComposedChart>
   );
 }
 
 function CapitalStructureChart({ ctx }) {
+  const anim = useAnimate();
+  const fill = useFill();
   const passivo = Math.abs(Number(ctx.bp.find((r) => r.codigo_gerencial === "02")?.saldo || 0)) || 0.0001;
   const pl = Math.abs(Number(ctx.bp.find((r) => r.codigo_gerencial === "03")?.saldo || 0)) || 0.0001;
   const data = [
@@ -442,11 +466,11 @@ function CapitalStructureChart({ ctx }) {
   ];
   return (
     <div className="flex h-full flex-col items-center">
-      <p className="mb-2 self-start text-[13px] font-medium text-ink-900">Estrutura de capital</p>
-      <div className="h-48 w-full">
+      <p data-widget-title className="mb-2 self-start text-[13px] font-medium text-ink-900">Estrutura de capital</p>
+      <div className={fill ? PIE_BOX_FILL : PIE_BOX}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <Pie data={data} dataKey="value" nameKey="name" innerRadius={50} outerRadius={78} paddingAngle={2}>
+            <Pie isAnimationActive={anim} data={data} dataKey="value" nameKey="name" innerRadius={fill ? "50%" : 50} outerRadius={fill ? "80%" : 78} paddingAngle={2}>
               {data.map((entry, index) => (
                 <Cell key={entry.name} fill={PALETTE[index % PALETTE.length]} />
               ))}
@@ -474,6 +498,7 @@ function CapitalStructureChart({ ctx }) {
 // própria; Operacional/Investimento/Financiamento sobem ou descem a partir
 // de onde o caixa parou no passo anterior.
 function DfcWaterfallChart({ ctx }) {
+  const anim = useAnimate();
   const items = ctx.dfcWaterfall || [];
   let running = 0;
   const data = items.map((item) => {
@@ -487,7 +512,7 @@ function DfcWaterfallChart({ ctx }) {
   });
   return (
     <div className="flex h-full flex-col">
-      <p className="mb-2 text-[13px] font-medium text-ink-900">Cascata do fluxo de caixa</p>
+      <p data-widget-title className="mb-2 text-[13px] font-medium text-ink-900">Cascata do fluxo de caixa</p>
       <div className="h-64 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
@@ -496,7 +521,7 @@ function DfcWaterfallChart({ ctx }) {
             <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={compactMoney} axisLine={false} tickLine={false} width={48} />
             <Tooltip formatter={(value, name, props) => money(props?.payload?.raw ?? value)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
             <Bar dataKey="base" stackId="wf" fill="transparent" isAnimationActive={false} />
-            <Bar dataKey="value" stackId="wf" radius={[3, 3, 0, 0]}>
+            <Bar isAnimationActive={anim} dataKey="value" stackId="wf" radius={[3, 3, 0, 0]}>
               {data.map((entry, index) => (
                 <Cell key={index} fill={entry.isTotal ? "var(--color-navy-700)" : entry.raw < 0 ? "var(--color-danger-500)" : "var(--color-success-500)"} />
               ))}
@@ -509,10 +534,11 @@ function DfcWaterfallChart({ ctx }) {
 }
 
 function ParetoDespesasChart({ ctx }) {
+  const anim = useAnimate();
   const data = ctx.paretoDespesas || [];
   return (
     <div className="flex h-full flex-col">
-      <p className="mb-2 text-[13px] font-medium text-ink-900">Maiores despesas</p>
+      <p data-widget-title className="mb-2 text-[13px] font-medium text-ink-900">Maiores despesas</p>
       <div className="h-64 flex-1">
         {data.length ? (
           <ResponsiveContainer width="100%" height="100%">
@@ -521,7 +547,7 @@ function ParetoDespesasChart({ ctx }) {
               <XAxis type="number" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={compactMoney} axisLine={false} tickLine={false} />
               <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11, fill: "var(--color-ink-600)" }} axisLine={false} tickLine={false} />
               <Tooltip formatter={(value) => money(value)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-              <Bar dataKey="value" name="Despesa" radius={[0, 3, 3, 0]} fill="var(--color-danger-500)" />
+              <Bar isAnimationActive={anim} dataKey="value" name="Despesa" radius={[0, 3, 3, 0]} fill="var(--color-danger-500)" />
             </ComposedChart>
           </ResponsiveContainer>
         ) : (
@@ -536,12 +562,13 @@ function ParetoDespesasChart({ ctx }) {
 // variável, as 4 linhas de despesas operacionais como fixo — não existe
 // uma classificação fixo/variável configurável no app hoje.
 function BreakEvenChart({ ctx }) {
+  const anim = useAnimate();
   const breakEven = ctx.breakEven || {};
   const { fixedCosts = 0, variableCostRatio = 0, breakEvenRevenue, series = [] } = breakEven;
   return (
     <div className="flex h-full flex-col">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-[13px] font-medium text-ink-900">Ponto de equilíbrio</p>
+        <p data-widget-title className="text-[13px] font-medium text-ink-900">Ponto de equilíbrio</p>
         <p className="text-[11px] text-ink-400">
           Custo fixo {money(fixedCosts)} · Margem de contribuição {((1 - variableCostRatio) * 100).toFixed(1).replace(".", ",")}%
         </p>
@@ -553,8 +580,8 @@ function BreakEvenChart({ ctx }) {
             <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
             <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={compactMoney} axisLine={false} tickLine={false} width={48} />
             <Tooltip formatter={(value) => money(value)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-            <Line dataKey="receita" name="Receita" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
-            <Line dataKey="custoTotal" name="Custo + despesa" stroke="var(--color-danger-500)" strokeWidth={2} dot={{ r: 2 }} strokeDasharray="4 3" />
+            <Line isAnimationActive={anim} dataKey="receita" name="Receita" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
+            <Line isAnimationActive={anim} dataKey="custoTotal" name="Custo + despesa" stroke="var(--color-danger-500)" strokeWidth={2} dot={{ r: 2 }} strokeDasharray="4 3" />
             {Number.isFinite(breakEvenRevenue) && (
               <ReferenceLine y={breakEvenRevenue} stroke="var(--color-navy-700)" strokeDasharray="3 3" label={{ value: "Equilíbrio", position: "insideTopLeft", fontSize: 10, fill: "var(--color-navy-700)" }} />
             )}
@@ -569,10 +596,11 @@ function BreakEvenChart({ ctx }) {
 }
 
 function GroupComparisonChart({ ctx }) {
+  const anim = useAnimate();
   const data = ctx.groupComparison;
   return (
     <div className="flex h-full flex-col">
-      <p className="mb-2 text-[13px] font-medium text-ink-900">Comparativo entre empresas</p>
+      <p data-widget-title className="mb-2 text-[13px] font-medium text-ink-900">Comparativo entre empresas</p>
       <div className="h-64 flex-1">
         {data ? (
           <ResponsiveContainer width="100%" height="100%">
@@ -581,9 +609,9 @@ function GroupComparisonChart({ ctx }) {
               <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={compactMoney} axisLine={false} tickLine={false} width={48} />
               <Tooltip formatter={(value) => money(value)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-              <Bar dataKey="receita" name="Receita" fill="var(--color-accent-500)" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="ebitda" name="EBITDA" fill="var(--color-navy-700)" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="lucro" name="Lucro líquido" fill="var(--color-success-500)" radius={[3, 3, 0, 0]} />
+              <Bar isAnimationActive={anim} dataKey="receita" name="Receita" fill="var(--color-accent-500)" radius={[3, 3, 0, 0]} />
+              <Bar isAnimationActive={anim} dataKey="ebitda" name="EBITDA" fill="var(--color-navy-700)" radius={[3, 3, 0, 0]} />
+              <Bar isAnimationActive={anim} dataKey="lucro" name="Lucro líquido" fill="var(--color-success-500)" radius={[3, 3, 0, 0]} />
             </ComposedChart>
           </ResponsiveContainer>
         ) : (
@@ -595,17 +623,18 @@ function GroupComparisonChart({ ctx }) {
 }
 
 function IndicatorRadarChart({ ctx }) {
+  const anim = useAnimate();
   const data = ctx.radarIndicators || [];
   return (
     <div className="flex h-full flex-col">
-      <p className="mb-2 text-[13px] font-medium text-ink-900">Radar de indicadores</p>
+      <p data-widget-title className="mb-2 text-[13px] font-medium text-ink-900">Radar de indicadores</p>
       <div className="h-56 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={data} outerRadius="75%">
             <PolarGrid stroke="var(--color-line)" />
             <PolarAngleAxis dataKey="indicator" tick={{ fontSize: 11, fill: "var(--color-ink-500)" }} />
             <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-            <RechartsRadar name="Score" dataKey="score" stroke="var(--color-accent-500)" fill="var(--color-accent-500)" fillOpacity={0.35} />
+            <RechartsRadar isAnimationActive={anim} name="Score" dataKey="score" stroke="var(--color-accent-500)" fill="var(--color-accent-500)" fillOpacity={0.35} />
             <Tooltip
               formatter={(value, name, props) => {
                 const raw = props?.payload?.raw;
@@ -623,15 +652,17 @@ function IndicatorRadarChart({ ctx }) {
 }
 
 function DfcOperationalChart({ ctx }) {
+  const anim = useAnimate();
+  const fill = useFill();
   const data = ctx.dfcOperationalComposition || [];
   return (
     <div className="flex h-full flex-col items-center">
-      <p className="mb-2 self-start text-[13px] font-medium text-ink-900">Composição do caixa operacional</p>
-      <div className="h-48 w-full">
+      <p data-widget-title className="mb-2 self-start text-[13px] font-medium text-ink-900">Composição do caixa operacional</p>
+      <div className={fill ? PIE_BOX_FILL : PIE_BOX}>
         {data.length ? (
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie data={data} dataKey="value" nameKey="name" innerRadius={50} outerRadius={78} paddingAngle={2}>
+              <Pie isAnimationActive={anim} data={data} dataKey="value" nameKey="name" innerRadius={fill ? "50%" : 50} outerRadius={fill ? "80%" : 78} paddingAngle={2}>
                 {data.map((entry, index) => (
                   <Cell key={entry.name} fill={PALETTE[index % PALETTE.length]} />
                 ))}
@@ -658,6 +689,7 @@ function DfcOperationalChart({ ctx }) {
 // Cascata do resultado (DRE): mesmíssima técnica da cascata do DFC acima
 // (barra empilhada com base invisível) — só troca a fonte dos passos.
 function ResultWaterfallChart({ ctx }) {
+  const anim = useAnimate();
   const items = ctx.dreWaterfall || [];
   let running = 0;
   const data = items.map((item) => {
@@ -671,7 +703,7 @@ function ResultWaterfallChart({ ctx }) {
   });
   return (
     <div className="flex h-full flex-col">
-      <p className="mb-2 text-[13px] font-medium text-ink-900">Cascata do resultado</p>
+      <p data-widget-title className="mb-2 text-[13px] font-medium text-ink-900">Cascata do resultado</p>
       <div className="h-64 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
@@ -680,7 +712,7 @@ function ResultWaterfallChart({ ctx }) {
             <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={compactMoney} axisLine={false} tickLine={false} width={48} />
             <Tooltip formatter={(value, name, props) => money(props?.payload?.raw ?? value)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
             <Bar dataKey="base" stackId="wf" fill="transparent" isAnimationActive={false} />
-            <Bar dataKey="value" stackId="wf" radius={[3, 3, 0, 0]}>
+            <Bar isAnimationActive={anim} dataKey="value" stackId="wf" radius={[3, 3, 0, 0]}>
               {data.map((entry, index) => (
                 <Cell key={index} fill={entry.isTotal ? "var(--color-navy-700)" : entry.raw < 0 ? "var(--color-danger-500)" : "var(--color-success-500)"} />
               ))}
@@ -696,14 +728,16 @@ function ResultWaterfallChart({ ctx }) {
 // e DfcOperationalChart, parametrizada por título+dados pra não repetir o
 // bloco inteiro pras duas novas composições (despesas e receita).
 function CompositionPieChart({ title, data, emptyLabel }) {
+  const anim = useAnimate();
+  const fill = useFill();
   return (
     <div className="flex h-full flex-col items-center">
-      <p className="mb-2 self-start text-[13px] font-medium text-ink-900">{title}</p>
-      <div className="h-48 w-full">
+      <p data-widget-title className="mb-2 self-start text-[13px] font-medium text-ink-900">{title}</p>
+      <div className={fill ? PIE_BOX_FILL : PIE_BOX}>
         {data.length ? (
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie data={data} dataKey="value" nameKey="name" innerRadius={50} outerRadius={78} paddingAngle={2}>
+              <Pie isAnimationActive={anim} data={data} dataKey="value" nameKey="name" innerRadius={fill ? "50%" : 50} outerRadius={fill ? "80%" : 78} paddingAngle={2}>
                 {data.map((entry, index) => (
                   <Cell key={entry.name} fill={PALETTE[index % PALETTE.length]} />
                 ))}
@@ -728,6 +762,7 @@ function CompositionPieChart({ title, data, emptyLabel }) {
 }
 
 function ChartWidgetCard({ definition, ctx }) {
+  const anim = useAnimate();
   if (definition.chart === "balanco") {
     return <BalanceChartWidget ctx={ctx} />;
   }
@@ -763,10 +798,10 @@ function ChartWidgetCard({ definition, ctx }) {
   }
   return (
     <div className="flex h-full flex-col">
-      <p className="mb-2 text-[13px] font-medium text-ink-900">{definition.label}</p>
+      <p data-widget-title className="mb-2 text-[13px] font-medium text-ink-900">{definition.label}</p>
       <div className="h-64 flex-1">
         <ResponsiveContainer width="100%" height="100%">
-          {renderLineOrBarChart(definition.chart, ctx)}
+          {renderLineOrBarChart(definition.chart, ctx, anim)}
         </ResponsiveContainer>
       </div>
     </div>
@@ -775,6 +810,7 @@ function ChartWidgetCard({ definition, ctx }) {
 
 function TableWidgetCard({ definition, ctx, maxRows }) {
   const state = useAppState();
+  const slide = useContext(WidgetFillContext);
   const [expandedRows, setExpandedRows] = useState(new Set());
   const tab = definition.table === "bp" ? "BP" : definition.table?.startsWith("dfc_") ? "DFC" : "DRE";
   const isDfc = tab === "DFC";
@@ -825,7 +861,12 @@ function TableWidgetCard({ definition, ctx, maxRows }) {
   // months plus an optional "Saldo total" — so that stays pinned off here
   // even though reportColumns() can add it; this only picks up whatever
   // ReportSettingsMenu's "Mostrar coluna saldo total" is set to.
-  const columns = state.reportCompare
+  // Num slide quem decide é o bloco ("Total do período" ou "Mês a mês"),
+  // não a engrenagem global — um slide não muda sozinho porque alguém
+  // mexeu na tela de Demonstrativos.
+  const monthly = slide ? slide.tableColumns === "meses" : state.reportCompare;
+  const valueCol = slide ? "124px" : "92px";
+  const columns = monthly
     ? reportColumns({
         tab,
         reportCompare: true,
@@ -841,9 +882,9 @@ function TableWidgetCard({ definition, ctx, maxRows }) {
   };
   return (
     <div className="min-w-0">
-      <div className="mb-3 flex items-center justify-between gap-2"><p className="text-[13px] font-medium text-ink-900">{definition.label}</p><ReportSettingsMenu tab={tab} /></div>
-      <div className="overflow-x-auto"><div className="min-w-max">
-        {state.reportCompare && <div className="mb-1 grid gap-3 text-[10px] text-ink-400" style={{ gridTemplateColumns: `minmax(180px, 1fr) ${columns.map(() => "92px").join(" ")}` }}><span>Conta</span>{columns.map((column) => <span key={column} className="text-right">{columnLabel(column)}</span>)}</div>}
+      <div data-widget-title className="mb-3 flex items-center justify-between gap-2"><p className="text-[13px] font-medium text-ink-900">{definition.label}</p>{!slide && <ReportSettingsMenu tab={tab} />}</div>
+      <div className={slide ? "overflow-hidden" : "overflow-x-auto"}><div className={slide && !monthly ? "" : "min-w-max"}>
+        {monthly && <div className="mb-1 grid gap-3 text-[10px] text-ink-400" style={{ gridTemplateColumns: `minmax(180px, 1fr) ${columns.map(() => valueCol).join(" ")}` }}><span>Conta</span>{columns.map((column) => <span key={column} className="text-right">{columnLabel(column)}</span>)}</div>}
       <div className="flex flex-col gap-1.5">
         {visibleRows.map((row) => {
           const isBold = row.isFormula || Number(row.nivel || 0) <= 1;
@@ -856,7 +897,7 @@ function TableWidgetCard({ definition, ctx, maxRows }) {
                 tabIndex={children.length ? 0 : undefined}
                 onClick={children.length ? () => toggleRow(row.codigo_gerencial) : undefined}
                 className={`grid items-center gap-3 text-[13px] ${isBold ? "border-t border-line pt-1.5 font-semibold text-ink-900" : "text-ink-600"} ${children.length ? "cursor-pointer hover:bg-surface-muted" : ""}`}
-                style={{ gridTemplateColumns: `minmax(180px, 1fr) ${columns.map(() => "92px").join(" ")}` }}
+                style={{ gridTemplateColumns: `minmax(180px, 1fr) ${columns.map(() => valueCol).join(" ")}` }}
               >
                 <span className="flex min-w-0 items-center gap-1 truncate">
                   {children.length > 0 && <ChevronRight size={13} className={`shrink-0 transition-transform ${isOpen ? "rotate-90" : ""}`} />}
@@ -868,7 +909,7 @@ function TableWidgetCard({ definition, ctx, maxRows }) {
                 <div
                   key={child.classificacao}
                   className="grid items-center gap-3 bg-surface-page/60 py-1 text-[12px] text-ink-500"
-                  style={{ gridTemplateColumns: `minmax(180px, 1fr) ${columns.map(() => "92px").join(" ")}` }}
+                  style={{ gridTemplateColumns: `minmax(180px, 1fr) ${columns.map(() => valueCol).join(" ")}` }}
                 >
                   <span className="truncate pl-5">{child.nome_conta}</span>
                   {columns.map((column) => { const value = valueFor(child, column); return <span key={column} className={`whitespace-nowrap text-right tabular-nums ${moneyClass(value)}`}>{money(value)}</span>; })}
@@ -943,7 +984,7 @@ function ListWidgetCard({ definition, ctx, maxRows }) {
     const hiddenCount = ctx.destaques.length - visible.length;
     return (
       <div>
-        <p className="mb-3 text-[13px] font-medium text-ink-900">{definition.label}</p>
+        <p data-widget-title className="mb-3 text-[13px] font-medium text-ink-900">{definition.label}</p>
         <div className="flex flex-col gap-2.5">
           {visible.map((row) => (
             <div key={row.codigo_gerencial} className="flex items-center justify-between gap-3 text-[13px]">
@@ -960,7 +1001,7 @@ function ListWidgetCard({ definition, ctx, maxRows }) {
   if (definition.list === "checklist") {
     return (
       <div>
-        <p className="mb-3 text-[13px] font-medium text-ink-900">{definition.label}</p>
+        <p data-widget-title className="mb-3 text-[13px] font-medium text-ink-900">{definition.label}</p>
         <div className="flex flex-col gap-2.5">
           {ctx.checklist.map((item) => (
             <div key={item.label} className="flex items-center gap-2.5 text-[13px]">
@@ -979,7 +1020,7 @@ function ListWidgetCard({ definition, ctx, maxRows }) {
   if (definition.list === "sem_depara") {
     return (
       <div>
-        <p className="mb-3 flex items-center gap-2 text-[13px] font-medium text-ink-900">
+        <p data-widget-title className="mb-3 flex items-center gap-2 text-[13px] font-medium text-ink-900">
           <TriangleAlert size={15} strokeWidth={1.8} className="text-warning-500" />
           {definition.label}
         </p>

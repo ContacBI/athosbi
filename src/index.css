@@ -296,3 +296,53 @@ body * {
     animation: none;
   }
 }
+
+/* Apresentações (components/slides): título nativo do widget escondido
+   quando o bloco usa "Mostrar título" desligado. */
+.slide-hide-title [data-widget-title] {
+  display: none !important;
+}
+
+/* Entrada dos blocos no modo apresentação (cada bloco escolhe a sua). */
+@keyframes slide-anim-fade {
+  from { opacity: 0; }
+}
+@keyframes slide-anim-rise {
+  from { opacity: 0; translate: 0 40px; }
+}
+@keyframes slide-anim-left {
+  from { opacity: 0; translate: -60px 0; }
+}
+@keyframes slide-anim-right {
+  from { opacity: 0; translate: 60px 0; }
+}
+@keyframes slide-anim-zoom {
+  from { opacity: 0; scale: 0.6; }
+}
+.slide-anim-fade { animation: slide-anim-fade 600ms ease both; }
+.slide-anim-rise { animation: slide-anim-rise 650ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.slide-anim-left { animation: slide-anim-left 650ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.slide-anim-right { animation: slide-anim-right 650ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.slide-anim-zoom { animation: slide-anim-zoom 600ms cubic-bezier(0.2, 0.8, 0.2, 1.2) both; }
+
+/* Troca de slide no modo apresentação. */
+@keyframes slide-tr-fade {
+  from { opacity: 0; }
+}
+@keyframes slide-tr-slide {
+  from { opacity: 0; translate: 8% 0; }
+}
+@keyframes slide-tr-zoom {
+  from { opacity: 0; scale: 0.92; }
+}
+.slide-tr-fade { animation: slide-tr-fade 500ms ease both; }
+.slide-tr-slide { animation: slide-tr-slide 550ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.slide-tr-zoom { animation: slide-tr-zoom 550ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+/* O palco dos slides não entra na transição de cor global acima: arrastar
+   um bloco ou trocar o tema tem que responder na hora, e o print do PDF
+   não pode pegar uma cor no meio da troca. */
+.slide-stage,
+.slide-stage * {
+  transition: none !important;
+}
