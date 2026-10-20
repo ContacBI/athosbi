@@ -445,6 +445,14 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
     setData({ expandedLines: next });
   }
 
+  // Um botão por nível do plano + o último, que abre até a conta real. O
+  // plano padrão de uma empresa pode ter contas extras além do nível 5.
+  const levels = useMemo(() => {
+    const deepest = Math.max(5, ...state.plano.filter((row) => row.demonstrativo === tab).map((row) => Number(row.nivel) || 0));
+    return Array.from({ length: Math.max(LEVELS.length, deepest + 1) }, (_, i) => i + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appState.plano, tab]);
+
   function expandToLevel(level) {
     const codes = state.plano
       .filter((row) => row.demonstrativo === tab && Number(row.nivel) < level)
@@ -636,12 +644,12 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
             {showLevelControls && (
               <div className="flex items-center gap-1 border-l border-line pl-3">
                 <span className="text-[11px] text-ink-400">Nível</span>
-                {LEVELS.map((level) => (
+                {levels.map((level) => (
                   <button
                     key={level}
                     type="button"
                     onClick={() => expandToLevel(level)}
-                    title={level === LEVELS[LEVELS.length - 1] ? "Abrir tudo até a conta real" : `Abrir até o nível ${level}`}
+                    title={level === levels[levels.length - 1] ? "Abrir tudo até a conta real" : `Abrir até o nível ${level}`}
                     className="flex h-6 w-6 items-center justify-center rounded-md bg-surface-muted text-[11px] font-medium text-ink-600 transition-colors hover:bg-accent-50 hover:text-accent-600"
                   >
                     {level}

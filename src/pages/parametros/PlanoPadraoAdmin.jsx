@@ -10,7 +10,8 @@ import {
   previewNewExtraAccount,
   addExtraAccount,
   removeExtraAccount,
-  renameExtraAccount,
+  updateExtraAccount,
+  mappingsPointingTo,
   hasExtraChildren,
   setPlanoMaiusculo,
 } from "../../lib/planosPadrao.js";
@@ -153,11 +154,16 @@ function NewPlanoModal({ onClose, onCreated }) {
 
 function EditExtraAccountModal({ planoPadraoId, node, upper, onClose }) {
   const [nome, setNome] = useState(node.nomeOriginal || node.nome);
+  const original = node.natureza === "Sintetica" ? "Sintetica" : "Analitica";
+  const [natureza, setNatureza] = useState(original);
   const [error, setError] = useState("");
+  const hasChildren = node.children?.length > 0;
+  const linked = useMemo(() => mappingsPointingTo(planoPadraoId, node.codigo_gerencial), [planoPadraoId, node.codigo_gerencial]);
   function handleSubmit(event) {
     event.preventDefault();
-    if (!renameExtraAccount(planoPadraoId, node.codigo_gerencial, nome)) {
-      setError("Dê um nome pra conta.");
+    const problem = updateExtraAccount(planoPadraoId, node.codigo_gerencial, { nome, natureza });
+    if (problem) {
+      setError(problem);
       return;
     }
     onClose();
@@ -183,11 +189,46 @@ function EditExtraAccountModal({ planoPadraoId, node, upper, onClose }) {
             className="mt-1 w-full rounded-md border border-line-strong px-3 py-2 text-sm outline-none focus:border-accent-500"
           />
         </label>
+        <div className="mt-4 text-[13px] text-ink-600">
+          Tipo
+          <div className="mt-1 flex rounded-md border border-line-strong p-0.5">
+            {[
+              { value: "Analitica", label: "Analítica", hint: hasChildren ? "Tem contas dentro — uma analítica não pode ter" : "Uma conta-folha — essa que aceita De/Para" },
+              { value: "Sintetica", label: "Sintética", hint: "Uma subcategoria — pode ter contas dentro dela" },
+            ].map((option) => {
+              const blocked = option.value === "Analitica" && hasChildren;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  disabled={blocked}
+                  onClick={() => setNatureza(option.value)}
+                  title={option.hint}
+                  className={`flex-1 rounded px-3 py-1.5 text-[12.5px] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                    natureza === option.value ? "bg-accent-500 text-white" : "text-ink-600 hover:bg-surface-muted"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+          {hasChildren && <p className="mt-1.5 text-[11.5px] text-ink-400">Tem contas dentro dela, então fica sintética.</p>}
+        </div>
+        {natureza === "Sintetica" && original === "Analitica" && (
+          <div className="mt-3 rounded-lg bg-warning-50 p-3 text-[12px] leading-snug text-warning-700">
+            Vira uma subcategoria: dá pra criar contas dentro dela (no "+") e ela sai da lista de destinos do De/Para.
+            {linked > 0 && ` ${linked} vínculo${linked === 1 ? "" : "s"} do De/Para ${linked === 1 ? "aponta" : "apontam"} direto pra ela — ${linked === 1 ? "continua" : "continuam"} somando aqui; depois dá pra mover pras contas de dentro.`}
+          </div>
+        )}
+        {natureza === "Analitica" && original === "Sintetica" && (
+          <div className="mt-3 rounded-lg bg-accent-50 p-3 text-[12px] leading-snug text-accent-700">Vira uma conta-folha: passa a aparecer como destino no De/Para.</div>
+        )}
         <div className="mt-3 rounded-lg bg-surface-muted p-3 text-[12px] text-ink-500">
           <p>
             Vai aparecer assim: <span className="font-medium text-ink-800">{planNameCase(nome || "—", upper)}</span>
           </p>
-          <p className="mt-1">Maiúsculas seguem o botão "M" do plano. Código, tipo e os vínculos de De/Para continuam iguais.</p>
+          <p className="mt-1">Maiúsculas seguem o botão "M" do plano. O código e os vínculos de De/Para continuam iguais.</p>
         </div>
         {error && <p className="mt-3 text-[12px] text-danger-600">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
@@ -318,9 +359,12 @@ function PlanoEditor({ plano, onBack }) {
   // analítica — em vez de começar recolhido esperando alguém clicar nos
   // botões de nível. Refaz sozinho ao trocar de aba (BP/DRE), já que
   // `rows` muda junto.
+  // Botões de nível até o nível mais fundo que existir — contas extras podem
+  // descer além do 5 (nível 6, 7…).
+  const maxLevel = useMemo(() => Math.max(5, ...rows.map((row) => Number(row.nivel) || 0)), [rows]);
   useEffect(() => {
-    setActiveLevel(5);
-    setExpanded(new Set(rows.filter((row) => Number(row.nivel) < 5).map((row) => row.codigo_gerencial)));
+    setActiveLevel(maxLevel);
+    setExpanded(new Set(rows.filter((row) => Number(row.nivel) < maxLevel).map((row) => row.codigo_gerencial)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows]);
 
@@ -425,7 +469,7 @@ function PlanoEditor({ plano, onBack }) {
         <div className="mt-3 flex items-center gap-2.5">
           <span className="text-[12px] text-ink-400">Nível:</span>
           <div className="flex gap-1.5">
-            {[1, 2, 3, 4, 5].map((level) => (
+            {Array.from({ length: maxLevel }, (_, i) => i + 1).map((level) => (
               <button
                 key={level}
                 type="button"

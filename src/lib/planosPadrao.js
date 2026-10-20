@@ -197,22 +197,40 @@ export function addExtraAccount(planoPadraoId, { parentCode, nome, natureza }) {
   return row;
 }
 
-// Só o nome muda — código, tipo e lugar na árvore ficam, então os vínculos
-// de De/Para que já apontam pra ela continuam valendo.
-export function renameExtraAccount(planoPadraoId, codigoGerencial, nome) {
+// Quantos vínculos de De/Para (das empresas deste plano) apontam direto pra
+// esta conta — pra avisar antes de virar sintética.
+export function mappingsPointingTo(planoPadraoId, codigoGerencial) {
+  return companiesUsingPlano(planoPadraoId).reduce(
+    (total, company) => total + (company.mappings || []).filter((mapping) => mapping.codigo_gerencial === codigoGerencial).length,
+    0
+  );
+}
+
+// Editar uma conta extra: nome e tipo (Analítica ↔ Sintética). O código e o
+// lugar na árvore não mudam, então os vínculos de De/Para continuam
+// valendo — o relatório soma pela "linha de parentesco" do código (ver
+// buildReportTree), em qualquer nível. Virar analítica só sem contas
+// dentro (uma conta-folha não tem filhos). Devolve "" se deu certo ou o
+// motivo de não dar.
+export function updateExtraAccount(planoPadraoId, codigoGerencial, { nome, natureza }) {
   const trimmed = String(nome || "").trim();
-  if (!trimmed) return false;
+  if (!trimmed) return "Dê um nome pra conta.";
+  if (natureza === "Analitica" && hasExtraChildren(planoPadraoId, codigoGerencial)) return "Essa conta tem contas dentro dela — pra virar analítica, tire (ou exclua) as de dentro primeiro.";
   const planos = state.planosPadrao.map((plano) =>
     plano.id === planoPadraoId
       ? {
           ...plano,
-          extraAccounts: plano.extraAccounts.map((row) => (row.codigo_gerencial === codigoGerencial ? { ...row, nome: trimmed } : row)),
+          extraAccounts: plano.extraAccounts.map((row) =>
+            row.codigo_gerencial === codigoGerencial
+              ? { ...row, nome: trimmed, ...(natureza ? { natureza, aceita_depara: natureza === "Analitica" ? "sim" : "nao" } : {}) }
+              : row
+          ),
           updatedAt: new Date().toISOString(),
         }
       : plano
   );
   persist(planos);
-  return true;
+  return "";
 }
 
 export function removeExtraAccount(planoPadraoId, codigoGerencial) {
