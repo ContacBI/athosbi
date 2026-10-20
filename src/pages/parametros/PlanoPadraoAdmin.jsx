@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ChevronRight, Download, Layers, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronRight, Download, FolderInput, Layers, Pencil, Plus, Search, Sparkles, Trash2, X } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { RESET_SECTION_EVENT } from "../../components/ParametrosSidebar.jsx";
 import {
@@ -12,10 +12,13 @@ import {
   removeExtraAccount,
   updateExtraAccount,
   mappingsPointingTo,
+  planMovePreview,
+  moveExtraAccount,
   hasExtraChildren,
   setPlanoMaiusculo,
 } from "../../lib/planosPadrao.js";
 import { planNameCase } from "../../lib/planCase.js";
+import { remapPlanoCodes } from "../../lib/companies.js";
 import { hasAnyResponsibility } from "../../lib/colaboradores.js";
 import { exportPlanoPadraoExcel } from "../../lib/planoExcel.js";
 import PageHeader from "../../components/PageHeader.jsx";
@@ -36,7 +39,7 @@ function buildTree(rows) {
 // Nome novo pra tela nova: "adicionada" (badge do Plano gerencial) fica
 // "extra deste plano" aqui — deixa claro que essa conta só existe pra quem
 // usa ESTE plano padrão, não é uma conta nova no plano gerencial global.
-function TreeNode({ node, depth, expanded, toggle, onAddChild, onEditExtra, onDeleteExtra, canEdit }) {
+function TreeNode({ node, depth, expanded, toggle, onAddChild, onEditExtra, onMoveExtra, onDeleteExtra, canEdit }) {
   const isOpen = expanded.has(node.codigo_gerencial);
   const hasChildren = node.children.length > 0;
   return (
@@ -86,6 +89,16 @@ function TreeNode({ node, depth, expanded, toggle, onAddChild, onEditExtra, onDe
             {node.extra && (
               <button
                 type="button"
+                onClick={() => onMoveExtra(node)}
+                title="Mover para dentro de outra conta (com tudo que estiver dentro dela)"
+                className="flex h-6 w-6 items-center justify-center rounded-md text-ink-400 hover:bg-accent-50 hover:text-accent-600"
+              >
+                <FolderInput size={13} strokeWidth={2} />
+              </button>
+            )}
+            {node.extra && (
+              <button
+                type="button"
                 onClick={() => onDeleteExtra(node)}
                 title="Excluir esta conta extra"
                 className="flex h-6 w-6 items-center justify-center rounded-md text-ink-400 hover:bg-danger-50 hover:text-danger-600"
@@ -99,7 +112,7 @@ function TreeNode({ node, depth, expanded, toggle, onAddChild, onEditExtra, onDe
       {hasChildren && isOpen && (
         <div>
           {node.children.map((child) => (
-            <TreeNode key={child.codigo_gerencial} node={child} depth={depth + 1} expanded={expanded} toggle={toggle} onAddChild={onAddChild} onEditExtra={onEditExtra} onDeleteExtra={onDeleteExtra} canEdit={canEdit} />
+            <TreeNode key={child.codigo_gerencial} node={child} depth={depth + 1} expanded={expanded} toggle={toggle} onAddChild={onAddChild} onEditExtra={onEditExtra} onMoveExtra={onMoveExtra} onDeleteExtra={onDeleteExtra} canEdit={canEdit} />
           ))}
         </div>
       )}
@@ -148,6 +161,148 @@ function NewPlanoModal({ onClose, onCreated }) {
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+// "Mover para dentro de…": escolher a conta sintética de destino, ver como
+// fica (códigos novos, nível, quantos vínculos de De/Para vão junto) e
+// confirmar. Ver planMovePreview/moveExtraAccount (planosPadrao.js) e
+// remapPlanoCodes (companies.js).
+function MoveExtraAccountModal({ plano, node, rows, onClose, onMoved }) {
+  const state = useAppState();
+  const [query, setQuery] = useState("");
+  const [targetCode, setTargetCode] = useState("");
+  const [error, setError] = useState("");
+  const sourceCode = node.codigo_gerencial;
+  const currentParent = sourceCode.split(".").slice(0, -1).join(".");
+  const companies = companiesUsingPlano(plano.id);
+  // Mexe no De/Para de todas as empresas do plano — só quem pode gravar em
+  // todas elas (admin, ou responsável por cada uma).
+  const email = String(state.userEmail || "").toLowerCase();
+  const canMove = state.isAdmin || companies.every((company) => (company.responsaveis || []).some((item) => String(item).toLowerCase() === email));
+  const candidates = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return rows
+      .filter((row) => row.natureza === "Sintetica")
+      .filter((row) => row.codigo_gerencial !== sourceCode && !row.codigo_gerencial.startsWith(`${sourceCode}.`) && row.codigo_gerencial !== currentParent)
+      .filter((row) => !q || row.nome.toLowerCase().includes(q) || row.codigo_gerencial.toLowerCase().includes(q))
+      .sort((a, b) => a.codigo_gerencial.localeCompare(b.codigo_gerencial, "pt-BR", { numeric: true }));
+  }, [rows, query, sourceCode, currentParent]);
+  const preview = useMemo(() => (targetCode ? planMovePreview(plano.id, sourceCode, targetCode) : null), [plano, sourceCode, targetCode]);
+  const upper = Boolean(plano.nomesMaiusculos);
+
+  function handleMove() {
+    if (!preview || preview.error) return;
+    const result = moveExtraAccount(plano.id, sourceCode, targetCode);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    const grupoMacroByCode = new Map(result.moved.map((row) => [row.codigo_gerencial, row.grupo_macro]));
+    const remapped = remapPlanoCodes(result.codeMap, { planoPadraoId: plano.id, grupoMacroByCode });
+    onMoved({ ...result, remapped });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/40 px-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-surface-card shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 border-b border-line px-6 py-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Mover para dentro de…</p>
+            <h2 className="mt-0.5 truncate text-[16px] font-medium text-ink-900">
+              <span className="mr-2 font-mono text-[13px] text-ink-400">{sourceCode}</span>
+              {node.nome}
+            </h2>
+            {node.children?.length > 0 && <p className="mt-0.5 text-[12px] text-ink-500">Vai junto com tudo que está dentro dela.</p>}
+          </div>
+          <button type="button" onClick={onClose} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-400 hover:bg-surface-muted hover:text-ink-700">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="border-b border-line px-6 py-3">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Buscar a conta de destino (nome ou código)…"
+              className="h-9 w-full rounded-md border border-line-strong pl-8 pr-3 text-[13px] outline-none focus:border-accent-500"
+            />
+          </div>
+          <p className="mt-1.5 text-[11.5px] text-ink-400">Só aparecem contas sintéticas. Pra criar uma nova conta-mãe (ex.: "Despesas sociais"), use o "+" na árvore antes.</p>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
+          {candidates.map((row) => (
+            <button
+              key={row.codigo_gerencial}
+              type="button"
+              onClick={() => {
+                setTargetCode(row.codigo_gerencial);
+                setError("");
+              }}
+              className={`flex w-full items-center gap-2 rounded-lg py-1.5 pr-2 text-left text-[13px] transition-colors ${
+                targetCode === row.codigo_gerencial ? "bg-accent-50 ring-1 ring-accent-400" : "hover:bg-surface-muted"
+              }`}
+              style={{ paddingLeft: 10 + Math.max(0, Number(row.nivel || 1) - 1) * 14 }}
+            >
+              <span className="w-[120px] shrink-0 font-mono text-[11px] text-ink-400">{row.codigo_gerencial}</span>
+              <span className="flex-1 truncate font-medium text-ink-800">{row.nome}</span>
+              {row.extra && <span className="shrink-0 rounded-full bg-accent-50 px-2 py-0.5 text-[10px] text-accent-600">extra</span>}
+            </button>
+          ))}
+          {candidates.length === 0 && <p className="px-3 py-6 text-center text-[13px] text-ink-400">Nenhuma conta sintética encontrada.</p>}
+        </div>
+
+        <div className="border-t border-line bg-surface-muted/60 px-6 py-4">
+          {!preview && <p className="text-[12.5px] text-ink-500">Escolha a conta de destino na lista.</p>}
+          {preview?.error && <p className="text-[12.5px] text-danger-600">{preview.error}</p>}
+          {preview && !preview.error && (
+            <div className="flex flex-col gap-2 text-[12.5px] text-ink-600">
+              <p>
+                Vai ficar dentro de <span className="font-medium text-ink-900">{planNameCase(preview.target.nome, upper)}</span> como{" "}
+                <span className="font-mono font-medium text-ink-900">{preview.newBase}</span> (nível {preview.newLevel}).
+              </p>
+              <div className="flex flex-col gap-0.5 rounded-lg bg-surface-card p-2.5 font-mono text-[11.5px] text-ink-500">
+                {preview.moved.slice(0, 5).map((row) => {
+                  const old = [...preview.codeMap.entries()].find(([, code]) => code === row.codigo_gerencial)?.[0];
+                  return (
+                    <span key={row.codigo_gerencial} className="flex items-center gap-2">
+                      {old} <ArrowRight size={11} /> <span className="text-ink-800">{row.codigo_gerencial}</span>
+                      <span className="truncate font-sans text-ink-400">{planNameCase(row.nome, upper)}</span>
+                    </span>
+                  );
+                })}
+                {preview.moved.length > 5 && <span className="font-sans">+{preview.moved.length - 5} contas de dentro</span>}
+              </div>
+              <p>
+                {preview.moved.length} conta{preview.moved.length === 1 ? "" : "s"} muda{preview.moved.length === 1 ? "" : "m"} de código.{" "}
+                {preview.links
+                  ? `${preview.links} vínculo${preview.links === 1 ? "" : "s"} do De/Para em ${preview.companies} empresa${preview.companies === 1 ? "" : "s"} ${preview.links === 1 ? "vai" : "vão"} junto, sozinho${preview.links === 1 ? "" : "s"} — os valores dos relatórios continuam os mesmos.`
+                  : "Nenhum vínculo do De/Para aponta pra elas ainda."}
+              </p>
+            </div>
+          )}
+          {!canMove && <p className="mt-2 text-[12px] text-warning-700">Só o admin (ou quem é responsável por todas as empresas deste plano) pode mover — mexe no De/Para delas.</p>}
+          {error && <p className="mt-2 text-[12px] text-danger-600">{error}</p>}
+          <div className="mt-3 flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="rounded-md border border-line-strong px-3.5 py-2 text-[13px] text-ink-600 hover:bg-surface-card">
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleMove}
+              disabled={!canMove || !preview || Boolean(preview.error)}
+              className="flex items-center gap-1.5 rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <FolderInput size={14} /> Mover
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -341,6 +496,8 @@ function PlanoEditor({ plano, onBack }) {
   const [activeLevel, setActiveLevel] = useState(null);
   const [addingUnder, setAddingUnder] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [moving, setMoving] = useState(null);
+  const [notice, setNotice] = useState("");
   const companies = companiesUsingPlano(plano.id);
   const canEdit = state.isAdmin || (state.isColaborador && hasAnyResponsibility(state));
 
@@ -449,6 +606,18 @@ function PlanoEditor({ plano, onBack }) {
         </div>
       )}
 
+      {notice && (
+        <div className="mb-3 flex items-start justify-between gap-3 rounded-xl bg-success-50 px-4 py-3 text-[13px] text-success-600">
+          <span className="flex items-start gap-2">
+            <Check size={16} className="mt-0.5 shrink-0" />
+            {notice}
+          </span>
+          <button type="button" onClick={() => setNotice("")} className="shrink-0 text-success-600/70 hover:text-success-600">
+            <X size={15} />
+          </button>
+        </div>
+      )}
+
       <div className="rounded-2xl bg-surface-card p-4 shadow-sm">
         <div className="flex gap-1.5">
           {demonstrativos.map((item) => (
@@ -492,13 +661,36 @@ function PlanoEditor({ plano, onBack }) {
 
         <div className="mt-2 max-h-[560px] overflow-y-auto scrollbar-thin">
           {tree.map((node) => (
-            <TreeNode key={node.codigo_gerencial} node={node} depth={0} expanded={expanded} toggle={toggle} onAddChild={setAddingUnder} onEditExtra={setEditing} onDeleteExtra={handleDeleteExtra} canEdit={canEdit} />
+            <TreeNode key={node.codigo_gerencial} node={node} depth={0} expanded={expanded} toggle={toggle} onAddChild={setAddingUnder} onEditExtra={setEditing} onMoveExtra={setMoving} onDeleteExtra={handleDeleteExtra} canEdit={canEdit} />
           ))}
           {tree.length === 0 && <p className="px-3 py-6 text-center text-[13px] text-ink-400">Nenhum código carregado.</p>}
         </div>
       </div>
 
       {addingUnder && <AddExtraAccountModal planoPadraoId={plano.id} parent={addingUnder} onClose={() => setAddingUnder(null)} onCreated={handleCreated} />}
+      {moving && (
+        <MoveExtraAccountModal
+          plano={plano}
+          node={moving}
+          rows={rows}
+          onClose={() => setMoving(null)}
+          onMoved={(result) => {
+            setMoving(null);
+            const newCode = result.newBase;
+            setExpanded((current) => {
+              const next = new Set(current);
+              const parts = newCode.split(".");
+              for (let i = 1; i < parts.length; i += 1) next.add(parts.slice(0, i).join("."));
+              next.add(newCode);
+              return next;
+            });
+            setNotice(
+              `"${planNameCase(result.source.nome, Boolean(plano.nomesMaiusculos))}" agora é ${newCode}, dentro de "${planNameCase(result.target.nome, Boolean(plano.nomesMaiusculos))}"` +
+                (result.remapped.links ? ` — ${result.remapped.links} vínculo${result.remapped.links === 1 ? "" : "s"} do De/Para atualizado${result.remapped.links === 1 ? "" : "s"} em ${result.remapped.companies} empresa${result.remapped.companies === 1 ? "" : "s"}.` : ".")
+            );
+          }}
+        />
+      )}
       {editing && <EditExtraAccountModal planoPadraoId={plano.id} node={editing} upper={Boolean(plano.nomesMaiusculos)} onClose={() => setEditing(null)} />}
     </div>
   );
