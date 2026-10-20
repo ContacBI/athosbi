@@ -8,6 +8,7 @@ import { DECK_TEMPLATES, THEMES, deletePresentation, duplicatePresentation, font
 import SlideEditor from "../components/slides/SlideEditor.jsx";
 import PresentMode, { SlidesExporter, visibleSlides } from "../components/slides/PresentMode.jsx";
 import { Modal, SlideThumb } from "../components/slides/pickers.jsx";
+import "../lib/slideFonts.js";
 
 function formatWhen(iso) {
   if (!iso) return "";
@@ -18,7 +19,7 @@ function formatWhen(iso) {
 function NewDeckModal({ onCreate, onClose, env }) {
   const [name, setName] = useState("");
   const [templateId, setTemplateId] = useState("resultados");
-  const [themeId, setThemeId] = useState("athos");
+  const [themeId, setThemeId] = useState("athos-premium");
   const preview = useMemo(() => makePresentation({ templateId, themeId }), [templateId, themeId]);
   return (
     <Modal title="Nova apresentação" subtitle="Escolha um modelo e um tema — depois dá pra mudar absolutamente tudo." onClose={onClose} width="max-w-5xl">

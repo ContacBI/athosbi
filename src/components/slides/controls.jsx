@@ -169,9 +169,12 @@ export function FontSelect({ value, onChange, theme, allowTheme = true }) {
           { value: "@body", label: `Textos do tema (${labelOf(theme.bodyFont)})` },
         ]
       : []),
-    ...FONTS.map((font) => ({ value: font.id, label: font.label })),
+    { heading: "Fontes premium (vão no PDF)" },
+    ...FONTS.filter((font) => font.group === "premium").map((font) => ({ value: font.id, label: font.label })),
+    { heading: "Fontes do computador" },
+    ...FONTS.filter((font) => font.group !== "premium").map((font) => ({ value: font.id, label: font.label })),
   ];
-  const current = options.find((option) => option.value === value) || options[0];
+  const current = options.find((option) => option.value === value) || options.find((option) => option.value) || options[0];
   return (
     <div ref={rootRef} className="relative">
       <button type="button" onClick={() => setOpen((v) => !v)} className={`${INPUT} flex items-center justify-between gap-2 text-left`} style={{ fontFamily: fontStack(value, theme) }}>
@@ -179,8 +182,13 @@ export function FontSelect({ value, onChange, theme, allowTheme = true }) {
         <ChevronDown size={13} className="shrink-0 text-ink-400" />
       </button>
       {open && (
-        <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 max-h-72 overflow-y-auto rounded-lg bg-surface-card p-1 shadow-lg ring-1 ring-line">
-          {options.map((option) => (
+        <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 max-h-80 min-w-56 overflow-y-auto rounded-lg bg-surface-card p-1 shadow-lg ring-1 ring-line">
+          {options.map((option) =>
+            option.heading ? (
+              <p key={option.heading} className="px-2.5 pb-1 pt-2.5 text-[10px] font-semibold uppercase tracking-wide text-ink-400">
+                {option.heading}
+              </p>
+            ) : (
             <button
               key={option.value}
               type="button"
@@ -193,7 +201,8 @@ export function FontSelect({ value, onChange, theme, allowTheme = true }) {
             >
               {option.label}
             </button>
-          ))}
+            )
+          )}
         </div>
       )}
     </div>

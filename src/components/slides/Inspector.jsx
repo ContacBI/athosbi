@@ -31,6 +31,7 @@ import {
   DECORATIONS,
   PATTERNS,
   SHADOWS,
+  CARD_STYLES,
   TEXT_TOKENS,
   THEMES,
   THEME_COLOR_KEYS,
@@ -176,6 +177,14 @@ function TypographySection({ block, theme, set }) {
           <ColorField value={block.listColor} onChange={(value) => set({ listColor: value })} theme={theme} />
         </Field>
       )}
+      <Field label="Texto em degradê (até esta cor)">
+        <ColorField value={block.gradient || ""} onChange={(value) => set({ gradient: value })} theme={theme} allowNone />
+      </Field>
+      {block.gradient && (
+        <Field label="Direção do degradê">
+          <Slider value={block.gradientAngle ?? 90} min={0} max={360} step={5} onChange={(value) => set({ gradientAngle: value }, "gradientAngle")} suffix="°" />
+        </Field>
+      )}
     </Section>
   );
 }
@@ -186,6 +195,15 @@ function AppearanceSection({ block, theme, setStyle, set }) {
   const isLine = block.kind === "shape" && block.shape === "line";
   return (
     <Section title="Aparência">
+      {isCard && s.fill === "@surface" && !s.fill2 && (
+        <Field label="Estilo do cartão">
+          <Select
+            value={s.cardStyle ?? "@theme"}
+            onChange={(value) => setStyle({ cardStyle: value === "@theme" ? null : value })}
+            options={[{ value: "@theme", label: `Do tema (${CARD_STYLES.find((item) => item.id === (theme.cardStyle || "solid"))?.label})` }, ...CARD_STYLES.map((item) => ({ value: item.id, label: item.label }))]}
+          />
+        </Field>
+      )}
       <Field label={isLine ? "Cor da linha" : "Preenchimento"}>
         <ColorField value={s.fill} onChange={(value) => setStyle({ fill: value })} theme={theme} allowNone />
       </Field>
@@ -416,6 +434,18 @@ export function BlockInspector({ block, deck, ctx, set, setStyle, actions, openP
             <Toggle label="Mostrar título" checked={block.showLabel} onChange={(value) => set({ showLabel: value })} />
             <Toggle label="Mostrar ícone" checked={block.showIcon} onChange={(value) => set({ showIcon: value })} />
             <Toggle label="Mostrar a fórmula embaixo" checked={block.showCaption} onChange={(value) => set({ showCaption: value })} />
+            <Field label="Formato do número">
+              <Segmented
+                value={block.numberStyle || "full"}
+                onChange={(value) => set({ numberStyle: value })}
+                options={[
+                  { value: "compact", label: "R$ 1,88 mi" },
+                  { value: "full", label: "R$ 1.881.222,53" },
+                ]}
+              />
+            </Field>
+            <Toggle label="Minigráfico mês a mês" checked={Boolean(block.trend)} onChange={(value) => set({ trend: value })} />
+            <Toggle label="Variação do último mês (▲/▼)" checked={Boolean(block.delta)} onChange={(value) => set({ delta: value })} />
             <Field label="Alinhamento">
               <Segmented value={block.align} onChange={(value) => set({ align: value })} options={ALIGN_OPTIONS.slice(0, 3)} />
             </Field>
@@ -894,6 +924,9 @@ export function BackgroundSection({ slide, theme, setSlide, onUploadBg, onApplyA
           <Slider value={bg.overlay ?? 40} min={0} max={95} onChange={(value) => setBg({ overlay: value }, "bgOverlay")} suffix="%" />
         </>
       )}
+      <Field label={bg.grain == null ? `Textura granulada (do tema: ${theme.grain || 0}%)` : "Textura granulada"}>
+        <Slider value={bg.grain ?? theme.grain ?? 0} min={0} max={100} step={5} onChange={(value) => setBg({ grain: value }, "bgGrain")} suffix="%" />
+      </Field>
       <button type="button" onClick={onApplyAll} className="h-8 rounded-md border border-line text-[12px] text-ink-700 hover:border-accent-400 hover:text-accent-600">
         Usar este fundo em todos os slides
       </button>
@@ -1016,8 +1049,14 @@ export function ThemeInspector({ deck, setDeck, brandLogos }) {
         <Field label="Cantos dos cartões">
           <Slider value={theme.radius} min={0} max={60} onChange={(value) => setTheme({ radius: value }, "radius")} suffix="px" />
         </Field>
+        <Field label="Estilo dos cartões">
+          <Segmented value={theme.cardStyle || "solid"} onChange={(value) => setTheme({ cardStyle: value })} options={CARD_STYLES.map((item) => ({ value: item.id, label: item.label }))} />
+        </Field>
         <Field label="Sombra dos cartões">
           <Select value={theme.shadow} onChange={(value) => setTheme({ shadow: value })} options={SHADOWS.map((item) => ({ value: item.id, label: item.label }))} />
+        </Field>
+        <Field label="Textura granulada no fundo">
+          <Slider value={theme.grain || 0} min={0} max={100} step={5} onChange={(value) => setTheme({ grain: value }, "grain")} suffix="%" />
         </Field>
         <Field label="Decoração padrão dos slides">
           <Select value={theme.decoration} onChange={(value) => setTheme({ decoration: value })} options={DECORATIONS.map((item) => ({ value: item.id, label: item.label }))} />

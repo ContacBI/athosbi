@@ -1,6 +1,8 @@
 import { setData, state } from "../data/useStore.js";
 import { persistActiveCompany } from "./companies.js";
 import { WIDGET_CATALOG, formatWidgetValue } from "./dashboardWidgets.js";
+import { treeFor } from "./indicatorFormula.js";
+import { accumulatedBalanceValue } from "./reportColumns.js";
 import { activeWorkspaceName } from "./groups.js";
 
 // Apresentações (slides) de cada empresa/grupo. Ficam no próprio registro
@@ -12,10 +14,24 @@ export const SLIDE_W = 1280;
 export const SLIDE_H = 720;
 
 // ---------------------------------------------------------------------------
-// Fontes — só fontes que já vêm no Windows/Mac (o app não baixa fonte
-// nenhuma): assim o PDF sai com a mesma letra da tela, sem depender de
-// internet.
+// Fontes. As "premium" vêm embutidas no app (ver lib/slideFonts.js — e
+// vão dentro do PDF também); `family` é o nome delas no @font-face. As do
+// sistema (Windows/Mac) continuam valendo pra quem já usou.
 export const FONTS = [
+  { id: "sora", label: "Sora", group: "premium", family: "Sora Variable", stack: '"Sora Variable", "Century Gothic", sans-serif' },
+  { id: "inter", label: "Inter", group: "premium", family: "Inter Variable", stack: '"Inter Variable", "Segoe UI", sans-serif' },
+  { id: "manrope", label: "Manrope", group: "premium", family: "Manrope Variable", stack: '"Manrope Variable", "Segoe UI", sans-serif' },
+  { id: "jakarta", label: "Plus Jakarta Sans", group: "premium", family: "Plus Jakarta Sans Variable", stack: '"Plus Jakarta Sans Variable", "Segoe UI", sans-serif' },
+  { id: "montserrat", label: "Montserrat", group: "premium", family: "Montserrat Variable", stack: '"Montserrat Variable", "Segoe UI", sans-serif' },
+  { id: "outfit", label: "Outfit", group: "premium", family: "Outfit Variable", stack: '"Outfit Variable", "Century Gothic", sans-serif' },
+  { id: "grotesk", label: "Space Grotesk", group: "premium", family: "Space Grotesk Variable", stack: '"Space Grotesk Variable", "Segoe UI", sans-serif' },
+  { id: "dmsans", label: "DM Sans", group: "premium", family: "DM Sans Variable", stack: '"DM Sans Variable", "Segoe UI", sans-serif' },
+  { id: "playfair", label: "Playfair Display", group: "premium", family: "Playfair Display Variable", stack: '"Playfair Display Variable", Georgia, serif' },
+  { id: "fraunces", label: "Fraunces", group: "premium", family: "Fraunces Variable", stack: '"Fraunces Variable", Georgia, serif' },
+  { id: "dmserif", label: "DM Serif Display", group: "premium", family: "DM Serif Display", stack: '"DM Serif Display", Georgia, serif' },
+  { id: "lora", label: "Lora", group: "premium", family: "Lora Variable", stack: '"Lora Variable", Georgia, serif' },
+  { id: "bebas", label: "Bebas Neue", group: "premium", family: "Bebas Neue", stack: '"Bebas Neue", Impact, sans-serif' },
+  { id: "jetbrains", label: "JetBrains Mono", group: "premium", family: "JetBrains Mono Variable", stack: '"JetBrains Mono Variable", Consolas, monospace' },
   { id: "padrao", label: "Padrão do app", stack: '"Inter", "Segoe UI", system-ui, sans-serif' },
   { id: "moderna", label: "Moderna", stack: '"Bahnschrift", "DIN Alternate", "Segoe UI", sans-serif' },
   { id: "geometrica", label: "Geométrica", stack: '"Century Gothic", "Futura", "Avenir Next", "Trebuchet MS", sans-serif' },
@@ -73,7 +89,34 @@ export const DECORATIONS = [
   { id: "brilho", label: "Brilho" },
   { id: "painel", label: "Painel (site Athos)" },
   { id: "degraus", label: "Degraus Athos" },
+  { id: "aura", label: "Aura (brilho de canto)" },
+  { id: "arcos", label: "Arcos finos" },
+  { id: "editorial", label: "Editorial (linhas finas)" },
 ];
+
+// Estilo dos cartões (número, gráfico, tabela, meta) — vale pros cartões
+// com o preenchimento do tema; cada cartão pode trocar o seu.
+export const CARD_STYLES = [
+  { id: "solid", label: "Sólido" },
+  { id: "elevated", label: "Elevado" },
+  { id: "outline", label: "Contorno fino" },
+  { id: "glass", label: "Vidro" },
+];
+
+// Famílias de fonte usadas pela apresentação — pra embutir no PDF.
+export function deckFontFamilies(deck) {
+  const ids = new Set([deck.theme.headingFont, deck.theme.bodyFont, deck.footer?.font]);
+  deck.slides.forEach((slide) =>
+    slide.blocks.forEach((block) => {
+      [block.font, block.labelFont, block.titleFont].forEach((id) => id && ids.add(id));
+    })
+  );
+  const families = [...ids]
+    .map((id) => (id === "@heading" ? deck.theme.headingFont : id === "@body" ? deck.theme.bodyFont : id))
+    .map((id) => FONTS.find((font) => font.id === id)?.family)
+    .filter(Boolean);
+  return [...new Set(families)];
+}
 
 export const TRANSITIONS = [
   { id: "fade", label: "Esmaecer" },
@@ -93,132 +136,197 @@ export const ANIMATIONS = [
 
 export const THEMES = [
   // Visual do site da Athos: fundo quase preto, painel cinza de cantos bem
-  // arredondados, laranja em degradê e letra geométrica.
+  // arredondados, laranja e a mesma letra geométrica do site (Sora).
   {
     id: "athos",
     name: "Athos",
     colors: { bg: "#161616", surface: "#2c2c2c", text: "#ffffff", muted: "#a8a8ad", accent: "#f15a24", accent2: "#d4d4d8", accent3: "#f7931e", positive: "#34d399", negative: "#f87171", cover: "#111111", onCover: "#ffffff" },
-    headingFont: "geometrica",
-    bodyFont: "geometrica",
+    headingFont: "sora",
+    bodyFont: "sora",
     radius: 28,
     shadow: "none",
+    cardStyle: "solid",
+    grain: 0,
     decoration: "painel",
+  },
+  // A versão "de gala" da Athos: brilho laranja vindo do canto, textura
+  // granulada e cartões de vidro.
+  {
+    id: "athos-premium",
+    name: "Athos Premium",
+    colors: { bg: "#0e0e10", surface: "#1c1c1f", text: "#ffffff", muted: "#a1a1aa", accent: "#f15a24", accent2: "#e4e4e7", accent3: "#f7931e", positive: "#4ade80", negative: "#fb7185", cover: "#09090b", onCover: "#ffffff" },
+    headingFont: "sora",
+    bodyFont: "inter",
+    radius: 24,
+    shadow: "none",
+    cardStyle: "glass",
+    grain: 35,
+    decoration: "aura",
+    background: { type: "mesh", color: "@bg", colors: ["@accent", "", "@accent3", ""], intensity: 16 },
   },
   {
     id: "athos-claro",
     name: "Athos claro",
     colors: { bg: "#ffffff", surface: "#f4f4f5", text: "#161616", muted: "#6b6b70", accent: "#f15a24", accent2: "#3f3f46", accent3: "#f7931e", positive: "#16a34a", negative: "#dc2626", cover: "#161616", onCover: "#ffffff" },
-    headingFont: "geometrica",
-    bodyFont: "geometrica",
+    headingFont: "sora",
+    bodyFont: "sora",
     radius: 24,
     shadow: "sm",
+    cardStyle: "elevated",
+    grain: 0,
     decoration: "degraus",
+  },
+  {
+    id: "onix",
+    name: "Ônix e ouro",
+    colors: { bg: "#0b0b0c", surface: "#151517", text: "#f5f1e8", muted: "#a39e93", accent: "#c9a45c", accent2: "#e8d5a3", accent3: "#7d6a45", positive: "#86c59a", negative: "#e07a6b", cover: "#070708", onCover: "#f5f1e8" },
+    headingFont: "playfair",
+    bodyFont: "manrope",
+    radius: 6,
+    shadow: "none",
+    cardStyle: "outline",
+    grain: 30,
+    decoration: "arcos",
+  },
+  {
+    id: "perola",
+    name: "Pérola",
+    colors: { bg: "#f7f5f0", surface: "#ffffff", text: "#1c1b19", muted: "#77736b", accent: "#1c1b19", accent2: "#b89b5e", accent3: "#8c8a85", positive: "#3f7d58", negative: "#b5473a", cover: "#1c1b19", onCover: "#f7f5f0" },
+    headingFont: "fraunces",
+    bodyFont: "inter",
+    radius: 18,
+    shadow: "md",
+    cardStyle: "elevated",
+    grain: 18,
+    decoration: "editorial",
   },
   {
     id: "athosbi",
     name: "AthosBI",
     colors: { bg: "#ffffff", surface: "#f3f5f8", text: "#13202f", muted: "#5f6e80", accent: "#e8691f", accent2: "#0c2b4a", accent3: "#2f80c2", positive: "#1d9e75", negative: "#d8493a", cover: "#081d33", onCover: "#ffffff" },
-    headingFont: "padrao",
-    bodyFont: "padrao",
+    headingFont: "jakarta",
+    bodyFont: "inter",
     radius: 18,
     shadow: "sm",
+    cardStyle: "elevated",
+    grain: 0,
     decoration: "barra",
   },
   {
     id: "marinho",
     name: "Marinho",
     colors: { bg: "#0b2239", surface: "#12304f", text: "#f4f7fb", muted: "#9db1c7", accent: "#ff8a3d", accent2: "#5ab0ff", accent3: "#ffd166", positive: "#3ddc97", negative: "#ff6b6b", cover: "#061526", onCover: "#ffffff" },
-    headingFont: "moderna",
-    bodyFont: "padrao",
+    headingFont: "grotesk",
+    bodyFont: "inter",
     radius: 20,
     shadow: "none",
+    cardStyle: "glass",
+    grain: 20,
     decoration: "circulos",
+    background: { type: "mesh", color: "@bg", colors: ["@accent2", "", "@accent", ""], intensity: 14 },
   },
   {
     id: "executivo",
     name: "Executivo",
     colors: { bg: "#fbfaf7", surface: "#ffffff", text: "#1d2733", muted: "#6b7380", accent: "#b08d3c", accent2: "#1f3a5f", accent3: "#7a8fa6", positive: "#2e8b57", negative: "#b03a2e", cover: "#1f3a5f", onCover: "#fdf8ec" },
-    headingFont: "elegante",
-    bodyFont: "padrao",
+    headingFont: "playfair",
+    bodyFont: "inter",
     radius: 6,
     shadow: "md",
+    cardStyle: "elevated",
+    grain: 0,
     decoration: "moldura",
   },
   {
     id: "grafite",
     name: "Grafite",
     colors: { bg: "#18191d", surface: "#23252b", text: "#f2f2f3", muted: "#9a9da6", accent: "#f5a524", accent2: "#4fd1c5", accent3: "#a78bfa", positive: "#4ade80", negative: "#f87171", cover: "#0f1013", onCover: "#ffffff" },
-    headingFont: "geometrica",
-    bodyFont: "padrao",
+    headingFont: "outfit",
+    bodyFont: "inter",
     radius: 14,
     shadow: "none",
+    cardStyle: "outline",
+    grain: 25,
     decoration: "pontos",
   },
   {
     id: "esmeralda",
     name: "Esmeralda",
     colors: { bg: "#f4faf7", surface: "#ffffff", text: "#0f2f26", muted: "#5b7a70", accent: "#0f9b6c", accent2: "#0f2f26", accent3: "#f2b134", positive: "#0f9b6c", negative: "#d14b3d", cover: "#0f2f26", onCover: "#eafff6" },
-    headingFont: "humanista",
-    bodyFont: "padrao",
+    headingFont: "fraunces",
+    bodyFont: "dmsans",
     radius: 16,
     shadow: "sm",
+    cardStyle: "elevated",
+    grain: 0,
     decoration: "ondas",
   },
   {
     id: "oceano",
     name: "Oceano",
     colors: { bg: "#ffffff", surface: "#eef6fb", text: "#0d2b3e", muted: "#5a7486", accent: "#0096c7", accent2: "#023e8a", accent3: "#48cae4", positive: "#2a9d8f", negative: "#e76f51", cover: "#023e8a", onCover: "#ffffff" },
-    headingFont: "padrao",
-    bodyFont: "padrao",
+    headingFont: "manrope",
+    bodyFont: "manrope",
     radius: 18,
     shadow: "sm",
+    cardStyle: "solid",
+    grain: 0,
     decoration: "ondas",
   },
   {
     id: "vinho",
     name: "Vinho",
     colors: { bg: "#fffaf8", surface: "#ffffff", text: "#2c0f17", muted: "#7a5c63", accent: "#9b2242", accent2: "#2c0f17", accent3: "#d4a373", positive: "#3a7d44", negative: "#b3261e", cover: "#5c0f24", onCover: "#fff4f0" },
-    headingFont: "classica",
-    bodyFont: "padrao",
+    headingFont: "dmserif",
+    bodyFont: "lora",
     radius: 10,
     shadow: "md",
+    cardStyle: "elevated",
+    grain: 12,
     decoration: "canto",
   },
   {
     id: "minimal",
     name: "Minimalista",
     colors: { bg: "#ffffff", surface: "#f4f4f5", text: "#111111", muted: "#71717a", accent: "#111111", accent2: "#52525b", accent3: "#a1a1aa", positive: "#16a34a", negative: "#dc2626", cover: "#111111", onCover: "#ffffff" },
-    headingFont: "moderna",
-    bodyFont: "padrao",
+    headingFont: "inter",
+    bodyFont: "inter",
     radius: 8,
     shadow: "none",
+    cardStyle: "outline",
+    grain: 0,
     decoration: "nenhuma",
   },
   {
     id: "por-do-sol",
     name: "Pôr do sol",
     colors: { bg: "#fff8f1", surface: "#ffffff", text: "#2a1a12", muted: "#8a6d5c", accent: "#ff6b35", accent2: "#7b2cbf", accent3: "#ffb703", positive: "#2a9d8f", negative: "#e63946", cover: "#3c096c", onCover: "#ffffff" },
-    headingFont: "geometrica",
-    bodyFont: "padrao",
+    headingFont: "outfit",
+    bodyFont: "dmsans",
     radius: 22,
     shadow: "md",
+    cardStyle: "elevated",
+    grain: 0,
     decoration: "circulos",
   },
   {
     id: "neon",
     name: "Neon",
     colors: { bg: "#0d0b1e", surface: "#1a1638", text: "#ffffff", muted: "#a7a3c9", accent: "#00e5ff", accent2: "#ff3d9a", accent3: "#b4ff39", positive: "#39ffb4", negative: "#ff5470", cover: "#070614", onCover: "#ffffff" },
-    headingFont: "impacto",
-    bodyFont: "padrao",
+    headingFont: "bebas",
+    bodyFont: "grotesk",
     radius: 16,
     shadow: "glow",
+    cardStyle: "glass",
+    grain: 25,
     decoration: "diagonal",
+    background: { type: "mesh", color: "@bg", colors: ["@accent", "@accent2", "", ""], intensity: 18 },
   },
 ];
 
 export function themeById(id) {
   const preset = THEMES.find((theme) => theme.id === id) || THEMES[0];
-  return { ...preset, colors: { ...preset.colors } };
+  return { ...structuredClone(preset), colors: { ...preset.colors } };
 }
 
 export function hexToRgb(hex) {
@@ -296,6 +404,10 @@ export function patternCss(pattern, color, size = 24) {
 export function backgroundSuggestions() {
   return [
     { label: "Do tema", bg: { type: "theme" } },
+    { label: "Aura", bg: { type: "mesh", color: "@cover", colors: ["", "@accent", "", "@accent3"], intensity: 30, grain: 30 } },
+    { label: "Ônix", bg: { type: "mesh", color: "#0b0b0c", colors: ["", "#c9a45c", "", ""], intensity: 22, grain: 35 } },
+    { label: "Champanhe", bg: { type: "mesh", color: "#f7f5f0", colors: ["#e8d5a3", "", "#d6cfc2", ""], intensity: 45, grain: 20 } },
+    { label: "Grafite fosco", bg: { type: "gradient", gradType: "radial", color: "#26272b", color2: "#0c0c0e", grain: 40 } },
     { label: "Cartão", bg: { type: "solid", color: "@surface" } },
     { label: "Capa", bg: { type: "solid", color: "@cover" } },
     { label: "Destaque", bg: { type: "gradient", color: "@accent", color2: "@accent3", angle: 135 } },
@@ -390,6 +502,42 @@ export function kpiText(id, ctx) {
   }
 }
 
+// "R$ 1,88 mi" em vez de "R$ 1.881.222,53" — números grandes ficam mais
+// limpos num slide. Percentual e índice não mudam.
+export function compactValue(value, format) {
+  if (format !== "money") return formatWidgetValue(value, format);
+  const n = Number(value || 0);
+  const abs = Math.abs(n);
+  const fmt = (v, digits) => v.toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  if (abs >= 1e9) return `R$ ${fmt(n / 1e9, 2)} bi`;
+  if (abs >= 1e6) return `R$ ${fmt(n / 1e6, 2)} mi`;
+  if (abs >= 1e4) return `R$ ${fmt(n / 1e3, 1)} mil`;
+  return formatWidgetValue(n, format);
+}
+
+// O indicador mês a mês (pro minigráfico e o "▲ x% no mês"): as mesmas
+// linhas da fórmula, só que pegando o valor de cada mês — movimento do mês
+// pra DRE/EBITDA, saldo acumulado até o mês pro Balanço.
+export function kpiSeries(definition, ctx) {
+  const formula = definition?.formula;
+  const months = ctx?.months || [];
+  if (!formula || months.length < 2) return [];
+  const valueAt = (code, month) => {
+    const row = (treeFor(ctx, code) || []).find((item) => item.codigo_gerencial === code);
+    if (!row) return 0;
+    const isBp = !String(code).startsWith("DRE") && !String(code).startsWith("DEX");
+    return isBp ? accumulatedBalanceValue(row, month, months) : Number(row.monthValues?.[month] || 0);
+  };
+  const sum = (terms, month) => (terms || []).reduce((total, term) => total + valueAt(term.code, month) * (term.sign < 0 ? -1 : 1), 0);
+  return months.map((month) => {
+    if (formula.kind !== "ratio") return sum(formula.numerator, month);
+    const den = sum(formula.denominator, month);
+    if (!den) return null;
+    const raw = sum(formula.numerator, month) / den;
+    return formula.format === "percent" ? raw * 100 : raw;
+  });
+}
+
 export function fillTokens(text, ctx, info) {
   return String(text ?? "").replace(/\{([a-z]+)(?::([a-z0-9_]+))?\}/gi, (match, name, arg) => {
     const key = name.toLowerCase();
@@ -415,7 +563,7 @@ export function newId(prefix) {
 const BASE_STYLE = { fill: "", fillOpacity: 100, fill2: "", gradAngle: 135, border: "", borderWidth: 0, borderStyle: "solid", radius: 0, shadow: "none", padding: 0 };
 // Cartões (KPI, gráfico, tabela…) seguem o canto e a sombra do TEMA
 // (null = "do tema") — trocar o tema troca os cartões junto.
-const CARD_STYLE = { ...BASE_STYLE, fill: "@surface", radius: null, shadow: null, padding: 24 };
+const CARD_STYLE = { ...BASE_STYLE, fill: "@surface", radius: null, shadow: null, padding: 24, cardStyle: null };
 
 const KIND_DEFAULTS = {
   text: () => ({
@@ -436,6 +584,8 @@ const KIND_DEFAULTS = {
     letterSpacing: 0,
     list: "none",
     listColor: "@accent",
+    gradient: "",
+    gradientAngle: 90,
   }),
   kpi: () => ({
     w: 260,
@@ -454,6 +604,9 @@ const KIND_DEFAULTS = {
     valueColor: "auto",
     labelColor: "@muted",
     iconColor: "@accent",
+    numberStyle: "compact",
+    trend: true,
+    delta: true,
   }),
   widget: () => ({
     w: 640,
@@ -568,12 +721,32 @@ function brandLogo(x, y, h) {
   return makeBlock("image", { brand: "athos", x, y, w: Math.round(h * (210 / 51)), h, fit: "contain", style: { radius: 0 } });
 }
 
-function title(text, extra = {}) {
-  return makeBlock("text", { x: M, y: 52, w: SLIDE_W - M * 2, h: 64, text, font: "@heading", size: 40, weight: 700, ...extra });
+// Cabeçalho "editorial" dos slides: um rótulo pequeno em maiúsculas na cor
+// de destaque, o título grande logo abaixo (letras um pouco mais juntas, que
+// é o que dá cara de apresentação bem-feita) e, opcional, uma linha de apoio.
+function eyebrow(text, extra = {}) {
+  return makeBlock("text", { x: M, y: 50, w: SLIDE_W - M * 2, h: 24, text, size: 14, weight: 700, color: "@accent", uppercase: true, letterSpacing: 3, ...extra });
 }
 
-function subtitle(text, extra = {}) {
-  return makeBlock("text", { x: M, y: 114, w: SLIDE_W - M * 2, h: 36, text, size: 20, color: "@muted", ...extra });
+function title(text, extra = {}) {
+  return makeBlock("text", { x: M, y: 76, w: SLIDE_W - M * 2, h: 60, text, font: "@heading", size: 42, weight: 700, letterSpacing: -1, lineHeight: 1.1, ...extra });
+}
+
+function header(kicker, heading, extra = {}) {
+  return [eyebrow(kicker, extra.align ? { align: extra.align } : {}), title(heading, extra)];
+}
+
+function lede(text, extra = {}) {
+  return makeBlock("text", { x: M, y: 140, w: SLIDE_W - M * 2, h: 32, text, size: 20, color: "@muted", ...extra });
+}
+
+// Comentário com uma barrinha de destaque na frente — pra "leitura" dos
+// números.
+function insight(x, y, w, h, text, extra = {}) {
+  return [
+    makeBlock("shape", { x, y: y + 4, w: 4, h: h - 8, style: { fill: "@accent", radius: 2 } }),
+    makeBlock("text", { x: x + 24, y, w: w - 24, h, text, size: 22, color: "@muted", lineHeight: 1.5, valign: "middle", ...extra }),
+  ];
 }
 
 function kpi(widgetId, x, y, w, h, extra = {}) {
@@ -593,12 +766,13 @@ export const LAYOUTS = [
       decoration: "@theme",
       hideFooter: true,
       blocks: [
-        brandLogo(96, 72, 46),
-        makeBlock("image", { brand: "athos-marca", x: 96, y: 262, w: 30, h: 30, style: { radius: 0 } }),
-        makeBlock("text", { x: 138, y: 258, w: 940, h: 40, text: heading, size: 22, weight: 700, color: "@accent", valign: "middle" }),
-        makeBlock("text", { x: 96, y: 310, w: 620, h: 170, text: "{empresa}", font: "@heading", size: 60, weight: 700, color: "@onCover", lineHeight: 1.1 }),
-        makeBlock("shape", { shape: "line", x: 96, y: 492, w: 470, h: 4, style: { fill: "@accent", borderWidth: 2 } }),
-        makeBlock("text", { x: 96, y: 512, w: 600, h: 44, text: "{periodo}", size: 24, color: "@onCover", opacity: 85 }),
+        brandLogo(96, 70, 40),
+        makeBlock("shape", { x: 96, y: 228, w: 330, h: 44, style: { fill: "@accent", fillOpacity: 12, border: "@accent", borderWidth: 1, radius: 999 } }),
+        makeBlock("text", { x: 96, y: 228, w: 330, h: 44, text: heading, size: 15, weight: 700, color: "@accent", uppercase: true, letterSpacing: 2.5, align: "center", valign: "middle" }),
+        makeBlock("text", { x: 92, y: 300, w: 1000, h: 200, text: "{empresa}", font: "@heading", size: 76, weight: 700, color: "@onCover", lineHeight: 1.02, letterSpacing: -2.5, valign: "bottom", anim: "rise" }),
+        makeBlock("shape", { x: 96, y: 532, w: 120, h: 4, style: { fill: "@accent", fill2: "@accent3", gradAngle: 90, radius: 2 } }),
+        makeBlock("text", { x: 96, y: 556, w: 700, h: 36, text: "{periodo}", size: 24, color: "@onCover", opacity: 85 }),
+        makeBlock("text", { x: 96, y: 640, w: 700, h: 24, text: "Preparado pela Athos Consultoria Empresarial", size: 14, color: "@onCover", opacity: 55, letterSpacing: 0.5 }),
       ],
     }),
   },
@@ -607,113 +781,121 @@ export const LAYOUTS = [
     label: "Abertura de seção",
     build: ({ number = "01", heading = "Resultado do período", text = "O que aconteceu com receita, custos e lucro" } = {}) => ({
       blocks: [
-        makeBlock("text", { x: 96, y: 170, w: 420, h: 200, text: number, font: "@heading", size: 180, weight: 800, color: "@accent", lineHeight: 1, opacity: 90 }),
-        makeBlock("shape", { x: 96, y: 390, w: 84, h: 8, style: { fill: "@accent2", radius: 4 } }),
-        makeBlock("text", { x: 96, y: 420, w: 1000, h: 80, text: heading, font: "@heading", size: 52, weight: 700 }),
-        makeBlock("text", { x: 96, y: 504, w: 1000, h: 44, text, size: 24, color: "@muted" }),
+        makeBlock("text", { x: 90, y: 150, w: 520, h: 230, text: number, font: "@heading", size: 220, weight: 800, color: "@accent", gradient: "@accent3", gradientAngle: 135, lineHeight: 1, letterSpacing: -8 }),
+        makeBlock("text", { x: 96, y: 400, w: 600, h: 24, text: "Capítulo", size: 14, weight: 700, color: "@muted", uppercase: true, letterSpacing: 3 }),
+        makeBlock("text", { x: 96, y: 428, w: 1000, h: 70, text: heading, font: "@heading", size: 56, weight: 700, letterSpacing: -1.5, lineHeight: 1.05, anim: "rise" }),
+        makeBlock("text", { x: 96, y: 510, w: 900, h: 40, text, size: 24, color: "@muted", anim: "fade" }),
       ],
     }),
   },
   {
     id: "titulo-texto",
     label: "Título e tópicos",
-    build: ({ heading = "Destaques do período", text = "Receita cresceu no período\nMargens sob controle\nCaixa suficiente para os próximos meses" } = {}) => ({
-      blocks: [title(heading), makeBlock("text", { x: M, y: 170, w: 1080, h: 440, text, size: 30, list: "bullet", lineHeight: 1.6 })],
+    build: ({ kicker = "Pauta", heading = "Destaques do período", text = "Receita cresceu no período\nMargens sob controle\nCaixa suficiente para os próximos meses" } = {}) => ({
+      blocks: [...header(kicker, heading), makeBlock("text", { x: M, y: 186, w: 1080, h: 440, text, size: 30, list: "number", lineHeight: 1.75, anim: "fade" })],
     }),
   },
   {
     id: "kpis-4",
     label: "4 números",
-    build: ({ heading = "Números do período", ids = ["dre_receita_liquida", "ratio_ebitda", "dre_resultado_liquido", "ratio_margem_liquida"] } = {}) => {
-      const gap = 24;
+    build: ({ kicker = "Visão geral", heading = "Números do período", ids = ["dre_receita_liquida", "ratio_ebitda", "dre_resultado_liquido", "ratio_margem_liquida"] } = {}) => {
+      const gap = 20;
       const w = (SLIDE_W - M * 2 - gap * 3) / 4;
       return {
         blocks: [
-          title(heading),
-          subtitle("{periodo}"),
-          ...ids.map((id, i) => kpi(id, M + i * (w + gap), 190, w, 190, { anim: "rise" })),
-          makeBlock("text", { x: M, y: 420, w: SLIDE_W - M * 2, h: 200, text: "Escreva aqui a leitura dos números: o que melhorou, o que piorou e por quê.", size: 24, color: "@muted", list: "none" }),
+          ...header(kicker, heading),
+          lede("{periodo}"),
+          ...ids.map((id, i) => kpi(id, M + i * (w + gap), 200, w, 220, { anim: "rise", valueSize: 38 })),
+          ...insight(M, 464, SLIDE_W - M * 2, 150, "Escreva aqui a leitura dos números: o que melhorou, o que piorou e por quê."),
         ],
       };
     },
   },
   {
+    id: "destaque",
+    label: "Número de destaque",
+    build: ({ kicker = "Destaque do período", id = "dre_receita_liquida", text = "de receita líquida — conte em uma frase o que esse número significa." } = {}) => ({
+      blocks: [
+        eyebrow(kicker, { y: 170, align: "center" }),
+        kpi(id, 140, 210, 1000, 220, { align: "center", valueSize: 132, showLabel: false, showIcon: false, trend: false, delta: true, font: "@heading", style: { fill: "", shadow: "none", padding: 0 }, anim: "zoom" }),
+        makeBlock("text", { x: 240, y: 450, w: 800, h: 90, text, size: 26, color: "@muted", align: "center", lineHeight: 1.4, anim: "fade" }),
+      ],
+    }),
+  },
+  {
     id: "titulo-grafico",
     label: "Título e gráfico",
-    build: ({ heading = "Evolução da receita", id = "chart_receita_evolucao" } = {}) => ({
-      blocks: [title(heading), widget(id, M, 150, SLIDE_W - M * 2, 500, { showTitle: false })],
+    build: ({ kicker = "Evolução", heading = "Evolução da receita", id = "chart_receita_evolucao" } = {}) => ({
+      blocks: [...header(kicker, heading), widget(id, M, 170, SLIDE_W - M * 2, 480, { showTitle: false, anim: "fade" })],
     }),
   },
   {
     id: "grafico-comentario",
     label: "Gráfico e comentário",
-    build: ({ heading = "Evolução da receita", id = "chart_receita_evolucao", text = "Ponto alto do período\nO que explica a variação\nO que esperar dos próximos meses" } = {}) => ({
+    build: ({ kicker = "Evolução", heading = "Evolução da receita", id = "chart_receita_evolucao", text = "Ponto alto do período\nO que explica a variação\nO que esperar dos próximos meses" } = {}) => ({
       blocks: [
-        title(heading),
-        widget(id, M, 150, 760, 500, { showTitle: false }),
-        makeBlock("text", { x: 880, y: 160, w: 320, h: 480, text, size: 22, list: "check", lineHeight: 1.55 }),
+        ...header(kicker, heading),
+        widget(id, M, 170, 740, 480, { showTitle: false, anim: "fade" }),
+        makeBlock("text", { x: 860, y: 180, w: 340, h: 24, text: "Leitura", size: 14, weight: 700, color: "@muted", uppercase: true, letterSpacing: 3 }),
+        makeBlock("text", { x: 860, y: 214, w: 340, h: 420, text, size: 22, list: "check", lineHeight: 1.6, anim: "right" }),
       ],
     }),
   },
   {
     id: "dois-graficos",
     label: "Dois gráficos",
-    build: ({ heading = "Resultado", ids = ["chart_dre_cascata", "chart_margens_evolucao"] } = {}) => ({
-      blocks: [title(heading), widget(ids[0], M, 150, 548, 500), widget(ids[1], M + 572, 150, 548, 500)],
+    build: ({ kicker = "Resultado", heading = "Resultado", ids = ["chart_dre_cascata", "chart_margens_evolucao"] } = {}) => ({
+      blocks: [...header(kicker, heading), widget(ids[0], M, 170, 550, 480, { anim: "rise" }), widget(ids[1], M + 570, 170, 550, 480, { anim: "rise" })],
     }),
   },
   {
     id: "kpis-grafico",
     label: "Números e gráfico",
-    build: ({ heading = "Caixa", ids = ["bp_disponibilidades", "ratio_liquidez_corrente", "ratio_capital_giro"], chart = "chart_caixa_evolucao" } = {}) => ({
+    build: ({ kicker = "Liquidez", heading = "Caixa", ids = ["bp_disponibilidades", "ratio_liquidez_corrente", "ratio_capital_giro"], chart = "chart_caixa_evolucao" } = {}) => ({
       blocks: [
-        title(heading),
-        ...ids.map((id, i) => kpi(id, M, 150 + i * 172, 320, 152, { anim: "left" })),
-        widget(chart, M + 344, 150, SLIDE_W - M * 2 - 344, 500, { anim: "fade" }),
+        ...header(kicker, heading),
+        ...ids.map((id, i) => kpi(id, M, 170 + i * 164, 330, 148, { anim: "left", valueSize: 32, trend: false })),
+        widget(chart, M + 350, 170, SLIDE_W - M * 2 - 350, 476, { anim: "fade" }),
       ],
     }),
   },
   {
     id: "tabela-texto",
     label: "Tabela e comentário",
-    build: ({ heading = "DRE resumida", id = "table_dre_resumo", text = "Comente aqui as linhas que mais chamaram atenção." } = {}) => ({
-      blocks: [
-        title(heading),
-        widget(id, M, 150, 720, 510, { showTitle: false, zoom: 1.25 }),
-        makeBlock("text", { x: 840, y: 160, w: 360, h: 480, text, size: 22, color: "@muted", lineHeight: 1.5 }),
-      ],
+    build: ({ kicker = "Demonstração", heading = "DRE resumida", id = "table_dre_resumo", text = "Comente aqui as linhas que mais chamaram atenção." } = {}) => ({
+      blocks: [...header(kicker, heading), widget(id, M, 170, 720, 480, { showTitle: false, zoom: 1.25 }), ...insight(840, 190, 360, 300, text)],
     }),
   },
   {
     id: "comparativo",
     label: "Comparativo",
-    build: ({ heading = "Antes e depois", left = "Antes", right = "Depois" } = {}) => ({
+    build: ({ kicker = "Comparativo", heading = "Antes e depois", left = "Antes", right = "Depois" } = {}) => ({
       blocks: [
-        title(heading),
-        makeBlock("shape", { x: M, y: 160, w: 548, h: 480, style: { fill: "@surface", radius: 20 } }),
-        makeBlock("shape", { x: M + 572, y: 160, w: 548, h: 480, style: { fill: "@accent", fillOpacity: 12, radius: 20 } }),
-        makeBlock("text", { x: M + 36, y: 190, w: 476, h: 50, text: left, font: "@heading", size: 32, weight: 700, color: "@muted" }),
-        makeBlock("text", { x: M + 608, y: 190, w: 476, h: 50, text: right, font: "@heading", size: 32, weight: 700, color: "@accent" }),
-        makeBlock("text", { x: M + 36, y: 260, w: 476, h: 340, text: "Ponto 1\nPonto 2\nPonto 3", size: 24, list: "dash", lineHeight: 1.6 }),
-        makeBlock("text", { x: M + 608, y: 260, w: 476, h: 340, text: "Ponto 1\nPonto 2\nPonto 3", size: 24, list: "check", lineHeight: 1.6 }),
+        ...header(kicker, heading),
+        makeBlock("shape", { x: M, y: 180, w: 550, h: 460, style: { fill: "@surface", radius: 24 } }),
+        makeBlock("shape", { x: M + 570, y: 180, w: 550, h: 460, style: { fill: "@accent", fill2: "@accent3", gradAngle: 135, fillOpacity: 14, border: "@accent", borderWidth: 1, radius: 24 } }),
+        makeBlock("text", { x: M + 40, y: 214, w: 470, h: 24, text: left, size: 14, weight: 700, color: "@muted", uppercase: true, letterSpacing: 3 }),
+        makeBlock("text", { x: M + 610, y: 214, w: 470, h: 24, text: right, size: 14, weight: 700, color: "@accent", uppercase: true, letterSpacing: 3 }),
+        makeBlock("text", { x: M + 40, y: 256, w: 470, h: 340, text: "Ponto 1\nPonto 2\nPonto 3", size: 26, list: "dash", lineHeight: 1.7 }),
+        makeBlock("text", { x: M + 610, y: 256, w: 470, h: 340, text: "Ponto 1\nPonto 2\nPonto 3", size: 26, list: "check", lineHeight: 1.7 }),
       ],
     }),
   },
   {
     id: "linha-tempo",
     label: "Linha do tempo",
-    build: ({ heading = "Próximos passos", steps = ["Fechar o mês", "Rever custos", "Renegociar prazos", "Nova reunião"] } = {}) => {
+    build: ({ kicker = "Plano de ação", heading = "Próximos passos", steps = ["Fechar o mês", "Rever custos", "Renegociar prazos", "Nova reunião"] } = {}) => {
       const span = (SLIDE_W - M * 2) / steps.length;
       return {
         blocks: [
-          title(heading),
-          makeBlock("shape", { x: M + span / 2, y: 330, w: span * (steps.length - 1), h: 4, style: { fill: "@muted", fillOpacity: 40 } }),
+          ...header(kicker, heading),
+          makeBlock("shape", { x: M + span / 2, y: 340, w: span * (steps.length - 1), h: 2, style: { fill: "@muted", fillOpacity: 35 } }),
           ...steps.flatMap((step, i) => {
             const cx = M + span * i + span / 2;
             return [
-              makeBlock("shape", { shape: "ellipse", x: cx - 36, y: 296, w: 72, h: 72, style: { fill: i === 0 ? "@accent" : "@accent2" }, anim: "zoom" }),
-              makeBlock("text", { x: cx - 36, y: 312, w: 72, h: 40, text: String(i + 1), font: "@heading", size: 28, weight: 700, color: i === 0 ? "@onAccent" : "@onAccent2", align: "center", valign: "middle", anim: "zoom" }),
-              makeBlock("text", { x: cx - span / 2 + 12, y: 392, w: span - 24, h: 120, text: step, size: 22, weight: 600, align: "center", anim: "rise" }),
+              makeBlock("shape", { shape: "ellipse", x: cx - 34, y: 307, w: 68, h: 68, style: i === 0 ? { fill: "@accent", fill2: "@accent3", gradAngle: 135 } : { fill: "@surface", border: "@accent", borderWidth: 2 }, anim: "zoom" }),
+              makeBlock("text", { x: cx - 34, y: 321, w: 68, h: 40, text: String(i + 1).padStart(2, "0"), font: "@heading", size: 24, weight: 700, color: i === 0 ? "@onAccent" : "@accent", align: "center", valign: "middle", anim: "zoom" }),
+              makeBlock("text", { x: cx - span / 2 + 12, y: 400, w: span - 24, h: 110, text: step, size: 22, weight: 600, align: "center", lineHeight: 1.35, anim: "rise" }),
             ];
           }),
         ],
@@ -723,17 +905,20 @@ export const LAYOUTS = [
   {
     id: "numeros-grandes",
     label: "Números gigantes",
-    build: ({ heading = "Em números", ids = ["dre_receita_liquida", "ratio_margem_ebitda", "dre_resultado_liquido"] } = {}) => {
+    build: ({ kicker = "Resumo", heading = "O período em números", ids = ["dre_receita_liquida", "ratio_margem_ebitda", "dre_resultado_liquido"] } = {}) => {
       const w = (SLIDE_W - M * 2) / ids.length;
       return {
         blocks: [
-          title(heading, { align: "center" }),
+          ...header(kicker, heading, { align: "center" }),
+          ...ids.slice(1).map((_, i) => makeBlock("shape", { x: M + (i + 1) * w, y: 256, w: 1, h: 210, style: { fill: "@muted", fillOpacity: 35 } })),
           ...ids.map((id, i) =>
-            kpi(id, M + i * w + 12, 230, w - 24, 260, {
+            kpi(id, M + i * w + 16, 236, w - 32, 250, {
               align: "center",
-              valueSize: 58,
-              labelSize: 20,
+              valueSize: 56,
+              labelSize: 18,
               showIcon: false,
+              trend: false,
+              delta: true,
               anim: "rise",
               style: { fill: "", shadow: "none", padding: 8 },
             })
@@ -745,37 +930,39 @@ export const LAYOUTS = [
   {
     id: "texto-imagem",
     label: "Texto e imagem",
-    build: ({ heading = "Nossa empresa", text = "Conte aqui a história, os produtos ou o momento da empresa." } = {}) => ({
+    build: ({ kicker = "Quem somos", heading = "Nossa empresa", text = "Conte aqui a história, os produtos ou o momento da empresa." } = {}) => ({
       blocks: [
-        makeBlock("text", { x: M, y: 170, w: 540, h: 80, text: heading, font: "@heading", size: 44, weight: 700 }),
-        makeBlock("text", { x: M, y: 270, w: 520, h: 300, text, size: 24, color: "@muted", lineHeight: 1.5 }),
-        makeBlock("image", { x: 680, y: 80, w: 520, h: 560, style: { radius: 24 } }),
+        makeBlock("text", { x: M, y: 200, w: 540, h: 24, text: kicker, size: 14, weight: 700, color: "@accent", uppercase: true, letterSpacing: 3 }),
+        makeBlock("text", { x: M, y: 230, w: 540, h: 120, text: heading, font: "@heading", size: 48, weight: 700, letterSpacing: -1.5, lineHeight: 1.05 }),
+        makeBlock("text", { x: M, y: 360, w: 520, h: 220, text, size: 22, color: "@muted", lineHeight: 1.6 }),
+        makeBlock("image", { x: 680, y: 70, w: 520, h: 580, style: { radius: 28 } }),
       ],
     }),
   },
   {
     id: "citacao",
     label: "Frase de destaque",
-    build: ({ text = "“Uma frase que resume o período.”" } = {}) => ({
+    build: ({ text = "Uma frase que resume o período." } = {}) => ({
       blocks: [
-        makeBlock("icon", { icon: "Quote", x: 590, y: 150, w: 100, h: 100, color: "@accent", style: { fill: "", radius: 0 }, iconScale: 90 }),
-        makeBlock("text", { x: 160, y: 280, w: 960, h: 200, text, font: "@heading", size: 44, weight: 600, align: "center", valign: "middle", italic: true, lineHeight: 1.3 }),
-        makeBlock("text", { x: 160, y: 500, w: 960, h: 40, text: "— Nome, cargo", size: 22, color: "@muted", align: "center" }),
+        makeBlock("text", { x: 140, y: 120, w: 1000, h: 140, text: "“", font: "@heading", size: 200, weight: 700, color: "@accent", align: "center", lineHeight: 1 }),
+        makeBlock("text", { x: 160, y: 280, w: 960, h: 180, text, font: "@heading", size: 46, weight: 600, align: "center", valign: "middle", lineHeight: 1.25, letterSpacing: -1, anim: "fade" }),
+        makeBlock("shape", { x: 610, y: 488, w: 60, h: 3, style: { fill: "@accent", radius: 2 } }),
+        makeBlock("text", { x: 160, y: 508, w: 960, h: 32, text: "Nome, cargo", size: 20, color: "@muted", align: "center", uppercase: true, letterSpacing: 2 }),
       ],
     }),
   },
   {
     id: "encerramento",
     label: "Encerramento",
-    build: ({ heading = "Obrigado!", text = "Dúvidas? Fale com a gente." } = {}) => ({
+    build: ({ heading = "Obrigado.", text = "Dúvidas? Fale com a gente." } = {}) => ({
       bg: { type: "solid", color: "@cover" },
-      decoration: "circulos",
+      decoration: "@theme",
       hideFooter: true,
       blocks: [
-        brandLogo(540, 150, 48),
-        makeBlock("text", { x: 140, y: 250, w: 1000, h: 120, text: heading, font: "@heading", size: 88, weight: 800, color: "@onCover", align: "center", valign: "middle", anim: "zoom" }),
-        makeBlock("shape", { x: 598, y: 384, w: 84, h: 8, style: { fill: "@accent", radius: 4 } }),
-        makeBlock("text", { x: 140, y: 414, w: 1000, h: 50, text, size: 26, color: "@onCover", align: "center", opacity: 80 }),
+        brandLogo(556, 150, 40),
+        makeBlock("text", { x: 140, y: 240, w: 1000, h: 140, text: heading, font: "@heading", size: 110, weight: 700, color: "@onCover", gradient: "", align: "center", valign: "middle", letterSpacing: -4, anim: "zoom" }),
+        makeBlock("shape", { x: 580, y: 400, w: 120, h: 4, style: { fill: "@accent", fill2: "@accent3", gradAngle: 90, radius: 2 } }),
+        makeBlock("text", { x: 140, y: 428, w: 1000, h: 40, text, size: 24, color: "@onCover", align: "center", opacity: 75 }),
       ],
     }),
   },
@@ -811,27 +998,29 @@ export const DECK_TEMPLATES = [
   {
     id: "resultados",
     label: "Reunião de resultados",
-    description: "Capa, pauta, números, receita, resultado, balanço, caixa, próximos passos e encerramento.",
+    description: "Capa, pauta, números, destaque, receita, resultado, balanço, caixa, próximos passos e encerramento.",
     slides: () => [
       makeSlide("capa", { heading: "Reunião de resultados" }),
-      makeSlide("titulo-texto", { heading: "Pauta", text: "Números do período\nEvolução da receita\nResultado\nBalanço patrimonial\nCaixa\nPróximos passos" }),
-      makeSlide("kpis-4", { heading: "Números do período" }),
-      makeSlide("grafico-comentario", { heading: "Evolução da receita", id: "chart_receita_evolucao" }),
-      makeSlide("dois-graficos", { heading: "Resultado", ids: ["chart_dre_cascata", "table_dre_resumo"] }),
-      makeSlide("kpis-grafico", { heading: "Balanço patrimonial", ids: ["ratio_liquidez_corrente", "ratio_endividamento", "ratio_capital_giro"], chart: "table_bp_resumo" }),
-      makeSlide("kpis-grafico", { heading: "Caixa", ids: ["bp_disponibilidades", "ratio_liquidez_corrente", "ratio_capital_giro"], chart: "chart_dfc_cascata" }),
-      makeSlide("linha-tempo", { heading: "Próximos passos" }),
+      makeSlide("titulo-texto", { kicker: "Pauta", heading: "O que vamos ver hoje", text: "Números do período\nEvolução da receita\nResultado\nBalanço patrimonial\nCaixa\nPróximos passos" }),
+      makeSlide("kpis-4", { kicker: "Visão geral", heading: "Números do período" }),
+      makeSlide("destaque", { kicker: "Destaque do período", id: "dre_resultado_liquido", text: "de resultado líquido no período — conte em uma frase o que levou a esse número." }),
+      makeSlide("grafico-comentario", { kicker: "Receita", heading: "Evolução da receita", id: "chart_receita_evolucao" }),
+      makeSlide("dois-graficos", { kicker: "Resultado", heading: "Do faturamento ao lucro", ids: ["chart_dre_cascata", "table_dre_resumo"] }),
+      makeSlide("kpis-grafico", { kicker: "Balanço patrimonial", heading: "Solidez e endividamento", ids: ["ratio_liquidez_corrente", "ratio_endividamento", "ratio_capital_giro"], chart: "table_bp_resumo" }),
+      makeSlide("kpis-grafico", { kicker: "Caixa", heading: "Geração de caixa", ids: ["bp_disponibilidades", "ratio_liquidez_corrente", "ratio_capital_giro"], chart: "chart_dfc_cascata" }),
+      makeSlide("linha-tempo", { kicker: "Plano de ação", heading: "Próximos passos" }),
       makeSlide("encerramento"),
     ],
   },
   {
     id: "executivo",
     label: "Resumo executivo",
-    description: "Quatro slides diretos: capa, números, gráfico com comentário e encerramento.",
+    description: "Cinco slides diretos: capa, números, destaque, gráfico com comentário e encerramento.",
     slides: () => [
       makeSlide("capa", { heading: "Resumo executivo" }),
-      makeSlide("numeros-grandes", { heading: "O período em números" }),
-      makeSlide("grafico-comentario", { heading: "Receita e resultado", id: "chart_resultado" }),
+      makeSlide("numeros-grandes", { kicker: "Resumo", heading: "O período em números" }),
+      makeSlide("destaque", { kicker: "Destaque do período", id: "dre_receita_liquida" }),
+      makeSlide("grafico-comentario", { kicker: "Tendência", heading: "Receita e resultado", id: "chart_resultado" }),
       makeSlide("encerramento"),
     ],
   },
@@ -843,7 +1032,7 @@ export const DECK_TEMPLATES = [
   },
 ];
 
-export function makePresentation({ name, templateId = "resultados", themeId = "athos" }) {
+export function makePresentation({ name, templateId = "resultados", themeId = "athos-premium" }) {
   const template = DECK_TEMPLATES.find((item) => item.id === templateId) || DECK_TEMPLATES[0];
   const now = new Date().toISOString();
   return {

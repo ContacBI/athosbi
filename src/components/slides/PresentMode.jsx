@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Expand, Loader2, Minimize, NotebookPen, X } from "lucide-react";
-import { SLIDE_H, SLIDE_W } from "../../lib/presentations.js";
+import { SLIDE_H, SLIDE_W, deckFontFamilies } from "../../lib/presentations.js";
+import { embeddedFontCss } from "../../lib/slideFonts.js";
 import { exportSlidePng, exportSlidesPdf } from "../../lib/slidesPdf.js";
 import { slug } from "../../lib/demonstrativoExport.js";
 import SlideView from "./SlideView.jsx";
@@ -186,8 +187,9 @@ export function SlidesExporter({ deck, env, only = null, onDone }) {
       try {
         const nodes = refs.current.slice(0, slides.length).filter(Boolean);
         const fileLabel = slug(`${deck.name}_${env.info.empresa}`) || "apresentacao";
-        if (only != null) await exportSlidePng({ node: nodes[0], fileLabel: `${fileLabel}_slide_${only + 1}` });
-        else await exportSlidesPdf({ nodes, fileLabel, title: deck.name, onProgress: (done, total) => alive && setProgress({ done, total }) });
+        const fontCss = await embeddedFontCss(deckFontFamilies(deck));
+        if (only != null) await exportSlidePng({ node: nodes[0], fileLabel: `${fileLabel}_slide_${only + 1}`, fontCss });
+        else await exportSlidesPdf({ nodes, fileLabel, title: deck.name, fontCss, onProgress: (done, total) => alive && setProgress({ done, total }) });
         if (alive) onDone();
       } catch (err) {
         console.error("Falha ao gerar o arquivo da apresentação:", err);
