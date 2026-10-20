@@ -1,5 +1,6 @@
 import { state } from "../data/useStore.js";
 import { EXECUTIVE_DRE_MAP } from "./executiveDre.js";
+import { planNameCase } from "./planCase.js";
 import { directChildren } from "./reportTree.js";
 
 function pct(value) {
@@ -38,7 +39,7 @@ export function lineValue(ctx, code) {
 // definitions rather than a computed tree.
 export function lineLabel(code) {
   if (String(code || "").startsWith("DEX")) {
-    return EXECUTIVE_DRE_MAP.find((item) => item.code === code)?.name || code;
+    return planNameCase(EXECUTIVE_DRE_MAP.find((item) => item.code === code)?.name) || code;
   }
   return state.plano.find((item) => item.codigo_gerencial === code)?.nome || code;
 }
