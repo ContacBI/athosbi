@@ -16,12 +16,125 @@ export function filteredJournal() {
 // senão o principal (state.accounts). É dele que saem o saldo anterior e o
 // saldo final do Balanço, as disponibilidades do DFC e a lista de contas.
 // Grupo e B.I. consolidado usam sempre state.accounts (já montado pra eles).
+//
+// Os saldos vêm já levados pro período da tela (ver balanceteNoPeriodo):
+// o balancete da Domínio cobre um intervalo (ex.: 01/01 a 30/09), e com o
+// período em abril o Balanço mostrava o saldo de 01/01 como "anterior" e o
+// de 30/09 como final — não fechava em nenhum mês fora o último.
 export function balanceteDoPeriodo() {
+  const { accounts, metaFor } = balanceteEmUso();
+  return balanceteNoPeriodo(accounts, metaFor);
+}
+
+// Grupo: cada conta é de uma empresa (account.companyId, ver groups.js) e
+// anda pelo intervalo do balancete DELA.
+function balanceteEmUso() {
+  if (state.activeGroupId) {
+    const metaById = new Map(state.companies.map((company) => [company.id, company.lastBalanceteMeta || null]));
+    return { accounts: state.accounts, metaFor: (companyId) => metaById.get(companyId) || null };
+  }
   const ano = String(state.periodStart || "").slice(0, 4);
-  if (!ano || state.activeGroupId) return state.accounts;
   const company = state.companies.find((item) => item.id === state.activeCompanyId);
-  const doAno = company?.balancetesAno?.[ano]?.accounts;
-  return doAno?.length ? doAno : state.accounts;
+  const doAno = ano ? company?.balancetesAno?.[ano] : null;
+  if (doAno?.accounts?.length) return { accounts: doAno.accounts, metaFor: () => doAno.meta || null };
+  return { accounts: state.accounts, metaFor: () => company?.lastBalanceteMeta || null };
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+function balanceteCoverage(meta) {
+  const inicio = String(meta?.inicio || "").slice(0, 10);
+  const fim = String(meta?.fim || "").slice(0, 10);
+  if (!ISO_DATE.test(inicio) || !ISO_DATE.test(fim)) return null;
+  return { inicio, fim, start: state.periodStart || inicio, end: state.periodEnd || fim };
+}
+
+// Se o balancete em uso sabe que intervalo cobre (meta.inicio/meta.fim — o
+// da Domínio sabe; o importado de planilha não, e fica como sempre foi: o
+// Balanço é sempre o da data do balancete, qualquer que seja o período).
+export function balanceteCobrePeriodo() {
+  const { accounts, metaFor } = balanceteEmUso();
+  const companyIds = new Set((accounts || []).map((account) => account.companyId));
+  return companyIds.size > 0 && [...companyIds].every((companyId) => balanceteCoverage(metaFor(companyId)));
+}
+
+let periodBalanceteCache = null;
+
+// O balancete com saldo anterior = saldo no INÍCIO do período da tela e
+// saldo atual = saldo no FIM dele, débito/crédito = movimento do período.
+// Cada ponta parte do saldo do balancete mais perto dela e anda pelos
+// lançamentos do razão: o anterior soma o que entrou entre o início do
+// balancete e o início do período; o final desconta o que entrou depois do
+// fim do período até o fim do balancete (ou soma, se o período passar
+// dele). Período igual ao do balancete → o próprio balancete, intacto.
+// Contas sintéticas somam as analíticas da mesma empresa pelo começo da
+// classificação (só dígitos — "1.1.1" cobre "1.1.10.200.7", como na Domínio).
+function balanceteNoPeriodo(accounts, metaFor) {
+  if (!accounts?.length) return accounts;
+  const coverageById = new Map();
+  const coverageOf = (companyId) => {
+    if (!coverageById.has(companyId)) coverageById.set(companyId, balanceteCoverage(metaFor(companyId)));
+    return coverageById.get(companyId);
+  };
+  const moves = (cov) => cov && (cov.start !== cov.inicio || cov.end !== cov.fim);
+  new Set(accounts.map((account) => account.companyId)).forEach(coverageOf);
+  if (![...coverageById.values()].some(moves)) return accounts;
+  const key = JSON.stringify([state.periodStart, state.periodEnd, [...coverageById]]);
+  const cache = periodBalanceteCache;
+  if (cache && cache.accounts === accounts && cache.journal === state.journal && cache.key === key) return cache.result;
+
+  const opening = new Map();
+  const closing = new Map();
+  const debit = new Map();
+  const credit = new Map();
+  const add = (map, account, value) => map.set(account, (map.get(account) || 0) + value);
+  state.journal.forEach((entry) => {
+    const cov = coverageOf(entry.companyId);
+    const date = String(entry.data || "").slice(0, 10);
+    if (!moves(cov) || !date) return;
+    const { inicio, fim, start, end } = cov;
+    const account = String(entry.classificacao || "");
+    const value = entryValue(entry);
+    if (date >= inicio && date < start) add(opening, account, value);
+    else if (date >= start && date < inicio) add(opening, account, -value);
+    if (date > end && date <= fim) add(closing, account, -value);
+    else if (date > fim && date <= end) add(closing, account, value);
+    if (date >= start && date <= end) {
+      add(debit, account, Number(entry.debito || 0));
+      add(credit, account, Number(entry.credito || 0));
+    }
+  });
+  // "emp_1::1.1.10" (grupo) → ["emp_1", "1110"]; "1.1.10" → ["", "1110"].
+  const split = (code) => {
+    const text = String(code || "");
+    const cut = text.lastIndexOf("::");
+    return [cut < 0 ? "" : text.slice(0, cut), text.slice(cut < 0 ? 0 : cut + 2).replace(/\D/g, "")];
+  };
+  const parts = new Map([...new Set([...opening.keys(), ...closing.keys(), ...debit.keys()])].map((code) => [code, split(code)]));
+  const sumFor = (map, account) => {
+    if (account.tipo_sintetica !== "sim") return map.get(String(account.classificacao || "")) || 0;
+    const [company, prefix] = split(account.classificacao);
+    if (!prefix) return 0;
+    let total = 0;
+    map.forEach((value, code) => {
+      const [entryCompany, digits] = parts.get(code);
+      if (entryCompany === company && digits.startsWith(prefix)) total += value;
+    });
+    return total;
+  };
+  const cents = (value) => Math.round(value * 100) / 100;
+  const result = accounts.map((account) => {
+    if (!moves(coverageOf(account.companyId))) return account;
+    return {
+      ...account,
+      saldo_anterior: cents(Number(account.saldo_anterior || 0) + sumFor(opening, account)),
+      saldo_atual: cents(Number(account.saldo_atual || 0) + sumFor(closing, account)),
+      debito: cents(sumFor(debit, account)),
+      credito: cents(sumFor(credit, account)),
+    };
+  });
+  periodBalanceteCache = { accounts, journal: state.journal, key, result };
+  return result;
 }
 
 export function reportMonths() {
