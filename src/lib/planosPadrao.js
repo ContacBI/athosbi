@@ -233,6 +233,65 @@ export function updateExtraAccount(planoPadraoId, codigoGerencial, { nome, natur
   return "";
 }
 
+function parentOf(code) {
+  return String(code).split(".").slice(0, -1).join(".");
+}
+
+// "Mover para dentro de…": a conta extra (com tudo que estiver dentro dela)
+// vai pra baixo de outra conta sintética. Como o nível e o "pai" de uma
+// conta vêm do próprio código (ver buildReportTree), mover = ganhar código
+// novo: o próximo livre dentro do destino, e as de dentro herdam o mesmo
+// começo (DRE.07.08.03 → DRE.07.10.01.03). codeMap (velho → novo) é o que
+// remapPlanoCodes (companies.js) usa pra levar junto os vínculos de De/Para
+// das empresas do plano. Só lê — quem grava é moveExtraAccount.
+export function planMovePreview(planoPadraoId, sourceCode, targetCode) {
+  const plano = state.planosPadrao.find((item) => item.id === planoPadraoId);
+  if (!plano) return { error: "Plano não encontrado." };
+  const source = plano.extraAccounts.find((row) => row.codigo_gerencial === sourceCode);
+  if (!source) return { error: "Só dá pra mover as contas extras deste plano." };
+  const effective = effectivePlano(planoPadraoId);
+  const target = effective.find((row) => row.codigo_gerencial === targetCode);
+  if (!target) return { error: "Escolha pra onde mover." };
+  if (target.demonstrativo !== source.demonstrativo) return { error: "Só dá pra mover dentro do mesmo demonstrativo." };
+  if (targetCode === sourceCode || targetCode.startsWith(`${sourceCode}.`)) return { error: "Não dá pra mover uma conta pra dentro dela mesma." };
+  if (target.natureza !== "Sintetica") return { error: "O destino precisa ser uma conta sintética — troque o tipo dela no lápis antes." };
+  if (parentOf(sourceCode) === targetCode) return { error: "Ela já está dentro dessa conta." };
+  const subtree = plano.extraAccounts.filter((row) => row.codigo_gerencial === sourceCode || row.codigo_gerencial.startsWith(`${sourceCode}.`));
+  const subtreeCodes = new Set(subtree.map((row) => row.codigo_gerencial));
+  const newBase = nextChildCode(targetCode, effective.map((row) => row.codigo_gerencial).filter((code) => !subtreeCodes.has(code)));
+  const newLevel = Number(target.nivel || 1) + 1;
+  const delta = newLevel - Number(source.nivel || 1);
+  const movedAt = new Date().toISOString();
+  const codeMap = new Map();
+  const moved = subtree.map((row) => {
+    const code = newBase + row.codigo_gerencial.slice(sourceCode.length);
+    codeMap.set(row.codigo_gerencial, code);
+    return { ...row, codigo_gerencial: code, nivel: String(Number(row.nivel || 1) + delta), grupo_macro: target.grupo_macro, movedAt };
+  });
+  let links = 0;
+  let companies = 0;
+  companiesUsingPlano(planoPadraoId).forEach((company) => {
+    // A empresa aberta agora tem o De/Para mais recente em state.mappings.
+    const mappings = company.id === state.activeCompanyId && !state.activeGroupId ? state.mappings : company.mappings || [];
+    const count = mappings.filter((mapping) => codeMap.has(mapping.codigo_gerencial)).length;
+    links += count;
+    if (count) companies += 1;
+  });
+  return { source, target, newBase, newLevel, codeMap, moved, links, companies };
+}
+
+export function moveExtraAccount(planoPadraoId, sourceCode, targetCode) {
+  const preview = planMovePreview(planoPadraoId, sourceCode, targetCode);
+  if (preview.error) return preview;
+  const planos = state.planosPadrao.map((plano) =>
+    plano.id === planoPadraoId
+      ? { ...plano, extraAccounts: [...plano.extraAccounts.filter((row) => !preview.codeMap.has(row.codigo_gerencial)), ...preview.moved], updatedAt: new Date().toISOString() }
+      : plano
+  );
+  persist(planos);
+  return preview;
+}
+
 export function removeExtraAccount(planoPadraoId, codigoGerencial) {
   const planos = state.planosPadrao.map((plano) =>
     plano.id === planoPadraoId

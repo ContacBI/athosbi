@@ -236,6 +236,70 @@ export function invalidateMappingsForPlanoCodes(codes) {
   return removed;
 }
 
+// Contas do plano padrão que mudaram de código ("Mover para dentro de…", ver
+// moveExtraAccount em planosPadrao.js): os vínculos de De/Para (e os
+// acertos de DFC / linhas não operacionais) das empresas desse plano passam
+// a apontar pros códigos novos — ninguém precisa refazer nada. O razão das
+// outras empresas não é regravado: ele é sempre recarimbado pelo De/Para na
+// hora de mostrar (ver journalForDisplay); só o da empresa aberta é
+// recarimbado aqui, como numa edição normal do De/Para.
+export function remapPlanoCodes(codeMap, { planoPadraoId, grupoMacroByCode = new Map() }) {
+  if (!codeMap?.size) return { links: 0, companies: 0 };
+  const swap = (code) => codeMap.get(code) || code;
+  const remapMappings = (mappings) =>
+    (mappings || []).map((mapping) => {
+      if (!codeMap.has(mapping.codigo_gerencial)) return mapping;
+      const code = codeMap.get(mapping.codigo_gerencial);
+      return { ...mapping, codigo_gerencial: code, grupo_macro: grupoMacroByCode.get(code) ?? mapping.grupo_macro };
+    });
+  const remapOverrides = (rows) =>
+    (rows || []).map((row) => {
+      if (row.codigo_gerencial != null && codeMap.has(row.codigo_gerencial)) return { ...row, codigo_gerencial: swap(row.codigo_gerencial) };
+      if (row.codigo != null && codeMap.has(row.codigo)) return { ...row, codigo: swap(row.codigo) };
+      return row;
+    });
+  const touches = (mappings, overrides, excluded) =>
+    (mappings || []).some((m) => codeMap.has(m.codigo_gerencial)) ||
+    (overrides || []).some((o) => codeMap.has(o.codigo_gerencial) || codeMap.has(o.codigo)) ||
+    (excluded || []).some((code) => codeMap.has(code));
+  let links = 0;
+  let changed = 0;
+  let activeUpdate = null;
+  const companies = state.companies.map((company) => {
+    if (company.planoPadraoId !== planoPadraoId) return company;
+    const isActive = company.id === state.activeCompanyId && !state.activeGroupId;
+    const mappings = isActive ? state.mappings : company.mappings;
+    const overrides = isActive ? state.dfcOverrides : company.dfcOverrides;
+    const excluded = isActive ? state.excludedNonOperatingCodes : company.excludedNonOperatingCodes;
+    if (!touches(mappings, overrides, excluded)) return company;
+    changed += 1;
+    links += (mappings || []).filter((m) => codeMap.has(m.codigo_gerencial)).length;
+    const next = {
+      ...company,
+      mappings: remapMappings(mappings),
+      dfcOverrides: remapOverrides(overrides),
+      excludedNonOperatingCodes: (excluded || []).map(swap),
+      updatedAt: new Date().toISOString(),
+    };
+    if (isActive) activeUpdate = next;
+    return next;
+  });
+  if (!changed) return { links: 0, companies: 0 };
+  setData({
+    companies,
+    ...(activeUpdate
+      ? {
+          mappings: activeUpdate.mappings,
+          journal: remapJournal(state.journal, activeUpdate.mappings),
+          dfcOverrides: activeUpdate.dfcOverrides,
+          excludedNonOperatingCodes: activeUpdate.excludedNonOperatingCodes,
+        }
+      : {}),
+  });
+  writeStoredCompanies(companies).catch((error) => console.error("Não consegui salvar os vínculos com os códigos novos:", error));
+  return { links, companies: changed };
+}
+
 function normalizeName(value) {
   return String(value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
