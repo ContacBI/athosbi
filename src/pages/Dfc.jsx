@@ -308,7 +308,7 @@ export default function Dfc({ lockedMode } = {}) {
         </div>
         {instituto.instituto && !instituto.pronto && (
           <p className="rounded-xl bg-surface-card p-4 text-[12.5px] text-ink-500 shadow-sm">
-            Empresa instituto: a DFC usa a estrutura e as contas da Domínio. A Central ainda não trouxe o modelo — ele aparece aqui sozinho quando chegar.
+            DFC no Modelo 2: usa a estrutura e as contas da Domínio. A Central ainda não trouxe o modelo — ele aparece aqui sozinho quando chegar.
           </p>
         )}
         <DfcTable

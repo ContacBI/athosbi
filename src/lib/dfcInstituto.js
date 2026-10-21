@@ -1,6 +1,6 @@
 import { supabase } from "./supabaseClient.js";
 
-// DFC de empresa "instituto" (company.dfcModelo === "instituto"): a estrutura e
+// DFC no Modelo 2 (company.dfcModelo === "instituto"; o Modelo 1, "padrao", é o padrão do portal): a estrutura e
 // as contas ligadas a cada grupo vêm da Domínio (CTGRUPOSDFC_DIRETO e
 // _CONTAS), mandadas pela Central na função dominio-dfc e guardadas na
 // empresa em company.dfcInstituto = { estrutura, contas, assinatura, syncedAt }.

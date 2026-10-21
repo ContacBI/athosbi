@@ -18,7 +18,8 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
   const [uf, setUf] = useState(company?.uf || "");
   const [representanteIds, setRepresentanteIds] = useState(company?.representanteIds || []);
   const [planoPadraoId, setPlanoPadraoId] = useState(company?.planoPadraoId || "");
-  const [instituto, setInstituto] = useState(company?.dfcModelo === "instituto");
+  // Modelo de DFC: "padrao" = Modelo 1 (recomendado); "instituto" = Modelo 2 (estrutura e contas da Domínio).
+  const [dfcModelo, setDfcModelo] = useState(company?.dfcModelo === "instituto" ? "instituto" : "padrao");
   const [novoPlanoOpen, setNovoPlanoOpen] = useState(false);
   const [novoPlanoNome, setNovoPlanoNome] = useState("");
   const [lookupState, setLookupState] = useState(company?.atividade ? "done" : "idle");
@@ -111,7 +112,7 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
       return;
     }
     const natureRules = Object.fromEntries(NATURE_ORDER.map((nature) => [nature, parsePrefixList(natureText[nature])]));
-    onSubmit({ codigo, cnpj, name, atividade, municipio, uf, representanteIds, natureRules, planoPadraoId: planoPadraoId || null, responsaveis, dfcModelo: instituto ? "instituto" : "padrao" });
+    onSubmit({ codigo, cnpj, name, atividade, municipio, uf, representanteIds, natureRules, planoPadraoId: planoPadraoId || null, responsaveis, dfcModelo });
   }
 
   const socios = state.representantes.filter((representante) => representante.tipo !== "contador");
@@ -279,15 +280,26 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
           </div>
         </div>
 
-        <label className="mt-5 flex cursor-pointer items-start gap-2.5 rounded-lg border border-line p-3">
-          <input type="checkbox" checked={instituto} onChange={(event) => setInstituto(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[var(--color-accent-500,#e8671f)]" />
-          <span>
-            <span className="block text-[13px] font-medium text-ink-800">Instituto (DFC no modelo da Domínio)</span>
-            <span className="mt-0.5 block text-[11.5px] text-ink-400">
-              A DFC desta empresa usa a mesma estrutura e as mesmas contas cadastradas na Domínio (ex.: sindicatos e institutos), em vez do modelo padrão. A Central traz o modelo sozinha.
-            </span>
-          </span>
-        </label>
+        <div className="mt-5">
+          <p className="text-[13px] text-ink-600">Modelo da DFC</p>
+          <div className="mt-1.5 grid grid-cols-2 gap-3">
+            {[
+              { value: "padrao", title: "Modelo 1 (Recomendado)", text: "DFC padrão do portal, igual à da maioria das empresas." },
+              { value: "instituto", title: "Modelo 2", text: "Mesma estrutura e mesmas contas cadastradas na Domínio (ex.: sindicatos e institutos). A Central traz o modelo sozinha." },
+            ].map((option) => (
+              <label
+                key={option.value}
+                className={`flex cursor-pointer items-start gap-2.5 rounded-lg border p-3 transition-colors ${dfcModelo === option.value ? "border-accent-500 bg-accent-50" : "border-line hover:bg-surface-muted"}`}
+              >
+                <input type="radio" name="dfcModelo" value={option.value} checked={dfcModelo === option.value} onChange={() => setDfcModelo(option.value)} className="mt-0.5 h-4 w-4" />
+                <span>
+                  <span className="block text-[13px] font-medium text-ink-800">{option.title}</span>
+                  <span className="mt-0.5 block text-[11.5px] text-ink-400">{option.text}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
 
         <div className="mt-5">
           <p className="text-[13px] text-ink-600">Faixas de classificação do De/Para</p>
