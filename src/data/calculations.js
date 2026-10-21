@@ -1914,7 +1914,9 @@ function normalize(value) {
 // trimestral da TERMOPLEX e da 229, vindo direto do banco \u2014 conferido: s\u00f3
 // contas de resultado contra Lucros/Preju\u00edzos). "Apura\u00e7\u00e3o de estoque
 // final/inicial" (CMV) N\u00c3O \u00e9 zeramento e n\u00e3o casa aqui.
-const RESULT_CLOSING_HISTORICO = /^(referente a )?apuracao d[eo] resultado (do exercicio )?em\b/;
+// "Apuração de resultado do período" (sem "em <data>") é o zeramento MENSAL que a SESCAP
+// (empresa 70) tem na Domínio; sem reconhecer, a DRE do mês fecha em zero (receita e despesa se anulam).
+const RESULT_CLOSING_HISTORICO = /^(referente a )?apuracao d[eo] resultado (((do|de) (exercicio|periodo|mes|trimestre|ano))( em\b|$)|em\b)/;
 
 function isResultClosingEntry(entry) {
   return RESULT_CLOSING_HISTORICO.test(normalize(entry?.historico));
