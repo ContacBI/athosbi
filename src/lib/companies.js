@@ -36,6 +36,27 @@ import { refreshEffectivePlano } from "./planosPadrao.js";
 const lastWrittenJournals = new Map();
 const lastWrittenRecords = new Map();
 
+// Versão (updatedAt) de cada empresa que ESTA aba leu ou gravou por último.
+// Antes de gravar, confere se o banco ainda está nessa versão: se outra aba
+// ou outro computador gravou depois, esta aba está com dado velho e gravar
+// apagaria o trabalho dele (foi assim que o De/Para da SESCAP perdeu
+// vínculos em 21/10/2026). Nesse caso recusa e pede pra recarregar.
+const knownVersions = new Map();
+async function assertNoConflict(company) {
+  const known = knownVersions.get(company.id);
+  if (!known) return;
+  let server = "";
+  try {
+    const { data } = await supabase.from("app_storage").select("v:value->>updatedAt").eq("key", companyKey(company.id)).maybeSingle();
+    server = data?.v || "";
+  } catch {
+    return; // sem como conferir agora: segue o caminho normal (que tem os próprios retries)
+  }
+  if (server && server > known) {
+    throw new Error(`"${company.name}" foi alterada em outra tela ou por outra pessoa depois que você abriu. Recarregue a página (F5) antes de salvar, pra não apagar o trabalho dela.`);
+  }
+}
+
 function writeStoredCompanies(companies, { allowEmptyJournal = false, onProgress } = {}) {
   const report = typeof onProgress === "function" ? onProgress : () => {};
   const writes = companies.map((company) => {
@@ -105,6 +126,7 @@ function writeStoredCompanies(companies, { allowEmptyJournal = false, onProgress
       return Promise.reject(new Error(`Sem permissão pra salvar "${company.name}" — só admin ou responsável pela empresa.`));
     }
     const pending = [];
+    const guard = assertNoConflict(company);
     if (journalWillWrite) {
       // Só marca como "já salvo" DEPOIS que a escrita realmente confirmar no
       // Supabase — marcar antes (como era) deixava esse cache mentindo "já
@@ -116,7 +138,7 @@ function writeStoredCompanies(companies, { allowEmptyJournal = false, onProgress
       // sujeita à conexão instável) — reserva 95% da barra pra ele e só os
       // 5% finais pro registro leve, que grava rápido logo em seguida.
       pending.push(
-        writeCompanyJournal(company.id, journalToWrite || [], { onProgress: (fraction) => report(fraction * 0.95) }).then(() => {
+        guard.then(() => writeCompanyJournal(company.id, journalToWrite || [], { onProgress: (fraction) => report(fraction * 0.95) })).then(() => {
           lastWrittenJournals.set(company.id, journalToWrite);
         })
       );
@@ -134,7 +156,14 @@ function writeStoredCompanies(companies, { allowEmptyJournal = false, onProgress
       // foi bloqueada acima — senão, ficaria "0 lançamentos" mostrado por
       // cima do valor real sem o razão em si ter sido tocado.
       const recordToWrite = { ...record, journalCount: journalWillWrite ? (company.journal || []).length : company.journalCount };
-      pending.push(writePersistent(companyKey(company.id), recordToWrite).then(() => { lastWrittenRecords.set(company.id, company); }));
+      pending.push(
+        guard
+          .then(() => writePersistent(companyKey(company.id), recordToWrite))
+          .then(() => {
+            lastWrittenRecords.set(company.id, company);
+            if (recordToWrite.updatedAt) knownVersions.set(company.id, recordToWrite.updatedAt);
+          })
+      );
     }
     const settled = Promise.all(pending).then(() => report(1));
     return suspiciousWipe ? settled.then(() => Promise.reject(new Error(`Gravação bloqueada: o razão de "${company.name}" ficaria vazio sem confirmação de exclusão.`))) : settled;
@@ -410,6 +439,7 @@ export async function fetchCompaniesAndGroups() {
       // this tab gets saved.
       lastWrittenJournals.set(record.id, journal);
       lastWrittenRecords.set(record.id, company);
+      if (record.updatedAt) knownVersions.set(record.id, record.updatedAt);
       return company;
     })
   );
@@ -516,6 +546,7 @@ export async function loadCompanies() {
     };
     if (hasEmbeddedJournal) lastWrittenJournals.set(record.id, company.journal);
     lastWrittenRecords.set(record.id, company);
+    if (record.updatedAt) knownVersions.set(record.id, record.updatedAt);
     return company;
   });
   const groups = await readStoredArray(GROUPS_KEY);
@@ -924,6 +955,7 @@ export function deleteCompany(id) {
   deletePersistent(companyKey(id));
   deleteCompanyJournal(id);
   lastWrittenRecords.delete(id);
+  knownVersions.delete(id);
   lastWrittenJournals.delete(id);
   const nextActive = state.activeCompanyId === id ? companies[0]?.id || "" : state.activeCompanyId;
   setData({ companies });
@@ -951,12 +983,14 @@ export async function restoreCompaniesAndGroups({ companies, groups, activeCompa
   await Promise.all(
     staleIds.map((id) => {
       lastWrittenRecords.delete(id);
+      knownVersions.delete(id);
       lastWrittenJournals.delete(id);
       return Promise.all([deletePersistent(companyKey(id)), deleteCompanyJournal(id)]);
     })
   );
   nextCompanies.forEach((company) => {
     lastWrittenRecords.delete(company.id);
+    knownVersions.delete(company.id);
     lastWrittenJournals.delete(company.id);
   });
   await writeStoredCompanies(nextCompanies);
