@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Check, Clock, LoaderCircle, RefreshCw, Send, TriangleAlert } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, Clock, LoaderCircle, Send, TriangleAlert } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { attachJournalMonths } from "../lib/journalMonths.js";
 import { applyBalancete, applyBalanceteAno } from "../lib/companies.js";
@@ -26,18 +26,6 @@ const hora = (iso) => new Date(iso).toLocaleString("pt-BR", { dateStyle: "short"
 const PEDIDO_PARADO_MS = 15 * 60 * 1000;
 const PEDIDO_RECENTE_MS = 24 * 60 * 60 * 1000;
 const SELECT_CLASS = "h-7 rounded-md border border-line-strong bg-surface-card px-1.5 text-[12px] text-ink-800 outline-none transition-colors focus:border-accent-500";
-
-// Competências em sequência viram faixa: "Jan/25 a Mar/25, Mai/25".
-function faixas(competencias) {
-  const grupos = [];
-  competencias.forEach((competencia) => {
-    const ultimo = grupos[grupos.length - 1];
-    const seguinte = ultimo && monthsBetween(ultimo.fim, competencia).length === 2;
-    if (seguinte) ultimo.fim = competencia;
-    else grupos.push({ inicio: competencia, fim: competencia });
-  });
-  return grupos.map((grupo) => periodoLabel(grupo.inicio, grupo.fim)).join(", ");
-}
 
 // Situação do último pedido de período à Central (ver lib/dominioSync.js).
 function PedidoStatus({ pedido, months, onCancelar, cancelando }) {
@@ -89,62 +77,12 @@ function PedidoStatus({ pedido, months, onCancelar, cancelando }) {
   );
 }
 
-const STATUS_STYLE = {
-  igual: "border-line bg-surface-muted text-ink-500",
-  novo: "border-warning-500/60 bg-warning-50 text-warning-700 hover:border-warning-500",
-  pendente: "border-warning-500/60 bg-warning-50 text-warning-700 hover:border-warning-500",
-  vazio: "border-line bg-surface-muted text-ink-400",
-};
-
-const STATUS_TITLE = {
-  igual: "Igual ao que já está no portal",
-  novo: "Pendente: mês que ainda não está no portal — clique pra trazer só este mês",
-  pendente: "Pendente: mudou na Domínio (lançamento novo ou excluído, valor, conta ou histórico) — clique pra atualizar só este mês",
-  vazio: "Vazio na Domínio, mas o portal tem lançamentos — não é aplicado automaticamente; exclua o mês manualmente se for o caso",
-};
-
-const BALANCETE_TITLE = {
-  igual: "Igual ao balancete que já está no portal",
-  novo: "Pendente: a empresa ainda não tem balancete no portal — clique pra trazer só o balancete",
-  pendente: "Pendente: o balancete da Domínio mudou (saldo, movimento, conta nova ou renomeada) — clique pra atualizar só o balancete",
-};
-
-const brl = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const dataBr = (iso) => {
   const [year, month, day] = String(iso).slice(0, 10).split("-");
   return `${day}/${month}/${year}`;
 };
 const periodo = (balancete) => `${dataBr(balancete.inicio)} a ${dataBr(balancete.fim)}`;
 const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
-
-// "Saldo inicial + lançamentos = saldo final" — ver checkBalancete.
-function Conferencia({ check }) {
-  const problemas = [];
-  if (check.mesesSemEnvio.length) {
-    problemas.push(`${check.mesesSemEnvio.map(monthLabel).join(", ")} não ${check.mesesSemEnvio.length === 1 ? "veio" : "vieram"} da Domínio`);
-  }
-  if (Math.abs(check.naoFecha) >= 0.01) problemas.push(`o balancete da Domínio não fecha (diferença de ${brl(check.naoFecha)})`);
-  if (check.diferencas.length) {
-    const exemplo = check.diferencas[0];
-    problemas.push(
-      `${plural(check.diferencas.length, "conta", "contas")} com movimento diferente dos lançamentos do portal — ex.: ${exemplo.classificacao} ${exemplo.nome}: balancete ${brl(exemplo.balancete)} × lançamentos ${brl(exemplo.lancamentos)}`
-    );
-  }
-  if (!problemas.length) {
-    return (
-      <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-success-600">
-        <Check size={12} strokeWidth={2.2} />
-        Conferência: saldo inicial + lançamentos = saldo final {check.contas === 1 ? "na conta" : `nas ${check.contas} contas`}.
-      </p>
-    );
-  }
-  return (
-    <p className="mt-1.5 flex items-start gap-1.5 text-[12px] text-warning-600">
-      <TriangleAlert size={13} strokeWidth={2} className="mt-px shrink-0" />
-      <span>Conferência: {problemas.join("; ")}.</span>
-    </p>
-  );
-}
 
 // Cartão "Domínio" da tela Dados (RelatoriosMensais.jsx): mostra os meses
 // (do ano escolhido na tela) e o balancete que a Central mandou direto do
@@ -182,13 +120,46 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
   const balancete = (balancetes || []).find((item) => item.ano === String(year)) || null;
   const pending = withStatus.filter((month) => isDominioPending(month.status) && noPeriodo(month.competencia));
   const balancetePendente = Boolean(balancete && balancete.status !== "igual");
-  const pendingCount = pending.length + (balancetePendente ? 1 : 0);
-  const lastSync = [...withStatus.map((month) => month.syncedAt), balancete?.syncedAt || ""].reduce((latest, at) => (at > latest ? at : latest), "");
-  const recebidos = new Set(withStatus.map((month) => month.competencia));
   // Só dá pra pedir mês que já começou.
   const pedivel = monthsBetween(inicio, fim < agora ? fim : agora);
-  const faltando = pedivel.filter((competencia) => !recebidos.has(competencia));
   const pedidoAberto = isPedidoAberto(pedido);
+
+  // "Pedi e estou esperando": guardado na sessão pra sobreviver a um F5.
+  const chaveAguardando = `dominioAguardando.${state.activeCompanyId}`;
+  const aguardando = useRef(false);
+  function marcarAguardando(valor) {
+    aguardando.current = valor;
+    try {
+      if (valor) sessionStorage.setItem(chaveAguardando, "1");
+      else sessionStorage.removeItem(chaveAguardando);
+    } catch {
+      /* sessionStorage indisponível: só perde o F5 */
+    }
+  }
+  useEffect(() => {
+    try {
+      aguardando.current = sessionStorage.getItem(chaveAguardando) === "1";
+    } catch {
+      aguardando.current = false;
+    }
+  }, [chaveAguardando]);
+
+  // O pedido terminou: traz sozinho os meses do período e o balancete.
+  useEffect(() => {
+    if (!aguardando.current || applying || months === null || !pedido) return;
+    if (pedido.status === "erro") {
+      marcarAguardando(false);
+      return;
+    }
+    if (pedido.status !== "feito") return;
+    marcarAguardando(false);
+    if (!pending.length && !balancetePendente) {
+      onDone("A Central terminou: o portal já está igual à Domínio nesse período.");
+      return;
+    }
+    apply(pending, balancetePendente, { semPergunta: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pedido, months, balancetes, applying]);
 
   async function handlePedir() {
     if (!pedivel.length || pedindo || pedidoAberto) return;
@@ -196,7 +167,8 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
     setPedindo(true);
     try {
       await pedir(inicio, ultimo);
-      onDone(`Pedido enviado à Central: ${periodoLabel(inicio, ultimo)}. Ela confere os pedidos a cada poucos minutos — os meses aparecem aqui como pendentes.`);
+      marcarAguardando(true);
+      onDone(`Pedido enviado à Central: ${periodoLabel(inicio, ultimo)}. Quando ela terminar, os lançamentos e o balancete entram sozinhos — pode deixar esta tela aberta.`);
     } catch (error) {
       console.error("Falha ao pedir o período à Central:", error);
       onError(error?.message?.startsWith("Já tem um pedido") ? error.message : "Não consegui registrar o pedido — tenta de novo.");
@@ -219,7 +191,7 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
     }
   }
 
-  async function apply(targets, withBalancete) {
+  async function apply(targets, withBalancete, { semPergunta = false } = {}) {
     const bal = withBalancete && balancete ? balancete : null;
     if ((!targets.length && !bal) || applying) return;
     setApplying(true);
@@ -277,7 +249,10 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
         avisos.push(`${plural(semDePara.length, "conta ainda sem", "contas ainda sem")} De/Para (ex.: ${semDePara.slice(0, 3).join(", ")}). Os valores entram, mas essas contas ficam fora dos relatórios até serem vinculadas.`);
       }
       const pergunta = `${doAno && !targets.length && bal.status === "novo" ? "Guardar" : "Substituir"} ${itens.join(" e ")} pelo que veio da Domínio?${targets.length ? " Os outros meses não são afetados." : ""}`;
-      if (!window.confirm(`${pergunta}${avisos.length ? `\n\n${avisos.map((aviso) => `• ${aviso}`).join("\n")}` : ""}`)) {
+      // Sem pergunta quando vem do "Pedir à Central"; só pergunta se o De/Para
+      // for perder algum vínculo (o único caso destrutivo).
+      const perdeVinculo = migracao.mappings.length < state.mappings.length;
+      if ((!semPergunta || perdeVinculo) && !window.confirm(`${pergunta}${avisos.length ? `\n\n${avisos.map((aviso) => `• ${aviso}`).join("\n")}` : ""}`)) {
         onDone("");
         return;
       }
@@ -299,7 +274,7 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
       // Mesmo caminho da importação de diário: troca só esses meses e só
       // resolve depois que o Supabase confirmou (desfaz tudo se falhar).
       if (entries.length) await attachJournalMonths(entries, { onProgress: onProgress("Salvando os lançamentos da Domínio...") });
-      onDone(`Atualizado com a Domínio: ${[bal ? `balancete${doAno ? ` de ${bal.ano}` : ""}` : "", labels].filter(Boolean).join(", ")}.`);
+      onDone(`Pronto, veio da Domínio: ${[bal ? `balancete${doAno ? ` de ${bal.ano}` : ""}` : "", labels].filter(Boolean).join(" e ")}.${semDePara.length ? ` Atenção: ${plural(semDePara.length, "conta ainda sem", "contas ainda sem")} De/Para (veja a aba De/Para).` : ""}`);
     } catch (error) {
       console.error("Falha ao aplicar os dados da Domínio:", error);
       if (balanceteSalvo) onError("O balancete foi atualizado, mas os meses não — tente de novo os meses pendentes.");
@@ -322,40 +297,10 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
       </p>
     );
   } else {
-    const pendentes = [pending.length ? plural(pending.length, "mês", "meses") : "", balancetePendente ? "o balancete" : ""].filter(Boolean);
     const ultimoPedivel = pedivel[pedivel.length - 1];
     body = (
       <>
-        <p className="text-[12px] text-ink-400">
-          Código {codigo} · CNPJ conferido
-          {lastSync ? ` · última sincronização ${hora(lastSync)}` : ""}
-          {pendingCount ? ` · ${pendentes.join(" e ")} ${pendingCount === 1 ? "pendente" : "pendentes"}` : withStatus.length ? " · tudo igual ao portal" : ""}
-        </p>
-        {withStatus.length ? (
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {withStatus.map((month) => {
-              const clickable = isDominioPending(month.status);
-              return (
-                <button
-                  key={month.competencia}
-                  type="button"
-                  disabled={!clickable || applying}
-                  onClick={() => apply([month], false)}
-                  title={`${STATUS_TITLE[month.status]} · ${month.qtd} lançamentos na Domínio${noPeriodo(month.competencia) ? "" : " · fora do período escolhido"}`}
-                  className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11.5px] font-medium transition-all disabled:cursor-default ${STATUS_STYLE[month.status]} ${noPeriodo(month.competencia) ? "" : "opacity-45"}`}
-                >
-                  {month.status === "igual" && <Check size={11} strokeWidth={2.2} />}
-                  {monthLabel(month.competencia)}
-                  {month.status === "novo" && <span className="font-normal">· pendente (novo)</span>}
-                  {month.status === "pendente" && <span className="font-normal">· pendente</span>}
-                  {month.status === "vazio" && <span className="font-normal">· vazio</span>}
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="mt-2 text-[12.5px] text-ink-400">Nada de {year} chegou da Domínio ainda — a rodada normal da Central só manda o ano corrente. Peça o período abaixo.</p>
-        )}
+        <p className="text-[12px] text-ink-400">Escolha o período e peça. A Central traz os lançamentos e o balancete da Domínio e eles entram aqui sozinhos.</p>
         <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12px] text-ink-500">
           <span>Período</span>
           <select
@@ -395,63 +340,29 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
           <button
             type="button"
             onClick={handlePedir}
-            disabled={!pedivel.length || pedindo || pedidoAberto}
+            disabled={!pedivel.length || pedindo || pedidoAberto || applying}
             title={
               pedidoAberto
                 ? "Já tem um pedido aberto pra esta empresa — espere a Central terminar"
                 : pedivel.length
-                  ? `Pede à Central os lançamentos de ${periodoLabel(inicio, ultimoPedivel)} direto da Domínio (os que já estão aqui vêm de novo, pra conferir)`
+                  ? `Pede à Central ${periodoLabel(inicio, ultimoPedivel)} e já traz os lançamentos e o balancete`
                   : "Esse período ainda não começou"
             }
-            className="ml-1 flex h-7 items-center gap-1.5 rounded-md border border-line-strong px-2.5 font-medium text-ink-700 transition-colors hover:border-accent-300 hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-40"
+            className="ml-1 flex h-8 items-center gap-1.5 rounded-md bg-accent-500 px-3 font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
           >
             <Send size={12.5} strokeWidth={1.9} />
-            {pedindo ? "Pedindo…" : "Pedir à Central"}
+            {pedindo ? "Pedindo…" : applying ? "Trazendo…" : "Pedir à Central"}
           </button>
-          {faltando.length > 0 && !pedidoAberto && (
-            <span className="text-ink-400">
-              {faltando.length === pedivel.length
-                ? "nenhum mês desse período chegou da Domínio ainda"
-                : `${plural(faltando.length, "mês", "meses")} desse período ainda não ${faltando.length === 1 ? "chegou" : "chegaram"} da Domínio`}{" "}
-              ({faixas(faltando)})
-            </span>
-          )}
         </div>
         {pedido && (
-          <div className="mt-1.5">
+          <div className="mt-2">
             <PedidoStatus pedido={pedido} months={months} onCancelar={handleCancelar} cancelando={cancelando} />
           </div>
         )}
-        {balancete && (
-          <div className="mt-2.5 border-t border-line pt-2.5">
-            <button
-              type="button"
-              disabled={!balancetePendente || applying}
-              onClick={() => apply([], true)}
-              title={`${
-                balancete.destino === "ano" && balancete.status === "novo"
-                  ? `Pendente: o portal ainda não tem o balancete de ${balancete.ano} — clique pra trazer só ele`
-                  : BALANCETE_TITLE[balancete.status]
-              } · ${balancete.accounts.length} contas na Domínio${balancete.destino === "ano" ? ` · fica guardado como balancete de ${balancete.ano} (o atual da empresa não muda)` : ""}`}
-              className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11.5px] font-medium transition-colors disabled:cursor-default ${STATUS_STYLE[balancete.status]}`}
-            >
-              {balancete.status === "igual" && <Check size={11} strokeWidth={2.2} />}
-              Balancete {periodo(balancete)}
-              {balancete.status === "novo" && <span className="font-normal">· pendente (novo)</span>}
-              {balancete.status === "pendente" && <span className="font-normal">· pendente</span>}
-            </button>
-            <Conferencia check={balancete.check} />
-          </div>
-        )}
-        {!balancete && withStatus.length > 0 && String(year) < agora.slice(0, 4) && (
-          <p className="mt-2.5 border-t border-line pt-2.5 text-[12px] text-ink-400">
-            Sem balancete de {year} ainda — sem ele, o Balanço e o DFC de {year} não têm os saldos daquele ano. Peça {year} à Central: o balancete vem junto com os meses.
-          </p>
-        )}
-        {balanceteError && (
+        {(loadError || balanceteError) && (
           <p className="mt-2 flex items-center gap-1.5 text-[12px] text-warning-600">
             <TriangleAlert size={13} strokeWidth={2} />
-            Não consegui consultar o balancete da Domínio agora.
+            Não consegui consultar a Domínio agora.
           </p>
         )}
       </>
@@ -463,28 +374,6 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Domínio · direto do banco</p>
         <div className="mt-1">{body}</div>
-      </div>
-      <div className="flex shrink-0 items-center gap-1.5">
-        {codigo && cnpj && (
-          <button
-            type="button"
-            onClick={reload}
-            disabled={months === null || applying}
-            title="Verificar de novo o que chegou da Domínio"
-            className="flex h-[30px] w-[30px] items-center justify-center rounded-md border border-line-strong text-ink-500 transition-colors hover:bg-surface-muted disabled:opacity-40"
-          >
-            <RefreshCw size={14} strokeWidth={1.8} />
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => apply(pending, balancetePendente)}
-          disabled={!pendingCount || applying}
-          title={`Traz pro portal os meses pendentes de ${periodoLabel(inicio, fim)}${balancetePendente ? " e o balancete" : ""} — os outros meses não mudam`}
-          className="flex items-center gap-1.5 rounded-md bg-accent-500 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-        >
-          Atualizar com a Domínio{pendingCount ? ` (${pendingCount})` : ""}
-        </button>
       </div>
     </div>
   );

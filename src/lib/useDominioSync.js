@@ -80,8 +80,12 @@ export function useDominioSync(company) {
         // Meses antes de trocar o pedido: os dois mudam no mesmo render (senão
         // "trazendo… 0 de 12" aparecia por um instante com meses já chegados).
         const months = !isPedidoAberto(atual) || atual.status === "andamento" ? await fetchDominioMonths(codigo, cnpj) : null;
+        // Terminou: o balancete (do ano pedido) também chegou — recarrega junto,
+        // senão a tela não enxerga o balancete novo.
+        const balancetesNovos = !isPedidoAberto(atual) ? await fetchDominioBalancetes(codigo, cnpj).catch(() => null) : null;
         if (!ativo) return;
         if (months) setRawMonths(months);
+        if (balancetesNovos) setRawBalancetes(balancetesNovos);
         setPedido(atual);
       } catch (error) {
         console.error("Falha ao acompanhar o pedido de período:", error);

@@ -64,6 +64,14 @@ export default function RelatoriosMensais() {
   const lastBalancete = company?.lastBalanceteMeta;
   const balanceteDoAno = company?.balancetesAno?.[String(year)];
   const attachedMonths = journalMonthsPresent();
+  // Os dois cartões (Diário e Balancete) mostram o ano escolhido na tela, não
+  // o total da empresa.
+  const yearKeys = Array.from({ length: 12 }, (_, index) => `${year}-${String(index + 1).padStart(2, "0")}`);
+  const journalCountYear = yearKeys.reduce((sum, key) => sum + journalCountForMonth(key), 0);
+  const monthsInYear = yearKeys.filter((key) => attachedMonths.has(key)).length;
+  const principalYear = String(lastBalancete?.inicio || "").slice(0, 4);
+  // Sem data no balancete principal (importado de arquivo): vale pra qualquer ano, como antes.
+  const principalDoAno = !balanceteDoAno && Boolean(lastBalancete) && (!principalYear || principalYear === String(year));
 
   function monthKey(index) {
     return `${year}-${String(index + 1).padStart(2, "0")}`;
@@ -342,7 +350,7 @@ export default function RelatoriosMensais() {
           <div className="min-w-0">
             <p className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Diário</p>
             <p className="mt-1 text-[14px] font-medium text-ink-900">
-              {state.journal.length} lançamentos · {attachedMonths.size} {attachedMonths.size === 1 ? "mês" : "meses"}
+              {journalCountYear} lançamentos · {monthsInYear} {monthsInYear === 1 ? "mês" : "meses"} em {year}
             </p>
             <p className="mt-0.5 text-[12px] text-ink-400">Reimportar um mês só atualiza aquele mês.</p>
           </div>
@@ -363,14 +371,16 @@ export default function RelatoriosMensais() {
                 applyBalanceteAno): mostra o dele; o principal continua valendo
                 pros outros anos. */}
             <p className="mt-1 text-[14px] font-medium text-ink-900">
-              {balanceteDoAno ? `${balanceteDoAno.accounts.length} contas · balancete de ${year}` : `${state.accounts.length} contas carregadas`}
+              {balanceteDoAno ? `${balanceteDoAno.accounts.length} contas · balancete de ${year}` : principalDoAno ? `${state.accounts.length} contas · balancete de ${year}` : `Sem balancete de ${year}`}
             </p>
             <p className="mt-0.5 truncate text-[12px] text-ink-400">
               {balanceteDoAno
                 ? `${balanceteDoAno.meta?.name || "Domínio"} · o atual${lastBalancete ? ` (${lastBalancete.name})` : ""} continua valendo pros outros anos`
-                : lastBalancete
+                : principalDoAno
                   ? `Enviado em ${new Date(lastBalancete.uploadedAt).toLocaleDateString("pt-BR")} · ${lastBalancete.name}`
-                  : "Nenhum balancete enviado ainda."}
+                  : lastBalancete
+                    ? `Peça ${year} à Central em "Pedir à Central" — o balancete vem junto. O atual (${lastBalancete.name}) vale pros outros anos.`
+                    : "Nenhum balancete enviado ainda."}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
