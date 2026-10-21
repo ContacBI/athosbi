@@ -28,6 +28,7 @@ import {
   Type,
   Undo2,
   ChartColumnBig,
+  Sheet,
 } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import PeriodPicker from "../PeriodPicker.jsx";
@@ -1014,6 +1015,7 @@ export default function SlideEditor({ initial, ctx, info, readOnly, onExit, onPr
           <ToolButton light icon={Type} label="Texto" onClick={() => insert("text", { text: "Escreva aqui", w: 520, h: 110 })} />
           <ToolButton light icon={Hash} label="Número" title="Número do B.I. (receita, lucro, margem…)" onClick={() => setPicker({ type: "kpi", mode: "insert" })} />
           <ToolButton light icon={BarChart3} label="Gráfico B.I." title="Gráfico ou tabela do B.I. (DRE, balanço, DFC…)" onClick={() => setPicker({ type: "widget", mode: "insert" })} />
+          <ToolButton light icon={Sheet} label="Demonstrativo" title="DRE, Balanço ou DFC sob medida: escolha o que cada linha mostra" onClick={() => insert("demo", { x: 64, y: 120 })} />
           <ToolButton light icon={ChartColumnBig} label="Gráfico próprio" title="Gráfico com dados que você digita ou cola do Excel" onClick={() => insert("chart")} />
           <ToolButton light icon={Table2} label="Tabela" onClick={() => insert("table")} />
           <ToolButton light icon={Gauge} label="Meta" onClick={() => insert("meta")} />

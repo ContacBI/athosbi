@@ -45,6 +45,8 @@ import { BUILTIN_LOGOS } from "../../lib/brand.js";
 import { WIDGET_CATALOG } from "../../lib/dashboardWidgets.js";
 import { ColorField, Field, FontSelect, NumberInput, Row, Section, Segmented, Select, Slider, TextArea, TextInput, Toggle } from "./controls.jsx";
 import { Decoration, SHAPES, brandSrc, slideBackground } from "./SlideView.jsx";
+import { DemoInspector } from "./DemoInspector.jsx";
+import { DEMO_TITLES } from "../../lib/slideDemo.js";
 
 const KIND_LABEL = {
   text: "Texto",
@@ -53,6 +55,7 @@ const KIND_LABEL = {
   chart: "Gráfico próprio",
   table: "Tabela livre",
   meta: "Meta",
+  demo: "Demonstrativo sob medida",
   image: "Imagem",
   shape: "Forma",
   icon: "Ícone",
@@ -65,6 +68,7 @@ export function blockName(block) {
   if (block.kind === "shape") return SHAPES.find((shape) => shape.id === block.shape)?.label || "Forma";
   if (block.kind === "chart" && block.title) return block.title;
   if (block.kind === "meta") return block.label || "Meta";
+  if (block.kind === "demo") return block.title || DEMO_TITLES[block.source] || "Demonstrativo";
   return KIND_LABEL[block.kind] || "Bloco";
 }
 
@@ -524,6 +528,8 @@ export function BlockInspector({ block, deck, ctx, set, setStyle, actions, openP
           )}
         </Section>
       )}
+
+      {block.kind === "demo" && <DemoInspector block={block} deck={deck} ctx={ctx} set={set} />}
 
       {block.kind === "chart" && (
         <>
