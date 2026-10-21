@@ -294,7 +294,7 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
     } catch (error) {
       console.error("Falha ao aplicar os dados da Domínio:", error);
       if (balanceteSalvo) onError("O balancete foi atualizado, mas os meses não — tente de novo os meses pendentes.");
-      else onError(error?.message?.includes("recarregue") ? error.message : "Não consegui trazer os dados da Domínio — nada foi alterado. Tenta de novo.");
+      else onError(/recarregue/i.test(error?.message || "") ? error.message : "Não consegui trazer os dados da Domínio — nada foi alterado. Tenta de novo.");
     } finally {
       setApplying(false);
     }
