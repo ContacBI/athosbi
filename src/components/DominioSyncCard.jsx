@@ -77,6 +77,20 @@ function PedidoStatus({ pedido, months, onCancelar, cancelando }) {
   );
 }
 
+const STATUS_STYLE = {
+  igual: "border-line bg-surface-muted text-ink-500",
+  novo: "border-warning-500/60 bg-warning-50 text-warning-700 hover:border-warning-500",
+  pendente: "border-warning-500/60 bg-warning-50 text-warning-700 hover:border-warning-500",
+  vazio: "border-line bg-surface-muted text-ink-400",
+};
+
+const STATUS_TITLE = {
+  igual: "Igual ao que já está no portal",
+  novo: "Pendente: mês que ainda não está no portal — clique pra trazer só este mês",
+  pendente: "Pendente: mudou na Domínio (lançamento novo ou excluído, valor, conta ou histórico) — clique pra atualizar só este mês",
+  vazio: "Vazio na Domínio, mas o portal tem lançamentos — não é aplicado automaticamente; exclua o mês manualmente se for o caso",
+};
+
 const dataBr = (iso) => {
   const [year, month, day] = String(iso).slice(0, 10).split("-");
   return `${day}/${month}/${year}`;
@@ -120,6 +134,8 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
   const balancete = (balancetes || []).find((item) => item.ano === String(year)) || null;
   const pending = withStatus.filter((month) => isDominioPending(month.status) && noPeriodo(month.competencia));
   const balancetePendente = Boolean(balancete && balancete.status !== "igual");
+  const pendingCount = pending.length + (balancetePendente ? 1 : 0);
+  const lastSync = [...withStatus.map((month) => month.syncedAt), balancete?.syncedAt || ""].reduce((latest, at) => (at > latest ? at : latest), "");
   // Só dá pra pedir mês que já começou.
   const pedivel = monthsBetween(inicio, fim < agora ? fim : agora);
   const pedidoAberto = isPedidoAberto(pedido);
@@ -300,7 +316,36 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
     const ultimoPedivel = pedivel[pedivel.length - 1];
     body = (
       <>
-        <p className="text-[12px] text-ink-400">Escolha o período e peça. A Central traz os lançamentos e o balancete da Domínio e eles entram aqui sozinhos.</p>
+        <p className="text-[12px] text-ink-400">
+          Código {codigo} · CNPJ conferido
+          {lastSync ? ` · última sincronização ${hora(lastSync)}` : ""}
+          {pendingCount ? ` · ${plural(pendingCount, "item pendente", "itens pendentes")}` : withStatus.length ? " · tudo igual ao portal" : ""}
+        </p>
+        {withStatus.length ? (
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {withStatus.map((month) => {
+              const clickable = isDominioPending(month.status);
+              return (
+                <button
+                  key={month.competencia}
+                  type="button"
+                  disabled={!clickable || applying}
+                  onClick={() => apply([month], false)}
+                  title={`${STATUS_TITLE[month.status]} · ${month.qtd} lançamentos na Domínio${noPeriodo(month.competencia) ? "" : " · fora do período escolhido"}`}
+                  className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11.5px] font-medium transition-all disabled:cursor-default ${STATUS_STYLE[month.status]} ${noPeriodo(month.competencia) ? "" : "opacity-45"}`}
+                >
+                  {month.status === "igual" && <Check size={11} strokeWidth={2.2} />}
+                  {monthLabel(month.competencia)}
+                  {month.status === "novo" && <span className="font-normal">· pendente (novo)</span>}
+                  {month.status === "pendente" && <span className="font-normal">· pendente</span>}
+                  {month.status === "vazio" && <span className="font-normal">· vazio</span>}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="mt-2 text-[12.5px] text-ink-400">Nada de {year} chegou da Domínio ainda. Escolha o período abaixo e peça à Central.</p>
+        )}
         <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12px] text-ink-500">
           <span>Período</span>
           <select
