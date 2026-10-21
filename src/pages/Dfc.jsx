@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, ChevronRight, Maximize2, Minimize2, Search, Waves } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
-import { buildDfcDirect, buildDfcIndirect, reportMonths } from "../data/calculations.js";
+import { buildDfcDirect, buildDfcIndirect, dfcInstitutoStatus, reportMonths } from "../data/calculations.js";
+import { useDfcInstitutoSync } from "../lib/useDfcInstitutoSync.js";
 import { money, moneyOrDash, periodLabelPt } from "../lib/format.js";
 import { columnLabel, isZeroNoMovement } from "../lib/reportColumns.js";
 import { activeWorkspaceName } from "../lib/groups.js";
@@ -214,7 +215,10 @@ export default function Dfc({ lockedMode } = {}) {
   // da primeira subaba visitada, "vazando" pra outra. Sem estado próprio
   // nesse caso, as duas ficam de fato independentes.
   const [localMode, setLocalMode] = useState("direct");
-  const mode = lockedMode || localMode;
+  // Empresa "instituto": só existe a DFC direta, na estrutura da Domínio (ver lib/dfcInstituto.js).
+  useDfcInstitutoSync();
+  const instituto = dfcInstitutoStatus();
+  const mode = instituto.instituto ? "direct" : lockedMode || localMode;
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [ledgerRow, setLedgerRow] = useState(null);
   const [search, setSearch] = useState("");
@@ -241,6 +245,7 @@ export default function Dfc({ lockedMode } = {}) {
       state.dfcRules,
       state.dfcOverrides,
       state.dfcStructure,
+      state.companies,
     ]
   );
   const rows = state.hideZeroNoMovement
@@ -259,7 +264,7 @@ export default function Dfc({ lockedMode } = {}) {
         <div className="rounded-xl bg-surface-card p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              {!lockedMode && (
+              {!lockedMode && !instituto.instituto && (
                 <div className="inline-flex w-fit rounded-full bg-surface-muted p-1">
                   <button
                     type="button"
@@ -301,6 +306,11 @@ export default function Dfc({ lockedMode } = {}) {
             </div>
           </div>
         </div>
+        {instituto.instituto && !instituto.pronto && (
+          <p className="rounded-xl bg-surface-card p-4 text-[12.5px] text-ink-500 shadow-sm">
+            Empresa instituto: a DFC usa a estrutura e as contas da Domínio. A Central ainda não trouxe o modelo — ele aparece aqui sozinho quando chegar.
+          </p>
+        )}
         <DfcTable
           rows={rows}
           mode={mode}

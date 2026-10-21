@@ -599,6 +599,7 @@ export function createCompany({
   natureRules = DEFAULT_NATURE_RULES,
   planoPadraoId = null,
   responsaveis = [],
+  dfcModelo = "padrao",
 }) {
   const companyName = String(name || "").trim();
   if (!companyName) return null;
@@ -622,6 +623,9 @@ export function createCompany({
     // is_responsavel em supabase/schema.sql) — admin (Total) sempre pode,
     // independente do que estiver aqui.
     responsaveis,
+    // "padrao" (DFC padrão do portal) ou "instituto" (estrutura e contas da DFC
+    // da Domínio, trazidas pela Central — ver lib/dfcInstituto.js).
+    dfcModelo,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     mappings: [],
@@ -658,7 +662,7 @@ export function createCompany({
 
 export function updateCompany(
   id,
-  { name, cnpj = "", codigo = "", atividade = "", municipio = "", uf = "", representanteIds = [], natureRules = DEFAULT_NATURE_RULES, planoPadraoId, responsaveis }
+  { name, cnpj = "", codigo = "", atividade = "", municipio = "", uf = "", representanteIds = [], natureRules = DEFAULT_NATURE_RULES, planoPadraoId, responsaveis, dfcModelo }
 ) {
   const companyName = String(name || "").trim();
   if (!companyName) return null;
@@ -679,6 +683,7 @@ export function updateCompany(
           // null explícito pra "voltar a usar só o global".
           ...(planoPadraoId !== undefined ? { planoPadraoId } : {}),
           ...(responsaveis !== undefined ? { responsaveis } : {}),
+          ...(dfcModelo !== undefined ? { dfcModelo } : {}),
           updatedAt: new Date().toISOString(),
         }
       : company
@@ -1104,6 +1109,21 @@ export function replaceAccounts(newAccounts, meta) {
   setData({ companies, accounts: newAccounts });
   persistActiveCompany();
   setLastBalanceteMeta(meta);
+}
+
+// Modelo de DFC da empresa "instituto" que veio da Domínio (lib/dfcInstituto.js): guarda na empresa a estrutura e as contas
+// ligadas a cada grupo, como estão na Domínio. Espera o Supabase confirmar e desfaz se falhar (mesmo contrato de applyBalancete).
+export async function applyDfcInstituto(modelo) {
+  const company = state.companies.find((item) => item.id === state.activeCompanyId);
+  if (!company || state.activeGroupId || company.dfcModelo !== "instituto") return;
+  const before = state.companies;
+  setData({ companies: state.companies.map((item) => (item.id === company.id ? { ...item, dfcInstituto: modelo } : item)) });
+  try {
+    await persistActiveCompany();
+  } catch (error) {
+    setData({ companies: before });
+    throw error;
+  }
 }
 
 // Balancete que veio direto da Domínio (lib/dominioSync.js): troca as

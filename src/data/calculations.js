@@ -1,5 +1,6 @@
 ﻿import { state, mappingByClassification, planByCode } from "./store.js";
 import { planNameCase } from "../lib/planCase.js";
+import { institutoClassifier, institutoStructure, institutoSubtotals } from "../lib/dfcInstituto.js";
 
 export function filteredJournal() {
   return state.journal.filter((entry) => {
@@ -150,8 +151,33 @@ export function buildReport(type) {
   return buildReportTree(type).filter((row) => row.kind === "synthetic" && row.hasValue);
 }
 
+// Empresa "instituto" (company.dfcModelo): a DFC segue a estrutura e as contas da Domínio, trazidas pela Central
+// (ver lib/dfcInstituto.js). null = DFC padrão (inclusive grupo de empresas e instituto cujo modelo ainda não chegou).
+function institutoModel() {
+  if (state.activeGroupId) return null;
+  const company = state.companies.find((item) => item.id === state.activeCompanyId);
+  return company?.dfcModelo === "instituto" && company.dfcInstituto?.estrutura?.length ? company.dfcInstituto : null;
+}
+
+// A tela da DFC usa pra travar na direta (o modelo do instituto só tem a direta) e avisar quando o modelo ainda não chegou.
+export function dfcInstitutoStatus() {
+  if (state.activeGroupId) return { instituto: false, pronto: false };
+  const company = state.companies.find((item) => item.id === state.activeCompanyId);
+  const instituto = company?.dfcModelo === "instituto";
+  return { instituto, pronto: instituto && Boolean(company.dfcInstituto?.estrutura?.length) };
+}
+
+function applyInstitutoSubtotals(byCode, structure) {
+  const { subtotals, variacao } = institutoSubtotals(structure);
+  subtotals.forEach(({ code, sources }) => sumDfcRows(byCode, code, sources));
+  sumDfcRows(byCode, "DFC.CASH.VARIACAO", variacao);
+}
+
 export function buildDfcDirect() {
-  const rows = dfcStructure().map((item) => ({
+  const instituto = institutoModel();
+  const structure = instituto ? institutoStructure(instituto) : dfcStructure();
+  const institutoClasses = instituto ? institutoClassifier(instituto, structure) : null;
+  const rows = structure.map((item) => ({
     kind: "synthetic",
     demonstrativo: "DFC",
     codigo_gerencial: item.code,
@@ -184,19 +210,22 @@ export function buildDfcDirect() {
     const result = findCashPieces(entry, groupIndex, dayIndex);
     if (!result) return; // transferência entre contas de caixa
     result.pieces.forEach(({ counterpart, entry: piece }) => {
-      const targetCode = classifyDfcEntry(piece, counterpart, dfcConfig);
-      addDfcValue(byCode.get(targetCode) || byCode.get("DFC.OP.OUTROS"), piece, counterpart, analyticsByRow);
+      const targetCode = institutoClasses ? institutoClasses.classify(counterpart?.classificacao) : classifyDfcEntry(piece, counterpart, dfcConfig);
+      addDfcValue(byCode.get(targetCode) || byCode.get(institutoClasses?.fallback || "DFC.OP.OUTROS"), piece, counterpart, analyticsByRow);
     });
     if (Math.round(result.leftover * 100) !== 0) {
       const leftoverPiece = { ...entry, debito: result.leftover < 0 ? 0 : result.leftover, credito: result.leftover < 0 ? -result.leftover : 0 };
-      const targetCode = classifyDfcEntry(leftoverPiece, null, dfcConfig);
-      addDfcValue(byCode.get(targetCode) || byCode.get("DFC.OP.OUTROS"), leftoverPiece, null, analyticsByRow);
+      const targetCode = institutoClasses ? institutoClasses.classify(null) : classifyDfcEntry(leftoverPiece, null, dfcConfig);
+      addDfcValue(byCode.get(targetCode) || byCode.get(institutoClasses?.fallback || "DFC.OP.OUTROS"), leftoverPiece, null, analyticsByRow);
     }
   });
 
-  applyDfcSubtotals(byCode);
+  if (instituto) applyInstitutoSubtotals(byCode, structure);
+  else applyDfcSubtotals(byCode);
   applyDfcAvailability(byCode);
 
+  // Instituto: mostra a estrutura inteira da Domínio, inclusive linhas sem valor no período.
+  if (instituto) return rows;
   return rows.filter((row) => row.natureza === "heading" || row.hasValue || row.qtd_lancamentos || row.codigo_gerencial.startsWith("DFC.CASH"));
 }
 
