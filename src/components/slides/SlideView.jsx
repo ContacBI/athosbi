@@ -21,7 +21,7 @@ import { WidgetBody, WidgetFillContext } from "../dashboard/WidgetGrid.jsx";
 import { formatWidgetValue } from "../../lib/dashboardWidgets.js";
 import { describeIndicatorFormula, isSingleLineFormula } from "../../lib/indicatorFormula.js";
 import { SLIDE_H, SLIDE_W, compactValue, fillTokens, fontStack, isDark, kpiSeries, mix, patternCss, resolveColor, rgba, shadowCss, widgetDefinition } from "../../lib/presentations.js";
-import { BUILTIN_LOGOS, athosLogoFor } from "../../lib/brand.js";
+import { BUILTIN_LOGOS, brandLogoFor } from "../../lib/brand.js";
 import { SLIDE_ICONS } from "./slideIcons.js";
 import { DemoContent } from "./DemoBlock.jsx";
 
@@ -580,7 +580,7 @@ function WidgetContent({ block, theme, env, base }) {
 
 // Logo da marca (brand): a versão certa pro fundo atrás dela.
 export function brandSrc(brand, base) {
-  if (brand === "athos") return athosLogoFor(isDark(base || "#ffffff")).src;
+  if (brand === "athos" || brand === "contac") return brandLogoFor(brand, isDark(base || "#ffffff")).src;
   return BUILTIN_LOGOS.find((logo) => logo.id === brand)?.src || "";
 }
 

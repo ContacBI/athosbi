@@ -4,6 +4,7 @@ import { WIDGET_CATALOG, formatWidgetValue } from "./dashboardWidgets.js";
 import { treeFor } from "./indicatorFormula.js";
 import { accumulatedBalanceValue } from "./reportColumns.js";
 import { activeWorkspaceName } from "./groups.js";
+import { brandById } from "./brand.js";
 
 // Apresentações (slides) de cada empresa/grupo. Ficam no próprio registro
 // da empresa (ou do grupo), como as abas do painel — ver `presentations`
@@ -175,6 +176,33 @@ export const THEMES = [
     cardStyle: "elevated",
     grain: 0,
     decoration: "degraus",
+  },
+  // Contac (contaccontabil.com.br): o azul-marinho do "CONTAC" e os tons
+  // azul-acinzentados do anel da logo.
+  {
+    id: "contac",
+    name: "Contac",
+    colors: { bg: "#ffffff", surface: "#f1f5f6", text: "#101f26", muted: "#5d737b", accent: "#4f7380", accent2: "#101f26", accent3: "#97abb2", positive: "#2e8b67", negative: "#c0473f", cover: "#101f26", onCover: "#ffffff" },
+    headingFont: "manrope",
+    bodyFont: "inter",
+    radius: 18,
+    shadow: "sm",
+    cardStyle: "elevated",
+    grain: 0,
+    decoration: "arcos",
+  },
+  {
+    id: "contac-escuro",
+    name: "Contac escuro",
+    colors: { bg: "#0d1a20", surface: "#16272f", text: "#ffffff", muted: "#9fb2b8", accent: "#8fb3bf", accent2: "#d2dcdd", accent3: "#6b8891", positive: "#4ade80", negative: "#fb7185", cover: "#09141a", onCover: "#ffffff" },
+    headingFont: "manrope",
+    bodyFont: "inter",
+    radius: 22,
+    shadow: "none",
+    cardStyle: "glass",
+    grain: 20,
+    decoration: "aura",
+    background: { type: "mesh", color: "@bg", colors: ["@accent3", "", "@accent", ""], intensity: 14 },
   },
   {
     id: "onix",
@@ -703,6 +731,25 @@ const KIND_DEFAULTS = {
   }),
 };
 
+// "Transformar em Demonstrativo sob medida": a tabela resumida do B.I.
+// vira o bloco "demo" no mesmo lugar e tamanho (o resto do bloco — posição,
+// estilo, animação — fica como estava).
+export function widgetToDemo(block) {
+  const table = String(widgetDefinition(block.widgetId)?.table || "");
+  const source = table === "bp" ? "BP" : table.startsWith("dfc_") ? "DFC" : "DRE";
+  // eslint-disable-next-line no-unused-vars
+  const { w, h, style, ...defaults } = KIND_DEFAULTS.demo();
+  return {
+    ...defaults,
+    kind: "demo",
+    source,
+    depth: source === "DRE" ? 0 : 1,
+    columns: block.tableColumns === "meses" ? "meses_total" : "total",
+    fontSize: Math.max(10, Math.round(13 * (block.zoom || 1))),
+    showTitle: block.showTitle !== false,
+  };
+}
+
 export const BLOCK_KINDS = [
   { kind: "text", label: "Texto" },
   { kind: "kpi", label: "Número (indicador)" },
@@ -1061,7 +1108,23 @@ export const DECK_TEMPLATES = [
   },
 ];
 
-export function makePresentation({ name, templateId = "resultados", themeId = "athos-premium" }) {
+// A marca escolhida (Athos ou Contac) nos slides prontos: as logos que
+// mudam sozinhas entre clara e escura (com a largura da logo certa) e a
+// assinatura da capa.
+export function applyBrand(slides, brandId) {
+  const brand = brandById(brandId);
+  const signatures = new Set(["Preparado pela Athos Consultoria Empresarial", "Preparado pela Contac"]);
+  return slides.map((slide) => ({
+    ...slide,
+    blocks: slide.blocks.map((block) => {
+      if (block.kind === "image" && (block.brand === "athos" || block.brand === "contac")) return { ...block, brand: brand.id, w: Math.round(block.h * brand.ratio) };
+      if (block.kind === "text" && signatures.has(block.text)) return { ...block, text: brand.signature };
+      return block;
+    }),
+  }));
+}
+
+export function makePresentation({ name, templateId = "resultados", themeId = "athos-premium", brand = "athos" }) {
   const template = DECK_TEMPLATES.find((item) => item.id === templateId) || DECK_TEMPLATES[0];
   const now = new Date().toISOString();
   return {
@@ -1071,10 +1134,11 @@ export function makePresentation({ name, templateId = "resultados", themeId = "a
     updatedAt: now,
     createdBy: state.userEmail || "",
     theme: themeById(themeId),
-    footer: { show: true, text: "{empresa} · {periodo}", pageNumber: true, color: "@muted", font: "@body", size: 14, logo: "athos" },
+    brand,
+    footer: { show: true, text: "{empresa} · {periodo}", pageNumber: true, color: "@muted", font: "@body", size: 14, logo: brand },
     transition: "fade",
     period: state.periodStart && state.periodEnd ? { start: state.periodStart, end: state.periodEnd } : null,
-    slides: template.slides(),
+    slides: applyBrand(template.slides(), brand),
   };
 }
 

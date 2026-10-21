@@ -40,8 +40,9 @@ import {
   fontStack,
   themeById,
   widgetDefinition,
+  widgetToDemo,
 } from "../../lib/presentations.js";
-import { BUILTIN_LOGOS } from "../../lib/brand.js";
+import { BRANDS, BUILTIN_LOGOS, brandLogoFor } from "../../lib/brand.js";
 import { WIDGET_CATALOG } from "../../lib/dashboardWidgets.js";
 import { ColorField, Field, FontSelect, NumberInput, Row, Section, Segmented, Select, Slider, TextArea, TextInput, Toggle } from "./controls.jsx";
 import { Decoration, SHAPES, brandSrc, slideBackground } from "./SlideView.jsx";
@@ -345,9 +346,18 @@ function ImageContentSection({ block, set, onUploadImage, brandLogos, canSaveLog
       <p className="-mt-1 text-[11px] text-ink-400">Também dá pra arrastar uma imagem pro slide ou colar (Ctrl+V).</p>
       <Field label="Logos">
         <div className="grid grid-cols-2 gap-1.5">
-          <button type="button" onClick={() => set({ brand: "athos", src: "" })} className={`flex h-12 items-center justify-center rounded-md border px-2 ${block.brand === "athos" ? "border-accent-500 ring-1 ring-accent-500" : "border-line hover:border-accent-400"}`} title="Athos — muda sozinha entre clara e escura conforme o fundo" style={{ background: "linear-gradient(90deg, #161616 50%, #ffffff 50%)" }}>
-            <img src={BUILTIN_LOGOS[0].src} alt="" className="h-5" />
-          </button>
+          {BRANDS.map((brand) => (
+            <button
+              key={brand.id}
+              type="button"
+              onClick={() => set({ brand: brand.id, src: "", w: Math.round(block.h * brand.ratio) })}
+              className={`flex h-12 items-center justify-center rounded-md border px-2 ${block.brand === brand.id ? "border-accent-500 ring-1 ring-accent-500" : "border-line hover:border-accent-400"}`}
+              title={`${brand.name} — muda sozinha entre clara e escura conforme o fundo`}
+              style={{ background: "linear-gradient(90deg, #161616 50%, #ffffff 50%)" }}
+            >
+              <img src={brandLogoFor(brand.id, true).src} alt="" className="h-5" />
+            </button>
+          ))}
           {logos.map((logo) => (
             <button
               key={logo.id}
@@ -355,7 +365,7 @@ function ImageContentSection({ block, set, onUploadImage, brandLogos, canSaveLog
               title={logo.name}
               onClick={() => (logo.builtin ? set({ brand: logo.id, src: "" }) : set({ brand: "", src: logo.src }))}
               className={`flex h-12 items-center justify-center rounded-md border px-2 ${(logo.builtin ? block.brand === logo.id : block.src === logo.src) ? "border-accent-500 ring-1 ring-accent-500" : "border-line hover:border-accent-400"}`}
-              style={{ background: logo.id === "athos-claro" ? "#161616" : "repeating-conic-gradient(#e4e4e7 0 25%, #ffffff 0 50%) 0 0/10px 10px" }}
+              style={{ background: logo.id.endsWith("-claro") ? "#161616" : "repeating-conic-gradient(#e4e4e7 0 25%, #ffffff 0 50%) 0 0/10px 10px" }}
             >
               <img src={logo.src} alt="" className="max-h-8 max-w-full object-contain" />
             </button>
@@ -491,6 +501,16 @@ export function BlockInspector({ block, deck, ctx, set, setStyle, actions, openP
             )}
           </Section>
         </>
+      )}
+
+      {block.kind === "widget" && definition?.type === "table" && (
+        <div className="mx-4 mt-3 rounded-lg border border-accent-300 bg-accent-50 p-3">
+          <p className="text-[12.5px] font-semibold text-ink-900">Quer escolher o que aparece?</p>
+          <p className="mt-1 text-[11.5px] leading-snug text-ink-600">Esta é a tabela fixa do B.I. Transformada em <strong>Demonstrativo sob medida</strong>, dá pra abrir linhas até as contas, destacar, esconder e explorar na apresentação — no mesmo lugar e tamanho.</p>
+          <button type="button" onClick={() => set(widgetToDemo(block))} className="mt-2 h-8 w-full rounded-md bg-accent-500 text-[12.5px] font-medium text-white hover:bg-accent-600">
+            Transformar em Demonstrativo sob medida
+          </button>
+        </div>
       )}
 
       {block.kind === "widget" && (
@@ -1087,6 +1107,8 @@ export function ThemeInspector({ deck, setDeck, brandLogos }) {
                   { value: "none", label: "Sem logo" },
                   { value: "athos", label: "Athos (clara/escura automática)" },
                   { value: "athos-marca", label: "Só o símbolo da Athos" },
+                  { value: "contac", label: "Contac (clara/escura automática)" },
+                  { value: "contac-marca", label: "Só o símbolo da Contac" },
                   ...(brandLogos || []).map((logo) => ({ value: logo.src, label: logo.name })),
                 ]}
               />

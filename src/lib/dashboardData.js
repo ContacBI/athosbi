@@ -49,8 +49,21 @@ export function takeDashboardContext() {
 
 // Computes every number any dashboard widget could possibly need, once —
 // so a 30-widget grid does one pass over the ledger instead of thirty.
+// No B.I. o valor de uma linha da DRE é o movimento do PERÍODO escolhido
+// (a soma dos meses). O `saldo` que sai de buildReportTree vem acumulado
+// desde 1º de janeiro — é o que o Balanço usa pro resultado do exercício —,
+// então com o período em abril-maio os números, as margens e a "DRE
+// resumida" mostravam janeiro a maio. Período começando em janeiro: igual.
+function withPeriodDreValues(rows) {
+  return rows.map((row) => {
+    const months = Object.values(row.monthValues || {});
+    const value = months.length ? months.reduce((sum, item) => sum + Number(item || 0), 0) : Number(row.movimento_periodo || 0);
+    return { ...row, saldo: value, saldo_final: value };
+  });
+}
+
 export function buildDashboardContext() {
-  const dre = buildReportTree("DRE");
+  const dre = withPeriodDreValues(buildReportTree("DRE"));
   const bp = buildReportTree("BP");
   const months = reportMonths();
   const indicators = kpis();

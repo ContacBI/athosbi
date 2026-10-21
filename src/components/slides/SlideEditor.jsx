@@ -32,8 +32,8 @@ import {
 } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import PeriodPicker from "../PeriodPicker.jsx";
-import { SLIDE_H, SLIDE_W, cloneBlock, cloneSlide, compressImage, fontStack, makeBlock, makeSlide, resolveColor, upsertPresentation } from "../../lib/presentations.js";
-import { loadBrandLogos, saveBrandLogos } from "../../lib/brand.js";
+import { SLIDE_H, SLIDE_W, applyBrand, cloneBlock, cloneSlide, compressImage, fontStack, makeBlock, makeSlide, resolveColor, upsertPresentation } from "../../lib/presentations.js";
+import { BRANDS, brandLogoFor, loadBrandLogos, saveBrandLogos } from "../../lib/brand.js";
 import SlideView from "./SlideView.jsx";
 import { SHAPES } from "./SlideView.jsx";
 import { BlockInspector, MultiInspector, SlideInspector, ThemeInspector } from "./Inspector.jsx";
@@ -801,7 +801,7 @@ export default function SlideEditor({ initial, ctx, info, readOnly, onExit, onPr
 
   // Slides
   function addSlide(layoutId) {
-    const created = makeSlide(layoutId);
+    const [created] = applyBrand([makeSlide(layoutId)], deckRef.current.brand || "athos");
     update((d) => {
       const slides = [...d.slides];
       slides.splice(index + 1, 0, created);
@@ -1061,7 +1061,27 @@ export default function SlideEditor({ initial, ctx, info, readOnly, onExit, onPr
             </div>
           </Dropdown>
           <ToolButton light icon={Smile} label="Ícone" onClick={() => setPicker({ type: "icon", mode: "insert" })} />
-          <ToolButton light icon={CircleDot} label="Logo" title="Logo da Athos (muda sozinha entre clara e escura)" onClick={() => insert("image", { brand: "athos", w: 206, h: 50, x: 64, y: 40, fit: "contain", style: { radius: 0 } })} />
+          <Dropdown
+            button={(toggle) => (
+              <ToolButton light icon={CircleDot} label="Logo" title="Logo da Athos ou da Contac (muda sozinha entre clara e escura)" onClick={toggle}>
+                <ChevronDown size={12} className="text-ink-400" />
+              </ToolButton>
+            )}
+          >
+            {BRANDS.map((brand) => (
+              <button
+                key={brand.id}
+                type="button"
+                onClick={() => insert("image", { brand: brand.id, w: Math.round(50 * brand.ratio), h: 50, x: 64, y: 40, fit: "contain", style: { radius: 0 } })}
+                className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left hover:bg-surface-muted"
+              >
+                <span className="flex h-9 w-36 items-center justify-center rounded-md bg-white ring-1 ring-line">
+                  <img src={brandLogoFor(brand.id, false).src} alt="" className="h-6" />
+                </span>
+                <span className="text-[13px] text-ink-800">{brand.name}</span>
+              </button>
+            ))}
+          </Dropdown>
         </div>
       )}
 
