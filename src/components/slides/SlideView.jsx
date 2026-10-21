@@ -16,13 +16,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { BarChart3, ImageIcon, Table2 } from "lucide-react";
+import { BarChart3, ImageIcon, Maximize2, Table2 } from "lucide-react";
 import { WidgetBody, WidgetFillContext } from "../dashboard/WidgetGrid.jsx";
 import { formatWidgetValue } from "../../lib/dashboardWidgets.js";
 import { describeIndicatorFormula, isSingleLineFormula } from "../../lib/indicatorFormula.js";
 import { SLIDE_H, SLIDE_W, compactValue, fillTokens, fontStack, isDark, kpiSeries, mix, patternCss, resolveColor, rgba, shadowCss, widgetDefinition } from "../../lib/presentations.js";
 import { BUILTIN_LOGOS, athosLogoFor } from "../../lib/brand.js";
 import { SLIDE_ICONS } from "./slideIcons.js";
+import { DemoContent } from "./DemoBlock.jsx";
 
 // Um slide desenhado no palco fixo de 1280×720. O mesmo componente serve o
 // editor, a miniatura, o modo apresentação e o PDF — `mode` só muda
@@ -270,7 +271,7 @@ function widgetVars(theme, base, chartColors) {
   };
 }
 
-const CARD_KINDS = new Set(["kpi", "widget", "chart", "table", "meta"]);
+const CARD_KINDS = new Set(["kpi", "widget", "chart", "table", "meta", "demo"]);
 
 // Cartão "do tema" (preenchimento @surface): o estilo vem do tema —
 // sólido, elevado (sombra longa e suave + fio de borda), contorno fino ou
@@ -556,6 +557,22 @@ function WidgetContent({ block, theme, env, base }) {
             <WidgetBody definition={definition} ctx={env.ctx} maxRows={maxRows} />
           </div>
         </div>
+        {/* Na apresentação, a tabela resumida do B.I. abre o demonstrativo
+            inteiro na janela "Explorar" (PresentOverlays.jsx). */}
+        {env.mode === "present" && definition.type === "table" && env.onExplore && (
+          <button
+            type="button"
+            data-interactive=""
+            onClick={(event) => {
+              event.stopPropagation();
+              env.onExplore({ source: definition.table === "bp" ? "BP" : String(definition.table).startsWith("dfc_") ? "DFC" : "DRE" });
+            }}
+            style={{ position: "absolute", top: 0, right: 0, display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, border: `1px solid ${rgba(theme.colors.accent, 0.45)}`, background: rgba(theme.colors.accent, 0.12), color: theme.colors.accent, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}
+          >
+            <Maximize2 size={13} strokeWidth={2.2} />
+            Explorar
+          </button>
+        )}
       </div>
     </WidgetFillContext.Provider>
   );
@@ -975,6 +992,7 @@ export function BlockView({ block, theme: theme0, env, slideBase, animIndex = 0,
     else if (block.kind === "table") content = <TableContent block={block} theme={theme} env={env} />;
     else if (block.kind === "chart") content = <ChartContent block={block} theme={theme} env={env} base={base} />;
     else if (block.kind === "meta") content = <MetaContent block={block} theme={theme} env={env} />;
+    else if (block.kind === "demo") content = env.mode === "thumb" && block.source === "DFC" ? <Missing label="Fluxo de caixa" theme={theme} icon={Table2} /> : <DemoContent block={block} theme={theme} env={env} />;
   }
   return (
     <div data-block-id={block.id} className={animate ? ANIM_CLASS[block.anim] : undefined} style={outer}>

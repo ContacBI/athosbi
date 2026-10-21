@@ -5,6 +5,7 @@ import { embeddedFontCss } from "../../lib/slideFonts.js";
 import { exportSlidePng, exportSlidesPdf } from "../../lib/slidesPdf.js";
 import { slug } from "../../lib/demonstrativoExport.js";
 import SlideView from "./SlideView.jsx";
+import { ExplorerOverlay, LedgerOverlay } from "./PresentOverlays.jsx";
 
 export function visibleSlides(deck) {
   return deck.slides.filter((slide) => !slide.hidden);
@@ -33,6 +34,22 @@ export default function PresentMode({ deck, env, startIndex = 0, onClose }) {
   const [fullscreen, setFullscreen] = useState(false);
   const idleTimer = useRef(null);
   const enteredFullscreen = useRef(false);
+  // Janelas por cima do slide (Explorar, razão da conta) — uma pilha: o
+  // razão aberto de dentro do Explorar volta pro Explorar ao fechar.
+  const [overlays, setOverlays] = useState([]);
+  const overlaysRef = useRef(overlays);
+  overlaysRef.current = overlays;
+  const pushOverlay = useCallback((overlay) => setOverlays((list) => [...list, { ...overlay, id: `${Date.now()}-${list.length}` }]), []);
+  const popOverlay = useCallback(() => setOverlays((list) => list.slice(0, -1)), []);
+  const presentEnv = useMemo(
+    () => ({
+      ...env,
+      mode: "present",
+      onOpenLedger: (request) => pushOverlay({ type: "ledger", request }),
+      onExplore: (initial) => pushOverlay({ type: "explorer", initial }),
+    }),
+    [env, pushOverlay]
+  );
   const { w, h } = useWindowSize();
   const scale = Math.min(w / SLIDE_W, h / SLIDE_H);
 
@@ -53,6 +70,9 @@ export default function PresentMode({ deck, env, startIndex = 0, onClose }) {
       // então sair da tela cheia (depois de ter entrado) encerra a
       // apresentação, que é o que a pessoa quis com o Esc.
       if (active) enteredFullscreen.current = true;
+      // Com uma janela aberta, o Esc (que em tela cheia o navegador usa pra
+      // sair dela) fecha só a janela — a apresentação continua.
+      else if (overlaysRef.current.length) setOverlays((list) => list.slice(0, -1));
       else if (enteredFullscreen.current) onClose();
     }
     document.addEventListener("fullscreenchange", onChange);
@@ -65,6 +85,10 @@ export default function PresentMode({ deck, env, startIndex = 0, onClose }) {
   useEffect(() => {
     function onKey(event) {
       const key = event.key;
+      if (overlaysRef.current.length) {
+        if (key === "Escape") popOverlay();
+        return;
+      }
       if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(key)) {
         event.preventDefault();
         setBlack(false);
@@ -82,7 +106,7 @@ export default function PresentMode({ deck, env, startIndex = 0, onClose }) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [next, prev, slides.length, onClose, toggleFullscreen]);
+  }, [next, prev, slides.length, onClose, toggleFullscreen, popOverlay]);
 
   function poke() {
     setControls(true);
@@ -112,14 +136,21 @@ export default function PresentMode({ deck, env, startIndex = 0, onClose }) {
         className="absolute"
         style={{ left: (w - SLIDE_W * scale) / 2, top: (h - SLIDE_H * scale) / 2, width: SLIDE_W * scale, height: SLIDE_H * scale }}
         onClick={(event) => {
-          if (event.target.closest("button, a, .recharts-wrapper")) return;
+          if (event.target.closest("button, a, input, .recharts-wrapper, [data-interactive]")) return;
           next();
         }}
       >
         <div key={slide.id} className={transition !== "none" ? `slide-tr-${transition}` : undefined} style={{ width: SLIDE_W, height: SLIDE_H, transform: `scale(${scale})`, transformOrigin: "0 0" }}>
-          <SlideView slide={slide} deck={deck} env={{ ...env, mode: "present" }} number={index + 1} total={slides.length} />
+          <SlideView slide={slide} deck={deck} env={presentEnv} number={index + 1} total={slides.length} />
         </div>
       </div>
+      {overlays.map((overlay, i) =>
+        overlay.type === "ledger" ? (
+          <LedgerOverlay key={overlay.id} deck={deck} request={overlay.request} z={100 + i} onClose={popOverlay} />
+        ) : (
+          <ExplorerOverlay key={overlay.id} deck={deck} env={presentEnv} initial={overlay.initial} z={100 + i} onClose={popOverlay} onLedger={(request) => pushOverlay({ type: "ledger", request })} />
+        )
+      )}
       {black && <div className="absolute inset-0 bg-black" onClick={() => setBlack(false)} />}
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-white/10">
@@ -133,7 +164,7 @@ export default function PresentMode({ deck, env, startIndex = 0, onClose }) {
         </div>
       )}
 
-      <div className={`absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-black/70 px-2 py-1.5 text-white shadow-2xl ring-1 ring-white/10 backdrop-blur transition-opacity duration-300 ${controls ? "opacity-100" : "pointer-events-none opacity-0"}`}>
+      <div className={`absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-black/70 px-2 py-1.5 text-white shadow-2xl ring-1 ring-white/10 backdrop-blur transition-opacity duration-300 ${controls && !overlays.length ? "opacity-100" : "pointer-events-none opacity-0"}`}>
         <PresentButton title="Anterior (←)" onClick={prev} disabled={index === 0}>
           <ChevronLeft size={18} />
         </PresentButton>
