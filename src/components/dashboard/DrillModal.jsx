@@ -276,7 +276,7 @@ function LedgerView({ request, initialMonth, trail, onBack }) {
           </div>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap gap-1">
+          <div className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1 pb-0.5 sm:flex-wrap sm:overflow-visible">
             <Pill active={!month} onClick={() => setMonth("")}>Todos os meses</Pill>
             {data.monthly.map((item) => (
               <Pill key={item.month} active={month === item.month} onClick={() => setMonth(month === item.month ? "" : item.month)} className="drill-mes">
@@ -443,7 +443,7 @@ export default function DrillModal({ target, ctx, onClose }) {
           <>
             <div className="flex flex-col gap-2.5 border-b border-line px-5 py-3 sm:px-6">
               {drill.months.length > 1 && (
-                <div className="flex flex-wrap items-center gap-1">
+                <div className="-mx-1 flex items-center gap-1 overflow-x-auto px-1 pb-0.5 sm:flex-wrap sm:overflow-visible">
                   <Pill active={column === "total"} onClick={() => setColumn("total")}>Período todo</Pill>
                   {drill.months.map((month) => (
                     <Pill key={month} active={column === month} onClick={() => setColumn(month)} className="drill-coluna">

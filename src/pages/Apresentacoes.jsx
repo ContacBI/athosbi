@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Copy, Download, LayoutTemplate, MoreHorizontal, Pencil, Play, Plus, Presentation, Sparkles, Trash2 } from "lucide-react";
 import { useAppState, setData } from "../data/useStore.js";
 import { buildDashboardContext } from "../lib/dashboardData.js";
@@ -196,6 +196,12 @@ function DeckMenu({ onDuplicate, onDelete }) {
 export default function Apresentacoes() {
   const { deckId } = useParams();
   const navigate = useNavigate();
+  // "?apresentar=1" (vindo do resumo no celular): abre direto no modo
+  // apresentação; "&voltar=celular" faz o fechar voltar pro resumo.
+  const [searchParams] = useSearchParams();
+  const autoPresent = searchParams.get("apresentar") === "1";
+  const backTo = searchParams.get("voltar") === "celular" ? "/empresa/celular" : null;
+  const autoPresented = useRef(false);
   const state = useAppState();
   const [creating, setCreating] = useState(false);
   const [presenting, setPresenting] = useState(null); // { deck, index }
@@ -231,6 +237,12 @@ export default function Apresentacoes() {
     if (start && end && (start !== state.periodStart || end !== state.periodEnd)) setData({ periodStart: start, periodEnd: end });
   }, [deck, state.periodStart, state.periodEnd]);
 
+  useEffect(() => {
+    if (!autoPresent || !deck || autoPresented.current) return;
+    autoPresented.current = true;
+    setPresenting({ deck, index: 0 });
+  }, [autoPresent, deck]);
+
   const onPeriodChange = useCallback((start, end, saveIntoDeck) => {
     setData({ periodStart: start, periodEnd: end });
     saveIntoDeck?.({ start, end });
@@ -249,7 +261,17 @@ export default function Apresentacoes() {
 
   const overlays = (
     <>
-      {presenting && <PresentMode deck={presenting.deck} env={env} startIndex={presenting.index} onClose={() => setPresenting(null)} />}
+      {presenting && (
+        <PresentMode
+          deck={presenting.deck}
+          env={env}
+          startIndex={presenting.index}
+          onClose={() => {
+            setPresenting(null);
+            if (autoPresent && backTo) navigate(backTo);
+          }}
+        />
+      )}
       {exporting && <SlidesExporter deck={exporting.deck} env={env} only={exporting.only} onDone={() => setExporting(null)} />}
     </>
   );

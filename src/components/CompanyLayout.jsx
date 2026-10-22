@@ -1,10 +1,13 @@
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Smartphone } from "lucide-react";
 import CompanyTopBar from "./CompanyTopBar.jsx";
 import WorkspaceLoading from "./WorkspaceLoading.jsx";
 import { useAppState } from "../data/useStore.js";
 import { isResponsavelForGroup } from "../lib/colaboradores.js";
 import { PageActionsProvider } from "../lib/pageActions.jsx";
 import { densityColumnGap } from "../lib/density.js";
+import { useIsMobile } from "../lib/useIsMobile.js";
+import { setPrefersFullPanel } from "../lib/installApp.js";
 
 // Rotas de gestão/edição dentro do workspace da empresa — quem só tem
 // acesso de leitura nunca deveria nem abrir essas telas: o banco já recusa
@@ -26,6 +29,8 @@ const EDIT_ONLY_PREFIXES = ["/empresa/relatorios", "/empresa/de-para", "/empresa
 export default function CompanyLayout() {
   const state = useAppState();
   const location = useLocation();
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const company = state.companies.find((item) => item.id === state.activeCompanyId) || null;
 
   if (!company && !state.activeGroupId) {
@@ -50,10 +55,31 @@ export default function CompanyLayout() {
     return <Navigate to="/empresa" replace />;
   }
 
+  // Resumo no celular: tela própria, sem a barra do topo nem margens.
+  if (location.pathname === "/empresa/celular") {
+    return (
+      <PageActionsProvider>
+        <Outlet />
+      </PageActionsProvider>
+    );
+  }
+
   return (
     <PageActionsProvider>
       <div className="min-h-screen bg-surface-page">
         <CompanyTopBar company={company} />
+        {isMobile && (
+          <button
+            type="button"
+            onClick={() => {
+              setPrefersFullPanel(false);
+              navigate("/empresa/celular");
+            }}
+            className="celular-atalho flex w-full items-center justify-center gap-2 bg-accent-50 px-4 py-2 text-[13px] font-medium text-accent-700"
+          >
+            <Smartphone size={15} /> Ver o resumo para celular
+          </button>
+        )}
         {/* --col-gap cascata pra qualquer grid de demonstrativo (DRE/BP/DFC)
             que use gap-x-[var(--col-gap,...)] — distância entre as colunas
             de mês, ajustável em ReportSettingsMenu (ver lib/density.js). */}
