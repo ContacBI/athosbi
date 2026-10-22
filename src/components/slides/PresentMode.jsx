@@ -205,8 +205,9 @@ function PresentButton({ children, title, onClick, disabled, active }) {
 
 // Monta os slides fora da tela (cada um no seu invólucro fixo 0×0 em 0,0 —
 // ver slidesPdf.js) e tira o print de um por um. `only` = índice de um
-// slide só (PNG); sem ele, PDF com todos os visíveis.
-export function SlidesExporter({ deck, env, only = null, onDone }) {
+// slide só (PNG); sem ele, PDF com todos os visíveis — ou PowerPoint
+// (format "pptx", ver slidesPptx.js).
+export function SlidesExporter({ deck, env, only = null, format = "pdf", onDone }) {
   const slides = useMemo(() => (only != null ? [deck.slides[only]].filter(Boolean) : visibleSlides(deck)), [deck, only]);
   const refs = useRef([]);
   const [progress, setProgress] = useState({ done: 0, total: slides.length });
@@ -220,7 +221,10 @@ export function SlidesExporter({ deck, env, only = null, onDone }) {
         const fileLabel = slug(`${deck.name}_${env.info.empresa}`) || "apresentacao";
         const fontCss = await embeddedFontCss(deckFontFamilies(deck));
         if (only != null) await exportSlidePng({ node: nodes[0], fileLabel: `${fileLabel}_slide_${only + 1}`, fontCss });
-        else await exportSlidesPdf({ nodes, fileLabel, title: deck.name, fontCss, onProgress: (done, total) => alive && setProgress({ done, total }) });
+        else if (format === "pptx") {
+          const { exportSlidesPptx } = await import("../../lib/slidesPptx.js");
+          await exportSlidesPptx({ nodes, slides, deck, info: env.info, fileLabel, fontCss, onProgress: (done, total) => alive && setProgress({ done, total }) });
+        } else await exportSlidesPdf({ nodes, fileLabel, title: deck.name, fontCss, onProgress: (done, total) => alive && setProgress({ done, total }) });
         if (alive) onDone();
       } catch (err) {
         console.error("Falha ao gerar o arquivo da apresentação:", err);
@@ -256,7 +260,7 @@ export function SlidesExporter({ deck, env, only = null, onDone }) {
           ) : (
             <>
               <Loader2 size={28} className="animate-spin text-accent-500" />
-              <p className="text-[14px] font-medium text-ink-900">{only != null ? "Gerando a imagem…" : "Gerando o PDF…"}</p>
+              <p className="text-[14px] font-medium text-ink-900">{only != null ? "Gerando a imagem…" : format === "pptx" ? "Gerando o PowerPoint…" : "Gerando o PDF…"}</p>
               {only == null && (
                 <>
                   <p className="text-[12.5px] tabular-nums text-ink-500">

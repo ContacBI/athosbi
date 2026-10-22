@@ -30,7 +30,9 @@ async function imagesReady(node) {
 // fontCss: as fontes da apresentação embutidas (ver embeddedFontCss em
 // slideFonts.js) — vão dentro do slide capturado, senão o print sai com a
 // fonte padrão do navegador.
-export async function captureSlide(node, scale = 2, fontCss = "") {
+// prepare(clone): mexe no slide clonado antes do print (o PowerPoint usa
+// para esconder os textos — ver slidesPptx.js).
+export async function captureSlide(node, scale = 2, fontCss = "", prepare = null) {
   await imagesReady(node);
   const width = node.offsetWidth;
   const height = node.offsetHeight;
@@ -45,11 +47,16 @@ export async function captureSlide(node, scale = 2, fontCss = "") {
     scrollX: 0,
     scrollY: 0,
     logging: false,
+    // Só o slide (e quem está acima dele) entra no clone — o resto da tela
+    // (editor, miniaturas…) não precisa ser copiado a cada print.
+    ignoreElements: (element) => element.closest?.("body") && element !== document.body && !element.contains(node) && !node.contains(element),
     onclone: (doc, element) => {
-      if (!fontCss) return;
-      const style = doc.createElement("style");
-      style.textContent = fontCss;
-      element.prepend(style);
+      if (fontCss) {
+        const style = doc.createElement("style");
+        style.textContent = fontCss;
+        element.prepend(style);
+      }
+      prepare?.(element);
     },
   });
   const canvas = document.createElement("canvas");
