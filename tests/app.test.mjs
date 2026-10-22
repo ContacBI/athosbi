@@ -226,6 +226,43 @@ const { favoriteOverrides } = await src("lib/officeLibrary.js");
 const kept = favoriteOverrides({ period: { start: "2026-01-01", end: "2026-01-31" }, audience: "socios", size: 8 });
 check("Pedido salvo não leva o período (e leva o resto)", !("period" in kept) && kept.audience === "socios" && kept.size === 8, kept);
 
+// ── Sugestão de De/Para ──
+section("Sugestão de De/Para");
+const { suggestDepara, mappingFromSuggestion } = await src("lib/deparaSugestao.js");
+const vinc = (classificacao, nome_conta, codigo_gerencial, codigo_conta = "") => ({ classificacao, nome_conta, codigo_gerencial, codigo_conta });
+const conta = (classificacao, nome_conta, codigo = "") => ({ classificacao, nome_conta, codigo, tipo_sintetica: "nao" });
+const sugerir = (accounts, extra = {}) => {
+  const result = suggestDepara({ accounts, mappings: extra.mappings || [], otherCompanies: extra.others || [], plano, natureRules: DEFAULT_NATURE_RULES, ...extra.options });
+  return (classificacao) => result.suggestions.find((item) => item.account.classificacao === classificacao);
+};
+const proprios = [vinc("1.1.2.01", "CLIENTE ALFA", "01.01.02.01.02", "501"), vinc("1.1.2.02", "CLIENTE BETA", "01.01.02.01.02", "502"), vinc("1.1.2.03", "CLIENTE DELTA", "01.01.02.01.02", "503")];
+const irmas = sugerir([conta("1.1.2.04", "CLIENTE GAMA")], { mappings: proprios })("1.1.2.04");
+check("Conta nova entre irmãs que vão todas pro mesmo lugar → alta", irmas.row?.codigo_gerencial === "01.01.02.01.02" && irmas.confidence === "alta", irmas.reason);
+const renumerada = sugerir([conta("1.1.9.01", "BANCO EXEMPLO S/A", "777")], { mappings: [vinc("1.1.1.02", "BANCO EXEMPLO S/A", "01.01.01.02.01", "777")] })("1.1.9.01");
+check("A mesma conta com outro número → mesma linha", renumerada.row?.codigo_gerencial === "01.01.01.02.01" && renumerada.confidence === "alta", renumerada.reason);
+const destoa = sugerir([conta("1.1.2.05", "CLIENTE OMEGA", "900")], { mappings: [...proprios, vinc("1.1.2.99", "CLIENTE OMEGA", "01.01.01.02.01", "900")] })("1.1.2.05");
+check("Vínculo antigo que destoa das irmãs perde para elas", destoa.row?.codigo_gerencial === "01.01.02.01.02", destoa.reason);
+const outras = [
+  { id: "a", name: "Empresa A", mappings: [vinc("9.5.1.01", "Energia Elétrica", "DRE.07.02.01.01")] },
+  { id: "b", name: "Empresa B", mappings: [vinc("9.7.2.11", "ENERGIA ELETRICA", "DRE.07.02.01.01")] },
+];
+const carteira = sugerir([conta("9.3.4.01", "ENERGIA ELÉTRICA")], { others: outras })("9.3.4.01");
+check("Mesmo nome em 2 empresas da carteira → alta", carteira.row?.codigo_gerencial === "DRE.07.02.01.01" && carteira.confidence === "alta" && /2 de 2/.test(carteira.reason), carteira.reason);
+const naturezaErrada = sugerir([conta("9.3.5.01", "CONTA ESQUISITA XYZ")], { others: [{ id: "c", mappings: [vinc("9.1.1.01", "CONTA ESQUISITA XYZ", "01.01.01.01.01")] }] })("9.3.5.01");
+check("Nunca sugere linha de natureza diferente (despesa → caixa)", naturezaErrada.row?.codigo_gerencial !== "01.01.01.01.01", naturezaErrada.row?.codigo_gerencial);
+const outroPlano = [{ id: "d", planoPadraoId: "pp_outro", mappings: [vinc("9.5.1.01", "ENERGIA ELETRICA", "DRE.07.02.01.01")] }];
+const semGlobal = sugerir([conta("9.3.4.01", "ENERGIA ELETRICA")], { others: outroPlano, options: { globalCodes: new Set() } })("9.3.4.01");
+const comGlobal = sugerir([conta("9.3.4.01", "ENERGIA ELETRICA")], { others: outroPlano, options: { globalCodes: new Set(["DRE.07.02.01.01"]) } })("9.3.4.01");
+check("Outro plano padrão só vale com linha do plano global", semGlobal.row?.codigo_gerencial !== "DRE.07.02.01.01" && comGlobal.row?.codigo_gerencial === "DRE.07.02.01.01", [semGlobal.row?.codigo_gerencial, comGlobal.row?.codigo_gerencial]);
+const parecida = sugerir([conta("9.3.6.01", "ASSINATURA DE JORNAIS E REVISTAS")], { others: [{ id: "e", name: "Empresa E", mappings: [vinc("9.2.2.01", "ASSINATURA DE JORNAIS", "DRE.07.02.01.01")] }] })("9.3.6.01");
+check("Nome parecido em outra empresa → média, com o motivo", parecida.row?.codigo_gerencial === "DRE.07.02.01.01" && parecida.confidence === "media" && /Empresa E/.test(parecida.reason), parecida.reason);
+const nada = sugerir([conta("9.3.7.01", "QWERTY ZXCVB")])("9.3.7.01");
+check("Sem pista nenhuma → sem sugestão (não inventa)", !nada.row && !nada.confidence, nada);
+const gravado = mappingFromSuggestion(irmas);
+check("Vínculo aceito fica marcado como sugerido", gravado.codigo_gerencial === "01.01.02.01.02" && gravado.observacao.startsWith("Sugerido (Alta)") && gravado.categoria_gerencial === irmas.row.nome, gravado);
+const todas = suggestDepara({ accounts: company.accounts, mappings: company.mappings, plano });
+check("Empresa toda vinculada → nada pendente", todas.pending.length === 0 && todas.suggestions.length === 0, todas.counts);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
