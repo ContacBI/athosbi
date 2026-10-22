@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Copy, Download, MoreHorizontal, Pencil, Play, Plus, Presentation, Trash2 } from "lucide-react";
+import { Copy, Download, LayoutTemplate, MoreHorizontal, Pencil, Play, Plus, Presentation, Sparkles, Trash2 } from "lucide-react";
 import { useAppState, setData } from "../data/useStore.js";
 import { buildDashboardContext } from "../lib/dashboardData.js";
 import { isResponsavelForGroup } from "../lib/colaboradores.js";
 import { DECK_TEMPLATES, THEMES, deletePresentation, duplicatePresentation, fontStack, makePresentation, themeById, tokenInfo, upsertPresentation } from "../lib/presentations.js";
 import SlideEditor from "../components/slides/SlideEditor.jsx";
+import AssistantBuilder from "../components/slides/AssistantBuilder.jsx";
 import PresentMode, { SlidesExporter, visibleSlides } from "../components/slides/PresentMode.jsx";
 import { Modal, SlideThumb } from "../components/slides/pickers.jsx";
 import "../lib/slideFonts.js";
@@ -18,93 +19,152 @@ function formatWhen(iso) {
 }
 
 function NewDeckModal({ onCreate, onClose, env }) {
+  const [mode, setMode] = useState("contexto");
   const [name, setName] = useState("");
   const [templateId, setTemplateId] = useState("resultados");
   const [themeId, setThemeId] = useState("athos-premium");
   const [brand, setBrand] = useState("athos");
   const preview = useMemo(() => makePresentation({ templateId, themeId, brand }), [templateId, themeId, brand]);
-  return (
-    <Modal title="Nova apresentação" subtitle="Escolha um modelo e um tema — depois dá pra mudar absolutamente tudo." onClose={onClose} width="max-w-5xl">
-      <div className="grid gap-6 p-6 lg:grid-cols-[1fr_380px]">
-        <div className="flex flex-col gap-5">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-medium text-ink-600">Nome</span>
-            <input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder={DECK_TEMPLATES.find((t) => t.id === templateId)?.label} className="h-10 rounded-lg border border-line bg-surface-card px-3 text-[14px] outline-none focus:border-accent-400" />
-          </label>
-          <div>
-            <p className="mb-2 text-[12px] font-medium text-ink-600">Marca</p>
-            <div className="grid grid-cols-2 gap-2">
-              {BRANDS.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    setBrand(item.id);
-                    setThemeId(item.themeId);
-                  }}
-                  className={`flex h-16 items-center justify-center rounded-xl border bg-white px-4 transition-colors ${brand === item.id ? "border-accent-500 ring-1 ring-accent-500" : "border-line hover:border-accent-300"}`}
-                  title={`Logo e assinatura da ${item.name} nos slides`}
-                >
-                  <img src={brandLogoFor(item.id, false).src} alt={item.name} className="h-8" />
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="mb-2 text-[12px] font-medium text-ink-600">Modelo</p>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {DECK_TEMPLATES.map((template) => (
-                <button
-                  key={template.id}
-                  type="button"
-                  onClick={() => setTemplateId(template.id)}
-                  className={`rounded-xl border p-3 text-left transition-colors ${templateId === template.id ? "border-accent-500 bg-accent-50" : "border-line hover:border-accent-300"}`}
-                >
-                  <span className="block text-[13px] font-semibold text-ink-900">{template.label}</span>
-                  <span className="mt-1 block text-[11.5px] leading-snug text-ink-500">{template.description}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="mb-2 text-[12px] font-medium text-ink-600">Tema</p>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {THEMES.map((theme) => (
-                <button key={theme.id} type="button" onClick={() => setThemeId(theme.id)} className={`overflow-hidden rounded-lg text-left ring-1 transition-all ${themeId === theme.id ? "ring-2 ring-accent-500" : "ring-line hover:ring-accent-300"}`}>
-                  <span className="relative block h-12" style={{ background: theme.colors.bg }}>
-                    <span className="absolute left-2 top-1.5 text-[13px] font-bold" style={{ color: theme.colors.text, fontFamily: fontStack(theme.headingFont, theme) }}>
-                      Aa
-                    </span>
-                    <span className="absolute bottom-1.5 left-2 flex gap-1">
-                      {["accent", "accent2", "accent3"].map((key) => (
-                        <span key={key} className="h-2.5 w-2.5 rounded-full" style={{ background: theme.colors[key] }} />
-                      ))}
-                    </span>
-                  </span>
-                  <span className="block px-2 py-1 text-[11px] font-medium text-ink-700">{theme.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="flex flex-col gap-3">
-          <p className="text-[12px] font-medium text-ink-600">Prévia ({preview.slides.length} slides)</p>
-          <div className="grid grid-cols-2 gap-2">
-            {preview.slides.slice(0, 6).map((slide, i) => (
-              <span key={slide.id} className="overflow-hidden rounded-md ring-1 ring-line">
-                <SlideThumb slide={slide} deck={preview} env={env} width={184} number={i + 1} total={preview.slides.length} />
-              </span>
-            ))}
-          </div>
+
+  const nameField = (placeholder) => (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-[12px] font-medium text-ink-600">Nome</span>
+      <input value={name} onChange={(event) => setName(event.target.value)} placeholder={placeholder} className="h-10 rounded-lg border border-line bg-surface-card px-3 text-[14px] outline-none focus:border-accent-400" />
+    </label>
+  );
+  const brandField = (
+    <div>
+      <p className="mb-2 text-[12px] font-medium text-ink-600">Marca</p>
+      <div className="grid grid-cols-2 gap-2">
+        {BRANDS.map((item) => (
           <button
+            key={item.id}
             type="button"
-            onClick={() => onCreate({ ...preview, name: name.trim() || preview.name, theme: themeById(themeId) })}
-            className="mt-auto flex h-11 items-center justify-center gap-2 rounded-lg bg-accent-500 text-[14px] font-semibold text-white hover:bg-accent-600"
+            onClick={() => {
+              setBrand(item.id);
+              setThemeId(item.themeId);
+            }}
+            className={`flex h-16 items-center justify-center rounded-xl border bg-white px-4 transition-colors ${brand === item.id ? "border-accent-500 ring-1 ring-accent-500" : "border-line hover:border-accent-300"}`}
+            title={`Logo e assinatura da ${item.name} nos slides`}
           >
-            <Plus size={16} /> Criar e editar
+            <img src={brandLogoFor(item.id, false).src} alt={item.name} className="h-8" />
           </button>
-        </div>
+        ))}
       </div>
+    </div>
+  );
+  const themeField = (
+    <div>
+      <p className="mb-2 text-[12px] font-medium text-ink-600">Tema</p>
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+        {THEMES.map((theme) => (
+          <button key={theme.id} type="button" onClick={() => setThemeId(theme.id)} className={`overflow-hidden rounded-lg text-left ring-1 transition-all ${themeId === theme.id ? "ring-2 ring-accent-500" : "ring-line hover:ring-accent-300"}`}>
+            <span className="relative block h-12" style={{ background: theme.colors.bg }}>
+              <span className="absolute left-2 top-1.5 text-[13px] font-bold" style={{ color: theme.colors.text, fontFamily: fontStack(theme.headingFont, theme) }}>
+                Aa
+              </span>
+              <span className="absolute bottom-1.5 left-2 flex gap-1">
+                {["accent", "accent2", "accent3"].map((key) => (
+                  <span key={key} className="h-2.5 w-2.5 rounded-full" style={{ background: theme.colors[key] }} />
+                ))}
+              </span>
+            </span>
+            <span className="block px-2 py-1 text-[11px] font-medium text-ink-700">{theme.name}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const tabs = (
+    <div className="flex gap-1 border-b border-line px-6 pt-3">
+      {[
+        { id: "contexto", label: "Montar pelo contexto", icon: Sparkles },
+        { id: "modelos", label: "Modelos prontos", icon: LayoutTemplate },
+      ].map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          onClick={() => setMode(tab.id)}
+          className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 pb-2.5 pt-1 text-[13px] font-semibold transition-colors ${mode === tab.id ? "border-accent-500 text-accent-700" : "border-transparent text-ink-500 hover:text-ink-800"}`}
+        >
+          <tab.icon size={15} /> {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  return (
+    <Modal
+      title="Nova apresentação"
+      subtitle={mode === "contexto" ? "Escreva (ou fale) o que precisa — o assistente lê os números e monta os slides com a marca e o tema escolhidos." : "Escolha um modelo e um tema — depois dá pra mudar absolutamente tudo."}
+      onClose={onClose}
+      width={mode === "contexto" ? "max-w-6xl" : "max-w-5xl"}
+    >
+      {tabs}
+      {mode === "contexto" ? (
+        <AssistantBuilder
+          env={env}
+          brand={brand}
+          themeId={themeId}
+          name={name}
+          onBrand={(id) => {
+            setBrand(id);
+            setThemeId(BRANDS.find((item) => item.id === id)?.themeId || themeId);
+          }}
+          shared={
+            <div className="flex flex-col gap-5 rounded-xl border border-line p-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                {nameField("O assistente sugere um nome")}
+                {brandField}
+              </div>
+              {themeField}
+            </div>
+          }
+          onCreate={(deck) => onCreate({ ...deck, theme: themeById(themeId) })}
+        />
+      ) : (
+        <div className="grid gap-6 p-6 lg:grid-cols-[1fr_380px]">
+          <div className="flex flex-col gap-5">
+            {nameField(DECK_TEMPLATES.find((t) => t.id === templateId)?.label)}
+            {brandField}
+            <div>
+              <p className="mb-2 text-[12px] font-medium text-ink-600">Modelo</p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {DECK_TEMPLATES.map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => setTemplateId(template.id)}
+                    className={`rounded-xl border p-3 text-left transition-colors ${templateId === template.id ? "border-accent-500 bg-accent-50" : "border-line hover:border-accent-300"}`}
+                  >
+                    <span className="block text-[13px] font-semibold text-ink-900">{template.label}</span>
+                    <span className="mt-1 block text-[11.5px] leading-snug text-ink-500">{template.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {themeField}
+          </div>
+          <div className="flex flex-col gap-3">
+            <p className="text-[12px] font-medium text-ink-600">Prévia ({preview.slides.length} slides)</p>
+            <div className="grid grid-cols-2 gap-2">
+              {preview.slides.slice(0, 6).map((slide, i) => (
+                <span key={slide.id} className="overflow-hidden rounded-md ring-1 ring-line">
+                  <SlideThumb slide={slide} deck={preview} env={env} width={184} number={i + 1} total={preview.slides.length} />
+                </span>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => onCreate({ ...preview, name: name.trim() || preview.name, theme: themeById(themeId) })}
+              className="mt-auto flex h-11 items-center justify-center gap-2 rounded-lg bg-accent-500 text-[14px] font-semibold text-white hover:bg-accent-600"
+            >
+              <Plus size={16} /> Criar e editar
+            </button>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }
