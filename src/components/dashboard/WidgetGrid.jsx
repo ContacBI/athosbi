@@ -33,9 +33,17 @@ import { budgetFor } from "../../lib/budget.js";
 import { buildCashBridge, bridgeSentence } from "../../lib/cashBridge.js";
 import { CashBridgeChart } from "../CashBridgeView.jsx";
 import ReportSettingsMenu from "../ReportSettingsMenu.jsx";
+import { lineFormula } from "../../lib/drill.js";
+import DrillModal from "./DrillModal.jsx";
 import { GRID_COLS, ROW_HEIGHT, layoutFor, marginPxFor, DEFAULT_SPACING } from "./gridLayout.js";
 
 const GridLayout = WidthProvider(RGL);
+
+// "De onde vem esse número?" (DrillModal): quem renderiza a grade (painel
+// e Personalizar) fornece a função que abre a composição; as tabelas do
+// B.I. usam pra deixar cada linha clicável. Fora disso (slides, prévia do
+// catálogo) é null e nada fica clicável.
+export const DrillContext = createContext(null);
 
 // Widget dentro de um slide (ver components/slides): o bloco tem tamanho
 // fixo, então as pizzas crescem junto com ele (em vez dos 192px fixos do
@@ -931,9 +939,11 @@ function ChartWidgetCard({ definition, ctx }) {
 function TableWidgetCard({ definition, ctx, maxRows }) {
   const state = useAppState();
   const slide = useContext(WidgetFillContext);
+  const openDrill = useContext(DrillContext);
   const [expandedRows, setExpandedRows] = useState(new Set());
   const tab = definition.table === "bp" ? "BP" : definition.table?.startsWith("dfc_") ? "DFC" : "DRE";
   const isDfc = tab === "DFC";
+  const canDrill = Boolean(openDrill) && !slide && !isDfc;
   // dfc_direta/dfc_indireta refazem a busca de contrapartida (combinação,
   // não mais barata) pra cada lançamento de caixa do período — sem memo
   // isso rodava de novo a cada render, inclusive só de abrir/fechar uma
@@ -1014,13 +1024,16 @@ function TableWidgetCard({ definition, ctx, maxRows }) {
           const isBold = row.isFormula || Number(row.nivel || 0) <= 1;
           const children = isDfc ? row.contas || [] : [];
           const isOpen = expandedRows.has(row.codigo_gerencial);
+          const drillable = canDrill && row.natureza !== "heading";
+          const onRowClick = children.length ? () => toggleRow(row.codigo_gerencial) : drillable ? () => openDrill({ label: row.categoria_gerencial, formula: lineFormula(row) }) : undefined;
           return (
             <div key={row.codigo_gerencial}>
               <div
-                role={children.length ? "button" : undefined}
-                tabIndex={children.length ? 0 : undefined}
-                onClick={children.length ? () => toggleRow(row.codigo_gerencial) : undefined}
-                className={`grid items-center gap-3 text-[13px] ${isBold ? "border-t border-line pt-1.5 font-semibold text-ink-900" : "text-ink-600"} ${children.length ? "cursor-pointer hover:bg-surface-muted" : ""}`}
+                role={onRowClick ? "button" : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
+                onClick={onRowClick}
+                title={drillable ? "Ver de onde vem este número" : undefined}
+                className={`grid items-center gap-3 text-[13px] ${isBold ? "border-t border-line pt-1.5 font-semibold text-ink-900" : "text-ink-600"} ${onRowClick ? "widget-table-row cursor-pointer rounded hover:bg-surface-muted" : ""}`}
                 style={{ gridTemplateColumns: `minmax(180px, 1fr) ${columns.map(() => valueCol).join(" ")}` }}
               >
                 <span className="flex min-w-0 items-center gap-1 truncate">
@@ -1222,14 +1235,19 @@ export default function WidgetGrid({ widgets, ctx, spacing = DEFAULT_SPACING }) 
     });
   }, [desktopLayout, isMobile]);
 
+  const [drillFor, setDrillFor] = useState(null);
   function handleOpenDetail(definition) {
+    if (definition.formula) {
+      setDrillFor({ label: definition.label, formula: definition.formula });
+      return;
+    }
     const { value, format } = definition.value(ctx);
     const detail = definition.detail(ctx);
     setDetailFor({ title: definition.label, value: formatWidgetValue(value, format), ...detail });
   }
 
   return (
-    <>
+    <DrillContext.Provider value={setDrillFor}>
       <GridLayout
         className="layout"
         layout={layout}
@@ -1251,7 +1269,8 @@ export default function WidgetGrid({ widgets, ctx, spacing = DEFAULT_SPACING }) 
         })}
       </GridLayout>
       <DetailModal detail={detailFor} onClose={() => setDetailFor(null)} />
-    </>
+      {drillFor && <DrillModal target={drillFor} ctx={ctx} onClose={() => setDrillFor(null)} />}
+    </DrillContext.Provider>
   );
 }
 

@@ -1947,7 +1947,7 @@ function normalize(value) {
 // (empresa 70) tem na Domínio; sem reconhecer, a DRE do mês fecha em zero (receita e despesa se anulam).
 const RESULT_CLOSING_HISTORICO = /^(referente a )?apuracao d[eo] resultado (((do|de) (exercicio|periodo|mes|trimestre|ano))( em\b|$)|em\b)/;
 
-function isResultClosingEntry(entry) {
+export function isResultClosingEntry(entry) {
   return RESULT_CLOSING_HISTORICO.test(normalize(entry?.historico));
 }
 

@@ -5,6 +5,7 @@ import {
   counterpartsForEntry,
   entriesForAccount,
   isCashGerencialCode,
+  isResultClosingEntry,
   journalByCompanyAndDate,
 } from "../data/calculations.js";
 import { accumulatedBalanceValue } from "./reportColumns.js";
@@ -280,7 +281,13 @@ export function ledgerData(request) {
     entries = (row.dfcEntries || []).filter((entry) => isCashGerencialCode(entry.codigo_gerencial));
   } else {
     entries = entriesForAccount(row.classificacao);
-    if (source === "DRE") sign = -1;
+    // O lançamento de encerramento ("Apuração de resultado em…") zera as
+    // contas de resultado e fica fora da DRE — fora do razão também, senão
+    // o total da conta aqui não bate com o valor dela no relatório.
+    if (source === "DRE") {
+      sign = -1;
+      entries = entries.filter((entry) => !isResultClosingEntry(entry));
+    }
     if (source === "BP") {
       sign = /^0[23]/.test(String(parentCode || "")) ? -1 : 1;
       opening = Number(row.saldo_inicial ?? row.saldo_anterior_balancete ?? 0);
@@ -311,6 +318,8 @@ export function ledgerData(request) {
       value,
       running,
       company: entry.companyName || "",
+      account: entry.classificacao,
+      accountName: entry.descricao_conta || entry.classificacao || "",
       counterpart: source === "DFC" ? entry.descricao_conta || "" : counterparts.map((item) => item.descricao_conta || item.categoria_gerencial || item.classificacao).join(" · "),
     };
   });
