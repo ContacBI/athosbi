@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Bar,
   CartesianGrid,
@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ChevronRight, Maximize2, Minimize2, Search, TriangleAlert } from "lucide-react";
+import { ChevronRight, Maximize2, Minimize2, ScanSearch, Search, TriangleAlert } from "lucide-react";
 import { useAppState, setData, state } from "../data/useStore.js";
 import { visibleReportRows, missingMappingAccounts, reportMonths, buildReportTree, balanceteCobrePeriodo } from "../data/calculations.js";
 import { rowsForPeriod, rowValue, rowKey } from "../lib/periodCompare.js";
@@ -28,6 +28,7 @@ import MiniBar from "../components/MiniBar.jsx";
 import ReportSettingsMenu from "../components/ReportSettingsMenu.jsx";
 import PeriodPicker from "../components/PeriodPicker.jsx";
 import { comparisonPeriod, dataMonths } from "../lib/assistant/context.js";
+import { detectAnomalies } from "../lib/anomalias.js";
 
 const MODES = [
   { id: "padrao", label: "Padrão" },
@@ -273,6 +274,15 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
         ? location.state.tab
         : null;
   const [tab, setTab] = useState(lockedTab || "DRE");
+  // Atalho para a Conferência dos lançamentos (ver pages/Conferencia.jsx):
+  // só na tela própria dos Demonstrativos, para quem edita a empresa.
+  const navigate = useNavigate();
+  const activeCompany = appState.activeGroupId ? null : appState.companies.find((item) => item.id === appState.activeCompanyId);
+  const canConfer = Boolean(activeCompany) && !lockedTabProp && location.pathname.startsWith("/empresa/demonstrativos") && (appState.isAdmin || (activeCompany.responsaveis || []).includes(appState.userEmail));
+  const conferencia = useMemo(
+    () => (canConfer && appState.journal.length ? detectAnomalies(appState.journal, { start: appState.periodStart, end: appState.periodEnd, natureRules: appState.natureRules, dismissed: activeCompany.anomaliasOk || [] }) : null),
+    [canConfer, appState.journal, appState.periodStart, appState.periodEnd, appState.natureRules, activeCompany]
+  );
   // When this page is embedded directly inside a sub-tab (Personalizar or
   // the live painel), the same <Demonstrativos> instance is reused as the
   // user switches between sibling sub-tabs (e.g. "Balanço" → "DRE") — React
@@ -693,6 +703,18 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {conferencia && (
+              <button
+                type="button"
+                onClick={() => navigate("/empresa/conferencia")}
+                title={conferencia.open ? "Lançamentos que parecem erro no período (repetidos, valores fora do padrão…)" : "Nada estranho nos lançamentos do período"}
+                className={`demonstrativos-conferencia flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] font-medium transition-colors ${conferencia.alta ? "border-danger-200 bg-danger-50 text-danger-600 hover:bg-danger-50/70" : "border-line-strong text-ink-600 hover:bg-surface-muted"}`}
+              >
+                <ScanSearch size={14} strokeWidth={1.8} />
+                <span className="hidden md:inline">Conferir lançamentos</span>
+                {conferencia.open > 0 && <span className={`rounded-full px-1.5 text-[10.5px] font-semibold tabular-nums ${conferencia.alta ? "bg-danger-600 text-white" : "bg-surface-muted text-ink-600"}`}>{conferencia.open}</span>}
+              </button>
+            )}
             <ReportSettingsMenu tab={tab} />
             <button
               type="button"

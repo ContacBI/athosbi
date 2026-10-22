@@ -34,6 +34,7 @@ const PersonalizarHub = lazy(() => import("./pages/PersonalizarHub.jsx"));
 const Demonstrativos = lazy(() => import("./pages/Demonstrativos.jsx"));
 const Dfc = lazy(() => import("./pages/Dfc.jsx"));
 const Depara = lazy(() => import("./pages/Depara.jsx"));
+const Conferencia = lazy(() => import("./pages/Conferencia.jsx"));
 const VinculoDfc = lazy(() => import("./pages/VinculoDfc.jsx"));
 const RelatoriosMensais = lazy(() => import("./pages/RelatoriosMensais.jsx"));
 const Apresentacoes = lazy(() => import("./pages/Apresentacoes.jsx"));
@@ -213,6 +214,7 @@ function AuthedApp() {
           <Route path="demonstrativos" element={<Demonstrativos />} />
           <Route path="dfc" element={<Dfc />} />
           <Route path="de-para" element={<Depara />} />
+          <Route path="conferencia" element={<Conferencia />} />
           <Route path="vinculo-dfc" element={<VinculoDfc />} />
           <Route path="relatorios" element={<RelatoriosMensais />} />
           <Route path="apresentacoes" element={<Apresentacoes />} />

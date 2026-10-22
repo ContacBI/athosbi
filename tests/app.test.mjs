@@ -263,6 +263,34 @@ check("Vínculo aceito fica marcado como sugerido", gravado.codigo_gerencial ===
 const todas = suggestDepara({ accounts: company.accounts, mappings: company.mappings, plano });
 check("Empresa toda vinculada → nada pendente", todas.pending.length === 0 && todas.suggestions.length === 0, todas.counts);
 
+// ── Conferência dos lançamentos ──
+section("Conferência dos lançamentos");
+const { detectAnomalies } = await src("lib/anomalias.js");
+const conferir = (entries, extra = {}) => detectAnomalies(entries, { start: PERIOD.start, end: PERIOD.end, natureRules: DEFAULT_NATURE_RULES, ...extra });
+const limpo = conferir(journal);
+check("Razão da empresa-exemplo: nada estranho", limpo.open === 0, limpo.items.map((item) => `${item.kind} ${item.conta}`));
+const venda = journal.filter((entry) => entry.linha_origem === journal[0].linha_origem);
+const repetido = conferir([...journal, ...venda.map((entry) => ({ ...entry, linha_origem: "9001" }))]);
+const dup = repetido.items.find((item) => item.kind === "duplicado");
+check("Lançamento repetido é apontado (com as duas cópias)", repetido.byKind.duplicado === 1 && dup?.entries.length === 4 && dup.value === venda[0].debito + venda[1].debito, dup?.reason);
+const apuracao = [
+  { data: "2026-03-31", debito: 5000, credito: 0, historico: "APURAÇÃO DE RESULTADO EM 31.03.2026", linha_origem: "9101", classificacao: "9.1.1.01", demonstrativo: "DRE" },
+  { data: "2026-03-31", debito: 5000, credito: 0, historico: "APURAÇÃO DE RESULTADO EM 31.03.2026", linha_origem: "9102", classificacao: "9.1.1.01", demonstrativo: "DRE" },
+];
+check("Apuração do resultado não conta como repetido", conferir([...journal, ...apuracao]).byKind.duplicado === 0, null);
+const material = (dia, valor, linha) => ({ data: `2026-0${1 + (dia % 3)}-${String(10 + dia).padStart(2, "0")}`, debito: valor, credito: 0, historico: `MATERIAL DE ESCRITORIO ${linha}`, linha_origem: linha, classificacao: "9.3.4.01", descricao_conta: "MATERIAL DE ESCRITORIO", demonstrativo: "DRE" });
+const comMaterial = [...journal, ...Array.from({ length: 10 }, (_, i) => material(i, 90 + i * 5, `95${i}`)), material(11, 5000, "9599")];
+const fora = conferir(comMaterial).items.find((item) => item.kind === "valor");
+check("Valor fora do padrão da conta (R$ 5.000 onde o normal é ~R$ 110)", fora?.value === 5000 && fora.level === "alta", fora?.reason);
+const estorno = { data: "2026-03-15", debito: 0, credito: 20000, historico: "ESTORNO ALUGUEL", linha_origem: "9701", classificacao: "9.3.2.01", descricao_conta: "ALUGUEL", demonstrativo: "DRE" };
+const invertido = conferir([...journal, estorno]).items.find((item) => item.kind === "sinal");
+check("Despesa credora no mês = sinal invertido", invertido?.month === "2026-03" && invertido.value === 12000, invertido?.reason);
+const marcado = conferir([...journal, estorno], { dismissed: [invertido.id] });
+check("“Está certo” tira o aviso da lista", marcado.open === 0 && marcado.dismissed === 1 && marcado.items[0].dismissed, marcado.open);
+const { journalStatsFromEntries } = await src("lib/carteira.js");
+const resumo = journalStatsFromEntries([...journal, ...venda.map((entry) => ({ ...entry, linha_origem: "9001" }))], company.mappings).anomalias;
+check("Saúde da carteira recebe o resumo dos 2 últimos meses", resumo?.from === "2026-02" && resumo.to === "2026-03" && resumo.open === 0, resumo);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
