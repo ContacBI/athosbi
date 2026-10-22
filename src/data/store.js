@@ -133,6 +133,9 @@ export const state = {
   // pages/Apresentacoes.jsx. Mesmo caminho de dashboardTabs: entra em
   // selectCompany/selectGroup e sai em persistActiveCompany.
   presentations: [],
+  // Orçamento x Realizado (ver lib/budget.js e pages/Orcamento.jsx) —
+  // versões por ano, no registro da empresa/grupo como as apresentações.
+  orcamentos: [],
   // Ajuste pessoal de espaçamento das linhas dos demonstrativos — ver
   // lib/density.js. Fica só neste navegador (nunca entra em
   // persistActiveCompany), por isso mora aqui já inicializado do

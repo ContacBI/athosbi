@@ -7,6 +7,8 @@
 
 import { GLOSSARY, norm } from "./vocab.js";
 import { sentenceCase } from "../planCase.js";
+import { ACCENTS, restoreAccents } from "../accents.js";
+import { budgetFor } from "../budget.js";
 
 const MONTHS_FULL = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
@@ -37,23 +39,8 @@ export function monthName(key, withYear = true) {
   return withYear && year ? `${name}/${year.slice(2)}` : name;
 }
 
-// Os nomes do plano gerencial costumam vir sem acento ("Prestacao de
-// servicos"); no slide fica feio. Devolve os acentos das palavras comuns
-// de contabilidade e deixa só a primeira letra maiúscula (siglas ficam).
-const ACCENTS = Object.fromEntries(
-  `acao:ação acoes:ações administracao:administração administrativa:administrativa adiantamentos:adiantamentos agua:água alimentacao:alimentação amortizacao:amortização analise:análise antecipacao:antecipação aplicacao:aplicação aplicacoes:aplicações apuracao:apuração assistencia:assistência associacao:associação automoveis:automóveis beneficios:benefícios cancelaveis:canceláveis capitalizacao:capitalização cartao:cartão cartoes:cartões itau:itaú cartorio:cartório comissoes:comissões combustiveis:combustíveis comercio:comércio comunicacao:comunicação conducao:condução conducoes:conduções condominio:condomínio comissao:comissão conservacao:conservação consorcios:consórcios construcao:construção contabeis:contábeis contabil:contábil contribuicao:contribuição contribuicoes:contribuições conveniencia:conveniência creditos:créditos credito:crédito debitos:débitos debito:débito decimo:décimo deducoes:deduções deducao:dedução depreciacao:depreciação descricao:descrição despesas:despesas diarias:diárias devolucao:devolução devolucoes:devoluções distribuicao:distribuição distribuicoes:distribuições doacoes:doações emprestimos:empréstimos emprestimo:empréstimo encargos:encargos energia:energia equivalencia:equivalência escritorio:escritório estacionamento:estacionamento estimulos:estímulos exercicio:exercício exportacao:exportação ferias:férias financas:finanças financeiro:financeiro graficas:gráficas fundo:fundo gratificacoes:gratificações honorarios:honorários hospedagem:hospedagem importacao:importação indenizacoes:indenizações industrializacao:industrialização informatica:informática infraestrutura:infraestrutura instalacoes:instalações intangivel:intangível intangiveis:intangíveis imoveis:imóveis indice:índice juridicos:jurídicos juridico:jurídico laboratorio:laboratório licencas:licenças licenca:licença liquida:líquida liquido:líquido liquidez:liquidez locacao:locação logistica:logística maquinas:máquinas manutencao:manutenção mao:mão media:média medica:médica medicos:médicos mercadorias:mercadorias midia:mídia movel:móvel moveis:móveis negocios:negócios nao:não nacionais:nacionais numerario:numerário obrigacoes:obrigações ocupacao:ocupação operacao:operação operacoes:operações orcamento:orçamento organizacao:organização participacao:participação participacoes:participações patrimonio:patrimônio patrimoniais:patrimoniais pedagio:pedágio pedagios:pedágios pensao:pensão perdas:perdas periodo:período postais:postais prestacao:prestação previdencia:previdência producao:produção programas:programas propria:própria proprias:próprias proprios:próprios proprio:próprio provisao:provisão provisoes:provisões publicidade:publicidade realizavel:realizável receitas:receitas reembolso:reembolso recuperacao:recuperação recuperacoes:recuperações referencia:referência refeicao:refeição refeicoes:refeições relacoes:relações remuneracao:remuneração rescisao:rescisão rescisoes:rescisões residuos:resíduos saneamento:saneamento saude:saúde seguranca:segurança servico:serviço servicos:serviços socios:sócios socio:sócio subvencoes:subvenções taxas:taxas termica:térmica titulos:títulos tecnicos:técnicos tecnica:técnica tecnologia:tecnologia telefonia:telefonia terceirizacao:terceirização trafego:tráfego transferencias:transferências transito:trânsito tributaria:tributária tributarias:tributárias tributario:tributário uniformes:uniformes utilidades:utilidades veiculos:veículos viagens:viagens vitalicio:vitalício`
-    .split(" ")
-    .map((pair) => pair.split(":"))
-);
-
 export function lineName(name) {
-  const accented = String(name || "").replace(/[A-Za-zÀ-ÿ]+/g, (word) => {
-    const fixed = ACCENTS[word.toLowerCase()];
-    if (!fixed) return word;
-    if (word === word.toUpperCase()) return fixed.toUpperCase();
-    return word[0] === word[0].toUpperCase() ? fixed[0].toUpperCase() + fixed.slice(1) : fixed;
-  });
-  return sentenceCase(accented);
+  return sentenceCase(restoreAccents(name));
 }
 
 // Conta do balancete ("BANCO ITAU") → "Banco Itau": nome próprio, cada
@@ -421,6 +408,7 @@ export function buildFacts(ctx, period = {}) {
     breakEven: { pe, fixos: Number(breakEven.fixedCosts || 0), variavel: Number(breakEven.variableCostRatio || 0), margemSeguranca },
     monthly,
     group: ctx.groupComparison || null,
+    budget: budgetFor(ctx),
   };
 }
 
@@ -525,6 +513,14 @@ function buildAlerts(f, cmp, label) {
   const distrib = f.distribuicoesPagar.end;
   if (distrib > 0.5 && f.pc.end > 0.5 && share(distrib, f.pc.end) > 40) add("distribuicoes_pagar", "distribuicao", 2, "Distribuições a pagar pesam no curto prazo", `${fmtMoney(distrib)} de lucros a pagar — ${fmtPct(share(distrib, f.pc.end), 0)} do passivo circulante.`, "Combinar com os sócios um calendário de pagamento das distribuições");
 
+  const bud = f.budget;
+  if (bud) {
+    const budgetLabel = `${bud.versao} ${bud.ano}`;
+    if (bud.receita.orcado > 0.5 && bud.receita.pct != null && bud.receita.pct < -10) add("orc_receita", "metas", bud.receita.pct < -25 ? 3 : 2, "Receita abaixo do orçado", `Receita líquida de ${fmtMoney(bud.receita.realizado)} contra ${fmtMoney(bud.receita.orcado)} orçados (${fmtPct(bud.receita.reach, 0)} do orçamento ${budgetLabel}).`, "Rever as metas comerciais e o que travou as vendas");
+    if (Math.abs(bud.despesas.orcado) > 0.5 && bud.despesas.pct != null && bud.despesas.pct < -10) add("orc_despesas", "metas", 2, "Despesas acima do orçado", `Despesas operacionais de ${fmtMoney(Math.abs(bud.despesas.realizado))} contra ${fmtMoney(Math.abs(bud.despesas.orcado))} orçados (${fmtPct(bud.despesas.reach, 0)} do orçamento).`, "Revisar as linhas que mais estouraram o orçamento");
+    if (Math.abs(bud.resultado.orcado) > 0.5 && bud.resultado.diff < -0.5 && bud.resultado.pct != null && bud.resultado.pct < -10) add("orc_resultado", "metas", 2, "Resultado abaixo do orçado", `Resultado de ${fmtMoney(bud.resultado.realizado)} contra ${fmtMoney(bud.resultado.orcado)} orçados.`, "Plano para recuperar o resultado do orçamento no restante do ano");
+  }
+
   if (cmp) {
     if (cmp.receita.delta != null && cmp.receita.delta < -10) add("cmp_receita", "comparativo", 2, "Receita menor que no período de comparação", `Receita líquida ${fmtDelta(cmp.receita)} contra o período de comparação.`, "Entender a queda por cliente/produto");
     if (cmp.lucro.before > 0.5 && cmp.lucro.now < cmp.lucro.before * 0.8) add("cmp_lucro", "comparativo", 2, "Lucro menor que no período de comparação", `De ${fmtMoney(cmp.lucro.before)} para ${fmtMoney(cmp.lucro.now)}.`, "Comparar linha a linha o que mudou na DRE");
@@ -556,6 +552,12 @@ function buildPositives(f, cmp) {
   const luc = f.monthly.lucro;
   if (luc && luc.n >= 3 && luc.best.value > 0.5 && luc.best.month === f.months[f.months.length - 1]) add("melhor_mes", "sazonalidade", "Fechou no melhor mês", `${capitalize(monthName(luc.best.month))} teve o maior lucro do período (${fmtMoney(luc.best.value)}).`);
   if (f.pl.end > f.pl.start * 1.1 && f.pl.start > 0.5) add("pl_cresceu", "pl", "Patrimônio cresceu", `PL foi de ${fmtMoney(f.pl.start)} para ${fmtMoney(f.pl.end)}.`);
+  const bud = f.budget;
+  if (bud) {
+    if (bud.receita.orcado > 0.5 && bud.receita.diff >= -0.5) add("orc_receita", "metas", "Receita dentro do orçado", `${fmtPct(bud.receita.reach, 0)} da receita orçada (${fmtMoney(bud.receita.realizado)} de ${fmtMoney(bud.receita.orcado)}).`);
+    if (Math.abs(bud.despesas.orcado) > 0.5 && bud.despesas.diff >= -0.5) add("orc_despesas", "metas", "Despesas dentro do orçado", `Gastou ${fmtPct(bud.despesas.reach, 0)} do orçado em despesas operacionais.`);
+    if (Math.abs(bud.resultado.orcado) > 0.5 && bud.resultado.diff >= -0.5 && bud.resultado.realizado > 0.5) add("orc_resultado", "metas", "Resultado acima do orçado", `${fmtMoney(bud.resultado.realizado)} contra ${fmtMoney(bud.resultado.orcado)} orçados.`);
+  }
   if (cmp) {
     if (cmp.receita.delta != null && cmp.receita.delta > 5) add("cmp_receita", "comparativo", "Receita acima do período de comparação", `Receita líquida ${fmtDelta(cmp.receita)}.`);
     if (cmp.lucro.now > cmp.lucro.before + 0.5 && cmp.lucro.now > 0.5) add("cmp_lucro", "comparativo", "Lucro maior que no período de comparação", `De ${fmtMoney(cmp.lucro.before)} para ${fmtMoney(cmp.lucro.now)}.`);
@@ -1059,6 +1061,31 @@ function sectionBuilders(f, cmp, opts) {
         table: [`Indicador;${prevLabel};${label};Variação`, ...[cmp.receita, cmp.lucroBruto, cmp.despesas, cmp.ebitda, cmp.lucro, cmp.margemLiquida, cmp.caixa].map((metric) => `${metric.label};${fmtMetric(metric, metric.before)};${fmtMetric(metric, metric.now)};${fmtDelta(metric) || "—"}`)].join("\n"),
         chartData: [`Indicador;${prevLabel};${label}`, ...[cmp.receita, cmp.lucroBruto, cmp.ebitda, cmp.lucro].map((metric) => `${metric.label};${Math.round(metric.before)};${Math.round(metric.now)}`)].join("\n"),
         note: `Comparação de ${label} com ${prevLabel}, mesmos critérios do B.I. Variações em p.p. (pontos percentuais) nas margens.`,
+      };
+    },
+
+    metas: () => {
+      const bud = f.budget;
+      if (!bud) return { title: "Metas", status: "neutro", bullets: [], missing: true, note: "" };
+      const reachText = (item) => (item.reach == null ? "—" : fmtPct(item.reach, 0));
+      const worstLines = bud.lines.filter((line) => !line.formula && line.diff < -0.5).sort((a, b) => a.diff - b.diff).slice(0, 2);
+      const bestLines = bud.lines.filter((line) => !line.formula && line.diff > 0.5).sort((a, b) => b.diff - a.diff).slice(0, 1);
+      // Percentual só faz sentido com orçado positivo e de tamanho razoável
+      // ("1.201% do orçado" num mês com resultado orçado pequeno confunde).
+      const r = bud.resultado;
+      const title = r.orcado > 0.5 && r.reach != null && r.reach >= 0 && r.reach <= 300 ? `Resultado em ${reachText(r)} do orçado` : `Resultado ${fmtMoney(Math.abs(r.diff))} ${r.diff >= 0 ? "acima" : "abaixo"} do orçado`;
+      return {
+        title,
+        message: `Orçamento ${bud.versao} ${bud.ano}: receita em ${reachText(bud.receita)} e despesas em ${reachText(bud.despesas)} do previsto.`,
+        status: statusOf(bud.resultado.tone === "bom", bud.resultado.tone === "ruim" || bud.receita.tone === "ruim"),
+        bullets: [
+          `Receita líquida: ${fmtMoney(bud.receita.realizado)} de ${fmtMoney(bud.receita.orcado)} orçados (${reachText(bud.receita)})`,
+          `Despesas operacionais: ${fmtMoney(Math.abs(bud.despesas.realizado))} de ${fmtMoney(Math.abs(bud.despesas.orcado))} (${reachText(bud.despesas)})`,
+          `Resultado: ${fmtMoney(bud.resultado.realizado)} contra ${fmtMoney(bud.resultado.orcado)} orçados`,
+          ...worstLines.map((line) => `Pior desvio: ${inSentence(line.name)} (${fmtMoney(line.diff)})`),
+          ...bestLines.map((line) => `Melhor desvio: ${inSentence(line.name)} (+${fmtMoney(line.diff).replace("-", "")})`),
+        ],
+        note: `Comparação com o orçamento "${bud.versao}" de ${bud.ano}, nos meses do período. Diferença positiva é boa em todas as linhas (nas despesas, significa gastar menos que o previsto).`,
       };
     },
 

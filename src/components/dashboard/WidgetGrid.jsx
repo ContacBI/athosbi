@@ -29,6 +29,7 @@ import { directChildren } from "../../lib/reportTree.js";
 import { buildDfcDirect, buildDfcIndirect } from "../../data/calculations.js";
 import { money } from "../../lib/format.js";
 import { columnLabel, columnValue, reportColumns, isZeroNoMovement } from "../../lib/reportColumns.js";
+import { budgetFor } from "../../lib/budget.js";
 import ReportSettingsMenu from "../ReportSettingsMenu.jsx";
 import { GRID_COLS, ROW_HEIGHT, layoutFor, marginPxFor, DEFAULT_SPACING } from "./gridLayout.js";
 
@@ -761,8 +762,107 @@ function CompositionPieChart({ title, data, emptyLabel }) {
   );
 }
 
+// Orçamento x Realizado (lib/budget.js). Sem orçamento do ano do período,
+// um aviso com o caminho pra cadastrar.
+function BudgetEmpty({ title }) {
+  return (
+    <div className="flex h-full flex-col">
+      <p data-widget-title className="mb-2 text-[13px] font-medium text-ink-900">{title}</p>
+      <div className="flex flex-1 items-center justify-center rounded-lg bg-surface-muted px-4 text-center text-[12px] text-ink-400">Sem orçamento para o ano do período — cadastre em Orçamento, no topo da empresa.</div>
+    </div>
+  );
+}
+
+const BUDGET_SERIES = [
+  { id: "receita", label: "Receita líquida" },
+  { id: "despesas", label: "Despesas" },
+  { id: "resultado", label: "Resultado" },
+];
+
+function BudgetChart({ ctx }) {
+  const anim = useAnimate();
+  const slide = useContext(WidgetFillContext);
+  const [serie, setSerie] = useState("receita");
+  const budget = budgetFor(ctx);
+  if (!budget) return <BudgetEmpty title="Orçado x realizado mês a mês" />;
+  const data = budget.series.map((item) => ({ month: item.month, orcado: item[`${serie}Orcado`], realizado: item[`${serie}Realizado`] }));
+  return (
+    <div className="flex h-full flex-col">
+      <div data-widget-title className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-[13px] font-medium text-ink-900">Orçado x realizado — {BUDGET_SERIES.find((item) => item.id === serie).label.toLowerCase()}</p>
+        {!slide && (
+          <div className="flex gap-0.5 rounded-md bg-surface-muted p-0.5" data-interactive>
+            {BUDGET_SERIES.map((item) => (
+              <button key={item.id} type="button" onClick={() => setSerie(item.id)} className={`rounded px-2 py-0.5 text-[11px] font-medium ${serie === item.id ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"}`}>
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="h-64 flex-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={data} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+            <CartesianGrid vertical={false} stroke="var(--color-line)" />
+            <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={compactMoney} axisLine={false} tickLine={false} width={48} />
+            <Tooltip formatter={(value, name) => [money(value), name === "orcado" ? "Orçado" : "Realizado"]} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+            <Bar isAnimationActive={anim} dataKey="realizado" name="realizado" fill="var(--color-accent-500)" radius={[3, 3, 0, 0]} maxBarSize={36} />
+            <Line isAnimationActive={anim} type="monotone" dataKey="orcado" name="orcado" stroke="var(--color-navy-700)" strokeWidth={2} strokeDasharray="5 4" dot={{ r: 3 }} />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="mt-1 flex justify-center gap-4 text-[11px] text-ink-600">
+        <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-3 rounded-sm bg-accent-500" /> Realizado</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block h-0 w-4 border-t-2 border-dashed border-navy-700" /> Orçado ({budget.versao})</span>
+      </div>
+    </div>
+  );
+}
+
+const TONE_CLASS = { bom: "bg-success-500", atencao: "bg-warning-500", ruim: "bg-danger-500", neutro: "bg-line-strong" };
+
+function BudgetTable({ ctx }) {
+  const budget = budgetFor(ctx);
+  if (!budget) return <BudgetEmpty title="Orçado x realizado (DRE)" />;
+  const whole = (value) => money(Math.round(Number(value || 0))).replace(/,00$/, "");
+  const cell = (value) => <span className="text-right tabular-nums">{whole(value)}</span>;
+  return (
+    <div className="min-w-0">
+      <p data-widget-title className="mb-2 text-[13px] font-medium text-ink-900">Orçado x realizado — {budget.versao} {budget.ano}</p>
+      <div className="grid grid-cols-[minmax(140px,1fr)_96px_96px_96px_60px] gap-x-3 border-b border-line pb-1 text-[10px] uppercase tracking-wide text-ink-400">
+        <span>Linha</span>
+        <span className="text-right">Orçado</span>
+        <span className="text-right">Realizado</span>
+        <span className="text-right">Diferença</span>
+        <span className="text-right">%</span>
+      </div>
+      <div className="flex flex-col">
+        {budget.lines.map((line) => (
+          <div key={line.code} className={`grid grid-cols-[minmax(140px,1fr)_96px_96px_96px_60px] items-center gap-x-3 py-1 text-[12px] ${line.formula ? "border-t border-line font-semibold text-ink-900" : "text-ink-600"}`}>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${TONE_CLASS[line.tone]}`} />
+              <span className="truncate">{line.name}</span>
+            </span>
+            {cell(line.orcado)}
+            {cell(line.realizado)}
+            <span className={`text-right tabular-nums ${line.tone === "ruim" || line.tone === "atencao" ? "text-danger-600" : line.diff > 0.5 ? "text-success-600" : ""}`}>{whole(line.diff)}</span>
+            <span className="text-right tabular-nums text-ink-500">{line.pct == null ? "—" : `${line.pct > 0 ? "+" : ""}${line.pct.toFixed(0)}%`}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ChartWidgetCard({ definition, ctx }) {
   const anim = useAnimate();
+  if (definition.chart === "orcado_realizado") {
+    return <BudgetChart ctx={ctx} />;
+  }
+  if (definition.chart === "orcado_tabela") {
+    return <BudgetTable ctx={ctx} />;
+  }
   if (definition.chart === "balanco") {
     return <BalanceChartWidget ctx={ctx} />;
   }
@@ -1230,7 +1330,7 @@ function KpiInline({ definition, ctx }) {
   // acrescentar nada. PrintableWidgetGrid reaproveita este mesmo componente
   // pra montar o PDF (domSnapshotPdf.js tira um "print" dele), então esse
   // resuminho sai tanto na tela quanto no PDF de um só lugar.
-  const caption = definition.formula && !isSingleLineFormula(definition.formula) ? describeIndicatorFormula(definition.formula) : null;
+  const caption = definition.caption ? definition.caption(ctx) : definition.formula && !isSingleLineFormula(definition.formula) ? describeIndicatorFormula(definition.formula) : null;
   return (
     <>
       <div className="flex items-center justify-between">
