@@ -7,7 +7,7 @@
 // o razão da memória.
 
 import { state } from "../data/store.js";
-import { kpis, missingMappingAccounts } from "../data/calculations.js";
+import { balanceteDoPeriodo, kpis, missingMappingAccounts } from "../data/calculations.js";
 import { effectivePlano } from "./planosPadrao.js";
 import { readCompanyJournal } from "./persistence.js";
 
@@ -193,19 +193,29 @@ export function companyHealth(company, { today = new Date(), journalStats = null
 
   // 2) Balanço fechando e 3) contas sem De/Para — do balancete, sem razão.
   let dif = 0;
+  let periodResult = 0;
   let missing = [];
   if (accounts.length) {
     try {
       withCompanyScope(company, () => {
-        dif = Number(kpis().diferencaBalanco || 0);
+        const raw = Number(kpis().diferencaBalanco || 0);
         missing = missingMappingAccounts();
+        // Sem o razão o Balanço do app não tem o "Resultado do exercício"
+        // (ele vem da DRE, ver applyBpPeriodResult em calculations.js) — e é
+        // exatamente o saldo que ainda está nas contas de resultado do
+        // balancete (as que não são 1 Ativo nem 2 Passivo/PL). Somando ele,
+        // a diferença que sobra é a de verdade.
+        periodResult = balanceteDoPeriodo()
+          .filter((account) => account.tipo_sintetica === "nao" && !/^[12]/.test(String(account.classificacao || "")))
+          .reduce((sum, account) => sum + Number(account.saldo_atual || 0), 0);
+        dif = Math.abs(raw - periodResult) <= Math.abs(raw + periodResult) ? raw - periodResult : raw + periodResult;
       });
     } catch (error) {
       console.error(`Carteira: falha ao calcular ${company.name}`, error);
       add("calculo", "atencao", "Não consegui calcular", "Abra a empresa para conferir o balanço e o De/Para.", { label: "Abrir empresa", path: "/empresa" });
     }
-    if (Math.abs(dif) >= 1) add("balanco", "critico", "Balanço não fecha", `Ativo e passivo + PL têm diferença de ${money(dif)}${missing.length ? " — provavelmente pelas contas sem De/Para" : ""}.`, { label: "Ver demonstrativos", path: "/empresa/demonstrativos" });
-    else add("balanco", "ok", "Balanço fechando");
+    if (Math.abs(dif) >= 1) add("balanco", "critico", "Balanço não fecha", `Ativo e passivo + PL têm diferença de ${money(dif)}${Math.abs(periodResult) >= 1 ? `, já contando o resultado do período (${money(Math.abs(periodResult))})` : ""}${missing.length ? " — provavelmente pelas contas sem De/Para" : ""}.`, { label: "Ver demonstrativos", path: "/empresa/demonstrativos" });
+    else add("balanco", "ok", "Balanço fechando", Math.abs(periodResult) >= 1 ? `Com o resultado do período (${money(Math.abs(periodResult))}) no patrimônio líquido, como no Balanço do app.` : "");
     if (missing.length) {
       const share = accounts.length ? missing.length / accounts.filter((account) => account.tipo_sintetica === "nao").length : 0;
       add("depara", missing.length > 10 || share > 0.05 ? "critico" : "atencao", `${missing.length} conta${missing.length === 1 ? "" : "s"} sem De/Para`, missing.slice(0, 4).map((account) => `${account.classificacao} ${account.nome_conta || ""}`.trim()).join(" · ") + (missing.length > 4 ? " · …" : ""), { label: "Abrir De/Para", path: "/empresa/de-para" });
