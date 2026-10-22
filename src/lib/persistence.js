@@ -298,18 +298,28 @@ export async function readCompanyJournal(companyId, { onProgress } = {}) {
     // com internet ruim). Sequencial é um pouco mais lento no caso feliz,
     // mas MUITO mais robusto quando a rede está capenga — e cada pedaço já
     // tem seu próprio retry via readPersistent.
-    const pieces = [];
-    for (let index = 0; index < value.parts; index += 1) {
-      const piece = await readPersistent(journalPartKey(baseKey, value.slot, index));
-      // Parte que o manifesto promete mas não existe = razão incompleto.
-      // Devolver só o que sobrou faria ele parecer "carregado" — e o
-      // próximo save gravaria essa versão menor por cima do razão inteiro.
-      // Como erro de leitura, vira journalLoadFailed (trava de escrita).
-      if (!Array.isArray(piece)) {
-        throw new PersistenceReadError(`Razão de "${companyId}" incompleto: falta a parte ${index + 1} de ${value.parts}.`);
+    // Em lotes de 3 (abrir empresa grande demorava por baixar uma parte de cada vez); a ordem das partes é mantida.
+    const pieces = new Array(value.parts);
+    let feitas = 0;
+    for (let inicio = 0; inicio < value.parts; inicio += 3) {
+      const lote = [];
+      for (let index = inicio; index < Math.min(inicio + 3, value.parts); index += 1) {
+        lote.push(
+          readPersistent(journalPartKey(baseKey, value.slot, index)).then((piece) => {
+            // Parte que o manifesto promete mas não existe = razão incompleto.
+            // Devolver só o que sobrou faria ele parecer "carregado" — e o
+            // próximo save gravaria essa versão menor por cima do razão inteiro.
+            // Como erro de leitura, vira journalLoadFailed (trava de escrita).
+            if (!Array.isArray(piece)) {
+              throw new PersistenceReadError(`Razão de "${companyId}" incompleto: falta a parte ${index + 1} de ${value.parts}.`);
+            }
+            pieces[index] = piece;
+            feitas += 1;
+            report(feitas / value.parts);
+          })
+        );
       }
-      pieces.push(piece);
-      report((index + 1) / value.parts);
+      await Promise.all(lote);
     }
     return pieces.flat();
   }
