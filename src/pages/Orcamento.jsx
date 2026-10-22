@@ -29,6 +29,7 @@ import {
 } from "../lib/budget.js";
 import { money } from "../lib/format.js";
 import { tokenInfo } from "../lib/presentations.js";
+import ProjecaoAno from "../components/ProjecaoAno.jsx";
 
 const TONE = {
   bom: { dot: "bg-success-500", text: "text-success-600", label: "Dentro do orçado" },
@@ -377,7 +378,34 @@ export default function Orcamento() {
         </div>
       </div>
 
-      {!budget ? (
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line">
+        <div className="flex gap-1">
+          {[
+            { id: "comparar", label: "Orçado x Realizado" },
+            { id: "montar", label: canEdit ? "Montar o orçamento" : "Ver o orçamento" },
+            { id: "projecao", label: "Projeção do ano" },
+          ].map((item) => (
+            <button key={item.id} type="button" onClick={() => setTab(item.id)} className={`orc-aba -mb-px border-b-2 px-3 pb-2.5 pt-1 text-[13px] font-semibold ${tab === item.id ? "border-accent-500 text-accent-700" : "border-transparent text-ink-500 hover:text-ink-800"}`}>
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <span className="pb-2 text-[11.5px] text-ink-400">
+          {tab === "projecao" ? "" : saving || (budget?.atualizadoEm ? `Atualizado em ${new Date(budget.atualizadoEm).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}` : "")}
+        </span>
+      </div>
+      {message && (
+        <p className="flex items-center justify-between rounded-lg bg-accent-50 px-3 py-2 text-[12.5px] text-accent-800">
+          {message}
+          <button type="button" onClick={() => setMessage("")} className="text-accent-600 hover:underline">
+            ok
+          </button>
+        </p>
+      )}
+
+      {tab === "projecao" ? (
+        <ProjecaoAno ano={ano} ctx={ctx} list={list} empresa={company?.name || ""} canEdit={canEdit} />
+      ) : !budget ? (
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-line-strong bg-surface-card px-6 py-14 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
             <Target size={26} strokeWidth={1.6} />
@@ -394,33 +422,7 @@ export default function Orcamento() {
             <p className="text-[12px] text-ink-400">Só quem é responsável pela empresa pode criar o orçamento.</p>
           )}
         </div>
-      ) : (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line">
-            <div className="flex gap-1">
-              {[
-                { id: "comparar", label: "Orçado x Realizado" },
-                { id: "montar", label: canEdit ? "Montar o orçamento" : "Ver o orçamento" },
-              ].map((item) => (
-                <button key={item.id} type="button" onClick={() => setTab(item.id)} className={`-mb-px border-b-2 px-3 pb-2.5 pt-1 text-[13px] font-semibold ${tab === item.id ? "border-accent-500 text-accent-700" : "border-transparent text-ink-500 hover:text-ink-800"}`}>
-                  {item.label}
-                </button>
-              ))}
-            </div>
-            <span className="pb-2 text-[11.5px] text-ink-400">
-              {saving || (budget.atualizadoEm ? `Atualizado em ${new Date(budget.atualizadoEm).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}` : "")}
-            </span>
-          </div>
-          {message && (
-            <p className="flex items-center justify-between rounded-lg bg-accent-50 px-3 py-2 text-[12.5px] text-accent-800">
-              {message}
-              <button type="button" onClick={() => setMessage("")} className="text-accent-600 hover:underline">
-                ok
-              </button>
-            </p>
-          )}
-
-          {tab === "montar" ? (
+      ) : tab === "montar" ? (
             <div className="flex flex-col gap-3">
               {canEdit && (
                 <div className="flex flex-wrap items-center gap-2">
@@ -671,8 +673,6 @@ export default function Orcamento() {
               {!comparison && <p className="py-10 text-center text-[13px] text-ink-400">Preencha o orçamento para comparar.</p>}
             </div>
           )}
-        </>
-      )}
     </div>
   );
 }

@@ -11,6 +11,16 @@ import { ACCENTS, restoreAccents } from "../accents.js";
 import { budgetFor } from "../budget.js";
 import { buildCashBridge, bridgeSentence } from "../cashBridge.js";
 import { prazosMedios, topMatches } from "../prazos.js";
+import { projecaoDoCtx, projectionSentence, projectionShort } from "../projecao.js";
+
+// Projeção do ano (lib/projecao.js) — só quando o período vai até o último
+// mês fechado (é "o ano até agora") e ainda faltam meses.
+function projectionFacts(ctx) {
+  const projection = projecaoDoCtx(ctx);
+  const months = ctx?.months || [];
+  if (!projection || projection.finished || !projection.last || !months.length || months[months.length - 1] < projection.last) return null;
+  return { ano: projection.ano, method: projection.method, sentence: projectionSentence(projection), short: projectionShort(projection), resultado: projection.resultado, receita: projection.receita, caixa: projection.caixa };
+}
 
 const MONTHS_FULL = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
@@ -399,6 +409,7 @@ export function buildFacts(ctx, period = {}) {
     group: ctx.groupComparison || null,
     budget: budgetFor(ctx),
     bridge: buildCashBridge(ctx),
+    projecao: projectionFacts(ctx),
   };
 }
 
@@ -510,6 +521,12 @@ function buildAlerts(f, cmp, label) {
     if (Math.abs(bud.despesas.orcado) > 0.5 && bud.despesas.pct != null && bud.despesas.pct < -10) add("orc_despesas", "metas", 2, "Despesas acima do orçado", `Despesas operacionais de ${fmtMoney(Math.abs(bud.despesas.realizado))} contra ${fmtMoney(Math.abs(bud.despesas.orcado))} orçados (${fmtPct(bud.despesas.reach, 0)} do orçamento).`, "Revisar as linhas que mais estouraram o orçamento");
     if (Math.abs(bud.resultado.orcado) > 0.5 && bud.resultado.diff < -0.5 && bud.resultado.pct != null && bud.resultado.pct < -10) add("orc_resultado", "metas", 2, "Resultado abaixo do orçado", `Resultado de ${fmtMoney(bud.resultado.realizado)} contra ${fmtMoney(bud.resultado.orcado)} orçados.`, "Plano para recuperar o resultado do orçamento no restante do ano");
   }
+  const proj = f.projecao;
+  if (proj) {
+    const r = proj.resultado;
+    if (r.provavel < -0.5) add("projecao_prejuizo", "metas", r.realizado > 0.5 ? 3 : 2, `${proj.ano} pode fechar no prejuízo`, proj.sentence, "Agir nos meses que faltam: despesas, preço e volume de vendas");
+    else if (r.orcado != null && r.orcado > 0.5 && proj.method !== "orcamento" && r.provavel < r.orcado * 0.9) add("projecao_orcado", "metas", 2, `Projeção de ${proj.ano} abaixo do orçamento`, proj.sentence, "Rever o orçamento ou o plano para os meses que faltam");
+  }
 
   if (cmp) {
     if (cmp.receita.delta != null && cmp.receita.delta < -10) add("cmp_receita", "comparativo", 2, "Receita menor que no período de comparação", `Receita líquida ${fmtDelta(cmp.receita)} contra o período de comparação.`, "Entender a queda por cliente/produto");
@@ -548,6 +565,8 @@ function buildPositives(f, cmp) {
     if (Math.abs(bud.despesas.orcado) > 0.5 && bud.despesas.diff >= -0.5) add("orc_despesas", "metas", "Despesas dentro do orçado", `Gastou ${fmtPct(bud.despesas.reach, 0)} do orçado em despesas operacionais.`);
     if (Math.abs(bud.resultado.orcado) > 0.5 && bud.resultado.diff >= -0.5 && bud.resultado.realizado > 0.5) add("orc_resultado", "metas", "Resultado acima do orçado", `${fmtMoney(bud.resultado.realizado)} contra ${fmtMoney(bud.resultado.orcado)} orçados.`);
   }
+  const proj = f.projecao;
+  if (proj && proj.method !== "orcamento" && proj.resultado.orcado != null && proj.resultado.orcado > 0.5 && proj.resultado.provavel >= proj.resultado.orcado) add("projecao_orcado", "metas", `${proj.ano} caminha para bater o orçamento`, proj.sentence);
   if (cmp) {
     if (cmp.receita.delta != null && cmp.receita.delta > 5) add("cmp_receita", "comparativo", "Receita acima do período de comparação", `Receita líquida ${fmtDelta(cmp.receita)}.`);
     if (cmp.lucro.now > cmp.lucro.before + 0.5 && cmp.lucro.now > 0.5) add("cmp_lucro", "comparativo", "Lucro maior que no período de comparação", `De ${fmtMoney(cmp.lucro.before)} para ${fmtMoney(cmp.lucro.now)}.`);
@@ -1078,6 +1097,7 @@ function sectionBuilders(f, cmp, opts) {
           `Receita líquida: ${fmtMoney(bud.receita.realizado)} de ${fmtMoney(bud.receita.orcado)} orçados (${reachText(bud.receita)})`,
           `Despesas operacionais: ${fmtMoney(Math.abs(bud.despesas.realizado))} de ${fmtMoney(Math.abs(bud.despesas.orcado))} (${reachText(bud.despesas)})`,
           `Resultado: ${fmtMoney(bud.resultado.realizado)} contra ${fmtMoney(bud.resultado.orcado)} orçados`,
+          ...(f.projecao?.short ? [f.projecao.short] : []),
           ...worstLines.map((line) => `Pior desvio: ${inSentence(line.name)} (${fmtMoney(line.diff)})`),
           ...bestLines.map((line) => `Melhor desvio: ${inSentence(line.name)} (+${fmtMoney(line.diff).replace("-", "")})`),
         ],

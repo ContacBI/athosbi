@@ -30,10 +30,12 @@ import {
   Building,
   Radar,
   Network,
+  Telescope,
 } from "lucide-react";
 import { money } from "./format.js";
 import { budgetFor } from "./budget.js";
 import { PME_LIMIT, prazosDoCtx } from "./prazos.js";
+import { PROJECTION_METHODS, compactMoneyPt, projecaoDoCtx, projectionSentence } from "./projecao.js";
 import { evaluateIndicatorFormula, describeIndicatorFormula, indicatorDetailRows, richLineDetail, isSingleLineFormula } from "./indicatorFormula.js";
 
 function pct(value) {
@@ -464,4 +466,62 @@ export const PRAZO_WIDGETS = [
   { id: "chart_prazos_evolucao", label: "Prazos médios e ciclo financeiro no tempo", category: "Gráficos", icon: LineChart, defaultSize: "lg", type: "chart", chart: "prazos_evolucao" },
 ];
 
-WIDGET_CATALOG.push(...TABLE_WIDGETS, ...LINK_WIDGETS, ...BUDGET_WIDGETS, ...PRAZO_WIDGETS);
+// Projeção do fechamento do ano (lib/projecao.js), pelo método escolhido na
+// aba Projeção do Orçamento.
+function projectionKpi({ id, label, icon, pick, cash = false }) {
+  const range = (item) => (item.otimista - item.pessimista) / 2;
+  return {
+    id,
+    label,
+    category: "Orçamento",
+    type: "kpi",
+    icon,
+    defaultSize: "sm",
+    value: (ctx) => {
+      const projection = projecaoDoCtx(ctx);
+      const item = projection ? pick(projection) : null;
+      return { value: item ? item.provavel : null, format: "money" };
+    },
+    caption: (ctx) => {
+      const projection = projecaoDoCtx(ctx);
+      const item = projection ? pick(projection) : null;
+      if (!item) return "Sem dados para projetar o ano";
+      if (projection.finished) return `${projection.ano} já fechou`;
+      return `${range(item) > 0.5 ? `Entre ${compactMoneyPt(item.pessimista)} e ${compactMoneyPt(item.otimista)} · ` : ""}${PROJECTION_METHODS[projection.method].short}`;
+    },
+    detail: (ctx) => {
+      const projection = projecaoDoCtx(ctx);
+      const item = projection ? pick(projection) : null;
+      if (!item) return { formula: "Precisa de pelo menos um mês fechado com lançamento (ou do orçamento do ano).", rows: [] };
+      const lastLabel = projection.last ? `até ${projection.last.slice(5, 7)}/${projection.last.slice(0, 4)}` : "";
+      const rows = cash
+        ? [
+            { label: `Caixa hoje (${lastLabel.replace("até ", "")})`, value: item.atual },
+            { label: "Variação média por mês", value: item.mediaMensal },
+            { label: `Meses que faltam`, display: String(projection.remaining.length) },
+          ]
+        : [
+            { label: `Realizado ${lastLabel}`, value: item.realizado },
+            { label: "Projeção dos meses que faltam", value: item.projetado },
+            ...(item.orcado != null ? [{ label: "Orçado para o ano", value: item.orcado }] : []),
+          ];
+      return {
+        formula: projectionSentence(projection) || PROJECTION_METHODS[projection.method].label,
+        rows: [
+          ...rows,
+          { label: "Cenário pessimista", value: item.pessimista },
+          { label: "Cenário otimista", value: item.otimista },
+          { label: `Projeção para ${projection.ano}`, value: item.provavel, bold: true },
+        ],
+      };
+    },
+  };
+}
+
+export const PROJECTION_WIDGETS = [
+  projectionKpi({ id: "proj_resultado", label: "Projeção do resultado do ano", icon: Telescope, pick: (projection) => projection.resultado }),
+  projectionKpi({ id: "proj_receita", label: "Projeção da receita bruta do ano", icon: Telescope, pick: (projection) => projection.receita }),
+  projectionKpi({ id: "proj_caixa", label: "Projeção do caixa no fim do ano", icon: Telescope, pick: (projection) => projection.caixa, cash: true }),
+];
+
+WIDGET_CATALOG.push(...TABLE_WIDGETS, ...LINK_WIDGETS, ...BUDGET_WIDGETS, ...PRAZO_WIDGETS, ...PROJECTION_WIDGETS);

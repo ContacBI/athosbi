@@ -291,6 +291,29 @@ const { journalStatsFromEntries } = await src("lib/carteira.js");
 const resumo = journalStatsFromEntries([...journal, ...venda.map((entry) => ({ ...entry, linha_origem: "9001" }))], company.mappings).anomalias;
 check("Saúde da carteira recebe o resumo dos 2 últimos meses", resumo?.from === "2026-02" && resumo.to === "2026-03" && resumo.open === 0, resumo);
 
+// ── Projeção do fechamento do ano ──
+section("Projeção do ano");
+const { projectYear, projectionSentence } = await src("lib/projecao.js");
+const { contextForPeriod } = await src("lib/assistant/context.js");
+setCompanyState();
+const anoCtx = contextForPeriod("2026-01-01", "2026-12-31");
+const abril = new Date("2026-04-15T12:00:00");
+const proj = projectYear({ ano: 2026, ctx: anoCtx, method: "media", lookback: 0, today: abril });
+check("Meses fechados jan–mar, faltam abr–dez", proj.closed.join() === "2026-01,2026-02,2026-03" && proj.remaining.length === 9, proj.closed);
+check("Receita bruta realizada = vendas do trimestre (300 mil)", near(proj.receita.realizado, 300000), proj.receita.realizado);
+check("Média: ano = realizado + 9 × média (4× o trimestre)", near(proj.receita.provavel, 1200000) && near(proj.resultado.provavel, 4 * proj.resultado.realizado), [proj.receita.provavel, proj.resultado.provavel]);
+check("Faixa: desvio mensal (10 mil) × √9 = ± 30 mil", near(proj.receita.otimista - proj.receita.provavel, 30000) && near(proj.receita.provavel - proj.receita.pessimista, 30000), proj.receita.margin);
+check("Sem 2025 no razão: sazonalidade indisponível (e cai na média)", !proj.available.sazonal && projectYear({ ano: 2026, ctx: anoCtx, method: "sazonal", today: abril }).method === "media", proj.available);
+const caixaMar = proj.caixa;
+check("Caixa: saldo de março + variação média × 9", caixaMar && near(caixaMar.provavel, caixaMar.atual + caixaMar.mediaMensal * 9), caixaMar);
+const orcProj = { ...budget.newBudget(2026), valores: { "DRE.01": Object.fromEntries(budget.yearMonths(2026).map((m) => [m, 200000])) } };
+const pelaMeta = projectYear({ ano: 2026, ctx: anoCtx, budgets: [orcProj], method: "orcamento", today: abril });
+check("Orçamento: realizado + orçado dos meses que faltam", pelaMeta.method === "orcamento" && near(pelaMeta.receita.provavel, 300000 + 9 * 200000) && near(pelaMeta.receita.orcado, 2400000), pelaMeta.receita.provavel);
+const frase = projectionSentence(proj, { empresa: "A Exemplo" });
+check("Frase pronta para o assistente", /^Se o ritmo do ano continuar, A Exemplo deve fechar 2026 com receita bruta de R\$ 1,2 mi e (lucro|prejuízo) de/.test(frase) && /caixa deve terminar o ano/.test(frase), frase);
+const janeiro = projectYear({ ano: 2026, ctx: anoCtx, budgets: [orcProj], method: "media", today: new Date("2026-01-10T12:00:00") });
+check("Sem mês fechado: só o orçamento projeta o ano", !janeiro.available.media && janeiro.method === "orcamento" && near(janeiro.receita.provavel, 2400000), janeiro.method);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
