@@ -31,6 +31,7 @@ import { money } from "../../lib/format.js";
 import { columnLabel, columnValue, reportColumns, isZeroNoMovement } from "../../lib/reportColumns.js";
 import { budgetFor } from "../../lib/budget.js";
 import { buildCashBridge, bridgeSentence } from "../../lib/cashBridge.js";
+import { prazosSeries } from "../../lib/prazos.js";
 import { CashBridgeChart } from "../CashBridgeView.jsx";
 import ReportSettingsMenu from "../ReportSettingsMenu.jsx";
 import { lineFormula } from "../../lib/drill.js";
@@ -369,6 +370,25 @@ function renderLineOrBarChart(kind, ctx, anim = true) {
         <Tooltip formatter={(value) => `${Number(value).toFixed(1).replace(".", ",")}%`} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
         <Line isAnimationActive={anim} dataKey="margemBruta" name="Margem bruta" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} />
         <Line isAnimationActive={anim} dataKey="margemLiquida" name="Margem líquida" stroke="var(--color-navy-700)" strokeWidth={2} dot={{ r: 2 }} />
+      </ComposedChart>
+    );
+  }
+  if (kind === "prazos_evolucao") {
+    // Prazos mês a mês (saldo médio do mês ÷ movimento do mês); estoque
+    // acima de 720 dias (custo mal apurado) fica de fora.
+    const data = prazosSeries(ctx).map((row) => ({ month: row.label, pmr: row.pmr, pme: row.pme, pmp: row.pmp, ciclo: row.ciclo }));
+    const daysLabel = (value) => (value == null ? "—" : `${Math.round(value)} dias`);
+    return (
+      <ComposedChart data={data} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+        {grid}
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={{ stroke: "var(--color-line)" }} tickLine={false} />
+        <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} tickFormatter={(v) => `${Math.round(v)}d`} axisLine={false} tickLine={false} width={40} />
+        <Tooltip formatter={(value) => daysLabel(value)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+        <ReferenceLine y={0} stroke="var(--color-line-strong)" />
+        <Bar isAnimationActive={anim} dataKey="ciclo" name="Ciclo financeiro" fill="var(--color-navy-700)" fillOpacity={0.25} radius={[3, 3, 0, 0]} />
+        <Line isAnimationActive={anim} dataKey="pmr" name="Recebimento" stroke="var(--color-accent-500)" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+        <Line isAnimationActive={anim} dataKey="pme" name="Estoque" stroke="var(--color-warning-500)" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+        <Line isAnimationActive={anim} dataKey="pmp" name="Pagamento" stroke="var(--color-success-500)" strokeWidth={2} dot={{ r: 2 }} connectNulls />
       </ComposedChart>
     );
   }

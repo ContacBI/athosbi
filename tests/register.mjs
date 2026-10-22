@@ -13,3 +13,15 @@ globalThis.localStorage = {
     return memory.size;
   },
 };
+
+// Nenhum teste fala com o banco de verdade: chamadas ao Supabase de
+// mentira (http://supabase.test) respondem vazio/OK na hora.
+const realFetch = globalThis.fetch;
+globalThis.fetch = async (input, init = {}) => {
+  const url = typeof input === "string" ? input : input?.url || String(input);
+  if (url.includes("supabase.test")) {
+    const method = (init.method || "GET").toUpperCase();
+    return new Response(method === "GET" ? "[]" : "", { status: method === "GET" ? 200 : 201, headers: { "content-type": "application/json" } });
+  }
+  return realFetch(input, init);
+};

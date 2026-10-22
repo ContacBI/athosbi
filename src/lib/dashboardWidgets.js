@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { money } from "./format.js";
 import { budgetFor } from "./budget.js";
+import { PME_LIMIT, prazosDoCtx } from "./prazos.js";
 import { evaluateIndicatorFormula, describeIndicatorFormula, indicatorDetailRows, richLineDetail, isSingleLineFormula } from "./indicatorFormula.js";
 
 function pct(value) {
@@ -45,6 +46,7 @@ function ratioText(value) {
 }
 
 export function formatWidgetValue(value, format) {
+  if (format === "days") return value == null || !Number.isFinite(Number(value)) ? "—" : `${Math.round(Number(value))} dias`;
   if (format === "percent") return pct(value);
   if (format === "ratio") return ratioText(value);
   return money(value);
@@ -371,4 +373,95 @@ export const BUDGET_WIDGETS = [
   { id: "chart_orcado_tabela", label: "Orçado x realizado (DRE)", category: "Orçamento", icon: Table2, defaultSize: "lg", type: "chart", chart: "orcado_tabela" },
 ];
 
-WIDGET_CATALOG.push(...TABLE_WIDGETS, ...LINK_WIDGETS, ...BUDGET_WIDGETS);
+// Prazos médios e ciclo financeiro (lib/prazos.js — a mesma conta do
+// assistente de slides): saldo médio no balanço ÷ movimento do período ×
+// dias do período.
+const days = (value) => (value == null ? "—" : `${Math.round(value)} dias`);
+function prazoKpi({ id, label, icon, pick, formula, caption, rows }) {
+  return {
+    id,
+    label,
+    category: "Indicadores",
+    type: "kpi",
+    icon,
+    defaultSize: "sm",
+    value: (ctx) => ({ value: pick(prazosDoCtx(ctx)), format: "days" }),
+    caption: (ctx) => caption(prazosDoCtx(ctx)),
+    detail: (ctx) => {
+      const p = prazosDoCtx(ctx);
+      return { formula, rows: [...rows(p), { label: "Resultado", display: days(pick(p)), bold: true }] };
+    },
+  };
+}
+
+const avgLabel = (item) => (item.start + item.end) / 2;
+
+export const PRAZO_WIDGETS = [
+  prazoKpi({
+    id: "prazo_recebimento",
+    label: "Prazo médio de recebimento",
+    icon: Coins,
+    pick: (p) => p?.pmr,
+    formula: "Saldo médio de clientes ÷ receita bruta × dias do período",
+    caption: (p) => (p?.pmr == null ? "Sem receita bruta no período" : "Quanto tempo os clientes levam para pagar"),
+    rows: (p) => [
+      { label: "Clientes no começo", value: p.clientes.start },
+      { label: "Clientes no fim", value: p.clientes.end },
+      { label: "Saldo médio de clientes", value: avgLabel(p.clientes) },
+      { label: "Receita bruta do período", value: p.receitaBruta },
+      { label: "Dias do período", display: String(p.days) },
+    ],
+  }),
+  prazoKpi({
+    id: "prazo_estoque",
+    label: "Prazo médio de estoque",
+    icon: Boxes,
+    pick: (p) => p?.pme,
+    formula: "Saldo médio de estoques ÷ custo do período × dias do período",
+    caption: (p) => (p?.pmeRaw != null && p.pme == null ? "O custo da DRE não permite calcular (CMV muito baixo para o estoque)" : p?.pme == null ? "Sem custo apurado no período" : "Quanto tempo a mercadoria fica parada"),
+    rows: (p) => [
+      { label: "Estoques no começo", value: p.estoques.start },
+      { label: "Estoques no fim", value: p.estoques.end },
+      { label: "Saldo médio de estoques", value: avgLabel(p.estoques) },
+      { label: "Custo do período (DRE)", value: Math.abs(p.custos) },
+      { label: "Dias do período", display: String(p.days) },
+      ...(p.pmeRaw != null && p.pme == null ? [{ label: `Conta deu ${Math.round(p.pmeRaw)} dias (acima de ${PME_LIMIT}): confira a apuração do custo`, display: "" }] : []),
+    ],
+  }),
+  prazoKpi({
+    id: "prazo_pagamento",
+    label: "Prazo médio de pagamento",
+    icon: Receipt,
+    pick: (p) => p?.pmp,
+    formula: "Saldo médio de fornecedores ÷ compras (ou custo) × dias do período",
+    caption: (p) => (p?.pmp == null ? "Sem compras ou custo no período" : "Quanto tempo a empresa leva para pagar fornecedores"),
+    rows: (p) => [
+      { label: "Fornecedores no começo", value: p.fornecedores.start },
+      { label: "Fornecedores no fim", value: p.fornecedores.end },
+      { label: "Saldo médio de fornecedores", value: avgLabel(p.fornecedores) },
+      { label: p.pmpPorCompras ? "Compras do período" : "Custo do período (sem compras na DRE)", value: p.pmpBase },
+      { label: "Dias do período", display: String(p.days) },
+    ],
+  }),
+  prazoKpi({
+    id: "ciclo_financeiro",
+    label: "Ciclo financeiro",
+    icon: Activity,
+    pick: (p) => p?.ciclo,
+    formula: "Prazo de recebimento + prazo de estoque − prazo de pagamento",
+    caption: (p) => {
+      if (p?.ciclo == null) return "Faltam prazos para calcular";
+      const base = p.ciclo > 0 ? "Dias que a empresa financia a operação com o próprio caixa" : "Os fornecedores financiam a operação";
+      return p.cicloSemEstoque ? `${base} (sem o prazo de estoque: o custo da DRE não permite calcular)` : base;
+    },
+    rows: (p) => [
+      { label: "Prazo médio de recebimento", display: days(p.pmr) },
+      { label: "(+) Prazo médio de estoque", display: days(p.pme) },
+      { label: "(−) Prazo médio de pagamento", display: days(p.pmp) },
+      { label: "Ciclo operacional (recebimento + estoque)", display: days(p.cicloOperacional) },
+    ],
+  }),
+  { id: "chart_prazos_evolucao", label: "Prazos médios e ciclo financeiro no tempo", category: "Gráficos", icon: LineChart, defaultSize: "lg", type: "chart", chart: "prazos_evolucao" },
+];
+
+WIDGET_CATALOG.push(...TABLE_WIDGETS, ...LINK_WIDGETS, ...BUDGET_WIDGETS, ...PRAZO_WIDGETS);
