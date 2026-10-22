@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Bookmark, Building2, Copy, Download, LayoutTemplate, MoreHorizontal, Pencil, Play, Plus, Presentation, Search, Sparkles, Trash2, X } from "lucide-react";
+import { Bookmark, Building2, Copy, Download, LayoutTemplate, Link2, MoreHorizontal, Pencil, Play, Plus, Presentation, Search, Sparkles, Trash2, X } from "lucide-react";
 import { useAppState, setData } from "../data/useStore.js";
 import { sharedDashboardContext } from "../lib/dashboardData.js";
 import { companiesResponsavel, groupsResponsavel, isResponsavelForGroup } from "../lib/colaboradores.js";
@@ -10,6 +10,7 @@ import { addPresentationToGroups } from "../lib/groups.js";
 import { loadOfficeLibrary } from "../lib/officeLibrary.js";
 import SlideEditor from "../components/slides/SlideEditor.jsx";
 import AssistantBuilder from "../components/slides/AssistantBuilder.jsx";
+import ShareDeckModal from "../components/slides/ShareDeckModal.jsx";
 import PresentMode, { SlidesExporter, visibleSlides } from "../components/slides/PresentMode.jsx";
 import { Modal, SlideThumb } from "../components/slides/pickers.jsx";
 import "../lib/slideFonts.js";
@@ -251,7 +252,7 @@ function CopyDeckModal({ deck, targets, onClose, onDone }) {
   );
 }
 
-function DeckMenu({ onDuplicate, onDelete, onCopyOut }) {
+function DeckMenu({ onDuplicate, onDelete, onCopyOut, onShare }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
@@ -265,6 +266,11 @@ function DeckMenu({ onDuplicate, onDelete, onCopyOut }) {
             <button type="button" onClick={onDuplicate} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-[13px] text-ink-700 hover:bg-surface-muted">
               <Copy size={14} /> Duplicar
             </button>
+            {onShare && (
+              <button type="button" onClick={onShare} className="deck-compartilhar flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] text-ink-700 hover:bg-surface-muted">
+                <Link2 size={14} /> Compartilhar por link
+              </button>
+            )}
             {onCopyOut && (
               <button type="button" onClick={onCopyOut} className="deck-copiar-para flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] text-ink-700 hover:bg-surface-muted">
                 <Building2 size={14} /> Copiar para outras empresas
@@ -292,6 +298,7 @@ export default function Apresentacoes() {
   const state = useAppState();
   const [creating, setCreating] = useState(false); // true, ou { favorite, auto } vindo de um pedido salvo
   const [copying, setCopying] = useState(null);
+  const [sharing, setSharing] = useState(null);
   const [favoritesOpen, setFavoritesOpen] = useState(false);
   const [flash, setFlash] = useState("");
   const [presenting, setPresenting] = useState(null); // { deck, index }
@@ -373,6 +380,7 @@ export default function Apresentacoes() {
         />
       )}
       {exporting && <SlidesExporter deck={exporting.deck} env={env} only={exporting.only} onDone={() => setExporting(null)} />}
+      {sharing && <ShareDeckModal deck={sharing} env={env} onClose={() => setSharing(null)} />}
     </>
   );
 
@@ -399,6 +407,7 @@ export default function Apresentacoes() {
           onPresent={(current, index) => setPresenting({ deck: current, index })}
           onExport={(current, only) => setExporting({ deck: current, only })}
           onPeriodChange={onPeriodChange}
+          onShare={canEdit ? (current) => setSharing(current) : undefined}
         />
         {overlays}
       </>
@@ -507,6 +516,7 @@ export default function Apresentacoes() {
                       <DeckMenu
                         onDuplicate={() => duplicatePresentation(item.id)?.id && setError("")}
                         onCopyOut={() => setCopying(item)}
+                        onShare={() => setSharing(item)}
                         onDelete={() => {
                           if (window.confirm(`Excluir a apresentação "${item.name}"? Não dá pra desfazer.`)) deletePresentation(item.id).catch((err) => setError(err.message));
                         }}
