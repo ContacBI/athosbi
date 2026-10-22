@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, LabelList, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ArrowDown, ArrowUp, Percent, SlidersHorizontal } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { saveCargaLayout } from "../lib/companies.js";
@@ -95,10 +95,11 @@ const BLOCOS = [
   { id: "kpi-ret", kind: "kpi", nome: "Impostos retidos na fonte" },
   { id: "kpi-folha", kind: "kpi", nome: "Encargos da folha" },
   { id: "kpi-total", kind: "kpi", nome: "Carga com retidos e folha" },
-  { id: "por-imposto", kind: "bloco", padrao: true, nome: "Por imposto" },
+  { id: "composicao", kind: "bloco", padrao: true, nome: "Composição dos impostos (rosca e tabela)" },
+  { id: "impacto", kind: "bloco", padrao: true, nome: "Impacto dos impostos na receita (cascata)" },
   { id: "carga-mes", kind: "bloco", padrao: true, nome: "Carga por mês (gráfico)" },
   { id: "avisos", kind: "bloco", padrao: true, nome: "Avisos" },
-  { id: "composicao", kind: "bloco", nome: "Composição dos impostos (pizza)" },
+  { id: "por-imposto", kind: "bloco", nome: "Por imposto (só a tabela)" },
   { id: "retidos", kind: "bloco", nome: "Impostos retidos na fonte" },
   { id: "folha", kind: "bloco", nome: "Encargos da folha" },
   { id: "visao-completa", kind: "bloco", nome: "Visão completa (todos os tributos)" },
@@ -318,22 +319,83 @@ export default function CargaTributaria() {
       );
     },
     composicao: () => (
-      <Bloco key="composicao" titulo="Composição dos impostos" nota={titulo}>
-        {pizza.length ? (
-          <div className="h-[260px]">
+      <div key="composicao" className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+        <Bloco titulo="Composição dos impostos" nota={`${titulo} · % do total de impostos`} className="xl:col-span-2">
+          {pizza.length ? (
+            <div>
+             <div className="relative h-[250px]">
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-[11px] text-ink-400">Total</span>
+                <span className="text-[16px] font-bold text-ink-900">{compacto(periodo.impTotal)}</span>
+              </div>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={pizza} dataKey="valor" nameKey="nome" innerRadius={70} outerRadius={108} paddingAngle={2} labelLine={false}
+                    label={({ percent, cx, cy, midAngle, innerRadius, outerRadius }) => {
+                      if (percent < 0.04) return null;
+                      const r = innerRadius + (outerRadius - innerRadius) / 2;
+                      const x = cx + r * Math.cos((-midAngle * Math.PI) / 180);
+                      const y = cy + r * Math.sin((-midAngle * Math.PI) / 180);
+                      return <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={700}>{pct1(percent * 100)}</text>;
+                    }}>
+                    {pizza.map((p) => <Cell key={p.id} fill={COR[p.id] || "#64748b"} />)}
+                  </Pie>
+                  <Tooltip formatter={(value, name) => [`${moneyFull(value)} · ${pctCarga(periodo.impTotal ? value / periodo.impTotal : 0)}`, name]} />
+                </PieChart>
+              </ResponsiveContainer>
+             </div>
+             <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[12px] text-ink-600">
+               {pizza.map((p) => (
+                 <span key={p.id}><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: COR[p.id] || "#64748b" }} />{p.nome} <b className="text-ink-800">{pctCarga(periodo.impTotal ? p.valor / periodo.impTotal : 0)}</b></span>
+               ))}
+             </div>
+            </div>
+          ) : <p className="py-10 text-center text-[13px] text-ink-400">Sem imposto apurado neste período.</p>}
+        </Bloco>
+        <Bloco titulo="Por imposto" nota={titulo} className="overflow-x-auto xl:col-span-3">
+          <TabelaGrupos grupos={grupos} valores={periodo.imp} total={periodo.impTotal} faturamento={fatP} vazio="Sem imposto apurado neste período." />
+        </Bloco>
+      </div>
+    ),
+    impacto: () => {
+      // cascata: parte do faturamento, desconta cada imposto (do maior pro menor) e mostra o que sobra
+      const impostos = grupos.map((g) => ({ g, v: periodo.imp[g.id] || 0 })).filter((x) => x.v > 0).sort((a, b) => b.v - a.v);
+      if (!fatP || !impostos.length) {
+        return <Bloco key="impacto" titulo="Impacto dos impostos na receita" nota={titulo}><p className="py-10 text-center text-[13px] text-ink-400">Sem faturamento ou sem imposto apurado neste período.</p></Bloco>;
+      }
+      let atual = fatP;
+      const passos = [{ nome: "Faturamento", base: 0, valor: fatP, cor: "#2563eb", rotulo: moneyFull(fatP), pct: 1 }];
+      impostos.forEach(({ g, v }) => {
+        atual -= v;
+        passos.push({ nome: nomeCurto(g.nome), base: atual, valor: v, cor: COR[g.id] || "#64748b", rotulo: `−${compacto(v)}`, pct: v / fatP });
+      });
+      passos.push({ nome: "Sobra após impostos", base: 0, valor: Math.max(atual, 0), cor: "#16a34a", rotulo: moneyFull(atual), pct: atual / fatP });
+      return (
+        <Bloco key="impacto" titulo="Impacto dos impostos na receita" nota={`${titulo} · de cada R$ 100 faturados, ${periodo.carga == null ? "—" : moneyFull(periodo.carga * 100)} vão para impostos próprios`}>
+          <div className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={pizza} dataKey="valor" nameKey="nome" innerRadius={62} outerRadius={98} paddingAngle={2}>
-                  {pizza.map((p) => <Cell key={p.id} fill={COR[p.id] || "#64748b"} />)}
-                </Pie>
-                <Tooltip formatter={(value, name) => [moneyFull(value), name]} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-              </PieChart>
+              <BarChart data={passos} margin={{ top: 22, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="nome" tick={{ fontSize: 11.5 }} interval={0} />
+                <YAxis tick={{ fontSize: 12 }} tickFormatter={compacto} />
+                <Tooltip cursor={false} formatter={(value, name, item) => (name === "base" ? null : [`${moneyFull(value)} · ${pctCarga(item.payload.pct)} do faturamento`, item.payload.nome])} />
+                <Bar dataKey="base" stackId="c" fill="transparent" isAnimationActive={false} />
+                <Bar dataKey="valor" stackId="c" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                  {passos.map((p, i) => <Cell key={i} fill={p.cor} />)}
+                  <LabelList dataKey="rotulo" position="top" style={{ fontSize: 11, fontWeight: 600 }} />
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </div>
-        ) : <p className="py-10 text-center text-[13px] text-ink-400">Sem imposto apurado neste período.</p>}
-      </Bloco>
-    ),
+          <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-ink-500">
+            {impostos.map(({ g, v }) => (
+              <span key={g.id}><span className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: COR[g.id] || "#64748b" }} />{nomeCurto(g.nome)}: <b className="text-ink-800">{pctCarga(v / fatP)}</b> do faturamento</span>
+            ))}
+            <span>Sobra: <b className="text-ink-800">{pctCarga(atual / fatP)}</b> do faturamento</span>
+          </div>
+        </Bloco>
+      );
+    },
     retidos: () => (
       <Bloco key="retidos" titulo="Impostos retidos na fonte" nota={`${titulo} · a empresa retém de terceiros e recolhe — não entram na carga própria`} className="overflow-x-auto">
         <TabelaGrupos grupos={gruposRet} valores={ret} total={retTotal} faturamento={fatP} vazio="Nenhum imposto retido apurado neste período." />
