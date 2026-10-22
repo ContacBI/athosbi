@@ -53,12 +53,18 @@ function PreviewModal({ definition, ctx, onNavigate, onClose }) {
   );
 }
 
+// Admin-only mesmo pra colaborador Restrito, que entra no resto de
+// Parâmetros — ver ParametrosLayout.jsx. A checagem fica num componente
+// à parte pra a tela de verdade chamar os hooks sempre na mesma ordem.
 export default function BiAdmin() {
   const appState = useAppState();
-  const navigate = useNavigate();
-  // Admin-only mesmo pra colaborador Restrito, que entra no resto de
-  // Parâmetros — ver ParametrosLayout.jsx.
   if (!appState.isAdmin) return <Navigate to="/parametros/empresas" replace />;
+  return <BiAdminScreen />;
+}
+
+function BiAdminScreen() {
+  const appState = useAppState();
+  const navigate = useNavigate();
   const [openCategories, setOpenCategories] = useState({ Indicadores: true });
   const [previewItem, setPreviewItem] = useState(null);
   // undefined = closed, null = creating a new indicator, a definition = editing one.

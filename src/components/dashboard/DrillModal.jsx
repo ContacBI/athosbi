@@ -5,7 +5,7 @@ import { state } from "../../data/useStore.js";
 import { buildDrill } from "../../lib/drill.js";
 import { ledgerData } from "../../lib/slideDemo.js";
 import { formatWidgetValue } from "../../lib/dashboardWidgets.js";
-import { exportLedgerPdf } from "../../lib/ledgerPdf.js";
+import { exportLedgerPdf } from "../../lib/exportLoaders.js";
 import { slug } from "../../lib/demonstrativoExport.js";
 import { money, periodLabelPt } from "../../lib/format.js";
 

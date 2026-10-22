@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { ArrowDownCircle, ArrowUpCircle, Download, Search, X } from "lucide-react";
 import { entriesForAccount, journalByCompanyAndDate, counterpartsForEntry } from "../data/calculations.js";
 import { money } from "../lib/format.js";
-import { exportLedgerPdf } from "../lib/ledgerPdf.js";
+import { exportLedgerPdf } from "../lib/exportLoaders.js";
 import { slug } from "../lib/demonstrativoExport.js";
 import Avatar from "./Avatar.jsx";
 

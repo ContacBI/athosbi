@@ -6,14 +6,12 @@ import { missingMappingAccounts } from "../data/calculations.js";
 import { groupCompanies, activeWorkspaceName } from "../lib/groups.js";
 import { isResponsavelForGroup } from "../lib/colaboradores.js";
 import { usePageActions } from "../lib/pageActions.jsx";
-import { buildDashboardContext } from "../lib/dashboardData.js";
+import { sharedDashboardContext } from "../lib/dashboardData.js";
 import { buildSummaryExportRows } from "../lib/dashboardExport.js";
 import { buildFullReportExport, slug } from "../lib/demonstrativoExport.js";
 import { buildFullDfcExport } from "../lib/dfcExport.js";
 import { buildPerCompanyReports } from "../lib/groupExport.js";
-import { exportDemonstrativoPdf, buildDemonstrativoPdfBlob } from "../lib/reportPdf.js";
-import { exportDemonstrativoExcel, exportMultiSheetExcel } from "../lib/reportExcel.js";
-import { downloadZip } from "../lib/zipExport.js";
+import { exportDemonstrativoPdf, exportDemonstrativoExcel, exportMultiSheetExcel, downloadZip, loadReportPdf } from "../lib/exportLoaders.js";
 import { periodLabelPt } from "../lib/format.js";
 import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
 import PeriodPicker from "./PeriodPicker.jsx";
@@ -135,7 +133,7 @@ function ReportBuilderModal({ onClose }) {
         });
 
         if (summaryItems.length) {
-          const ctx = buildDashboardContext();
+          const ctx = sharedDashboardContext();
           const meta = {
             companyName: workspaceName,
             reportName: tab.name,
@@ -242,6 +240,7 @@ function buildConsolidatedAndIndividual(group, reportKind) {
 async function downloadConsolidatedAndIndividualPdf(group, reportKind) {
   const entries = buildConsolidatedAndIndividual(group, reportKind);
   if (!entries) return;
+  const { buildDemonstrativoPdfBlob } = await loadReportPdf();
   const files = entries.map(({ data }) => ({ name: `${data.fileLabel}.pdf`, blob: buildDemonstrativoPdfBlob(data) }));
   await downloadZip(files, `${slug(`${entries[0].data.reportName}_${group.name}`)}.zip`);
 }

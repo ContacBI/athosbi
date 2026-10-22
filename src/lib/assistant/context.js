@@ -3,7 +3,7 @@
 // que o leitor de pedidos reconhece pelo nome e o período de comparação.
 
 import { state } from "../../data/useStore.js";
-import { buildDashboardContext } from "../dashboardData.js";
+import { sharedDashboardContext } from "../dashboardData.js";
 
 // Calcula como se a tela estivesse no período pedido e volta ao que era —
 // sem setData, então nenhuma tela redesenha no meio. Os caches de cálculo
@@ -13,7 +13,7 @@ export function contextForPeriod(start, end) {
   try {
     state.periodStart = start;
     state.periodEnd = end;
-    return buildDashboardContext();
+    return sharedDashboardContext();
   } finally {
     state.periodStart = saved.periodStart;
     state.periodEnd = saved.periodEnd;
