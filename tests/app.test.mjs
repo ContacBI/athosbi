@@ -367,6 +367,16 @@ const despesasBullets = comAnalise.sections.despesas.bullets;
 check("Assistente: o comentário vira observação no slide de despesas", /^Observação — aluguel predial, fevereiro\/2026: Reajuste do aluguel/i.test(despesasBullets[0]), despesasBullets[0]);
 check("…e entra na visão geral (anotações); o de fora do período não", comAnalise.sections.visao.bullets.some((item) => /Reajuste do aluguel/.test(item)) && comAnalise.facts.comentarios.length === 1, comAnalise.facts.comentarios);
 
+// ── Metas nos cards do B.I. ──
+section("Metas nos cards");
+const { cardGoal, goalsOf: goalsDe } = await src("lib/metas.js");
+const metasEmpresa = goalsDe({ metasIndicadores: { liquidezCorrente: 1.2, pmr: 45 } });
+const cardLiq = cardGoal("ratio_liquidez_corrente", 0.7, metasEmpresa);
+const cardPmr = cardGoal("prazo_recebimento", 30, metasEmpresa);
+check("Card de liquidez: fora da meta ≥ 1,2x", cardLiq?.label === "meta ≥ 1,2x" && cardLiq.ok === false, cardLiq);
+check("Card de prazo: dentro da meta ≤ 45 dias", cardPmr?.label === "meta ≤ 45 dias" && cardPmr.ok === true, cardPmr);
+check("Sem meta própria (só o padrão), o card não muda", cardGoal("ratio_margem_liquida", 2, metasEmpresa) === null && cardGoal("ratio_roe", 5, metasEmpresa) === null, null);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);

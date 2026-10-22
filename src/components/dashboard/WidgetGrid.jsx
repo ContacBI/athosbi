@@ -23,6 +23,7 @@ import {
 } from "recharts";
 import { ArrowLeft, ArrowUpRight, ChevronRight, X, CheckCircle2, Circle, MessageSquare, TriangleAlert } from "lucide-react";
 import { formulaComments, monthNamePt } from "../../lib/comentarios.js";
+import { cardGoal } from "../../lib/metas.js";
 import { WIDGET_CATALOG, formatWidgetValue } from "../../lib/dashboardWidgets.js";
 import { isSingleLineFormula, describeIndicatorFormula } from "../../lib/indicatorFormula.js";
 import { useIsMobile } from "../../lib/useIsMobile.js";
@@ -1397,6 +1398,8 @@ function KpiInline({ definition, ctx }) {
   const caption = definition.caption ? definition.caption(ctx) : definition.formula && !isSingleLineFormula(definition.formula) ? describeIndicatorFormula(definition.formula) : null;
   // Comentários das linhas deste card no período (lib/comentarios.js).
   const comments = definition.formula ? formulaComments(definition.formula, ctx.months) : [];
+  // Meta própria da empresa para este indicador (lib/metas.js).
+  const goal = cardGoal(definition.id, value);
   return (
     <>
       <div className="flex items-center justify-between">
@@ -1415,7 +1418,13 @@ function KpiInline({ definition, ctx }) {
           </span>
         )}
       </div>
-      <p className={`mt-1.5 text-[22px] font-medium ${tone}`}>{formatWidgetValue(value, format)}</p>
+      <p className={`mt-1.5 text-[22px] font-medium ${goal ? (goal.ok ? "text-success-600" : "text-danger-600") : tone}`}>{formatWidgetValue(value, format)}</p>
+      {goal && (
+        <p className={`kpi-meta mt-0.5 flex items-center gap-1 text-[10.5px] font-semibold ${goal.ok ? "text-success-600" : "text-danger-600"}`}>
+          {goal.ok ? <CheckCircle2 size={11} /> : <TriangleAlert size={11} />}
+          {goal.ok ? "Dentro da" : "Fora da"} {goal.label}
+        </p>
+      )}
       {caption && <p className="mt-1 mb-auto text-[10.5px] leading-snug text-ink-400">{caption}</p>}
       {!caption && <div className="mb-auto" />}
     </>
