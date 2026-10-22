@@ -20,6 +20,11 @@ export const PLANO_BACKUP_KEY = "portalGerencial.planoBackup.v1";
 // Uma linha só, array pequeno (poucos planos, não uma por empresa), sem
 // precisar de chunking como o razão.
 export const PLANOS_PADRAO_KEY = "portalGerencial.planosPadrao.v1";
+// Biblioteca do escritório (lib/officeLibrary.js): pedidos salvos do
+// assistente de apresentações e slides reutilizáveis — uma linha cada,
+// compartilhadas por todo o escritório.
+export const ASSISTANT_FAVORITES_KEY = "portalGerencial.assistantFavorites.v1";
+export const SLIDE_LIBRARY_KEY = "portalGerencial.slideLibrary.v1";
 
 // A company's "journal" (monthly ledger entries) is the one piece of data
 // that can run into the tens of thousands of rows — everything else in a

@@ -225,6 +225,9 @@ $$;
 --     só quem está em `responsaveis` DAQUELA empresa.
 --   • Grupo: qualquer colaborador, sem crivo — não existe "responsável de
 --     grupo".
+--   • Biblioteca do escritório (pedidos salvos do assistente e slides
+--     prontos, lib/officeLibrary.js): qualquer colaborador — não tem dado
+--     financeiro de empresa nenhuma.
 --   • Plano padrão / Representantes: só quem é responsável por ALGUMA
 --     empresa (has_any_responsibility) — essas duas gavetas guardam TUDO
 --     numa linha só (um array), não dá pra travar por item individual
@@ -245,6 +248,7 @@ create policy "app_storage_insert_scoped"
         key like 'portalGerencial.company.%'
         or (key like 'portalGerencial.companyJournal.%' and is_responsavel(split_part(key, '.', 3)))
         or key = 'portalGerencial.groups.v1'
+        or key in ('portalGerencial.assistantFavorites.v1', 'portalGerencial.slideLibrary.v1')
         or (key in ('portalGerencial.planosPadrao.v1', 'portalGerencial.representantes.v1') and has_any_responsibility())
       )
     )
@@ -264,6 +268,7 @@ create policy "app_storage_update_scoped"
         (key like 'portalGerencial.company.%' and is_responsavel(split_part(key, '.', 3)))
         or (key like 'portalGerencial.companyJournal.%' and is_responsavel(split_part(key, '.', 3)))
         or key = 'portalGerencial.groups.v1'
+        or key in ('portalGerencial.assistantFavorites.v1', 'portalGerencial.slideLibrary.v1')
         or (key in ('portalGerencial.planosPadrao.v1', 'portalGerencial.representantes.v1') and has_any_responsibility())
       )
     )
@@ -276,6 +281,7 @@ create policy "app_storage_update_scoped"
         (key like 'portalGerencial.company.%' and is_responsavel(split_part(key, '.', 3)))
         or (key like 'portalGerencial.companyJournal.%' and is_responsavel(split_part(key, '.', 3)))
         or key = 'portalGerencial.groups.v1'
+        or key in ('portalGerencial.assistantFavorites.v1', 'portalGerencial.slideLibrary.v1')
         or (key in ('portalGerencial.planosPadrao.v1', 'portalGerencial.representantes.v1') and has_any_responsibility())
       )
     )

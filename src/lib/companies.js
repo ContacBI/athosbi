@@ -926,6 +926,25 @@ function applyDashboardTabsToCompanies(sourceTabs, targetIds, excludeId) {
   return applied;
 }
 
+// Uma apresentação copiada pra outras empresas (Apresentações → ⋯ →
+// "Copiar para outras empresas"): entra como mais uma na lista de cada
+// uma, sem mexer nas que elas já têm. `makeCopy` gera uma cópia nova (ids
+// próprios) por empresa.
+export function addPresentationToCompanies(makeCopy, targetIds) {
+  const targetSet = new Set(targetIds);
+  targetSet.delete(state.activeGroupId ? "" : state.activeCompanyId);
+  if (!targetSet.size) return 0;
+  let applied = 0;
+  const companies = state.companies.map((company) => {
+    if (!targetSet.has(company.id)) return company;
+    applied += 1;
+    return { ...company, presentations: [...(company.presentations || []), makeCopy()], updatedAt: new Date().toISOString() };
+  });
+  writeStoredCompanies(companies);
+  setData({ companies });
+  return applied;
+}
+
 export function replicateDashboardTabs(sourceId, targetIds) {
   const source = state.companies.find((company) => company.id === sourceId);
   if (!source) return 0;
