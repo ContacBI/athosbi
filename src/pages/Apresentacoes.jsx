@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Bookmark, Building2, Copy, Download, LayoutTemplate, MoreHorizontal, Pencil, Play, Plus, Presentation, Search, Sparkles, Trash2, X } from "lucide-react";
 import { useAppState, setData } from "../data/useStore.js";
-import { buildDashboardContext } from "../lib/dashboardData.js";
+import { sharedDashboardContext } from "../lib/dashboardData.js";
 import { companiesResponsavel, groupsResponsavel, isResponsavelForGroup } from "../lib/colaboradores.js";
 import { DECK_TEMPLATES, THEMES, deckCopyForOtherWorkspace, deletePresentation, duplicatePresentation, fontStack, makePresentation, themeById, tokenInfo, upsertPresentation } from "../lib/presentations.js";
 import { addPresentationToCompanies } from "../lib/companies.js";
@@ -319,7 +319,7 @@ export default function Apresentacoes() {
 
   const ctx = useMemo(() => {
     if (!hasData) return null;
-    return buildDashboardContext();
+    return sharedDashboardContext();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasData, state.mappings, state.accounts, state.journal, state.periodStart, state.periodEnd, state.indicatorOverrides]);
   const info = tokenInfo();

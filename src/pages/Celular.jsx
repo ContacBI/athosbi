@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { useAppState, setData } from "../data/useStore.js";
-import { buildDashboardContext } from "../lib/dashboardData.js";
+import { sharedDashboardContext } from "../lib/dashboardData.js";
 import { analyze, fmtDelta, fmtPct, monthName } from "../lib/assistant/analysis.js";
 import { comparisonPeriod, contextForPeriod, dataMonths, shortPeriod } from "../lib/assistant/context.js";
 import { bridgeSentence } from "../lib/cashBridge.js";
@@ -209,7 +209,7 @@ export default function Celular() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [months]);
 
-  const ctx = useMemo(() => (hasData && period.start ? buildDashboardContext() : null),
+  const ctx = useMemo(() => (hasData && period.start ? sharedDashboardContext() : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [hasData, appState.mappings, appState.accounts, appState.journal, appState.periodStart, appState.periodEnd, appState.indicatorOverrides, appState.hideNonOperatingResults]);
 

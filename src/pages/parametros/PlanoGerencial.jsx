@@ -409,12 +409,18 @@ function ImportPlanoModal({ result, onClose, onConfirm }) {
   );
 }
 
+// Admin-only mesmo pra colaborador Restrito, que entra no resto de
+// Parâmetros — ver ParametrosLayout.jsx. A checagem fica num componente
+// à parte pra a tela de verdade chamar os hooks sempre na mesma ordem.
 export default function PlanoGerencial() {
   const state = useAppState();
-  const navigate = useNavigate();
-  // Admin-only mesmo pra colaborador Restrito, que entra no resto de
-  // Parâmetros — ver ParametrosLayout.jsx.
   if (!state.isAdmin) return <Navigate to="/parametros/empresas" replace />;
+  return <PlanoGerencialScreen />;
+}
+
+function PlanoGerencialScreen() {
+  const state = useAppState();
+  const navigate = useNavigate();
   const [section, setSection] = useState("plano"); // "plano" | "modificacoes"
   const [tab, setTab] = useState("DRE");
   const [search, setSearch] = useState("");

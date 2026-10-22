@@ -6,7 +6,7 @@ import { createTab, updateTab, deleteTab, createSubTab, updateSubTab, deleteSubT
 import { replicateDashboardTabs } from "../lib/companies.js";
 import { replicateGroupDashboardTabs, replicateGroupDashboardTabsToCompanies } from "../lib/groups.js";
 import { companiesResponsavel, groupsResponsavel, isResponsavelForGroup } from "../lib/colaboradores.js";
-import { buildDashboardContext } from "../lib/dashboardData.js";
+import { sharedDashboardContext } from "../lib/dashboardData.js";
 import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
 import { DEFAULT_SPACING } from "../components/dashboard/gridLayout.js";
 import Avatar from "../components/Avatar.jsx";
@@ -269,7 +269,7 @@ export default function PersonalizarHub() {
 
   const ctx = useMemo(() => {
     if (!hasData) return null;
-    return buildDashboardContext();
+    return sharedDashboardContext();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasData, appState.mappings, appState.accounts, appState.journal, appState.periodStart, appState.periodEnd]);
 
