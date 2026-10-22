@@ -1,6 +1,8 @@
 import { Fragment, useMemo, useState } from "react";
 import { ArrowDownCircle, ArrowUpCircle, Download, Search, X } from "lucide-react";
 import { entriesForAccount, journalByCompanyAndDate, counterpartsForEntry } from "../data/calculations.js";
+import { useAppState } from "../data/useStore.js";
+import { accountNature } from "../lib/accountNature.js";
 import { money } from "../lib/format.js";
 import { exportLedgerPdf } from "../lib/exportLoaders.js";
 import { slug } from "../lib/demonstrativoExport.js";
@@ -47,7 +49,15 @@ function normalizeText(value) {
 const SEM_CONTRAPARTIDA_CODE = "sem-contrapartida";
 
 export default function LedgerModal({ row, onClose }) {
+  const state = useAppState();
   const [search, setSearch] = useState("");
+  // Cor e sinal seguem o que o demonstrativo mostra: conta de RESULTADO (receita positiva, despesa negativa), PASSIVO e PL têm o crédito como
+  // lado "positivo" (verde) e o débito como negativo (vermelho); ATIVO é o contrário. Sem natureza conhecida (ou DFC), fica como sempre foi (débito verde).
+  const codigoConta = Array.isArray(row.classificacao) ? row.classificacao[0] : row.classificacao;
+  const natureza = row.demonstrativo === "DFC" ? null : accountNature(codigoConta, state.natureRules);
+  const creditoPositivo = natureza === "resultado" || natureza === "passivo" || natureza === "pl";
+  const corDebito = creditoPositivo ? "text-danger-600" : "text-success-600";
+  const corCredito = creditoPositivo ? "text-success-600" : "text-danger-600";
   const rawEntries = row.classificacao === SEM_CONTRAPARTIDA_CODE && Array.isArray(row.dfcEntries)
     ? row.dfcEntries
     : entriesForAccount(row.classificacao);
@@ -66,6 +76,8 @@ export default function LedgerModal({ row, onClose }) {
     : [...rawEntries].sort((a, b) => String(a.data).localeCompare(String(b.data)));
   const totalDebito = entries.reduce((sum, entry) => sum + Number(entry.debito || 0), 0);
   const totalCredito = entries.reduce((sum, entry) => sum + Number(entry.credito || 0), 0);
+  // saldo do período já no sinal do demonstrativo (resultado/passivo/PL: crédito − débito; ativo: débito − crédito)
+  const saldoPeriodo = creditoPositivo ? totalCredito - totalDebito : totalDebito - totalCredito;
   // Agrupa o razão inteiro por empresa+dia uma vez só (modal acabou de
   // abrir) — cada linha reaproveita esse mapa em vez de varrer tudo de
   // novo; ver counterpartsForEntry/journalByCompanyAndDate em calculations.js.
@@ -122,7 +134,8 @@ export default function LedgerModal({ row, onClose }) {
     exportLedgerPdf({
       label,
       classificacaoLabel,
-      totalLabel: `${filtered.length} lançamento${filtered.length === 1 ? "" : "s"} · Saldo ${money(totalDebito - totalCredito)}`,
+      totalLabel: `${filtered.length} lançamento${filtered.length === 1 ? "" : "s"} · Saldo ${money(saldoPeriodo)}`,
+      creditoPositivo,
       showCompany,
       rows: filtered.map(({ entry, counterpartText }) => ({
         data: entry.data,
@@ -177,21 +190,21 @@ export default function LedgerModal({ row, onClose }) {
         )}
         <div className="grid grid-cols-2 gap-3 border-b border-line bg-surface-page px-6 py-4">
           <div className="flex items-center gap-3 rounded-xl bg-surface-card p-3.5 shadow-sm">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-success-50 text-success-600">
+            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${creditoPositivo ? "bg-danger-50" : "bg-success-50"} ${corDebito}`}>
               <ArrowDownCircle size={18} strokeWidth={1.8} />
             </span>
             <div>
               <p className="text-[11px] text-ink-400">Total débito</p>
-              <p className="text-[16px] font-semibold text-success-600">{money(totalDebito)}</p>
+              <p className={`text-[16px] font-semibold ${corDebito}`}>{money(totalDebito)}</p>
             </div>
           </div>
           <div className="flex items-center gap-3 rounded-xl bg-surface-card p-3.5 shadow-sm">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-danger-50 text-danger-600">
+            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${creditoPositivo ? "bg-success-50" : "bg-danger-50"} ${corCredito}`}>
               <ArrowUpCircle size={18} strokeWidth={1.8} />
             </span>
             <div>
               <p className="text-[11px] text-ink-400">Total crédito</p>
-              <p className="text-[16px] font-semibold text-danger-600">{money(totalCredito)}</p>
+              <p className={`text-[16px] font-semibold ${corCredito}`}>{money(totalCredito)}</p>
             </div>
           </div>
         </div>
@@ -257,8 +270,8 @@ export default function LedgerModal({ row, onClose }) {
                           )}
                         </p>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-2 align-top text-right tabular-nums text-success-600">{entry.debito ? money(entry.debito) : ""}</td>
-                      <td className="whitespace-nowrap px-6 py-2 align-top text-right tabular-nums text-danger-600">{entry.credito ? money(entry.credito) : ""}</td>
+                      <td className={`whitespace-nowrap px-4 py-2 align-top text-right tabular-nums ${corDebito}`}>{entry.debito ? money(entry.debito) : ""}</td>
+                      <td className={`whitespace-nowrap px-6 py-2 align-top text-right tabular-nums ${corCredito}`}>{entry.credito ? money(entry.credito) : ""}</td>
                     </tr>
                   </Fragment>
                 );
@@ -275,7 +288,7 @@ export default function LedgerModal({ row, onClose }) {
         </div>
 
         <div className="flex items-center justify-end gap-6 border-t border-line px-6 py-3 text-[12px]">
-          <span className="text-ink-400">Saldo do período: <span className={`font-semibold ${moneyClass(totalDebito - totalCredito)}`}>{money(totalDebito - totalCredito)}</span></span>
+          <span className="text-ink-400">Saldo do período: <span className={`font-semibold ${moneyClass(saldoPeriodo)}`}>{money(saldoPeriodo)}</span></span>
         </div>
       </div>
     </div>

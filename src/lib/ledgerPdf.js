@@ -47,7 +47,7 @@ function formatDate(value) {
 // (ocupando a largura toda) toda vez que a empresa muda, ANTES do primeiro
 // lançamento dela — exatamente "informa no início a empresa referente, com
 // os lançamentos de cada uma separados".
-export function exportLedgerPdf({ label, classificacaoLabel, totalLabel, showCompany, rows, fileLabel }) {
+export function exportLedgerPdf({ label, classificacaoLabel, totalLabel, showCompany, rows, fileLabel, creditoPositivo = false }) {
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
   const columns = ["Data", "Histórico", "Contrapartida", "Débito", "Crédito"];
 
@@ -84,8 +84,9 @@ export function exportLedgerPdf({ label, classificacaoLabel, totalLabel, showCom
       if (data.section !== "body") return;
       const meta = rowMeta[data.row.index];
       if (!meta || meta.kind !== "entry") return;
-      if (data.column.index === 3 && meta.debito) data.cell.styles.textColor = POSITIVE;
-      if (data.column.index === 4 && meta.credito) data.cell.styles.textColor = NEGATIVE;
+      // resultado/passivo/PL: crédito é o lado positivo; ativo: débito (mesma regra da tela)
+      if (data.column.index === 3 && meta.debito) data.cell.styles.textColor = creditoPositivo ? NEGATIVE : POSITIVE;
+      if (data.column.index === 4 && meta.credito) data.cell.styles.textColor = creditoPositivo ? POSITIVE : NEGATIVE;
     },
     margin: { left: 24, right: 24, top: 66, bottom: 24 },
     didDrawPage() {
