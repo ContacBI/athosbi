@@ -28,6 +28,7 @@ import { setData } from "./data/useStore.js";
 // Empresas/CompanyHome continuam no pacote inicial — são a primeira tela
 // que qualquer sessão vê.
 const PainelTab = lazy(() => import("./pages/PainelTab.jsx"));
+const Celular = lazy(() => import("./pages/Celular.jsx"));
 const PersonalizarHub = lazy(() => import("./pages/PersonalizarHub.jsx"));
 const Demonstrativos = lazy(() => import("./pages/Demonstrativos.jsx"));
 const Dfc = lazy(() => import("./pages/Dfc.jsx"));
@@ -204,6 +205,7 @@ function AuthedApp() {
         <Route path="empresa" element={<CompanyLayout />}>
           <Route index element={<CompanyHome />} />
           <Route path="painel/:tabId" element={<PainelTab />} />
+          <Route path="celular" element={<Celular />} />
           <Route path="personalizar" element={<PersonalizarHub />} />
           <Route path="demonstrativos" element={<Demonstrativos />} />
           <Route path="dfc" element={<Dfc />} />

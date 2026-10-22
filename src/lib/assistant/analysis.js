@@ -440,7 +440,7 @@ function compareFacts(f, p) {
   };
 }
 
-function fmtDelta(metric) {
+export function fmtDelta(metric) {
   if (!metric || metric.delta == null) return "";
   if (metric.kind === "percent") return fmtPp(metric.delta);
   if (metric.kind === "ratio") return `${metric.delta > 0 ? "+" : ""}${fmtRatio(metric.delta)}`;

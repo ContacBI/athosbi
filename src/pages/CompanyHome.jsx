@@ -1,6 +1,8 @@
 import { Navigate, useNavigate } from "react-router-dom";
 import { LayoutGrid, Sparkles } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
+import { useIsMobile } from "../lib/useIsMobile.js";
+import { prefersFullPanel } from "../lib/installApp.js";
 
 // The company's front door. Nothing is pre-built: if the user already has a
 // tab, jump straight to the first one. Otherwise show a blank slate — the
@@ -12,6 +14,11 @@ export default function CompanyHome() {
   const navigate = useNavigate();
   const tabs = state.dashboardTabs || [];
   const isGroup = Boolean(state.activeGroupId);
+  const isMobile = useIsMobile();
+
+  // No celular o início é o resumo (pages/Celular.jsx), a não ser que a
+  // pessoa tenha pedido o painel completo nesta sessão.
+  if (isMobile && !prefersFullPanel()) return <Navigate to="/empresa/celular" replace />;
 
   if (tabs.length > 0) return <Navigate to={`/empresa/painel/${tabs[0].id}`} replace />;
 
