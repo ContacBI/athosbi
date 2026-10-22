@@ -1,10 +1,12 @@
 import { useMemo, useRef, useState } from "react";
-import { Check, Download, Link2, Search, Upload, X } from "lucide-react";
+import { Check, Download, Link2, Search, Sparkles, Upload, X } from "lucide-react";
 import { useAppState, setData } from "../data/useStore.js";
 import { persistActiveCompany, remapJournal, applySiblingMappings } from "../lib/companies.js";
 import { parseCsv } from "../importers/csv.js";
 import { NATURE_LABELS, accountNature, planoNature } from "../lib/accountNature.js";
 import { planNameCase } from "../lib/planCase.js";
+import { CONFIDENCE_LABELS, CONFIDENCE_STYLE, confidenceRank, mappingFromSuggestion, suggestDepara } from "../lib/deparaSugestao.js";
+import DeparaSugestoes from "../components/DeparaSugestoes.jsx";
 
 const HEADERS = ["codigo_conta", "classificacao", "nome_conta", "tipo_conta", "codigo_gerencial", "categoria_gerencial", "demonstrativo", "grupo_macro", "observacao"];
 const norm = (value) => String(value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -38,12 +40,14 @@ export default function Depara() {
   const [selected, setSelected] = useState([]);
   const [target, setTarget] = useState(null);
   const [notice, setNotice] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef(null);
   const mappings = useMemo(() => new Map(state.mappings.map((row) => [row.classificacao, row])), [state.mappings]);
   // Contas do balancete atual + as que só existiam num ano anterior (balancete
   // daquele ano, pedido à Central — company.balancetesAno): sem vínculo, o
   // lançamento delas fica fora dos relatórios daquele ano. Marcadas com o ano.
-  const balancetesAno = state.companies.find((item) => item.id === state.activeCompanyId)?.balancetesAno;
+  const activeCompany = state.companies.find((item) => item.id === state.activeCompanyId);
+  const balancetesAno = activeCompany?.balancetesAno;
   const accounts = useMemo(() => {
     const atuais = state.accounts.filter((a) => a.tipo_sintetica === "nao");
     const vistas = new Set(atuais.map((account) => account.classificacao));
@@ -64,6 +68,34 @@ export default function Depara() {
     return values.length === 1 ? values[0] : null;
   }, [selectedRows, state.natureRules]);
   const pending = accounts.filter((row) => !row.mapping).length;
+  // Sugestões para as pendentes (ver lib/deparaSugestao.js): regras desta
+  // empresa + o que as outras empresas da carteira já vincularam.
+  const planoPadraoId = activeCompany?.planoPadraoId || null;
+  const suggestion = useMemo(
+    () =>
+      suggestDepara({
+        accounts: accounts.map(({ account }) => account),
+        mappings: state.mappings,
+        otherCompanies: state.companies.filter((company) => company.id !== state.activeCompanyId),
+        plano: state.plano,
+        natureRules: state.natureRules,
+        planoPadraoId,
+        globalCodes: state.planoGlobal.length ? new Set(state.planoGlobal.map((row) => row.codigo_gerencial)) : null,
+        currentAccounts: new Set(state.accounts.map((account) => account.classificacao)),
+      }),
+    [accounts, state.accounts, state.mappings, state.companies, state.activeCompanyId, state.plano, state.natureRules, state.planoGlobal, planoPadraoId]
+  );
+  const suggestionByAccount = useMemo(() => new Map(suggestion.suggestions.filter((item) => item.row).map((item) => [item.account.classificacao, item])), [suggestion]);
+  const suggestedCount = suggestionByAccount.size;
+  // Contas marcadas, todas pendentes e com a mesma linha sugerida → atalho
+  // "Usar" no meio da tela (fica com a menor confiança entre elas).
+  const selectionHint = useMemo(() => {
+    if (!selectedRows.length || selectedRows.some(({ mapping }) => mapping)) return null;
+    const hints = selectedRows.map(({ account }) => suggestionByAccount.get(account.classificacao));
+    if (hints.some((item) => !item) || new Set(hints.map((item) => item.row.codigo_gerencial)).size !== 1) return null;
+    const weakest = hints.reduce((low, item) => (confidenceRank(item.confidence) < confidenceRank(low.confidence) ? item : low));
+    return { row: weakest.row, confidence: weakest.confidence, reason: hints.length === 1 ? weakest.reason : "" };
+  }, [selectedRows, suggestionByAccount]);
   // O nome da linha vem do plano (já no formato MAIÚSCULAS/só a primeira do
   // plano padrão), não do vínculo, que guarda o nome de quando foi feito.
   const planNames = useMemo(() => new Map(state.plano.map((row) => [row.codigo_gerencial, row.nome])), [state.plano]);
@@ -87,7 +119,10 @@ export default function Depara() {
     if (report !== "todos" && row.demonstrativo !== report) return false;
     return !planoSearch || norm(`${row.codigo_gerencial} ${row.nome} ${row.grupo_macro || ""}`).includes(norm(planoSearch));
   }), [plan, selectedNature, report, planoSearch]);
-  const flash = (message) => { setNotice(message); setTimeout(() => setNotice(""), 3200); };
+  // Um aviso novo reinicia o tempo (senão o relógio do aviso anterior
+  // apagava o novo antes da hora).
+  const noticeTimer = useRef(null);
+  const flash = (message) => { setNotice(message); clearTimeout(noticeTimer.current); noticeTimer.current = setTimeout(() => setNotice(""), 4500); };
 
   function toggle(account) {
     const code = account.classificacao;
@@ -118,6 +153,17 @@ export default function Depara() {
     }
     setTarget(null);
   }
+  function applySuggestions(items) {
+    const added = items.map(mappingFromSuggestion);
+    const codes = new Set(added.map((row) => row.classificacao));
+    const next = [...state.mappings.filter((row) => !codes.has(row.classificacao)), ...added];
+    const message = `${added.length} ${added.length === 1 ? "conta vinculada" : "contas vinculadas"} pelas sugestões.`;
+    save(next, message);
+    setShowSuggestions(false);
+    setTarget(null);
+    const propagated = applySiblingMappings(state.activeCompanyId, added);
+    if (propagated > 0) flash(`${message} E ${propagated} ${propagated === 1 ? "conta" : "contas"} do mesmo plano padrão em outras empresas já ${propagated === 1 ? "aplicada" : "aplicadas"} junto.`);
+  }
   function unlink() {
     if (!selectedRows.length) return;
     const set = new Set(selected); save(state.mappings.filter((row) => !set.has(row.classificacao)), `${selectedRows.length} ${selectedRows.length === 1 ? "vínculo removido" : "vínculos removidos"}.`);
@@ -138,15 +184,17 @@ export default function Depara() {
   function exportCsv() { const blob = new Blob(["﻿" + csv(state.mappings)], { type: "text/csv;charset=utf-8" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "de_para.csv"; link.click(); URL.revokeObjectURL(url); }
 
   return <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-4">
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-card p-4 shadow-sm"><div><span className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Dados</span><h1 className="mt-1 text-[20px] font-semibold text-ink-900">De/Para</h1><p className="mt-0.5 text-[13px] text-ink-400">{accounts.length} contas contábeis · {pending ? <span className="font-medium text-warning-600">{pending} sem vínculo</span> : <span className="font-medium text-success-600">todas vinculadas</span>}</p></div><div className="flex gap-2">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-card p-4 shadow-sm"><div><span className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Dados</span><h1 className="mt-1 text-[20px] font-semibold text-ink-900">De/Para</h1><p className="mt-0.5 text-[13px] text-ink-400">{accounts.length} contas contábeis · {pending ? <span className="font-medium text-warning-600">{pending} sem vínculo</span> : <span className="font-medium text-success-600">todas vinculadas</span>}</p></div><div className="flex flex-wrap gap-2">
+      {pending > 0 && <button type="button" onClick={() => setShowSuggestions(true)} className="depara-sugestoes flex items-center gap-1.5 rounded-md border border-accent-200 bg-accent-50 px-3 py-1.5 text-[12px] font-semibold text-accent-700 hover:bg-accent-100"><Sparkles size={14} />Sugerir vínculos{suggestedCount > 0 && <span className="rounded-full bg-accent-500 px-1.5 text-[10.5px] text-white tabular-nums">{suggestedCount}</span>}</button>}
       <button type="button" onClick={exportCsv} className="flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-[12px] text-ink-600 hover:bg-surface-muted"><Download size={14} />Exportar CSV</button><button type="button" onClick={() => inputRef.current?.click()} className="flex items-center gap-1.5 rounded-md bg-accent-500 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-accent-600"><Upload size={14} />Importar CSV</button></div></div>
     {notice && <p className="rounded-lg bg-accent-50 px-3 py-2 text-[12px] text-accent-700">{notice}</p>}
     <div className="flex flex-wrap items-center gap-2 rounded-xl bg-surface-card p-3 shadow-sm"><div className="inline-flex gap-0.5 rounded-full bg-surface-muted p-1">{[{ id: "todos", label: "Todos" }, { id: "BP", label: "Balanço" }, { id: "DRE", label: "DRE" }].map((item) => <button key={item.id} type="button" onClick={() => setReport(item.id)} className={`rounded-full px-3 py-1.5 text-[12.5px] font-medium ${report === item.id ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"}`}>{item.label}</button>)}</div><label className="flex items-center gap-1.5 text-[12.5px] text-ink-600"><input type="checkbox" checked={onlyPending} onChange={(event) => setOnlyPending(event.target.checked)} />Só pendentes</label>{selectedRows.length > 0 && <div className="ml-auto flex items-center gap-2 text-[12px]"><span className="rounded-full bg-accent-50 px-2.5 py-1 text-accent-700">{selectedRows.length} selecionada{selectedRows.length > 1 ? "s" : ""}{selectedNature && ` · ${NATURE_LABELS[selectedNature]}`}</span><button type="button" onClick={unlink} className="flex items-center gap-1 text-danger-600"><X size={14} />Remover vínculos</button></div>}</div>
     <div className="grid min-h-[570px] grid-cols-1 overflow-hidden rounded-xl bg-surface-card shadow-sm xl:grid-cols-3">
-      <Panel title="Contas do balancete" caption={`${pending} pendentes de ${accounts.length} contas analíticas`} placeholder="Buscar conta, código ou classificação" value={accountSearch} onChange={setAccountSearch} count={`${visibleAccounts.length} contas`}><div className="max-h-[62vh] overflow-y-auto p-2">{visibleAccounts.map(({ account, mapping }) => { const on = selected.includes(account.classificacao); return <button key={`${account.classificacao}|${account.codigo}`} type="button" onClick={() => toggle(account)} className={`mb-1 flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left ${on ? "border-accent-400 bg-accent-50" : "border-line hover:border-accent-200 hover:bg-surface-muted"}`}><span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${on ? "border-accent-500 bg-accent-500 text-white" : "border-line-strong"}`}>{on && <Check size={11} strokeWidth={3} />}</span><span className="min-w-0 flex-1"><span className="block truncate text-[12.5px] font-medium text-ink-800">{account.nome_conta}</span><span className="block text-[10.5px] text-ink-400">{account.classificacao}{account.soNoAno && <span title={`Conta que só existia em ${account.soNoAno} (não está no balancete atual)`} className="ml-1.5 rounded bg-surface-muted px-1 py-px font-medium text-ink-500">{account.soNoAno}</span>}{mapping?.observacao?.startsWith("Sugerido") && <span title={mapping.observacao} className="ml-1.5 rounded bg-accent-50 px-1 py-px font-medium text-accent-700">sugerido</span>}</span></span><span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${mapping ? "bg-success-50 text-success-600" : "bg-warning-50 text-warning-700"}`}>{mapping ? "Vinculada" : "Pendente"}</span></button>})}{!visibleAccounts.length && <Empty text="Nenhuma conta encontrada." />}</div></Panel>
-      <section className="flex min-h-0 flex-col border-b border-line xl:border-b-0 xl:border-r"><div className="border-b border-line bg-surface-muted px-4 py-3"><h2 className="text-[14px] font-semibold text-ink-900">Mapa em construção</h2><p className="mt-0.5 text-[11.5px] text-ink-400">O esqueleto atualiza conforme os vínculos são cadastrados.</p></div><div className="border-b border-line bg-warning-50 px-4 py-2 text-[11px] text-warning-700">{selectedRows.length ? `Seleção: ${selectedRows.length} conta${selectedRows.length > 1 ? "s" : ""}${target ? ` → ${target.nome}` : ". Escolha o destino."}` : "Marque uma ou mais contas do balancete."}</div><div className="max-h-[62vh] overflow-y-auto p-2">{mapGroups.map((group) => <div key={group.codigo_gerencial} className="mb-2 overflow-hidden rounded-lg border border-line"><div className="bg-surface-muted px-3 py-2"><p className="text-[12.5px] font-semibold text-ink-800">{planNames.get(group.codigo_gerencial) || planNameCase(group.categoria_gerencial)}</p><p className="text-[10.5px] text-ink-400">{group.codigo_gerencial} · {group.accounts.length} conta{group.accounts.length > 1 ? "s" : ""}</p></div>{group.accounts.map((mapping) => <div key={mapping.classificacao} className="border-t border-line px-3 py-2"><div className="flex justify-between gap-2"><div className="min-w-0"><p className="truncate text-[11.5px] text-ink-800">{mapping.nome_conta}</p><p className="text-[10px] text-ink-400">{mapping.classificacao}</p></div><button type="button" onClick={() => editMapping(mapping)} className="rounded border border-accent-200 px-1.5 py-0.5 text-[10px] text-accent-700">Alterar</button></div><button type="button" onClick={() => unlinkOne(mapping)} className="mt-1.5 w-full rounded border border-danger-200 py-1 text-[10px] text-danger-600">Desvincular</button></div>)}</div>)}{!mapGroups.length && <Empty text="Nenhum vínculo cadastrado ainda." />}</div></section>
+      <Panel title="Contas do balancete" caption={`${pending} pendentes de ${accounts.length} contas analíticas`} placeholder="Buscar conta, código ou classificação" value={accountSearch} onChange={setAccountSearch} count={`${visibleAccounts.length} contas`}><div className="max-h-[62vh] overflow-y-auto p-2">{visibleAccounts.map(({ account, mapping }) => { const on = selected.includes(account.classificacao); return <button key={`${account.classificacao}|${account.codigo}`} type="button" onClick={() => toggle(account)} className={`mb-1 flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left ${on ? "border-accent-400 bg-accent-50" : "border-line hover:border-accent-200 hover:bg-surface-muted"}`}><span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${on ? "border-accent-500 bg-accent-500 text-white" : "border-line-strong"}`}>{on && <Check size={11} strokeWidth={3} />}</span><span className="min-w-0 flex-1"><span className="block truncate text-[12.5px] font-medium text-ink-800">{account.nome_conta}</span><span className="block text-[10.5px] text-ink-400">{account.classificacao}{account.soNoAno && <span title={`Conta que só existia em ${account.soNoAno} (não está no balancete atual)`} className="ml-1.5 rounded bg-surface-muted px-1 py-px font-medium text-ink-500">{account.soNoAno}</span>}{mapping?.observacao?.startsWith("Sugerido") && <span title={mapping.observacao} className="ml-1.5 rounded bg-accent-50 px-1 py-px font-medium text-accent-700">sugerido</span>}{!mapping && suggestionByAccount.has(account.classificacao) && <span title={`Sugestão: ${suggestionByAccount.get(account.classificacao).row.nome} (confiança ${CONFIDENCE_LABELS[suggestionByAccount.get(account.classificacao).confidence].toLowerCase()})`} className="depara-tem-sugestao ml-1.5 inline-flex translate-y-px items-center text-accent-500"><Sparkles size={11} /></span>}</span></span><span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${mapping ? "bg-success-50 text-success-600" : "bg-warning-50 text-warning-700"}`}>{mapping ? "Vinculada" : "Pendente"}</span></button>})}{!visibleAccounts.length && <Empty text="Nenhuma conta encontrada." />}</div></Panel>
+      <section className="flex min-h-0 flex-col border-b border-line xl:border-b-0 xl:border-r"><div className="border-b border-line bg-surface-muted px-4 py-3"><h2 className="text-[14px] font-semibold text-ink-900">Mapa em construção</h2><p className="mt-0.5 text-[11.5px] text-ink-400">O esqueleto atualiza conforme os vínculos são cadastrados.</p></div><div className="border-b border-line bg-warning-50 px-4 py-2 text-[11px] text-warning-700">{selectedRows.length ? `Seleção: ${selectedRows.length} conta${selectedRows.length > 1 ? "s" : ""}${target ? ` → ${target.nome}` : ". Escolha o destino."}` : "Marque uma ou mais contas do balancete."}</div>{selectionHint && target?.codigo_gerencial !== selectionHint.row.codigo_gerencial && <div className="depara-dica flex items-start justify-between gap-2 border-b border-line bg-accent-50 px-4 py-2 text-[11.5px] text-accent-700"><span className="min-w-0"><Sparkles size={12} className="mr-1 inline -translate-y-px" />Sugestão: <b className="font-semibold">{selectionHint.row.nome}</b> <span className={`ml-1 rounded-full px-1.5 py-px text-[10px] font-semibold ${CONFIDENCE_STYLE[selectionHint.confidence]}`}>{CONFIDENCE_LABELS[selectionHint.confidence]}</span>{selectionHint.reason && <span className="block text-[10.5px] text-accent-600/80">{selectionHint.reason}</span>}</span><button type="button" onClick={() => setTarget(selectionHint.row)} className="depara-usar-sugestao shrink-0 rounded-md bg-accent-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-accent-600">Usar</button></div>}<div className="max-h-[62vh] overflow-y-auto p-2">{mapGroups.map((group) => <div key={group.codigo_gerencial} className="mb-2 overflow-hidden rounded-lg border border-line"><div className="bg-surface-muted px-3 py-2"><p className="text-[12.5px] font-semibold text-ink-800">{planNames.get(group.codigo_gerencial) || planNameCase(group.categoria_gerencial)}</p><p className="text-[10.5px] text-ink-400">{group.codigo_gerencial} · {group.accounts.length} conta{group.accounts.length > 1 ? "s" : ""}</p></div>{group.accounts.map((mapping) => <div key={mapping.classificacao} className="border-t border-line px-3 py-2"><div className="flex justify-between gap-2"><div className="min-w-0"><p className="truncate text-[11.5px] text-ink-800">{mapping.nome_conta}</p><p className="text-[10px] text-ink-400">{mapping.classificacao}</p></div><button type="button" onClick={() => editMapping(mapping)} className="rounded border border-accent-200 px-1.5 py-0.5 text-[10px] text-accent-700">Alterar</button></div><button type="button" onClick={() => unlinkOne(mapping)} className="mt-1.5 w-full rounded border border-danger-200 py-1 text-[10px] text-danger-600">Desvincular</button></div>)}</div>)}{!mapGroups.length && <Empty text="Nenhum vínculo cadastrado ainda." />}</div></section>
       <Panel title="Plano gerencial" caption={target ? `Destino selecionado: ${target.nome}` : "Selecione o destino para os vínculos"} placeholder="Buscar código ou descrição" value={planoSearch} onChange={setPlanoSearch}><div className="max-h-[62vh] overflow-y-auto p-2">{visiblePlan.map((row) => { const active = target?.codigo_gerencial === row.codigo_gerencial; return <button key={row.codigo_gerencial} type="button" onClick={() => setTarget(row)} className={`mb-1 flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left ${active ? "border-accent-500 bg-accent-50" : "border-line hover:border-accent-300 hover:bg-surface-muted"}`}><span className={`flex h-5 w-5 items-center justify-center rounded-full border ${active ? "border-accent-500 bg-accent-500 text-white" : "border-line-strong"}`}>{active && <Check size={12} strokeWidth={3} />}</span><span className="min-w-0"><span className="block truncate text-[12.5px] font-medium text-ink-800">{row.nome}</span><span className="block text-[10.5px] text-ink-400">{row.codigo_gerencial} · {row.demonstrativo}{row.grupo_macro && ` | ${row.grupo_macro}`}</span></span></button>})}{!visiblePlan.length && <Empty text="Nenhuma conta gerencial disponível." />}</div></Panel>
     </div><div className="sticky bottom-3 z-20 rounded-lg bg-accent-500 p-1.5 shadow-lg"><button type="button" disabled={!selectedRows.length || !target} onClick={link} className="flex w-full items-center justify-center gap-2 rounded-md py-2 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"><Link2 size={15} />{target ? `Vincular seleção a ${target.nome}` : "Escolha uma conta gerencial para vincular"}</button></div><input ref={inputRef} type="file" accept=".csv" className="hidden" onChange={importCsv} />
+    {showSuggestions && <DeparaSugestoes result={suggestion} onApply={applySuggestions} onClose={() => setShowSuggestions(false)} />}
   </div>;
 }
 
