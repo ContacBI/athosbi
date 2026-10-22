@@ -32,7 +32,7 @@ const VIEW = {
   financeiro: { layout: "demo", demo: { source: "DRE", open: { "DRE.13": "all" } } },
   tributos: { layout: "demo", demo: { source: "DRE", open: { "DRE.02": "all", "DRE.08": "one", "DRE.16": "one" } } },
   caixa: { kpis: ["bp_disponibilidades", "ratio_liquidez_corrente"], chart: "chart_caixa_evolucao", demo: { source: "BP", open: { "01": "one", "01.01": "one", "01.01.01": "all" }, highlight: ["01.01.01"] } },
-  fluxo: { chart: "chart_dfc_cascata", demo: { source: "DFC", depth: 1 }, glossary: "dfc" },
+  fluxo: { chart: "chart_ponte_caixa", demo: { source: "DFC", depth: 1 }, glossary: "dfc" },
   endividamento: { kpis: ["ratio_endividamento", "ratio_composicao_endividamento", "bp_passivo_circulante"], chart: "chart_capital_giro_vs_divida", demo: { source: "BP", open: { "02": "one", "02.01": "one", "02.02": "one" } }, glossary: "endividamento" },
   liquidez: { kpis: ["ratio_liquidez_corrente", "ratio_liquidez_geral", "ratio_capital_giro"], chart: "chart_liquidez_evolucao", glossary: "liquidez" },
   capitalGiro: { layout: "prazos", chart: "chart_ncg_evolucao", glossary: "ciclo" },

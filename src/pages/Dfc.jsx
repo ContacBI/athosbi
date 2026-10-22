@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, ChevronRight, Maximize2, Minimize2, Search, Waves } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
-import { buildDfcDirect, buildDfcIndirect, dfcInstitutoStatus, reportMonths } from "../data/calculations.js";
+import { buildDfcDirect, buildDfcIndirect, buildReportTree, dfcInstitutoStatus, reportMonths } from "../data/calculations.js";
+import { buildCashBridge } from "../lib/cashBridge.js";
+import { CashBridgePanel } from "../components/CashBridgeView.jsx";
 import { useDfcInstitutoSync } from "../lib/useDfcInstitutoSync.js";
 import { money, moneyOrDash, periodLabelPt } from "../lib/format.js";
 import { columnLabel, isZeroNoMovement } from "../lib/reportColumns.js";
@@ -231,7 +233,7 @@ export default function Dfc({ lockedMode } = {}) {
   // si (abrir/fechar uma linha, digitar na busca, abrir o Diário). Só
   // recalcula quando algo que de fato entra na conta muda.
   const builtRows = useMemo(
-    () => (mode === "direct" ? buildDfcDirect() : buildDfcIndirect()),
+    () => (mode === "bridge" ? [] : mode === "direct" ? buildDfcDirect() : buildDfcIndirect()),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       mode,
@@ -251,8 +253,15 @@ export default function Dfc({ lockedMode } = {}) {
   const rows = state.hideZeroNoMovement
     ? builtRows.filter((row) => row.natureza === "heading" || !isZeroNoMovement(row))
     : builtRows;
+  // "Do lucro ao caixa" (lib/cashBridge.js): pelo Balanço do início x fim
+  // do período, com o lucro da DRE — fecha com a variação do caixa.
+  const bridge = useMemo(
+    () => (mode === "bridge" ? buildCashBridge({ bp: buildReportTree("BP"), dre: buildReportTree("DRE") }) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mode, state.journal, state.periodStart, state.periodEnd, state.mappings, state.accounts, state.plano, state.companies]
+  );
   const toggle = (code) => setExpandedRows((current) => { const next = new Set(current); if (next.has(code)) next.delete(code); else next.add(code); return next; });
-  useDownloadHandlers(rows.length ? {
+  useDownloadHandlers(rows.length && mode !== "bridge" ? {
     pdf: () => exportDemonstrativoPdf({ ...exportMeta(state, mode), columns: buildDfcExportColumns(columns), rows: buildDfcExportRows(rows, columns, expandedRows) }),
     excel: () => exportDemonstrativoExcel({ ...exportMeta(state, mode), columns: buildDfcExportColumns(columns), rows: buildDfcExportRows(rows, columns, expandedRows) }),
     reportKind: { type: "dfc", mode },
@@ -280,9 +289,16 @@ export default function Dfc({ lockedMode } = {}) {
                   >
                     <ArrowUpFromLine size={14} />DFC indireta
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setLocalMode("bridge")}
+                    className={`dfc-ponte flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${mode === "bridge" ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500"}`}
+                  >
+                    <Waves size={14} />Do lucro ao caixa
+                  </button>
                 </div>
               )}
-              <div className="relative">
+              {mode !== "bridge" && <div className="relative">
                 <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-400" />
                 <input
                   value={search}
@@ -290,7 +306,7 @@ export default function Dfc({ lockedMode } = {}) {
                   placeholder="Buscar conta"
                   className="w-52 rounded-md border border-line-strong bg-surface-card py-1.5 pl-7 pr-2 text-[12.5px] outline-none focus:border-accent-500"
                 />
-              </div>
+              </div>}
             </div>
             <div className="flex items-center gap-2">
               <ReportSettingsMenu tab="DFC" />
@@ -311,7 +327,7 @@ export default function Dfc({ lockedMode } = {}) {
             DFC no Modelo 2: usa a estrutura e as contas da Domínio. A Central ainda não trouxe o modelo — ele aparece aqui sozinho quando chegar.
           </p>
         )}
-        <DfcTable
+        {mode === "bridge" ? <CashBridgePanel bridge={bridge} /> : <DfcTable
           rows={rows}
           mode={mode}
           columns={columns}
@@ -320,7 +336,7 @@ export default function Dfc({ lockedMode } = {}) {
           onOpenLedger={setLedgerRow}
           search={norm(search)}
           expanded={expanded}
-        />
+        />}
       </div>
       {ledgerRow && <LedgerModal row={ledgerRow} onClose={() => setLedgerRow(null)} />}
     </div>

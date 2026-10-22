@@ -9,6 +9,7 @@ import { GLOSSARY, norm } from "./vocab.js";
 import { sentenceCase } from "../planCase.js";
 import { ACCENTS, restoreAccents } from "../accents.js";
 import { budgetFor } from "../budget.js";
+import { buildCashBridge, bridgeSentence } from "../cashBridge.js";
 
 const MONTHS_FULL = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
@@ -409,6 +410,7 @@ export function buildFacts(ctx, period = {}) {
     monthly,
     group: ctx.groupComparison || null,
     budget: budgetFor(ctx),
+    bridge: buildCashBridge(ctx),
   };
 }
 
@@ -826,21 +828,27 @@ function sectionBuilders(f, cmp, opts) {
 
     fluxo: () => {
       const d = f.dfc;
-      const inflows = d.lines.filter((item) => item.value > 0).sort((a, b) => b.value - a.value);
-      const outflows = d.lines.filter((item) => item.value < 0).sort((a, b) => a.value - b.value);
+      const b = f.bridge;
+      const inflows = d.lines.filter((item) => item.value > 0).sort((a, b2) => b2.value - a.value);
+      const outflows = d.lines.filter((item) => item.value < 0).sort((a, b2) => a.value - b2.value);
+      const moves = b ? b.items.filter((item) => item.type === "step" && item.id !== "depreciacao" && item.id !== "diferenca").sort((x, y) => Math.abs(y.value) - Math.abs(x.value)).slice(0, 3) : [];
       return {
-        title: d.op >= 0 ? `Operação gerou ${fmtMoney(d.op)} de caixa` : `Operação consumiu ${fmtMoney(Math.abs(d.op))} de caixa`,
-        message: `Saldo foi de ${fmtMoney(d.inicio)} para ${fmtMoney(d.fim)} (${d.variacao >= 0 ? "+" : ""}${fmtMoney(d.variacao)}).`,
-        status: statusOf(d.op > 0, d.op < 0),
+        title: b ? (b.variacao >= 0 ? `Caixa subiu ${fmtMoney(b.variacao)} no período` : `Caixa caiu ${fmtMoney(Math.abs(b.variacao))} no período`) : d.op >= 0 ? `Operação gerou ${fmtMoney(d.op)} de caixa` : `Operação consumiu ${fmtMoney(Math.abs(d.op))} de caixa`,
+        message: b ? bridgeSentence(b).split(". ")[0] + "." : `Saldo foi de ${fmtMoney(d.inicio)} para ${fmtMoney(d.fim)} (${d.variacao >= 0 ? "+" : ""}${fmtMoney(d.variacao)}).`,
+        status: statusOf((b ? b.variacao : d.op) > 0, (b ? b.variacao : d.op) < 0 && f.lucro > 0),
         bullets: [
-          `Operacional: ${fmtMoney(d.op)}`,
-          `Investimentos: ${fmtMoney(d.inv)}`,
-          `Financiamentos: ${fmtMoney(d.fin)}`,
-          inflows[0] ? `Maior entrada: ${inSentence(inflows[0].name)} (${fmtMoney(inflows[0].value)})` : "",
-          outflows[0] ? `Maior saída: ${inSentence(outflows[0].name)} (${fmtMoney(Math.abs(outflows[0].value))})` : "",
-          f.lucro > 0.5 ? `Lucro de ${fmtMoney(f.lucro)} x caixa operacional de ${fmtMoney(d.op)}` : "",
+          ...(b
+            ? [
+                `${f.lucro >= 0 ? "Lucro" : "Prejuízo"} de ${fmtMoney(Math.abs(b.lucro))} + depreciação de ${fmtMoney(b.depreciacao)} (não sai do caixa)`,
+                `Caixa da operação, depois do capital de giro: ${fmtMoney(b.operacional)}`,
+                ...moves.map((item) => `${item.name}: ${item.value >= 0 ? "+" : ""}${fmtMoney(item.value)}`),
+                `Caixa de ${fmtMoney(b.caixaInicio)} para ${fmtMoney(b.caixaFim)}`,
+              ]
+            : [`Operacional: ${fmtMoney(d.op)}`, `Investimentos: ${fmtMoney(d.inv)}`, `Financiamentos: ${fmtMoney(d.fin)}`]),
+          inflows[0] && !b ? `Maior entrada: ${inSentence(inflows[0].name)} (${fmtMoney(inflows[0].value)})` : "",
+          outflows[0] && !b ? `Maior saída: ${inSentence(outflows[0].name)} (${fmtMoney(Math.abs(outflows[0].value))})` : "",
         ].filter(Boolean),
-        note: `${GLOSSARY.dfc} Quando o lucro é maior que o caixa operacional, o dinheiro ficou preso em estoques, clientes ou outros pagamentos.`,
+        note: `${GLOSSARY.dfc} A ponte parte do lucro e mostra, etapa por etapa, o que prendeu ou liberou caixa (clientes, estoques, fornecedores, investimentos, empréstimos e distribuições) até chegar à variação do caixa — fecha exatamente com o saldo.`,
       };
     },
 

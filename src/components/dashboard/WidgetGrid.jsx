@@ -30,6 +30,8 @@ import { buildDfcDirect, buildDfcIndirect } from "../../data/calculations.js";
 import { money } from "../../lib/format.js";
 import { columnLabel, columnValue, reportColumns, isZeroNoMovement } from "../../lib/reportColumns.js";
 import { budgetFor } from "../../lib/budget.js";
+import { buildCashBridge, bridgeSentence } from "../../lib/cashBridge.js";
+import { CashBridgeChart } from "../CashBridgeView.jsx";
 import ReportSettingsMenu from "../ReportSettingsMenu.jsx";
 import { GRID_COLS, ROW_HEIGHT, layoutFor, marginPxFor, DEFAULT_SPACING } from "./gridLayout.js";
 
@@ -764,11 +766,11 @@ function CompositionPieChart({ title, data, emptyLabel }) {
 
 // Orçamento x Realizado (lib/budget.js). Sem orçamento do ano do período,
 // um aviso com o caminho pra cadastrar.
-function BudgetEmpty({ title }) {
+function BudgetEmpty({ title, text = "Sem orçamento para o ano do período — cadastre em Orçamento, no topo da empresa." }) {
   return (
     <div className="flex h-full flex-col">
       <p data-widget-title className="mb-2 text-[13px] font-medium text-ink-900">{title}</p>
-      <div className="flex flex-1 items-center justify-center rounded-lg bg-surface-muted px-4 text-center text-[12px] text-ink-400">Sem orçamento para o ano do período — cadastre em Orçamento, no topo da empresa.</div>
+      <div className="flex flex-1 items-center justify-center rounded-lg bg-surface-muted px-4 text-center text-[12px] text-ink-400">{text}</div>
     </div>
   );
 }
@@ -855,8 +857,26 @@ function BudgetTable({ ctx }) {
   );
 }
 
+function CashBridgeWidget({ ctx }) {
+  const anim = useAnimate();
+  const bridge = useMemo(() => buildCashBridge(ctx), [ctx]);
+  if (!bridge) return <BudgetEmpty title="Do lucro ao caixa" text="Sem balanço no período." />;
+  return (
+    <div className="flex h-full flex-col">
+      <p data-widget-title className="text-[13px] font-medium text-ink-900">Do lucro ao caixa</p>
+      <p className="mb-1 text-[11.5px] leading-snug text-ink-500">{bridgeSentence(bridge)}</p>
+      <div className="h-64 min-h-0 flex-1">
+        <CashBridgeChart bridge={bridge} height="100%" animate={anim} />
+      </div>
+    </div>
+  );
+}
+
 function ChartWidgetCard({ definition, ctx }) {
   const anim = useAnimate();
+  if (definition.chart === "ponte_caixa") {
+    return <CashBridgeWidget ctx={ctx} />;
+  }
   if (definition.chart === "orcado_realizado") {
     return <BudgetChart ctx={ctx} />;
   }
