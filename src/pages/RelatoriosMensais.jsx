@@ -345,7 +345,13 @@ export default function RelatoriosMensais() {
         onProgress={reportSaveProgress}
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <details className="group" open={!(dominio.codigo && dominio.cnpj)}>
+        {dominio.codigo && dominio.cnpj && (
+          <summary className="cursor-pointer select-none list-none text-[12px] text-ink-400 hover:text-ink-700">
+            <span className="underline decoration-dotted">Importar por arquivo Excel</span> — só em último caso ({journalCountYear} lançamentos · {monthsInYear} {monthsInYear === 1 ? "mês" : "meses"} em {year})
+          </summary>
+        )}
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-card p-4 shadow-sm">
           <div className="min-w-0">
             <p className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Diário</p>
@@ -405,6 +411,7 @@ export default function RelatoriosMensais() {
           </div>
         </div>
       </div>
+      </details>
 
       {busy && (
         <div className={`rounded-lg px-3 py-2 ${busyIsError ? "bg-danger-50" : "bg-accent-50"}`}>

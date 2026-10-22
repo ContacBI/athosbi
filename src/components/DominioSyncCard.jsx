@@ -179,6 +179,21 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pedido, months, balancetes, applying]);
 
+  // Balancete da Domínio que ainda não está no portal e traz conta sem De/Para (ou o portal nem tem balancete): entra sozinho, pra o De/Para já pedir
+  // o vínculo sem ninguém importar nada. Uma vez por balancete recebido (não repete se falhar); só quem edita a empresa.
+  const autoBalancete = useRef("");
+  useEffect(() => {
+    if (applying || months === null || !balancete || !balancetePendente || aguardando.current || pedidoAberto) return;
+    const empresa = state.companies.find((item) => item.id === state.activeCompanyId);
+    const podeEditar = Boolean(state.isAdmin || (empresa?.responsaveis || []).includes(state.userEmail));
+    if (!podeEditar || (balancete.status !== "novo" && !semDeParaNovas.length)) return;
+    const assinatura = `${state.activeCompanyId}|${balancete.ano}|${balancete.syncedAt}`;
+    if (autoBalancete.current === assinatura) return;
+    autoBalancete.current = assinatura;
+    apply([], true, { semPergunta: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [balancete, balancetePendente, months, applying, pedidoAberto]);
+
   async function handlePedir() {
     if (!pedivel.length || pedindo || pedidoAberto) return;
     const ultimo = pedivel[pedivel.length - 1];
