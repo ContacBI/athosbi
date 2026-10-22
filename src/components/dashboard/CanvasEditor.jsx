@@ -4,7 +4,8 @@ import RGL, { WidthProvider } from "react-grid-layout/legacy";
 import { GripVertical, Plus, X } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { WIDGET_CATALOG, formatWidgetValue } from "../../lib/dashboardWidgets.js";
-import { WidgetBody, DetailModal } from "./WidgetGrid.jsx";
+import { WidgetBody, DetailModal, DrillContext } from "./WidgetGrid.jsx";
+import DrillModal from "./DrillModal.jsx";
 import { GRID_COLS, ROW_HEIGHT, layoutFor, marginPxFor, DEFAULT_SPACING } from "./gridLayout.js";
 
 const GridLayout = WidthProvider(RGL);
@@ -28,14 +29,19 @@ export default function CanvasEditor({ widgets, ctx, spacing = DEFAULT_SPACING, 
     [widgets, catalogById]
   );
 
+  const [drillFor, setDrillFor] = useState(null);
   function handleOpenDetail(definition) {
+    if (definition.formula) {
+      setDrillFor({ label: definition.label, formula: definition.formula });
+      return;
+    }
     const { value, format } = definition.value(ctx);
     const detail = definition.detail(ctx);
     setDetailFor({ title: definition.label, value: formatWidgetValue(value, format), ...detail });
   }
 
   return (
-    <>
+    <DrillContext.Provider value={setDrillFor}>
       <GridLayout
         className="layout"
         layout={layout}
@@ -91,6 +97,7 @@ export default function CanvasEditor({ widgets, ctx, spacing = DEFAULT_SPACING, 
       )}
 
       <DetailModal detail={detailFor} onClose={() => setDetailFor(null)} />
-    </>
+      {drillFor && <DrillModal target={drillFor} ctx={ctx} onClose={() => setDrillFor(null)} />}
+    </DrillContext.Provider>
   );
 }
