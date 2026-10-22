@@ -464,7 +464,7 @@ export default function CompanyTopBar({ company }) {
   // showing the user's own custom Resumo/Demonstrativos tabs here wouldn't
   // make sense (this isn't part of the workspace they built), so it gets
   // its own fixed "Dados | De/Para" nav instead.
-  const isDataArea = location.pathname.startsWith("/empresa/relatorios") || location.pathname.startsWith("/empresa/de-para") || location.pathname.startsWith("/empresa/vinculo-dfc");
+  const isDataArea = ["/empresa/relatorios", "/empresa/de-para", "/empresa/vinculo-dfc", "/empresa/conferencia"].some((prefix) => location.pathname.startsWith(prefix));
   const showNav = !isPersonalizar && !isDataArea && tabs.length > 0;
   const hasData = appState.accounts.length > 0 || appState.journal.length > 0;
 
@@ -603,6 +603,7 @@ export default function CompanyTopBar({ company }) {
             { to: "/empresa/relatorios", label: "Dados" },
             { to: "/empresa/de-para", label: "De/Para" },
             { to: "/empresa/vinculo-dfc", label: "Vínculo DFC" },
+            ...(appState.activeGroupId ? [] : [{ to: "/empresa/conferencia", label: "Conferência" }]),
           ].map((item) => (
             <NavLink
               key={item.to}

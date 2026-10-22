@@ -24,7 +24,7 @@ import { setPrefersFullPanel } from "../lib/installApp.js";
 // se não for responsável. A trava de edição de verdade fica dentro da
 // própria tela (PersonalizarHub.jsx recalcula o mesmo canEdit e esconde
 // os controles de edição quando falso).
-const EDIT_ONLY_PREFIXES = ["/empresa/relatorios", "/empresa/de-para", "/empresa/vinculo-dfc"];
+const EDIT_ONLY_PREFIXES = ["/empresa/relatorios", "/empresa/de-para", "/empresa/vinculo-dfc", "/empresa/conferencia"];
 
 export default function CompanyLayout() {
   const state = useAppState();

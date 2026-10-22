@@ -10,6 +10,7 @@ import { state } from "../data/store.js";
 import { balanceteDoPeriodo, kpis, missingMappingAccounts } from "../data/calculations.js";
 import { effectivePlano } from "./planosPadrao.js";
 import { readCompanyJournal } from "./persistence.js";
+import { ANOMALY_KINDS, anomalySummary, detectAnomalies } from "./anomalias.js";
 
 const MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
@@ -105,7 +106,17 @@ function writeStatsCache(cache) {
   }
 }
 
-export function journalStatsFromEntries(entries, mappings) {
+// Conferência dos lançamentos dos dois últimos meses com lançamento (os
+// que estão sendo fechados) — ver lib/anomalias.js.
+function recentAnomalies(entries, last, dismissed) {
+  if (!last) return null;
+  const [year, month] = last.slice(0, 7).split("-").map(Number);
+  const startMonth = month === 1 ? `${year - 1}-12` : `${year}-${String(month - 1).padStart(2, "0")}`;
+  const result = detectAnomalies(entries, { start: `${startMonth}-01`, end: last, dismissed });
+  return { ...anomalySummary(result), from: startMonth, to: last.slice(0, 7) };
+}
+
+export function journalStatsFromEntries(entries, mappings, { dismissed = [] } = {}) {
   const mapped = new Set((mappings || []).map((row) => String(row.classificacao)));
   const months = {};
   const unmapped = new Map();
@@ -135,6 +146,7 @@ export function journalStatsFromEntries(entries, mappings) {
     unmappedEntries: unmappedList.reduce((sum, item) => sum + item.count, 0),
     unmappedAccounts: unmappedList.slice(0, 8),
     unmappedAccountCount: unmappedList.length,
+    anomalias: recentAnomalies(entries || [], last, dismissed),
     analyzedAt: new Date().toISOString(),
   };
 }
@@ -143,7 +155,7 @@ export function journalStatsFromEntries(entries, mappings) {
 // já está com o razão na memória (a que está aberta).
 export function cachedJournalStats(company) {
   const loaded = state.companies.find((item) => item.id === company.id);
-  if (loaded?.journalLoaded && (loaded.journal || []).length) return journalStatsFromEntries(loaded.journal, loaded.mappings);
+  if (loaded?.journalLoaded && (loaded.journal || []).length) return journalStatsFromEntries(loaded.journal, loaded.mappings, { dismissed: loaded.anomaliasOk });
   const cached = readStatsCache()[company.id];
   if (cached && company.journalCount != null && cached.count === company.journalCount) return cached;
   return null;
@@ -152,7 +164,7 @@ export function cachedJournalStats(company) {
 export async function analyzeCompanyJournal(company, { onProgress } = {}) {
   const loaded = state.companies.find((item) => item.id === company.id);
   const entries = loaded?.journalLoaded ? loaded.journal : await readCompanyJournal(company.id, { onProgress });
-  const stats = journalStatsFromEntries(entries || [], company.mappings);
+  const stats = journalStatsFromEntries(entries || [], company.mappings, { dismissed: company.anomaliasOk });
   const cache = readStatsCache();
   cache[company.id] = stats;
   writeStatsCache(cache);
@@ -240,6 +252,14 @@ export function companyHealth(company, { today = new Date(), journalStats = null
     if (gaps.length) add("meses", gaps.length >= 2 ? "critico" : "atencao", `${gaps.length} ${gaps.length === 1 ? "mês" : "meses"} sem lançamento`, gaps.map(monthLabel).join(", "), { label: "Abrir empresa", path: "/empresa" });
     else if (start && end) add("meses", "ok", "Todos os meses com lançamento", `${monthLabel(start)} a ${monthLabel(end)}`);
     if (journalStats.last && dataAte && journalStats.last.slice(0, 7) < dataAte) add("razao_atrasado", "atencao", "Razão atrás do balancete", `Lançamentos até ${monthLabel(journalStats.last.slice(0, 7))}, balancete até ${monthLabel(dataAte)}.`, { label: "Abrir empresa", path: "/empresa" });
+    const anomalias = journalStats.anomalias;
+    if (anomalias) {
+      const meses = anomalias.from === anomalias.to ? monthLabel(anomalias.from) : `${monthLabel(anomalias.from)} e ${monthLabel(anomalias.to)}`;
+      if (anomalias.open) {
+        const exemplos = (anomalias.top || []).map((item) => `${ANOMALY_KINDS[item.kind]?.short || item.kind}: ${item.conta}`).join(" · ");
+        add("anomalias", anomalias.alta ? "atencao" : "info", `${anomalias.open} ${anomalias.open === 1 ? "lançamento" : "lançamentos"} para conferir`, `${meses}${anomalias.alta ? ` (${anomalias.alta} de prioridade alta)` : ""} — ${exemplos}`, { label: "Conferir", path: "/empresa/conferencia" });
+      } else add("anomalias", "ok", "Nada estranho nos lançamentos", meses);
+    }
     if (journalStats.unmappedEntries) add("razao_depara", "atencao", `${journalStats.unmappedEntries.toLocaleString("pt-BR")} lançamentos em contas sem De/Para`, journalStats.unmappedAccounts.slice(0, 4).map((item) => `${item.classificacao}${item.nome ? ` ${item.nome}` : ""} (${item.count})`).join(" · "), { label: "Abrir De/Para", path: "/empresa/de-para" });
   }
 
