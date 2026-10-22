@@ -9,6 +9,7 @@ import SlideEditor from "../components/slides/SlideEditor.jsx";
 import PresentMode, { SlidesExporter, visibleSlides } from "../components/slides/PresentMode.jsx";
 import { Modal, SlideThumb } from "../components/slides/pickers.jsx";
 import "../lib/slideFonts.js";
+import { BRANDS, brandLogoFor } from "../lib/brand.js";
 
 function formatWhen(iso) {
   if (!iso) return "";
@@ -20,7 +21,8 @@ function NewDeckModal({ onCreate, onClose, env }) {
   const [name, setName] = useState("");
   const [templateId, setTemplateId] = useState("resultados");
   const [themeId, setThemeId] = useState("athos-premium");
-  const preview = useMemo(() => makePresentation({ templateId, themeId }), [templateId, themeId]);
+  const [brand, setBrand] = useState("athos");
+  const preview = useMemo(() => makePresentation({ templateId, themeId, brand }), [templateId, themeId, brand]);
   return (
     <Modal title="Nova apresentação" subtitle="Escolha um modelo e um tema — depois dá pra mudar absolutamente tudo." onClose={onClose} width="max-w-5xl">
       <div className="grid gap-6 p-6 lg:grid-cols-[1fr_380px]">
@@ -29,6 +31,25 @@ function NewDeckModal({ onCreate, onClose, env }) {
             <span className="text-[12px] font-medium text-ink-600">Nome</span>
             <input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder={DECK_TEMPLATES.find((t) => t.id === templateId)?.label} className="h-10 rounded-lg border border-line bg-surface-card px-3 text-[14px] outline-none focus:border-accent-400" />
           </label>
+          <div>
+            <p className="mb-2 text-[12px] font-medium text-ink-600">Marca</p>
+            <div className="grid grid-cols-2 gap-2">
+              {BRANDS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setBrand(item.id);
+                    setThemeId(item.themeId);
+                  }}
+                  className={`flex h-16 items-center justify-center rounded-xl border bg-white px-4 transition-colors ${brand === item.id ? "border-accent-500 ring-1 ring-accent-500" : "border-line hover:border-accent-300"}`}
+                  title={`Logo e assinatura da ${item.name} nos slides`}
+                >
+                  <img src={brandLogoFor(item.id, false).src} alt={item.name} className="h-8" />
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <p className="mb-2 text-[12px] font-medium text-ink-600">Modelo</p>
             <div className="grid gap-2 sm:grid-cols-3">
@@ -228,7 +249,7 @@ export default function Apresentacoes() {
           <div>
             <p className="text-[16px] font-semibold text-ink-900">Nenhuma apresentação ainda</p>
             <p className="mt-1 max-w-md text-[13px] text-ink-500">
-              Comece por um modelo pronto (reunião de resultados, resumo executivo) com a logo e as cores da Athos, e personalize cada detalhe.
+              Comece por um modelo pronto (reunião de resultados, resumo executivo) com a logo e as cores da Athos ou da Contac, e personalize cada detalhe.
             </p>
           </div>
           {canEdit && (

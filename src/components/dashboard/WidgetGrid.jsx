@@ -878,6 +878,10 @@ function TableWidgetCard({ definition, ctx, maxRows }) {
   const valueFor = (row, column) => {
     if (column === "saldo") return row.saldo || 0;
     if (row.isPercentage) return column === "total" ? row.saldo : row.monthValues?.[column] || 0;
+    // Este cartão nunca mostra a coluna "Saldo anterior", então o total da
+    // DRE é a soma dos meses do período — senão abril + maio não batia com
+    // o total, que vinha acumulado desde janeiro.
+    if (column === "total" && tab === "DRE") return Object.values(row.monthValues || {}).reduce((sum, value) => sum + Number(value || 0), 0);
     return columnValue(row, column, { tab, bpMonthlyMode: state.bpMonthlyMode, months: ctx.months });
   };
   return (
