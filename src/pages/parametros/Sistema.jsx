@@ -1,5 +1,5 @@
 import { Navigate } from "react-router-dom";
-import { ListTree, GitBranch, SlidersHorizontal } from "lucide-react";
+import { ListTree, GitBranch, History, SlidersHorizontal } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import PageHeader from "../../components/PageHeader.jsx";
 import FeaturePreviewCard from "../../components/FeaturePreviewCard.jsx";
@@ -10,6 +10,12 @@ const ITEMS = [
     title: "Plano gerencial",
     description: "Estrutura de códigos, contas e demonstrativos usada por todas as empresas.",
     to: "/parametros/sistema/plano-gerencial",
+  },
+  {
+    icon: History,
+    title: "Histórico de versões (backup automático)",
+    description: "Cada alteração no cadastro das empresas, grupos, plano e biblioteca guarda a versão anterior por 60 dias. Veja, baixe ou restaure.",
+    to: "/parametros/sistema/historico",
   },
   {
     icon: GitBranch,

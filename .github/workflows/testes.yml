@@ -1,0 +1,32 @@
+# Testes automáticos a cada envio de código e em cada pedido de publicação
+# (pull request para a main): lint, testes de cálculo com a empresa
+# fictícia (tests/) e da Reforma, e a montagem do site. Se algo quebrar,
+# o pull request fica vermelho antes de ir para o ar.
+name: Testes
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Lint (erros de código)
+        run: npm run lint
+      - name: Testes de cálculo (DRE, balanço, caixa, composição, orçamento, assistente, Reforma)
+        run: npm test
+      - name: Monta o site
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: http://supabase.test
+          VITE_SUPABASE_ANON_KEY: teste
