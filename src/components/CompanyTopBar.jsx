@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, LayoutGrid, Network, Presentation, SlidersHorizontal, Target, TriangleAlert, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, LayoutGrid, Network, Percent, Presentation, SlidersHorizontal, Target, TriangleAlert, X } from "lucide-react";
 import { useAppState, setData, state } from "../data/useStore.js";
 import { missingMappingAccounts } from "../data/calculations.js";
 import { groupCompanies, activeWorkspaceName } from "../lib/groups.js";
@@ -543,6 +543,17 @@ export default function CompanyTopBar({ company }) {
             >
               <Target size={13} strokeWidth={1.8} />
               Orçamento
+            </button>
+          )}
+          {hasData && !appState.activeGroupId && (
+            <button
+              type="button"
+              onClick={() => navigate("/empresa/carga-tributaria")}
+              title="Carga tributária: impostos do fiscal ÷ faturamento"
+              className={`${BAR_BUTTON} ${location.pathname.startsWith("/empresa/carga-tributaria") ? "border-white/40 bg-white/15 text-white" : ""}`}
+            >
+              <Percent size={13} strokeWidth={1.8} />
+              Carga tributária
             </button>
           )}
           <ReportsMenu />
