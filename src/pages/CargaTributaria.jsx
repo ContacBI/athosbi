@@ -100,6 +100,7 @@ function TabelaGrupos({ grupos, valores, total, faturamento, vazio }) {
 const BLOCOS = [
   { id: "resumo", kind: "bloco", padrao: true, nome: "Resumo (carga, faturamento e quanto cada imposto pesa)" },
   { id: "avisos", kind: "bloco", padrao: true, nome: "Avisos" },
+  { id: "painel", kind: "bloco", padrao: true, nome: "Painel (R$ 100 faturados e faturamento × impostos por mês)" },
   { id: "kpi-fat", kind: "kpi", nome: "Faturamento" },
   { id: "kpi-imp", kind: "kpi", nome: "Impostos próprios" },
   { id: "kpi-carga", kind: "kpi", nome: "Carga tributária" },
@@ -113,7 +114,7 @@ const BLOCOS = [
   { id: "kpi-total", kind: "kpi", nome: "Carga com retidos e folha" },
   { id: "composicao", kind: "bloco", padrao: true, nome: "Composição dos impostos (rosca e tabela)" },
   { id: "impacto", kind: "bloco", nome: "Impacto dos impostos na receita (cascata)" },
-  { id: "carga-mes", kind: "bloco", padrao: true, nome: "Carga por mês (gráfico)" },
+  { id: "carga-mes", kind: "bloco", padrao: true, nome: "Carga por mês e por trimestre (gráficos)" },
   { id: "por-imposto", kind: "bloco", nome: "Por imposto (só a tabela)" },
   { id: "retidos", kind: "bloco", nome: "Impostos retidos na fonte" },
   { id: "folha", kind: "bloco", nome: "Encargos da folha" },
@@ -382,8 +383,9 @@ export default function CargaTributaria() {
       const comValor = cargaMes.filter((x) => x.carga != null);
       const media = comValor.length ? comValor.reduce((t, x) => t + x.carga, 0) / comValor.length : null;
       return (
-        <Bloco key="carga-mes" titulo={`Carga por mês — ${ano}`} nota={media != null ? `média ${pct1(media)} · IRPJ e CSLL caem no último mês do trimestre` : "IRPJ e CSLL caem no último mês do trimestre"}>
-          <div className="h-[170px]">
+        <div key="carga-mes" className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <Bloco titulo={`Carga por mês — ${ano}`} nota={media != null ? `média ${pct1(media)}` : ""} className="xl:col-span-2">
+          <div className="h-[190px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={cargaMes} margin={{ top: 18, right: 14, left: -14, bottom: 0 }}>
                 <defs>
@@ -404,17 +406,40 @@ export default function CargaTributaria() {
             </ResponsiveContainer>
           </div>
         </Bloco>
+        <Bloco titulo="Por trimestre" nota="IRPJ e CSLL são trimestrais">
+          <div className="h-[190px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={tri} margin={{ top: 18, right: 6, left: -14, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                <XAxis dataKey="nome" tick={{ fontSize: 11.5 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11.5 }} tickFormatter={(v) => `${v}%`} axisLine={false} tickLine={false} />
+                <Tooltip formatter={(value) => [`${Number(value).toLocaleString("pt-BR")}%`, "Carga"]} />
+                <Bar dataKey="carga" radius={[6, 6, 0, 0]} isAnimationActive={false} label={{ position: "top", fontSize: 10.5, fill: "#475569", formatter: (v) => (v ? pct1(v) : "") }}>
+                  {tri.map((_, index) => <Cell key={index} fill={sel === `T${index + 1}` ? "#d97706" : "#2563eb"} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Bloco>
+        </div>
       );
     },
     resumo: () => {
       const impostos = grupos.map((g) => ({ g, v: periodo.imp[g.id] || 0 })).filter((x) => x.v > 0).sort((a, b) => b.v - a.v);
       const sobra = fatP ? Math.max(fatP - periodo.impTotal, 0) : 0;
+      const mesAnt = mesSel != null && mesSel > 0 ? dados.meses[mesSel - 1] : null;
+      const variacao = mesAnt && mesAnt.carga != null && periodo.carga != null ? periodo.carga - mesAnt.carga : null;
       return (
         <section key="resumo" className="rounded-2xl bg-surface-card p-5 shadow-sm">
           <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
             <div>
               <p className="text-[10.5px] font-semibold uppercase tracking-wide text-ink-400">Carga tributária · {titulo}</p>
               <p className="mt-1 text-[44px] font-bold leading-none tabular-nums text-ink-900">{pctCarga(periodo.carga)}</p>
+              {variacao != null && (
+                <p className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${variacao > 0.0005 ? "bg-warning-50 text-warning-700" : "bg-emerald-50 text-emerald-700"}`}>
+                  {variacao > 0.0005 ? "▲" : variacao < -0.0005 ? "▼" : "•"} {Math.abs(variacao * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} p.p. vs {MES_CURTO[mesSel - 1].toLowerCase()}
+                </p>
+              )}
               {periodo.carga != null && <p className="mt-2 text-[12.5px] text-ink-500">A cada R$ 100 faturados, <b className="text-ink-800">{moneyFull(periodo.carga * 100)}</b> vão para impostos próprios.</p>}
             </div>
             <div className="flex flex-wrap gap-x-9 gap-y-3">
@@ -437,6 +462,59 @@ export default function CargaTributaria() {
             </div>
           )}
         </section>
+      );
+    },
+    painel: () => {
+      const impostos = grupos.map((g) => ({ g, v: periodo.imp[g.id] || 0 })).filter((x) => x.v > 0).sort((a, b) => b.v - a.v);
+      // 100 quadradinhos: cada um é R$ 1 de cada R$ 100 faturados (maior resto distribui os arredondamentos)
+      const cotas = fatP ? impostos.map(({ g, v }) => ({ g, v, exato: (v / fatP) * 100 })) : [];
+      cotas.forEach((x) => { x.n = Math.floor(x.exato); });
+      let faltam = Math.min(100, Math.round(cotas.reduce((t, x) => t + x.exato, 0))) - cotas.reduce((t, x) => t + x.n, 0);
+      [...cotas].sort((a, b) => (b.exato - b.n) - (a.exato - a.n)).forEach((x) => { if (faltam > 0) { x.n += 1; faltam -= 1; } });
+      const quadrados = cotas.flatMap((x) => Array.from({ length: x.n }, () => x.g.id));
+      while (quadrados.length < 100) quadrados.push("sobra");
+      const serie = dados.meses.map((m, i) => ({ mes: MES_CURTO[i], fat: m.fat.total || null, imp: m.impTotal || null, carga: m.carga == null || !(m.fat.total || m.impTotal) ? null : Number((m.carga * 100).toFixed(2)) }));
+      return (
+        <div key="painel" className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+          <Bloco titulo="A cada R$ 100 faturados" nota={titulo} className="xl:col-span-2">
+            {fatP > 0 && cotas.length ? (
+              <div className="flex flex-wrap items-center gap-5">
+                <div className="grid shrink-0 grid-cols-10 gap-[3px]">
+                  {quadrados.map((id, i) => <span key={i} className="block h-[15px] w-[15px] rounded-[3px]" style={{ background: id === "sobra" ? "#d1fae5" : COR[id] || "#64748b" }} />)}
+                </div>
+                <div className="flex min-w-[140px] flex-1 flex-col gap-2 text-[12.5px]">
+                  {cotas.map(({ g, v }) => (
+                    <div key={g.id} className="flex items-center justify-between gap-3">
+                      <span className="truncate"><span className="mr-2 inline-block h-2.5 w-2.5 rounded-[3px] align-middle" style={{ background: COR[g.id] || "#64748b" }} />{nomeCurto(g.nome)}</span>
+                      <b className="tabular-nums text-ink-800">{moneyFull((v / fatP) * 100)}</b>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between gap-3 border-t border-line pt-2">
+                    <span><span className="mr-2 inline-block h-2.5 w-2.5 rounded-[3px] align-middle" style={{ background: "#d1fae5" }} />Sobra</span>
+                    <b className="tabular-nums text-emerald-700">{moneyFull(Math.max(100 - (periodo.impTotal / fatP) * 100, 0))}</b>
+                  </div>
+                </div>
+              </div>
+            ) : <p className="py-10 text-center text-[13px] text-ink-400">Sem faturamento ou sem imposto neste período.</p>}
+          </Bloco>
+          <Bloco titulo={`Faturamento × impostos — ${ano}`} nota="barras: R$ · linha: carga do mês" className="xl:col-span-3">
+            <div className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={serie} margin={{ top: 10, right: 6, left: -10, bottom: 0 }} barGap={2}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                  <XAxis dataKey="mes" tick={{ fontSize: 11.5 }} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="v" tick={{ fontSize: 11.5 }} tickFormatter={compacto} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="p" orientation="right" tick={{ fontSize: 11.5 }} tickFormatter={(v) => `${v}%`} axisLine={false} tickLine={false} />
+                  <Tooltip formatter={(value, name) => (name === "Carga" ? [`${Number(value).toLocaleString("pt-BR")}%`, name] : [moneyFull(value), name])} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
+                  <Bar yAxisId="v" dataKey="fat" name="Faturamento" fill="#bfdbfe" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                  <Bar yAxisId="v" dataKey="imp" name="Impostos" fill="#2563eb" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                  <Line yAxisId="p" type="monotone" dataKey="carga" name="Carga" stroke="#d97706" strokeWidth={2.2} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </Bloco>
+        </div>
       );
     },
     avisos: () => {
