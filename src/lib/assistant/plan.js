@@ -23,7 +23,7 @@ const VIEW = {
   composicaoReceita: { chart: "chart_receita_composicao", demo: { source: "DRE", open: { "DRE.01": "all" } } },
   deducoes: { layout: "demo", demo: { source: "DRE", open: { "DRE.02": "all" } } },
   custos: { kpis: ["dre_custos", "ratio_margem_bruta"], chart: "chart_receita_custo_despesa", demo: { source: "DRE", open: { "DRE.04": "one" } }, glossary: "margemBruta" },
-  despesas: { chart: "chart_despesas_composicao", demo: { source: "DRE", open: { "DRE.06": "one", "DRE.07": "one", "DRE.08": "one" } } },
+  despesas: { kpis: ["dre_despesas_adm", "dre_despesas_comerciais"], chart: "chart_despesas_composicao", demo: { source: "DRE", open: { "DRE.06": "one", "DRE.07": "one", "DRE.08": "one" } } },
   pessoal: { layout: "demo", demo: { source: "DRE", open: { "DRE.07": "one" } } },
   pareto: { layout: "staticChart" },
   margens: { kpis: ["ratio_margem_bruta", "ratio_margem_ebitda", "ratio_margem_liquida"], chart: "chart_margens_evolucao", glossary: "margemLiquida" },
