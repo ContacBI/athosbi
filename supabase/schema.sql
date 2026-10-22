@@ -815,3 +815,131 @@ alter table public.dominio_fiscal enable row level security;
 drop policy if exists "dominio_fiscal_read_reforma" on public.dominio_fiscal;
 create policy "dominio_fiscal_read_reforma" on public.dominio_fiscal for select to authenticated
   using (is_reforma_escritorio());
+
+-- ---------------------------------------------------------------------------
+-- Apresentação compartilhada por link (Apresentações → Compartilhar por
+-- link, ver src/lib/sharing.js e src/pages/SharedPresentation.jsx): uma
+-- "foto" dos slides (imagens JPEG) no momento em que o link foi criado ou
+-- atualizado. Quem abre não precisa de login e só recebe as imagens, pela
+-- função open_shared_presentation (validade, revogação, senha em bcrypt e
+-- registro de cada abertura). O escritório cria, lista, atualiza e revoga.
+create table if not exists public.shared_presentations (
+  id uuid primary key default gen_random_uuid(),
+  token text not null unique check (length(token) >= 20),
+  workspace_kind text not null check (workspace_kind in ('company', 'group')),
+  workspace_id text not null,
+  workspace_name text not null default '',
+  deck_id text not null,
+  title text not null default '',
+  period_label text not null default '',
+  slides jsonb not null default '[]'::jsonb,
+  slide_count integer not null default 0,
+  password_hash text,
+  expires_at timestamptz,
+  revoked_at timestamptz,
+  created_by text not null default lower(coalesce(auth.jwt()->>'email', '')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists shared_presentations_deck_idx on public.shared_presentations (workspace_id, deck_id);
+
+create table if not exists public.shared_presentation_views (
+  id bigint generated always as identity primary key,
+  share_id uuid not null references public.shared_presentations(id) on delete cascade,
+  viewed_at timestamptz not null default now(),
+  outcome text not null default 'aberto' check (outcome in ('aberto', 'senha_errada')),
+  device text not null default ''
+);
+create index if not exists shared_presentation_views_share_idx on public.shared_presentation_views (share_id, viewed_at desc);
+
+alter table public.shared_presentations enable row level security;
+alter table public.shared_presentation_views enable row level security;
+revoke all on public.shared_presentations from anon;
+revoke all on public.shared_presentation_views from anon;
+
+drop policy if exists "shared_presentations_staff_select" on public.shared_presentations;
+create policy "shared_presentations_staff_select" on public.shared_presentations
+  for select to authenticated using (is_portal_admin() or is_colaborador());
+drop policy if exists "shared_presentations_staff_insert" on public.shared_presentations;
+create policy "shared_presentations_staff_insert" on public.shared_presentations
+  for insert to authenticated with check (is_portal_admin() or is_colaborador());
+drop policy if exists "shared_presentations_staff_update" on public.shared_presentations;
+create policy "shared_presentations_staff_update" on public.shared_presentations
+  for update to authenticated using (is_portal_admin() or is_colaborador()) with check (is_portal_admin() or is_colaborador());
+drop policy if exists "shared_presentations_admin_delete" on public.shared_presentations;
+create policy "shared_presentations_admin_delete" on public.shared_presentations
+  for delete to authenticated using (is_portal_admin());
+drop policy if exists "shared_presentation_views_staff_select" on public.shared_presentation_views;
+create policy "shared_presentation_views_staff_select" on public.shared_presentation_views
+  for select to authenticated using (is_portal_admin() or is_colaborador());
+
+create or replace function public.set_shared_presentation_password(p_share_id uuid, p_password text)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  if not (is_portal_admin() or is_colaborador()) then
+    raise exception 'sem permissão';
+  end if;
+  update public.shared_presentations
+     set password_hash = case when coalesce(p_password, '') = '' then null else extensions.crypt(p_password, extensions.gen_salt('bf', 8)) end,
+         updated_at = now()
+   where id = p_share_id;
+end;
+$$;
+
+create or replace function public.open_shared_presentation(p_token text, p_password text default null, p_device text default '')
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  s public.shared_presentations%rowtype;
+  recent_fails integer;
+begin
+  select * into s from public.shared_presentations where token = p_token;
+  if not found then
+    return jsonb_build_object('status', 'not_found');
+  end if;
+  if s.revoked_at is not null then
+    return jsonb_build_object('status', 'revoked', 'title', s.title);
+  end if;
+  if s.expires_at is not null and s.expires_at < now() then
+    return jsonb_build_object('status', 'expired', 'title', s.title, 'expires_at', s.expires_at);
+  end if;
+  if s.password_hash is not null then
+    select count(*) into recent_fails
+      from public.shared_presentation_views
+     where share_id = s.id and outcome = 'senha_errada' and viewed_at > now() - interval '15 minutes';
+    if recent_fails >= 10 then
+      return jsonb_build_object('status', 'locked', 'title', s.title);
+    end if;
+    if coalesce(p_password, '') = '' then
+      return jsonb_build_object('status', 'password', 'title', s.title, 'workspace_name', s.workspace_name);
+    end if;
+    if extensions.crypt(p_password, s.password_hash) <> s.password_hash then
+      insert into public.shared_presentation_views (share_id, outcome, device) values (s.id, 'senha_errada', left(coalesce(p_device, ''), 40));
+      return jsonb_build_object('status', 'wrong_password', 'title', s.title, 'workspace_name', s.workspace_name);
+    end if;
+  end if;
+  insert into public.shared_presentation_views (share_id, outcome, device) values (s.id, 'aberto', left(coalesce(p_device, ''), 40));
+  return jsonb_build_object(
+    'status', 'ok',
+    'title', s.title,
+    'workspace_name', s.workspace_name,
+    'period_label', s.period_label,
+    'slides', s.slides,
+    'slide_count', s.slide_count,
+    'expires_at', s.expires_at,
+    'updated_at', s.updated_at
+  );
+end;
+$$;
+
+revoke all on function public.open_shared_presentation(text, text, text) from public;
+grant execute on function public.open_shared_presentation(text, text, text) to anon, authenticated;
+revoke all on function public.set_shared_presentation_password(uuid, text) from public;
+grant execute on function public.set_shared_presentation_password(uuid, text) to authenticated;

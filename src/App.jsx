@@ -28,6 +28,7 @@ import { setData } from "./data/useStore.js";
 // Empresas/CompanyHome continuam no pacote inicial — são a primeira tela
 // que qualquer sessão vê.
 const PainelTab = lazy(() => import("./pages/PainelTab.jsx"));
+const SharedPresentation = lazy(() => import("./pages/SharedPresentation.jsx"));
 const Celular = lazy(() => import("./pages/Celular.jsx"));
 const PersonalizarHub = lazy(() => import("./pages/PersonalizarHub.jsx"));
 const Demonstrativos = lazy(() => import("./pages/Demonstrativos.jsx"));
@@ -233,6 +234,16 @@ export default function App() {
   // roda antes do <BrowserRouter> existir.
   if (window.location.pathname === "/confirmar-acesso") {
     return <ConfirmAccess />;
+  }
+  // Apresentação compartilhada por link (/p/<código>): aberta por quem não
+  // tem login — nem passa pela checagem de sessão nem carrega o portal.
+  const shared = window.location.pathname.match(/^\/p\/([A-Za-z0-9]{20,64})\/?$/);
+  if (shared) {
+    return (
+      <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[#081d33] text-[13px] text-white/60">Abrindo a apresentação…</div>}>
+        <SharedPresentation token={shared[1]} />
+      </Suspense>
+    );
   }
   return <AuthedApp />;
 }

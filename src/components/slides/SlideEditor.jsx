@@ -30,6 +30,7 @@ import {
   ChartColumnBig,
   Sheet,
   BookmarkPlus,
+  Link2,
 } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import PeriodPicker from "../PeriodPicker.jsx";
@@ -543,7 +544,7 @@ function MenuItem({ icon: Icon, label, hint, onClick }) {
   );
 }
 
-export default function SlideEditor({ initial, ctx, info, readOnly, onExit, onPresent, onExport, onPeriodChange }) {
+export default function SlideEditor({ initial, ctx, info, readOnly, onExit, onPresent, onExport, onPeriodChange, onShare }) {
   const appState = useAppState();
   const deckRef = useRef(initial);
   const [deck, setDeckState] = useState(initial);
@@ -1033,6 +1034,7 @@ export default function SlideEditor({ initial, ctx, info, readOnly, onExit, onPr
             <MenuItem icon={FileText} label="PDF da apresentação" hint="Todos os slides (menos os marcados pra pular)" onClick={async () => { await flushSave(); onExport(deckRef.current, null); }} />
             <MenuItem icon={FileImage} label="Imagem deste slide (PNG)" hint="Pra mandar no WhatsApp ou e-mail" onClick={() => onExport(deckRef.current, index)} />
           </Dropdown>
+          {onShare && !readOnly && <ToolButton icon={Link2} label="Compartilhar" title="Enviar por link (sem login, com validade e senha opcional)" onClick={async () => { await flushSave(); onShare(deckRef.current); }} />}
           <ToolButton icon={Play} label="Apresentar" accent onClick={async () => { await flushSave(); onPresent(deckRef.current, Math.max(0, number ? number - 1 : 0)); }} />
         </div>
       </div>
