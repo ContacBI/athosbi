@@ -35,6 +35,7 @@ const Depara = lazy(() => import("./pages/Depara.jsx"));
 const VinculoDfc = lazy(() => import("./pages/VinculoDfc.jsx"));
 const RelatoriosMensais = lazy(() => import("./pages/RelatoriosMensais.jsx"));
 const Apresentacoes = lazy(() => import("./pages/Apresentacoes.jsx"));
+const Carteira = lazy(() => import("./pages/Carteira.jsx"));
 const CompaniesAdmin = lazy(() => import("./pages/parametros/CompaniesAdmin.jsx"));
 const GruposAdmin = lazy(() => import("./pages/parametros/GruposAdmin.jsx"));
 const DeParaAdmin = lazy(() => import("./pages/parametros/DeParaAdmin.jsx"));
@@ -179,6 +180,7 @@ function AuthedApp() {
         <Route index element={<Landing />} />
         <Route path="definir-senha" element={<SetPassword />} />
         <Route path="empresas" element={<Empresas />} />
+        <Route path="carteira" element={<Carteira />} />
         <Route path="parametros" element={<ParametrosLayout />}>
           <Route index element={<Navigate to="empresas" replace />} />
           <Route path="empresas" element={<CompaniesAdmin />} />

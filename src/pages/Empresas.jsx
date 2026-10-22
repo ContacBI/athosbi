@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { ArrowLeft, Building2, ChevronRight, Layers, Network, Search, Settings, SlashSquare, TriangleAlert } from "lucide-react";
+import { Activity, ArrowLeft, Building2, ChevronRight, Layers, Network, Search, Settings, SlashSquare, TriangleAlert } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { selectCompany } from "../lib/companies.js";
 import { selectGroup, groupCompanies } from "../lib/groups.js";
@@ -293,14 +293,24 @@ export default function Empresas() {
               Início
             </button>
             {(state.isAdmin || state.isColaborador) && (
-              <button
-                type="button"
-                onClick={() => navigate("/parametros")}
-                className="flex items-center gap-1.5 rounded-full border border-white/15 px-3.5 py-1.5 text-[13px] text-white/80 transition-colors hover:border-white/30 hover:bg-white/5 hover:text-white"
-              >
-                <Settings size={15} />
-                Cadastrar / editar empresas
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigate("/carteira")}
+                  className="flex items-center gap-1.5 rounded-full border border-white/15 px-3.5 py-1.5 text-[13px] text-white/80 transition-colors hover:border-white/30 hover:bg-white/5 hover:text-white"
+                >
+                  <Activity size={15} />
+                  Saúde da carteira
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/parametros")}
+                  className="flex items-center gap-1.5 rounded-full border border-white/15 px-3.5 py-1.5 text-[13px] text-white/80 transition-colors hover:border-white/30 hover:bg-white/5 hover:text-white"
+                >
+                  <Settings size={15} />
+                  Cadastrar / editar empresas
+                </button>
+              </div>
             )}
           </div>
 
