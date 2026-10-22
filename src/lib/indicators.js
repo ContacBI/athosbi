@@ -16,7 +16,9 @@ export const EDITABLE_CATEGORIES = ["Indicadores", "DRE", "Balanço"];
 // the editor whether a given card is a built-in (resettable, not
 // deletable) or a custom one (deletable, not resettable).
 const BUILTIN_SNAPSHOT = new Map(
-  WIDGET_CATALOG.filter((definition) => EDITABLE_CATEGORIES.includes(definition.category)).map((definition) => [
+  // Só os cards de fórmula — os de conta própria (prazos médios, ver
+  // lib/prazos.js) não são editáveis e não podem ser trocados por fórmula.
+  WIDGET_CATALOG.filter((definition) => EDITABLE_CATEGORIES.includes(definition.category) && definition.formula).map((definition) => [
     definition.id,
     { label: definition.label, category: definition.category, icon: definition.icon, defaultSize: definition.defaultSize, formula: definition.formula },
   ])
@@ -73,7 +75,7 @@ function removeStaleCustomEntries(overrides) {
   const keepIds = new Set([...BUILTIN_SNAPSHOT.keys(), ...overrides.map((item) => item.id)]);
   for (let index = WIDGET_CATALOG.length - 1; index >= 0; index -= 1) {
     const item = WIDGET_CATALOG[index];
-    if (EDITABLE_CATEGORIES.includes(item.category) && !keepIds.has(item.id)) WIDGET_CATALOG.splice(index, 1);
+    if (EDITABLE_CATEGORIES.includes(item.category) && item.formula && !keepIds.has(item.id)) WIDGET_CATALOG.splice(index, 1);
   }
 }
 

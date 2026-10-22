@@ -175,13 +175,15 @@ function BiAdminScreen() {
                 <div className="grid grid-cols-1 gap-2 border-t border-line px-4 py-3 sm:grid-cols-2 lg:grid-cols-3">
                   {group.items.map((definition) => {
                     const Icon = definition.icon;
-                    const custom = isEditable && !isBuiltinIndicator(definition.id);
-                    const overridden = isEditable && !custom && appState.indicatorOverrides.some((item) => item.id === definition.id);
+                    // Card de conta própria (prazos médios): só prévia, sem fórmula pra editar.
+                    const itemEditable = isEditable && Boolean(definition.formula);
+                    const custom = itemEditable && !isBuiltinIndicator(definition.id);
+                    const overridden = itemEditable && !custom && appState.indicatorOverrides.some((item) => item.id === definition.id);
                     return (
                       <button
                         key={definition.id}
                         type="button"
-                        onClick={() => (isEditable ? setEditorTarget(definition) : setPreviewItem(definition))}
+                        onClick={() => (itemEditable ? setEditorTarget(definition) : setPreviewItem(definition))}
                         className="group flex items-start gap-2.5 rounded-lg border border-line px-3 py-2.5 text-left transition-colors hover:border-accent-400 hover:bg-surface-muted"
                       >
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent-50 text-accent-600">
@@ -195,7 +197,7 @@ function BiAdminScreen() {
                           </p>
                           <p className="text-[11px] text-ink-400">{TYPE_LABEL[definition.type] || definition.type}</p>
                         </div>
-                        {isEditable && <Pencil size={12} className="mt-0.5 shrink-0 text-ink-300 opacity-0 transition-opacity group-hover:opacity-100" />}
+                        {itemEditable && <Pencil size={12} className="mt-0.5 shrink-0 text-ink-300 opacity-0 transition-opacity group-hover:opacity-100" />}
                       </button>
                     );
                   })}

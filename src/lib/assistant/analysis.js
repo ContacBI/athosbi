@@ -5,11 +5,12 @@
 // apresentador, os alertas (com o que fazer) e os pontos positivos.
 // Tudo por regra — nada sai da empresa, nada é pago.
 
-import { GLOSSARY, norm } from "./vocab.js";
+import { GLOSSARY } from "./vocab.js";
 import { sentenceCase } from "../planCase.js";
 import { ACCENTS, restoreAccents } from "../accents.js";
 import { budgetFor } from "../budget.js";
 import { buildCashBridge, bridgeSentence } from "../cashBridge.js";
+import { prazosMedios, topMatches } from "../prazos.js";
 
 const MONTHS_FULL = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
@@ -97,11 +98,8 @@ function leavesUnder(rows, codes) {
 }
 
 // Linhas cujo nome casa com o padrão, ficando só com a mais alta de cada
-// ramo (a filha de uma linha que já casou não conta duas vezes).
-function topMatches(rows, prefixes, pattern) {
-  const hits = (rows || []).filter((row) => prefixes.some((prefix) => row.codigo_gerencial === prefix || row.codigo_gerencial.startsWith(`${prefix}.`)) && pattern.test(norm(row.categoria_gerencial)));
-  return hits.filter((row) => !hits.some((other) => other !== row && row.codigo_gerencial.startsWith(`${other.codigo_gerencial}.`)));
-}
+// ramo (a filha de uma linha que já casou não conta duas vezes). Fica em
+// lib/prazos.js (os cards de prazo médio do B.I. usam a mesma).
 
 function monthlyStats(values, months) {
   const n = values.length;
@@ -186,19 +184,9 @@ export function buildFacts(ctx, period = {}) {
   const deprec = exec("DEX.09");
   const ebitda = Number(ctx.ebitda || 0);
 
-  // Prazos médios (saldo médio do começo e do fim do período).
-  const clientesRows = topMatches(ctx.bp, ["01.01"], /\bclientes?\b|duplicatas a receber|contas a receber/);
-  const clientes = sumBp(clientesRows);
-  const estoques = bp("01.01.03").exists ? bp("01.01.03") : sumBp(topMatches(ctx.bp, ["01.01"], /estoque/));
-  const fornecedores = bp("02.01.01").exists ? bp("02.01.01") : sumBp(topMatches(ctx.bp, ["02.01"], /fornecedor/));
-  const comprasRows = topMatches(ctx.dre, ["DRE.04"], /compras?\b/);
-  const compras = Math.abs(comprasRows.reduce((sum, row) => sum + periodValue(row), 0));
-  const avg = (item) => (item.start + item.end) / 2;
-  const pmr = receitaBruta > 0 ? (avg(clientes) / receitaBruta) * days : null;
-  const pmeRaw = Math.abs(custos) > 0.5 ? (avg(estoques) / Math.abs(custos)) * days : null;
-  const pme = pmeRaw != null && pmeRaw <= 720 ? pmeRaw : null;
-  const pmpBase = compras > 0.5 ? compras : Math.abs(custos);
-  const pmp = pmpBase > 0.5 ? (avg(fornecedores) / pmpBase) * days : null;
+  // Prazos médios (saldo médio do começo e do fim do período) — lib/prazos.js,
+  // a mesma conta dos cards do B.I.
+  const { clientes, estoques, fornecedores, compras, pmr, pme, pmeRaw, pmp } = prazosMedios(ctx, { start: period.start, end: period.end });
 
   const caixa = bp("01.01.01");
   const dividaCp = bp("02.01.02");

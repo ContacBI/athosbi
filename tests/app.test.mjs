@@ -152,6 +152,30 @@ for (const definition of WIDGET_CATALOG.filter((item) => item.formula)) {
 check(`Cada nível soma o de cima (${nodes} linhas conferidas)`, badSums === 0, { badSums });
 check(`O razão de cada conta/linha bate com o valor dela (${ledgers} razões)`, badLedgers === 0, { badLedgers });
 
+// ── Prazos médios e ciclo financeiro ──
+section("Prazos médios");
+const { prazosDoCtx } = await src("lib/prazos.js");
+const prazos = prazosDoCtx(ctx);
+// Clientes 80.000 → 110.000 (média 95.000) sobre receita bruta 300.000 em 90 dias.
+check("Prazo de recebimento = 95.000 ÷ 300.000 × 90 = 28,5 dias", near(prazos.pmr, 28.5, 0.01), prazos.pmr);
+// Estoque 60.000 → 75.000 (média 67.500) sobre custo 135.000.
+check("Prazo de estoque = 67.500 ÷ 135.000 × 90 = 45 dias", near(prazos.pme, 45, 0.01), prazos.pme);
+// Fornecedores 50.000 → 56.000 (média 53.000) sobre compras 135.000.
+check("Prazo de pagamento = 53.000 ÷ 135.000 × 90 ≈ 35,3 dias", near(prazos.pmp, 35.333, 0.01), prazos.pmp);
+check("Ciclo financeiro = 28,5 + 45 − 35,3 ≈ 38,2 dias", near(prazos.ciclo, 38.167, 0.01), prazos.ciclo);
+const { analyze } = await src("lib/assistant/analysis.js");
+const facts = analyze(ctx, { period: PERIOD, label: "1º tri" }).facts;
+check("Cards de prazo batem com o assistente de slides", near(facts.pmr, prazos.pmr, 0.001) && near(facts.pme, prazos.pme, 0.001) && near(facts.pmp, prazos.pmp, 0.001), { assistente: [facts.pmr, facts.pme, facts.pmp] });
+const cardPrazo = WIDGET_CATALOG.find((item) => item.id === "prazo_recebimento");
+check("Card mostra em dias", cardPrazo && (await src("lib/dashboardWidgets.js")).formatWidgetValue(cardPrazo.value(ctx).value, "days") === "29 dias", cardPrazo?.value(ctx));
+
+// Aplicar indicadores personalizados não pode apagar os cards de prazo
+// (eles não têm fórmula editável — bug corrigido junto com os cards).
+const { restoreIndicatorOverrides } = await src("lib/indicators.js");
+restoreIndicatorOverrides([]);
+const prazoDepois = WIDGET_CATALOG.find((item) => item.id === "prazo_recebimento");
+check("Indicadores personalizados não apagam os cards de prazo", Boolean(prazoDepois) && prazoDepois.value(ctx).format === "days", prazoDepois?.value(ctx));
+
 // ── Orçamento ──
 section("Orçamento");
 const budget = await src("lib/budget.js");
