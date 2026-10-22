@@ -85,7 +85,10 @@ export const WIDGET_CATALOG = [
   lineEntry({ id: "dre_receita_liquida", label: "Receita líquida", category: "DRE", icon: TrendingUp, code: "DRE.03" }),
   lineEntry({ id: "dre_custos", label: "Custos diretos", category: "DRE", icon: TrendingDown, code: "DRE.04" }),
   lineEntry({ id: "dre_lucro_bruto", label: "Lucro bruto", category: "DRE", icon: Wallet, code: "DRE.05" }),
-  lineEntry({ id: "dre_despesas_adm", label: "Despesas administrativas", category: "DRE", icon: Receipt, code: "DRE.06" }),
+  // No plano gerencial padrão DRE.06 são as despesas comerciais e DRE.07 as
+  // administrativas (o card "Despesas administrativas" lia DRE.06 por engano).
+  lineEntry({ id: "dre_despesas_comerciais", label: "Despesas comerciais", category: "DRE", icon: Receipt, code: "DRE.06" }),
+  lineEntry({ id: "dre_despesas_adm", label: "Despesas administrativas", category: "DRE", icon: Receipt, code: "DRE.07" }),
   lineEntry({ id: "dre_resultado_operacional", label: "Resultado operacional", category: "DRE", icon: Wallet, code: "DRE.12" }),
   lineEntry({ id: "dre_resultado_financeiro", label: "Resultado financeiro", category: "DRE", icon: Coins, code: "DRE.13" }),
   lineEntry({ id: "dre_resultado_antes_ir", label: "Resultado antes de IR/CSLL", category: "DRE", icon: Scale, code: "DRE.15" }),

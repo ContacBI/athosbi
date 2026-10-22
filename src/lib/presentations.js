@@ -537,9 +537,11 @@ export function compactValue(value, format) {
   const n = Number(value || 0);
   const abs = Math.abs(n);
   const fmt = (v, digits) => v.toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
-  if (abs >= 1e9) return `R$ ${fmt(n / 1e9, 2)} bi`;
-  if (abs >= 1e6) return `R$ ${fmt(n / 1e6, 2)} mi`;
-  if (abs >= 1e4) return `R$ ${fmt(n / 1e3, 1)} mil`;
+  // Sinal antes do "R$" ("-R$ 251,7 mil"), igual ao valor por extenso.
+  const sign = n < 0 ? "-" : "";
+  if (abs >= 1e9) return `${sign}R$ ${fmt(abs / 1e9, 2)} bi`;
+  if (abs >= 1e6) return `${sign}R$ ${fmt(abs / 1e6, 2)} mi`;
+  if (abs >= 1e4) return `${sign}R$ ${fmt(abs / 1e3, 1)} mil`;
   return formatWidgetValue(n, format);
 }
 
