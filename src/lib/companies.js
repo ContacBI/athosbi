@@ -1178,6 +1178,20 @@ export async function saveCargaLayout(layout) {
   }
 }
 
+// Carga tributária: considerar (ou não) os impostos que só têm provisão no contábil (sem apuração no fiscal). Escolha da empresa, padrão: não.
+export async function saveCargaContabil(valor) {
+  const company = state.companies.find((item) => item.id === state.activeCompanyId);
+  if (!company || state.activeGroupId) return;
+  const before = state.companies;
+  setData({ companies: state.companies.map((item) => (item.id === company.id ? { ...item, cargaContabil: Boolean(valor) } : item)) });
+  try {
+    await persistActiveCompany();
+  } catch (error) {
+    setData({ companies: before });
+    throw error;
+  }
+}
+
 // Modelo de DFC da empresa "instituto" que veio da Domínio (lib/dfcInstituto.js): guarda na empresa a estrutura e as contas
 // ligadas a cada grupo, como estão na Domínio. Espera o Supabase confirmar e desfaz se falhar (mesmo contrato de applyBalancete).
 export async function applyDfcInstituto(modelo) {

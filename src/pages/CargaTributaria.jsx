@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, LabelList, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ArrowDown, ArrowUp, Percent, SlidersHorizontal } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
-import { saveCargaLayout } from "../lib/companies.js";
+import { saveCargaContabil, saveCargaLayout } from "../lib/companies.js";
 import { fetchCargaTributaria, pctCarga } from "../lib/cargaTributaria.js";
 import { money } from "../lib/format.js";
 
 const MES_CURTO = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const MES_LONGO = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-const COR = { iss: "#2563eb", icms: "#7c3aed", ipi: "#0891b2", pis: "#16a34a", cofins: "#84cc16", csll: "#f59e0b", irpj: "#dc2626", simples: "#db2777", outros: "#64748b",
+const COR = { iss: "#2563eb", icms: "#7c3aed", ipi: "#0891b2", pis: "#16a34a", cofins: "#84cc16", csll: "#f59e0b", irpj: "#dc2626", simples: "#db2777", cpp: "#be185d", outros: "#64748b",
   irrf: "#0ea5e9", pcc: "#14b8a6", inss_ret: "#8b5cf6", iss_ret: "#3b82f6", icms_ret: "#a855f7", inss_folha: "#f97316", fgts: "#eab308", irrf_folha: "#06b6d4", outras_folha: "#94a3b8" };
 const moneyFull = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const nomeCurto = (nome) => String(nome || "").split(" (")[0];
@@ -154,7 +154,32 @@ export default function CargaTributaria() {
 
   const row = useMemo(() => (rows || []).find((item) => item.ano === ano) || null, [rows, ano]);
   const anterior = useMemo(() => (rows || []).find((item) => item.ano === ano - 1) || null, [rows, ano]);
-  const dados = row?.dados;
+  const dadosBrutos = row?.dados;
+  const usarContabil = Boolean(company?.cargaContabil);
+  // Impostos que só existem no contábil (provisão) ficam à parte; se a empresa escolheu considerá-los, somam em imp/impTotal/carga.
+  const dados = useMemo(() => {
+    if (!dadosBrutos || !usarContabil) return dadosBrutos;
+    const soma = (p) => {
+      if (!p?.contabilTotal) return p;
+      const imp = { ...p.imp };
+      for (const [id, v] of Object.entries(p.contabil || {})) imp[id] = (imp[id] || 0) + v;
+      const impTotal = p.impTotal + p.contabilTotal;
+      return { ...p, imp, impTotal, carga: p.fat?.total ? impTotal / p.fat.total : p.carga };
+    };
+    return { ...dadosBrutos, meses: dadosBrutos.meses.map(soma), trimestres: dadosBrutos.trimestres.map(soma), ano_total: soma(dadosBrutos.ano_total) };
+  }, [dadosBrutos, usarContabil]);
+  const [salvandoContabil, setSalvandoContabil] = useState(false);
+  async function alternarContabil() {
+    setSalvandoContabil(true);
+    try {
+      await saveCargaContabil(!usarContabil);
+    } catch (err) {
+      console.error("Falha ao salvar a opção de impostos do contábil:", err);
+      setError(/recarregue/i.test(err?.message || "") ? err.message : "Não consegui salvar agora. Tente de novo.");
+    } finally {
+      setSalvandoContabil(false);
+    }
+  }
 
   const c = useMemo(() => {
     if (!dados) return null;
@@ -309,9 +334,24 @@ export default function CargaTributaria() {
       if (naoClass.length) itens.push(["warn", `Impostos fora do catálogo (não entraram em nenhuma soma — confira): ${naoClass.map(([nome, valor]) => `${nome} ${moneyFull(valor)}`).join(" · ")}`]);
       if (total.fat.outrasSaidas > 0) itens.push(["warn", `Saídas que não contam como faturamento (devolução, remessa, transferência…): ${moneyFull(total.fat.outrasSaidas)} no ano.`]);
       if ((total.reforma?.ibs || 0) + (total.reforma?.cbs || 0) > 0) itens.push(["info", `Reforma tributária (valores de teste de ${ano}): IBS ${moneyFull(total.reforma.ibs)} · CBS ${moneyFull(total.reforma.cbs)} — não entram na carga.`]);
-      if (!itens.length) return null;
+      const tc = dadosBrutos?.ano_total;
+      const soContabil = tc?.contabilTotal > 0 ? grupos.filter((g) => tc.contabil?.[g.id] > 0) : [];
+      if (!itens.length && !soContabil.length) return null;
       return (
         <div key="avisos" className="flex flex-col gap-2">
+          {soContabil.length > 0 && (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border-l-[3px] border-warning-500 bg-warning-50 px-3 py-2 text-[12.5px] text-warning-700">
+              <span className="min-w-0 flex-1">
+                Há imposto provisionado no contábil sem apuração no fiscal: {soContabil.map((g) => `${nomeCurto(g.nome)} ${moneyFull(tc.contabil[g.id])}`).join(" · ")}.{" "}
+                {usarContabil ? "Estes valores ESTÃO somados na carga." : "Estes valores NÃO estão somados na carga."}
+              </span>
+              {podeEditar && (
+                <button type="button" disabled={salvandoContabil} onClick={alternarContabil} className="rounded-md border border-warning-500 px-2.5 py-1 font-semibold hover:bg-warning-100 disabled:opacity-60">
+                  {usarContabil ? "Não considerar" : "Considerar na carga"}
+                </button>
+              )}
+            </div>
+          )}
           {itens.map(([tipo, texto], i) => (
             <div key={i} className={`rounded-lg border-l-[3px] px-3 py-2 text-[12.5px] ${tipo === "warn" ? "border-warning-500 bg-warning-50 text-warning-700" : "border-accent-500 bg-accent-500/10 text-ink-700"}`}>{texto}</div>
           ))}
