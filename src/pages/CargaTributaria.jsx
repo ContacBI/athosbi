@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Percent } from "lucide-react";
+import { ArrowDown, ArrowUp, Percent, SlidersHorizontal } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
+import { saveCargaLayout } from "../lib/companies.js";
 import { fetchCargaTributaria, pctCarga } from "../lib/cargaTributaria.js";
 import { money } from "../lib/format.js";
 
 const MES_CURTO = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const MES_LONGO = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-const COR = { iss: "#2563eb", icms: "#7c3aed", ipi: "#0891b2", pis: "#16a34a", cofins: "#84cc16", csll: "#f59e0b", irpj: "#dc2626", simples: "#db2777", outros: "#64748b" };
+const COR = { iss: "#2563eb", icms: "#7c3aed", ipi: "#0891b2", pis: "#16a34a", cofins: "#84cc16", csll: "#f59e0b", irpj: "#dc2626", simples: "#db2777", outros: "#64748b",
+  irrf: "#0ea5e9", pcc: "#14b8a6", inss_ret: "#8b5cf6", iss_ret: "#3b82f6", icms_ret: "#a855f7", inss_folha: "#f97316", fgts: "#eab308", irrf_folha: "#06b6d4", outras_folha: "#94a3b8" };
 const moneyFull = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const nomeCurto = (nome) => String(nome || "").split(" (")[0];
 const compacto = (value) => {
@@ -20,9 +22,10 @@ const compacto = (value) => {
 const pct1 = (value) => `${Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 const delta = (atual, anterior) => (anterior ? (atual - anterior) / Math.abs(anterior) : null);
 const deltaTxt = (value) => (value == null ? "—" : `${value >= 0 ? "+" : ""}${(value * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`);
+const fracao = (valor, base) => (base ? pctCarga(valor / base) : "—");
 
 function Card({ label, value, hint, tone }) {
-  const borda = tone === "warn" ? "border-warning-500" : tone === "ok" ? "border-success-500" : tone === "accent" ? "border-accent-500" : "border-line-strong";
+  const borda = tone === "warn" ? "border-warning-500" : tone === "accent" ? "border-accent-500" : "border-line-strong";
   return (
     <div className={`min-w-0 rounded-xl border-l-[3px] bg-surface-card p-4 shadow-sm ${borda}`}>
       <p className="text-[10.5px] font-semibold uppercase tracking-wide text-ink-500">{label}</p>
@@ -44,9 +47,74 @@ function Bloco({ titulo, nota, children, className = "" }) {
   );
 }
 
-const tooltipMoney = (value, name) => [moneyFull(value), name];
+const TH = "px-3 py-2 text-right font-semibold";
+const CABECALHO = "border-b border-line-strong text-[10.5px] uppercase tracking-wide text-ink-500";
 
-// Carga tributária da empresa aberta: impostos próprios do fiscal ÷ faturamento (valor das notas), mês a mês, por trimestre e no ano.
+// Tabela "um imposto por linha" (valor, % do faturamento e % do total) usada pelos próprios, retidos e folha.
+function TabelaGrupos({ grupos, valores, total, faturamento, vazio }) {
+  const linhas = grupos.filter((g) => valores[g.id]);
+  return (
+    <table className="w-full border-collapse text-[13px]">
+      <thead>
+        <tr className={CABECALHO}>
+          <th className="px-3 py-2 text-left font-semibold">Imposto</th><th className={TH}>Valor</th><th className={TH}>% do faturamento</th><th className={TH}>% do total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {linhas.map((g) => {
+          const parte = total ? valores[g.id] / total : 0;
+          return (
+            <tr key={g.id} className="border-b border-line">
+              <td className="px-3 py-2 text-left"><span className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: COR[g.id] || "#64748b" }} />{g.nome}</td>
+              <td className="px-3 py-2 text-right tabular-nums">{money(valores[g.id])}</td>
+              <td className="px-3 py-2 text-right tabular-nums">{fracao(valores[g.id], faturamento)}</td>
+              <td className="px-3 py-2 text-right tabular-nums">{pctCarga(parte)}<span className="ml-2 inline-block h-2 rounded align-middle" style={{ width: `${Math.round(parte * 90)}px`, background: COR[g.id] || "#64748b" }} /></td>
+            </tr>
+          );
+        })}
+        {!linhas.length && <tr><td colSpan={4} className="px-3 py-4 text-center text-ink-400">{vazio}</td></tr>}
+        <tr className="bg-surface-muted font-bold">
+          <td className="px-3 py-2 text-left">Total</td><td className="px-3 py-2 text-right tabular-nums">{money(total)}</td><td className="px-3 py-2 text-right tabular-nums">{fracao(total, faturamento)}</td><td className="px-3 py-2 text-right">{total ? "100,00%" : "—"}</td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+// Blocos da tela. kind "kpi" = cartão de indicador (cartões seguidos formam uma grade); "bloco" = seção. `padrao`: já vem ligado (o essencial).
+// A escolha de quais blocos aparecem, e a ordem, é de cada empresa (company.cargaLayout) -- botão Personalizar.
+const BLOCOS = [
+  { id: "kpi-fat", kind: "kpi", padrao: true, nome: "Faturamento" },
+  { id: "kpi-imp", kind: "kpi", padrao: true, nome: "Impostos próprios" },
+  { id: "kpi-carga", kind: "kpi", padrao: true, nome: "Carga tributária" },
+  { id: "kpi-maior", kind: "kpi", padrao: true, nome: "Maior imposto" },
+  { id: "kpi-100", kind: "kpi", nome: "A cada R$ 100 faturados" },
+  { id: "kpi-corrente", kind: "kpi", nome: "Carga sem IRPJ e CSLL" },
+  { id: "kpi-media", kind: "kpi", nome: "Média mensal de impostos" },
+  { id: "kpi-pico", kind: "kpi", nome: "Pico e menor carga do ano" },
+  { id: "kpi-ret", kind: "kpi", nome: "Impostos retidos na fonte" },
+  { id: "kpi-folha", kind: "kpi", nome: "Encargos da folha" },
+  { id: "kpi-total", kind: "kpi", nome: "Carga com retidos e folha" },
+  { id: "por-imposto", kind: "bloco", padrao: true, nome: "Por imposto" },
+  { id: "carga-mes", kind: "bloco", padrao: true, nome: "Carga por mês (gráfico)" },
+  { id: "avisos", kind: "bloco", padrao: true, nome: "Avisos" },
+  { id: "composicao", kind: "bloco", nome: "Composição dos impostos (pizza)" },
+  { id: "retidos", kind: "bloco", nome: "Impostos retidos na fonte" },
+  { id: "folha", kind: "bloco", nome: "Encargos da folha" },
+  { id: "visao-completa", kind: "bloco", nome: "Visão completa (todos os tributos)" },
+  { id: "evolucao", kind: "bloco", nome: "Evolução mensal por imposto" },
+  { id: "acumulada", kind: "bloco", nome: "Carga acumulada no ano" },
+  { id: "faturamento-mes", kind: "bloco", nome: "Faturamento por mês" },
+  { id: "trimestres", kind: "bloco", nome: "Carga por trimestre" },
+  { id: "comparativo", kind: "bloco", nome: "Comparativo com o ano anterior" },
+  { id: "calor", kind: "bloco", nome: "Mapa de calor dos impostos" },
+  { id: "mes-a-mes", kind: "bloco", nome: "Tabela mês a mês" },
+  { id: "metodologia", kind: "bloco", nome: "Como é calculado" },
+];
+const PADRAO = BLOCOS.filter((b) => b.padrao).map((b) => b.id);
+const POR_ID = new Map(BLOCOS.map((b) => [b.id, b]));
+
+// Carga tributária da empresa aberta: impostos próprios do fiscal ÷ faturamento (valor das notas), mais retidos e folha à parte.
 // Só empresa (grupo não tem). Dados mandados pela Central — ver lib/cargaTributaria.js.
 export default function CargaTributaria() {
   const state = useAppState();
@@ -55,6 +123,13 @@ export default function CargaTributaria() {
   const [error, setError] = useState("");
   const [ano, setAno] = useState(null);
   const [sel, setSel] = useState("ano"); // "ano" | "T1".."T4" | 0..11
+  const [editando, setEditando] = useState(false);
+  const [rascunho, setRascunho] = useState(null); // { ordem: [ids de todos os blocos], ligados: Set }
+  const [salvando, setSalvando] = useState(false);
+
+  const podeEditar = Boolean(state.isAdmin || (company && (company.responsaveis || []).includes(state.userEmail)));
+  const salvo = Array.isArray(company?.cargaLayout) ? company.cargaLayout.filter((id) => POR_ID.has(id)) : PADRAO;
+  const ligados = editando && rascunho ? BLOCOS.map((b) => b.id).filter((id) => rascunho.ligados.has(id)).sort((a, b) => rascunho.ordem.indexOf(a) - rascunho.ordem.indexOf(b)) : salvo;
 
   useEffect(() => {
     if (!company || state.activeGroupId) return undefined;
@@ -80,50 +155,92 @@ export default function CargaTributaria() {
   const anterior = useMemo(() => (rows || []).find((item) => item.ano === ano - 1) || null, [rows, ano]);
   const dados = row?.dados;
 
-  const view = useMemo(() => {
+  const c = useMemo(() => {
     if (!dados) return null;
     const grupos = dados.grupos || [];
+    const gruposRet = dados.gruposRet || [];
+    const gruposFolha = dados.gruposFolha || [];
     const total = dados.ano_total;
     const periodo = sel === "ano" ? total : typeof sel === "string" ? dados.trimestres[Number(sel.slice(1)) - 1] : dados.meses[sel];
     const colunas = grupos.filter((g) => total.imp[g.id]);
-    const comDados = dados.meses.map((m, i) => ({ m, i })).filter(({ m }) => m.fat.total || m.impTotal);
-    // evolução: valores por imposto + carga do mês
+    const comDados = dados.meses.map((m, i) => ({ m, i })).filter(({ m }) => m.fat.total || m.impTotal || m.retTotal || m.folhaTotal);
     const evolucao = dados.meses.map((m, i) => ({ mes: MES_CURTO[i], carga: m.carga == null ? null : Number((m.carga * 100).toFixed(2)), ...Object.fromEntries(colunas.map((g) => [g.id, m.imp[g.id] || 0])) }));
-    // acumulada no ano (impostos acumulados ÷ faturamento acumulado), só até o último mês com dados
     let fa = 0;
     let ia = 0;
     const ultimo = comDados.length ? comDados[comDados.length - 1].i : -1;
     const acumulada = dados.meses.slice(0, ultimo + 1).map((m, i) => {
       fa += m.fat.total;
       ia += m.impTotal;
-      return { mes: MES_CURTO[i], carga: fa ? Number(((ia / fa) * 100).toFixed(2)) : null, impostos: ia, faturamento: fa };
+      return { mes: MES_CURTO[i], carga: fa ? Number(((ia / fa) * 100).toFixed(2)) : null };
     });
     const fatMes = dados.meses.map((m, i) => ({ mes: MES_CURTO[i], servicos: m.fat.servicos, vendas: m.fat.vendas }));
-    const tri = dados.trimestres.map((t, i) => ({ nome: `${i + 1}º tri`, carga: t.carga == null ? 0 : Number((t.carga * 100).toFixed(2)), impostos: t.impTotal, faturamento: t.fat.total }));
+    const cargaMes = dados.meses.map((m, i) => ({ mes: MES_CURTO[i], carga: m.carga == null ? 0 : Number((m.carga * 100).toFixed(2)) }));
+    const tri = dados.trimestres.map((t, i) => ({ nome: `${i + 1}º tri`, carga: t.carga == null ? 0 : Number((t.carga * 100).toFixed(2)) }));
     const pizza = colunas.map((g) => ({ id: g.id, nome: nomeCurto(g.nome), valor: periodo.imp[g.id] || 0 })).filter((x) => x.valor > 0);
-    // carga "corrente": sem IRPJ/CSLL (trimestrais) — mostra o peso dos tributos mensais
-    const mensais = (p) => (p.impTotal - (p.imp.irpj || 0) - (p.imp.csll || 0));
-    const cargaCorrente = periodo.fat.total ? mensais(periodo) / periodo.fat.total : null;
+    const cargaCorrente = periodo.fat.total ? (periodo.impTotal - (periodo.imp.irpj || 0) - (periodo.imp.csll || 0)) / periodo.fat.total : null;
     const cargasMeses = comDados.filter(({ m }) => m.carga != null);
     const maiorMes = cargasMeses.length ? cargasMeses.reduce((a, b) => (b.m.carga > a.m.carga ? b : a)) : null;
     const menorMes = cargasMeses.length ? cargasMeses.reduce((a, b) => (b.m.carga < a.m.carga ? b : a)) : null;
     const nMeses = sel === "ano" ? comDados.length : typeof sel === "string" ? dados.meses.slice((Number(sel.slice(1)) - 1) * 3, Number(sel.slice(1)) * 3).filter((m) => m.fat.total || m.impTotal).length : 1;
-    // mapa de calor: valor de cada imposto por mês, intensidade relativa ao maior da linha
     const calor = colunas.map((g) => {
       const vals = dados.meses.map((m) => m.imp[g.id] || 0);
       return { g, vals, max: Math.max(...vals, 1) };
     });
-    return { grupos, total, periodo, colunas, comDados, evolucao, acumulada, fatMes, tri, pizza, cargaCorrente, maiorMes, menorMes, nMeses, calor };
+    const ret = periodo.ret || {};
+    const folha = periodo.folha || {};
+    return { grupos, gruposRet, gruposFolha, total, periodo, colunas, evolucao, acumulada, fatMes, cargaMes, tri, pizza, cargaCorrente, maiorMes, menorMes, nMeses, calor, ret, folha,
+      retTotal: periodo.retTotal || 0, folhaTotal: periodo.folhaTotal || 0, temRet: (total.retTotal || 0) > 0, temFolha: (total.folhaTotal || 0) > 0 };
   }, [dados, sel]);
 
   const titulo = sel === "ano" ? `Ano ${ano}` : typeof sel === "string" ? `${sel.slice(1)}º trimestre de ${ano}` : `${MES_LONGO[sel]} de ${ano}`;
 
+  function abrirPersonalizar() {
+    const ordem = [...salvo, ...BLOCOS.map((b) => b.id).filter((id) => !salvo.includes(id))];
+    setRascunho({ ordem, ligados: new Set(salvo) });
+    setEditando(true);
+  }
+  function mover(id, direcao) {
+    setRascunho((atual) => {
+      const visiveis = atual.ordem.filter((x) => atual.ligados.has(x));
+      const i = visiveis.indexOf(id);
+      const j = i + direcao;
+      if (i < 0 || j < 0 || j >= visiveis.length) return atual;
+      const alvo = visiveis[j];
+      const ordem = [...atual.ordem];
+      const a = ordem.indexOf(id);
+      const b = ordem.indexOf(alvo);
+      ordem[a] = alvo;
+      ordem[b] = id;
+      return { ...atual, ordem };
+    });
+  }
+  function alternar(id) {
+    setRascunho((atual) => {
+      const ligadosNovo = new Set(atual.ligados);
+      if (ligadosNovo.has(id)) ligadosNovo.delete(id);
+      else ligadosNovo.add(id);
+      return { ...atual, ligados: ligadosNovo };
+    });
+  }
+  async function salvar() {
+    setSalvando(true);
+    try {
+      await saveCargaLayout(rascunho.ordem.filter((id) => rascunho.ligados.has(id)));
+      setEditando(false);
+    } catch (err) {
+      console.error("Falha ao salvar a personalização da carga tributária:", err);
+      setError(/recarregue/i.test(err?.message || "") ? err.message : "Não consegui salvar agora. Tente de novo.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
   if (!company || state.activeGroupId) {
     return <p className="rounded-xl bg-surface-card p-6 text-[13px] text-ink-500 shadow-sm">A carga tributária é por empresa — abra uma empresa para ver.</p>;
   }
-  if (error) return <p className="rounded-xl bg-danger-50 p-4 text-[13px] text-danger-600">{error}</p>;
+  if (error && !rows) return <p className="rounded-xl bg-danger-50 p-4 text-[13px] text-danger-600">{error}</p>;
   if (rows === null) return <p className="p-6 text-[13px] text-ink-400">Carregando…</p>;
-  if (!rows.length || !dados || !view) {
+  if (!rows.length || !dados || !c) {
     return (
       <div className="rounded-xl bg-surface-card p-6 shadow-sm">
         <p className="flex items-center gap-2 text-[15px] font-semibold text-ink-900"><Percent size={16} /> Carga tributária</p>
@@ -132,13 +249,28 @@ export default function CargaTributaria() {
     );
   }
 
-  const { grupos, total, periodo, colunas, evolucao, acumulada, fatMes, tri, pizza, cargaCorrente, maiorMes, menorMes, nMeses, calor } = view;
+  const { grupos, gruposRet, gruposFolha, total, periodo, colunas, evolucao, acumulada, fatMes, cargaMes, tri, pizza, cargaCorrente, maiorMes, menorMes, nMeses, calor, ret, folha, retTotal, folhaTotal } = c;
   const maior = [...grupos].sort((a, b) => (periodo.imp[b.id] || 0) - (periodo.imp[a.id] || 0))[0];
   const naoClass = Object.entries(total.naoClassificados || {});
   const temVendas = total.fat.vendas > 0;
   const tAnt = anterior?.dados?.ano_total;
+  const fatP = periodo.fat.total;
 
-  const linha = (rotulo, m, extra = "") => (
+  const KPIS = {
+    "kpi-fat": () => <Card key="kpi-fat" label="Faturamento" value={moneyFull(fatP)} hint={`${periodo.fat.notasServicos + periodo.fat.notasVendas} notas${temVendas ? ` · serviços ${compacto(periodo.fat.servicos)} · vendas ${compacto(periodo.fat.vendas)}` : ""}`} tone="accent" />,
+    "kpi-imp": () => <Card key="kpi-imp" label="Impostos próprios" value={moneyFull(periodo.impTotal)} hint="apurados no fiscal (saldo devedor)" />,
+    "kpi-carga": () => <Card key="kpi-carga" label="Carga tributária" value={pctCarga(periodo.carga)} hint="impostos próprios ÷ faturamento" tone="warn" />,
+    "kpi-maior": () => <Card key="kpi-maior" label="Maior imposto" value={periodo.impTotal > 0 && maior ? nomeCurto(maior.nome) : "—"} hint={periodo.impTotal > 0 && maior ? `${pctCarga(periodo.imp[maior.id] / periodo.impTotal)} dos impostos` : ""} />,
+    "kpi-100": () => <Card key="kpi-100" label="A cada R$ 100 faturados" value={periodo.carga == null ? "—" : moneyFull(periodo.carga * 100)} hint="vão para impostos próprios" />,
+    "kpi-corrente": () => <Card key="kpi-corrente" label="Carga sem IRPJ e CSLL" value={pctCarga(cargaCorrente)} hint="só os tributos mensais" />,
+    "kpi-media": () => <Card key="kpi-media" label="Média mensal de impostos" value={nMeses ? moneyFull(periodo.impTotal / nMeses) : "—"} hint={`${nMeses} ${nMeses === 1 ? "mês" : "meses"} com movimento`} />,
+    "kpi-pico": () => <Card key="kpi-pico" label="Pico e menor carga do ano" value={maiorMes ? `${MES_CURTO[maiorMes.i]} ${pctCarga(maiorMes.m.carga)}` : "—"} hint={menorMes ? `menor: ${MES_CURTO[menorMes.i]} ${pctCarga(menorMes.m.carga)}` : ""} />,
+    "kpi-ret": () => <Card key="kpi-ret" label="Impostos retidos na fonte" value={moneyFull(retTotal)} hint={fatP && retTotal ? `${pctCarga(retTotal / fatP)} do faturamento · de terceiros, a recolher` : "de terceiros, a recolher"} />,
+    "kpi-folha": () => <Card key="kpi-folha" label="Encargos da folha" value={moneyFull(folhaTotal)} hint={fatP && folhaTotal ? `${pctCarga(folhaTotal / fatP)} do faturamento` : "INSS, FGTS e IRRF da folha"} />,
+    "kpi-total": () => <Card key="kpi-total" label="Carga com retidos e folha" value={fatP ? pctCarga((periodo.impTotal + retTotal + folhaTotal) / fatP) : "—"} hint={moneyFull(periodo.impTotal + retTotal + folhaTotal)} tone="warn" />,
+  };
+
+  const linhaMes = (rotulo, m, extra = "") => (
     <tr key={rotulo} className={`border-b border-line ${extra}`}>
       <td className="px-3 py-2 text-left text-[12.5px]">{rotulo}</td>
       <td className="px-3 py-2 text-right tabular-nums">{money(m.fat.total)}</td>
@@ -147,6 +279,278 @@ export default function CargaTributaria() {
       <td className="px-3 py-2 text-right font-semibold tabular-nums">{pctCarga(m.carga)}</td>
     </tr>
   );
+
+  const SECOES = {
+    "por-imposto": () => (
+      <Bloco key="por-imposto" titulo="Por imposto" nota={titulo} className="overflow-x-auto">
+        <TabelaGrupos grupos={grupos} valores={periodo.imp} total={periodo.impTotal} faturamento={fatP} vazio="Sem imposto apurado neste período." />
+      </Bloco>
+    ),
+    "carga-mes": () => (
+      <Bloco key="carga-mes" titulo={`Carga por mês — ${ano}`} nota="IRPJ e CSLL caem no último mês do trimestre">
+        <div className="h-[220px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={cargaMes} margin={{ top: 16, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
+              <Tooltip formatter={(value) => [`${Number(value).toLocaleString("pt-BR")}%`, "Carga"]} />
+              <Bar dataKey="carga" radius={[4, 4, 0, 0]} label={{ position: "top", fontSize: 10.5, formatter: (v) => (v ? pct1(v) : "") }}>
+                {cargaMes.map((entry, index) => <Cell key={index} fill={entry.carga > 25 ? "#d97706" : "#2563eb"} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Bloco>
+    ),
+    avisos: () => {
+      const itens = [];
+      if (naoClass.length) itens.push(["warn", `Impostos fora do catálogo (não entraram em nenhuma soma — confira): ${naoClass.map(([nome, valor]) => `${nome} ${moneyFull(valor)}`).join(" · ")}`]);
+      if (total.fat.outrasSaidas > 0) itens.push(["warn", `Saídas que não contam como faturamento (devolução, remessa, transferência…): ${moneyFull(total.fat.outrasSaidas)} no ano.`]);
+      if ((total.reforma?.ibs || 0) + (total.reforma?.cbs || 0) > 0) itens.push(["info", `Reforma tributária (valores de teste de ${ano}): IBS ${moneyFull(total.reforma.ibs)} · CBS ${moneyFull(total.reforma.cbs)} — não entram na carga.`]);
+      if (!itens.length) return null;
+      return (
+        <div key="avisos" className="flex flex-col gap-2">
+          {itens.map(([tipo, texto], i) => (
+            <div key={i} className={`rounded-lg border-l-[3px] px-3 py-2 text-[12.5px] ${tipo === "warn" ? "border-warning-500 bg-warning-50 text-warning-700" : "border-accent-500 bg-accent-500/10 text-ink-700"}`}>{texto}</div>
+          ))}
+        </div>
+      );
+    },
+    composicao: () => (
+      <Bloco key="composicao" titulo="Composição dos impostos" nota={titulo}>
+        {pizza.length ? (
+          <div className="h-[260px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={pizza} dataKey="valor" nameKey="nome" innerRadius={62} outerRadius={98} paddingAngle={2}>
+                  {pizza.map((p) => <Cell key={p.id} fill={COR[p.id] || "#64748b"} />)}
+                </Pie>
+                <Tooltip formatter={(value, name) => [moneyFull(value), name]} />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        ) : <p className="py-10 text-center text-[13px] text-ink-400">Sem imposto apurado neste período.</p>}
+      </Bloco>
+    ),
+    retidos: () => (
+      <Bloco key="retidos" titulo="Impostos retidos na fonte" nota={`${titulo} · a empresa retém de terceiros e recolhe — não entram na carga própria`} className="overflow-x-auto">
+        <TabelaGrupos grupos={gruposRet} valores={ret} total={retTotal} faturamento={fatP} vazio="Nenhum imposto retido apurado neste período." />
+        {gruposRet.some((g) => (total.ret || {})[g.id]) && (
+          <table className="mt-4 w-full border-collapse text-[12.5px]">
+            <thead>
+              <tr className={CABECALHO}><th className="px-3 py-2 text-left font-semibold">Mês</th>{gruposRet.filter((g) => (total.ret || {})[g.id]).map((g) => <th key={g.id} className={TH}>{g.nome}</th>)}<th className={TH}>Total</th></tr>
+            </thead>
+            <tbody>
+              {dados.meses.map((m, i) => (m.retTotal ? (
+                <tr key={i} className="border-b border-line">
+                  <td className="px-3 py-1.5 text-left">{MES_LONGO[i]}</td>
+                  {gruposRet.filter((g) => (total.ret || {})[g.id]).map((g) => <td key={g.id} className="px-3 py-1.5 text-right tabular-nums">{m.ret?.[g.id] ? money(m.ret[g.id]) : "–"}</td>)}
+                  <td className="px-3 py-1.5 text-right font-semibold tabular-nums">{money(m.retTotal)}</td>
+                </tr>
+              ) : null))}
+            </tbody>
+          </table>
+        )}
+      </Bloco>
+    ),
+    folha: () => (
+      <Bloco key="folha" titulo="Encargos da folha" nota={`${titulo} · fora da carga própria`} className="overflow-x-auto">
+        <TabelaGrupos grupos={gruposFolha} valores={folha} total={folhaTotal} faturamento={fatP} vazio="Nenhum encargo de folha apurado no fiscal neste período." />
+      </Bloco>
+    ),
+    "visao-completa": () => {
+      const reforma = (periodo.reforma?.ibs || 0) + (periodo.reforma?.cbs || 0);
+      const linhas = [
+        ["Impostos próprios (compõem a carga)", periodo.impTotal, true],
+        ["Impostos retidos na fonte", retTotal, false],
+        ["Encargos da folha", folhaTotal, false],
+      ];
+      const somaTudo = periodo.impTotal + retTotal + folhaTotal;
+      return (
+        <Bloco key="visao-completa" titulo="Visão completa" nota={`${titulo} · tudo que a Domínio apura, separado por tipo`} className="overflow-x-auto">
+          <table className="w-full border-collapse text-[13px]">
+            <thead><tr className={CABECALHO}><th className="px-3 py-2 text-left font-semibold">Tipo</th><th className={TH}>Valor</th><th className={TH}>% do faturamento</th></tr></thead>
+            <tbody>
+              {linhas.map(([nome, valor, forte]) => (
+                <tr key={nome} className={`border-b border-line ${forte ? "font-semibold" : ""}`}>
+                  <td className="px-3 py-2 text-left">{nome}</td><td className="px-3 py-2 text-right tabular-nums">{money(valor)}</td><td className="px-3 py-2 text-right tabular-nums">{fracao(valor, fatP)}</td>
+                </tr>
+              ))}
+              <tr className="bg-surface-muted font-bold"><td className="px-3 py-2 text-left">Total de tributos</td><td className="px-3 py-2 text-right tabular-nums">{money(somaTudo)}</td><td className="px-3 py-2 text-right tabular-nums">{fracao(somaTudo, fatP)}</td></tr>
+              {reforma > 0 && <tr className="text-ink-500"><td className="px-3 py-2 text-left">IBS e CBS (teste, fora dos totais)</td><td className="px-3 py-2 text-right tabular-nums">{money(reforma)}</td><td className="px-3 py-2 text-right tabular-nums">{fracao(reforma, fatP)}</td></tr>}
+            </tbody>
+          </table>
+        </Bloco>
+      );
+    },
+    evolucao: () => (
+      <Bloco key="evolucao" titulo={`Evolução mensal de ${ano}`} nota="barras: impostos por tipo (R$) · linha: carga do mês (%)">
+        <div className="h-[320px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={evolucao} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
+              <YAxis yAxisId="v" tick={{ fontSize: 12 }} tickFormatter={compacto} />
+              <YAxis yAxisId="p" orientation="right" tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
+              <Tooltip formatter={(value, name) => (name === "Carga" ? [`${Number(value).toLocaleString("pt-BR")}%`, name] : [moneyFull(value), name])} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              {colunas.map((g) => <Bar key={g.id} yAxisId="v" dataKey={g.id} name={nomeCurto(g.nome)} stackId="imp" fill={COR[g.id] || "#64748b"} />)}
+              <Line yAxisId="p" type="monotone" dataKey="carga" name="Carga" stroke="#111827" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </Bloco>
+    ),
+    acumulada: () => (
+      <Bloco key="acumulada" titulo="Carga acumulada no ano" nota="impostos acumulados ÷ faturamento acumulado">
+        <div className="h-[240px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={acumulada} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
+              <Tooltip formatter={(value) => [`${Number(value).toLocaleString("pt-BR")}%`, "Carga acumulada"]} />
+              <Area type="monotone" dataKey="carga" name="Carga acumulada" stroke="#d97706" fill="#d97706" fillOpacity={0.18} strokeWidth={2} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </Bloco>
+    ),
+    "faturamento-mes": () => (
+      <Bloco key="faturamento-mes" titulo="Faturamento por mês" nota={temVendas ? "serviços e vendas" : "notas de serviço"}>
+        <div className="h-[240px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={fatMes} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={compacto} />
+              <Tooltip formatter={(value, name) => [moneyFull(value), name]} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar dataKey="servicos" name="Serviços" stackId="f" fill="#2563eb" />
+              {temVendas && <Bar dataKey="vendas" name="Vendas" stackId="f" fill="#0891b2" radius={[4, 4, 0, 0]} />}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Bloco>
+    ),
+    trimestres: () => (
+      <div key="trimestres" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Bloco titulo="Carga por trimestre" nota="IRPJ e CSLL são trimestrais">
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={tri} margin={{ top: 16, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
+                <Tooltip formatter={(value) => [`${Number(value).toLocaleString("pt-BR")}%`, "Carga"]} />
+                <Bar dataKey="carga" radius={[4, 4, 0, 0]} label={{ position: "top", fontSize: 11, formatter: (v) => (v ? pct1(v) : "") }}>
+                  {tri.map((_, index) => <Cell key={index} fill={sel === `T${index + 1}` ? "#d97706" : "#2563eb"} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Bloco>
+        <Bloco titulo="Trimestre a trimestre" className="overflow-x-auto">
+          <table className="w-full border-collapse text-[13px]">
+            <thead><tr className={CABECALHO}><th className="px-3 py-2 text-left font-semibold">Trimestre</th><th className={TH}>Faturamento</th><th className={TH}>Impostos</th><th className={TH}>Carga</th></tr></thead>
+            <tbody>
+              {dados.trimestres.map((t, i) => (
+                <tr key={i} className={`border-b border-line ${sel === `T${i + 1}` ? "bg-accent-500/10" : ""}`}>
+                  <td className="px-3 py-2 text-left">{i + 1}º trimestre</td><td className="px-3 py-2 text-right tabular-nums">{money(t.fat.total)}</td><td className="px-3 py-2 text-right tabular-nums">{money(t.impTotal)}</td><td className="px-3 py-2 text-right font-semibold tabular-nums">{pctCarga(t.carga)}</td>
+                </tr>
+              ))}
+              <tr className="bg-surface-muted font-bold"><td className="px-3 py-2 text-left">Ano {ano}</td><td className="px-3 py-2 text-right tabular-nums">{money(total.fat.total)}</td><td className="px-3 py-2 text-right tabular-nums">{money(total.impTotal)}</td><td className="px-3 py-2 text-right tabular-nums">{pctCarga(total.carga)}</td></tr>
+            </tbody>
+          </table>
+        </Bloco>
+      </div>
+    ),
+    comparativo: () => {
+      if (!tAnt) return <Bloco key="comparativo" titulo={`Comparativo ${ano} × ${ano - 1}`}><p className="text-[13px] text-ink-400">Não há dados de {ano - 1} para comparar.</p></Bloco>;
+      return (
+        <Bloco key="comparativo" titulo={`Comparativo ${ano} × ${ano - 1}`} nota="ano inteiro" className="overflow-x-auto">
+          <table className="w-full border-collapse text-[13px]">
+            <thead><tr className={CABECALHO}><th className="px-3 py-2 text-left font-semibold"> </th><th className={TH}>{ano - 1}</th><th className={TH}>{ano}</th><th className={TH}>Variação</th></tr></thead>
+            <tbody>
+              <tr className="border-b border-line font-semibold"><td className="px-3 py-2 text-left">Faturamento</td><td className="px-3 py-2 text-right tabular-nums">{money(tAnt.fat.total)}</td><td className="px-3 py-2 text-right tabular-nums">{money(total.fat.total)}</td><td className="px-3 py-2 text-right tabular-nums">{deltaTxt(delta(total.fat.total, tAnt.fat.total))}</td></tr>
+              {grupos.filter((g) => total.imp[g.id] || tAnt.imp[g.id]).map((g) => (
+                <tr key={g.id} className="border-b border-line"><td className="px-3 py-2 text-left">{g.nome}</td><td className="px-3 py-2 text-right tabular-nums">{money(tAnt.imp[g.id])}</td><td className="px-3 py-2 text-right tabular-nums">{money(total.imp[g.id])}</td><td className="px-3 py-2 text-right tabular-nums">{deltaTxt(delta(total.imp[g.id], tAnt.imp[g.id]))}</td></tr>
+              ))}
+              <tr className="border-b border-line font-semibold"><td className="px-3 py-2 text-left">Total de impostos</td><td className="px-3 py-2 text-right tabular-nums">{money(tAnt.impTotal)}</td><td className="px-3 py-2 text-right tabular-nums">{money(total.impTotal)}</td><td className="px-3 py-2 text-right tabular-nums">{deltaTxt(delta(total.impTotal, tAnt.impTotal))}</td></tr>
+              <tr className="bg-surface-muted font-bold"><td className="px-3 py-2 text-left">Carga tributária</td><td className="px-3 py-2 text-right tabular-nums">{pctCarga(tAnt.carga)}</td><td className="px-3 py-2 text-right tabular-nums">{pctCarga(total.carga)}</td><td className="px-3 py-2 text-right tabular-nums">{tAnt.carga != null && total.carga != null ? `${((total.carga - tAnt.carga) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} p.p.` : "—"}</td></tr>
+            </tbody>
+          </table>
+        </Bloco>
+      );
+    },
+    calor: () => (
+      <Bloco key="calor" titulo="Mapa de calor dos impostos" nota="quanto mais forte a cor, maior o valor do imposto naquele mês" className="overflow-x-auto">
+        <table className="w-full border-collapse text-[12px]">
+          <thead><tr className="text-[10.5px] uppercase tracking-wide text-ink-500"><th className="px-2 py-1.5 text-left font-semibold">Imposto</th>{MES_CURTO.map((m) => <th key={m} className="px-2 py-1.5 text-center font-semibold">{m}</th>)}</tr></thead>
+          <tbody>
+            {calor.map(({ g, vals, max }) => (
+              <tr key={g.id}>
+                <td className="whitespace-nowrap px-2 py-1 text-left text-[12.5px]">{nomeCurto(g.nome)}</td>
+                {vals.map((v, i) => (
+                  <td key={i} title={v ? `${nomeCurto(g.nome)} · ${MES_LONGO[i]}: ${moneyFull(v)}` : ""} className="px-1 py-1 text-center tabular-nums" style={{ background: v ? `color-mix(in srgb, ${COR[g.id] || "#64748b"} ${Math.round(12 + (v / max) * 70)}%, transparent)` : "transparent" }}>{v ? compacto(v) : ""}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Bloco>
+    ),
+    "mes-a-mes": () => (
+      <Bloco key="mes-a-mes" titulo="Mês a mês" nota="IRPJ e CSLL são trimestrais — caem no último mês do trimestre" className="overflow-x-auto">
+        <table className="w-full border-collapse text-[13px]">
+          <thead>
+            <tr className={CABECALHO}>
+              <th className="px-3 py-2 text-left font-semibold">Mês</th><th className={TH}>Faturamento</th>
+              {colunas.map((g) => <th key={g.id} className={TH}>{nomeCurto(g.nome)}</th>)}
+              <th className={TH}>Impostos</th><th className={TH}>Carga</th>
+            </tr>
+          </thead>
+          <tbody>
+            {dados.meses.flatMap((m, i) => {
+              const out = [linhaMes(MES_LONGO[i], m)];
+              if (i % 3 === 2) out.push(linhaMes(`${Math.floor(i / 3) + 1}º trimestre`, dados.trimestres[Math.floor(i / 3)], "bg-accent-500/10 font-semibold"));
+              return out;
+            })}
+            {linhaMes(`Ano ${ano}`, total, "bg-surface-muted font-bold")}
+          </tbody>
+        </table>
+      </Bloco>
+    ),
+    metodologia: () => (
+      <div key="metodologia" className="rounded-xl bg-surface-card p-4 text-[12.5px] leading-relaxed text-ink-500 shadow-sm">
+        <p className="mb-1 text-[14px] font-semibold text-ink-900">Como é calculado</p>
+        <p><b className="text-ink-800">Impostos próprios:</b> saldo devedor apurado mês a mês no fiscal da Domínio (ISS, ICMS com DIFAL/ST/antecipação, IPI, PIS, COFINS, CSLL, IRPJ e Simples) — o imposto devido, antes de retenções sofridas e de pagamentos. Só eles entram na carga tributária.</p>
+        <p><b className="text-ink-800">Faturamento:</b> valor das notas de serviço e das notas de saída de venda, sem canceladas e denegadas.</p>
+        <p><b className="text-ink-800">Retidos e folha:</b> mostrados à parte. Retidos são impostos que a empresa retém de terceiros e recolhe (IRRF, PIS/COFINS/CSLL, INSS e ISS retidos); folha são os encargos apurados no fiscal (INSS, FGTS, IRRF). Reforma tributária (IBS/CBS) de teste fica fora dos totais.</p>
+      </div>
+    ),
+  };
+
+  // monta a tela na ordem escolhida; cartões seguidos viram uma grade
+  const itens = [];
+  let grade = null;
+  ligados.forEach((id) => {
+    const bloco = POR_ID.get(id);
+    if (!bloco) return;
+    if (bloco.kind === "kpi") {
+      if (!grade) {
+        grade = { chave: `grade-${id}`, cartoes: [] };
+        itens.push(grade);
+      }
+      grade.cartoes.push(KPIS[id]());
+      return;
+    }
+    grade = null;
+    const el = SECOES[id]?.();
+    if (el) itens.push({ chave: id, el });
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -157,17 +561,22 @@ export default function CargaTributaria() {
             <p className="flex items-center gap-2 text-[15px] font-semibold text-ink-900"><Percent size={16} /> Carga tributária</p>
             <p className="mt-0.5 max-w-2xl text-[12px] text-ink-400">Os impostos próprios apurados no fiscal da Domínio sobre o faturamento (valor das notas): quanto a empresa realmente paga de imposto para cada R$ 1 faturado.</p>
           </div>
-          <div className="inline-flex rounded-full bg-surface-muted p-1">
-            {rows.map((item) => (
-              <button key={item.ano} type="button" onClick={() => { setAno(item.ano); setSel("ano"); }} className={`rounded-full px-3 py-1 text-[12.5px] ${ano === item.ano ? "bg-surface-card font-semibold text-ink-900 shadow-sm" : "text-ink-500"}`}>
-                {item.ano}
+          <div className="flex items-center gap-2">
+            {podeEditar && !editando && (
+              <button type="button" onClick={abrirPersonalizar} className="flex h-8 items-center gap-1.5 rounded-md border border-accent-500/40 bg-accent-500/10 px-3 text-[12px] font-medium text-accent-700 hover:bg-accent-500/20">
+                <SlidersHorizontal size={13} strokeWidth={1.8} /> Personalizar
               </button>
-            ))}
+            )}
+            <div className="inline-flex rounded-full bg-surface-muted p-1">
+              {rows.map((item) => (
+                <button key={item.ano} type="button" onClick={() => { setAno(item.ano); setSel("ano"); }} className={`rounded-full px-3 py-1 text-[12.5px] ${ano === item.ano ? "bg-surface-card font-semibold text-ink-900 shadow-sm" : "text-ink-500"}`}>{item.ano}</button>
+              ))}
+            </div>
           </div>
         </div>
         <div className="mt-3 flex gap-1 overflow-x-auto rounded-xl bg-surface-muted p-1">
           {dados.meses.map((m, i) => {
-            const vazio = !m.fat.total && !m.impTotal;
+            const vazio = !m.fat.total && !m.impTotal && !m.retTotal && !m.folhaTotal;
             return (
               <button key={i} type="button" onClick={() => setSel(i)} className={`flex min-w-[58px] flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 text-[12px] ${sel === i ? "bg-surface-card font-semibold text-ink-900 shadow-sm" : vazio ? "text-ink-300" : "text-ink-600 hover:bg-surface-card/60"}`}>
                 {MES_CURTO[i]}
@@ -188,245 +597,48 @@ export default function CargaTributaria() {
         </div>
       </div>
 
-      {/* indicadores do período escolhido */}
-      <div>
-        <p className="mb-2 text-[16px] font-bold text-ink-900">{titulo}<span className="ml-3 text-[12px] font-normal text-ink-400">atualizado em {new Date(row.synced_at).toLocaleString("pt-BR")}</span></p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Card label="Faturamento" value={moneyFull(periodo.fat.total)} hint={`${periodo.fat.notasServicos + periodo.fat.notasVendas} notas${temVendas ? ` · serviços ${compacto(periodo.fat.servicos)} · vendas ${compacto(periodo.fat.vendas)}` : ""}`} tone="accent" />
-          <Card label="Impostos próprios" value={moneyFull(periodo.impTotal)} hint="apurados no fiscal (saldo devedor)" />
-          <Card label="Carga tributária" value={pctCarga(periodo.carga)} hint="impostos ÷ faturamento" tone="warn" />
-          <Card label="A cada R$ 100 faturados" value={periodo.carga == null ? "—" : moneyFull(periodo.carga * 100)} hint="vão para impostos" />
-          <Card label="Carga sem IRPJ e CSLL" value={pctCarga(cargaCorrente)} hint="só os tributos mensais (ISS, PIS, COFINS, ICMS…)" />
-          <Card label="Maior imposto" value={periodo.impTotal > 0 && maior ? nomeCurto(maior.nome) : "—"} hint={periodo.impTotal > 0 && maior && periodo.impTotal ? `${pctCarga(periodo.imp[maior.id] / periodo.impTotal)} dos impostos` : ""} />
-          <Card label="Média mensal de impostos" value={nMeses ? moneyFull(periodo.impTotal / nMeses) : "—"} hint={`${nMeses} ${nMeses === 1 ? "mês" : "meses"} com movimento`} />
-          <Card label="Pico / menor carga do ano" value={maiorMes ? `${MES_CURTO[maiorMes.i]} ${pctCarga(maiorMes.m.carga)}` : "—"} hint={menorMes ? `menor: ${MES_CURTO[menorMes.i]} ${pctCarga(menorMes.m.carga)}` : ""} />
-        </div>
-      </div>
-
-      {/* composição + por imposto */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-        <Bloco titulo="Composição dos impostos" nota={titulo} className="xl:col-span-2">
-          {pizza.length ? (
-            <div className="h-[260px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={pizza} dataKey="valor" nameKey="nome" innerRadius={62} outerRadius={98} paddingAngle={2}>
-                    {pizza.map((p) => <Cell key={p.id} fill={COR[p.id] || "#64748b"} />)}
-                  </Pie>
-                  <Tooltip formatter={(value, name) => [moneyFull(value), name]} />
-                  <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <p className="py-10 text-center text-[13px] text-ink-400">Sem imposto apurado neste período.</p>
-          )}
-        </Bloco>
-        <Bloco titulo="Por imposto" nota={titulo} className="overflow-x-auto xl:col-span-3">
-          <table className="w-full border-collapse text-[13px]">
-            <thead>
-              <tr className="border-b border-line-strong text-[10.5px] uppercase tracking-wide text-ink-500">
-                <th className="px-3 py-2 text-left font-semibold">Imposto</th><th className="px-3 py-2 text-right font-semibold">Valor</th><th className="px-3 py-2 text-right font-semibold">% do faturamento</th><th className="px-3 py-2 text-right font-semibold">% dos impostos</th>
-              </tr>
-            </thead>
-            <tbody>
-              {grupos.filter((g) => periodo.imp[g.id]).map((g) => {
-                const parte = periodo.impTotal ? periodo.imp[g.id] / periodo.impTotal : 0;
-                return (
-                  <tr key={g.id} className="border-b border-line">
-                    <td className="px-3 py-2 text-left"><span className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: COR[g.id] || "#64748b" }} />{g.nome}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{money(periodo.imp[g.id])}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{periodo.fat.total ? pctCarga(periodo.imp[g.id] / periodo.fat.total) : "—"}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{pctCarga(parte)}<span className="ml-2 inline-block h-2 rounded align-middle" style={{ width: `${Math.round(parte * 90)}px`, background: COR[g.id] || "#64748b" }} /></td>
-                  </tr>
-                );
-              })}
-              {!periodo.impTotal && <tr><td colSpan={4} className="px-3 py-4 text-center text-ink-400">Sem imposto apurado neste período.</td></tr>}
-              <tr className="bg-surface-muted font-bold">
-                <td className="px-3 py-2 text-left">Total</td><td className="px-3 py-2 text-right tabular-nums">{money(periodo.impTotal)}</td><td className="px-3 py-2 text-right tabular-nums">{pctCarga(periodo.carga)}</td><td className="px-3 py-2 text-right">{periodo.impTotal ? "100,00%" : "—"}</td>
-              </tr>
-            </tbody>
-          </table>
-        </Bloco>
-      </div>
-
-      {/* evolução mensal */}
-      <Bloco titulo={`Evolução mensal de ${ano}`} nota="barras: impostos por tipo (R$) · linha: carga do mês (%) — IRPJ e CSLL caem no fim de cada trimestre">
-        <div className="h-[320px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={evolucao} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-              <YAxis yAxisId="v" tick={{ fontSize: 12 }} tickFormatter={compacto} />
-              <YAxis yAxisId="p" orientation="right" tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
-              <Tooltip formatter={(value, name) => (name === "Carga" ? [`${Number(value).toLocaleString("pt-BR")}%`, name] : [moneyFull(value), name])} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              {colunas.map((g) => <Bar key={g.id} yAxisId="v" dataKey={g.id} name={nomeCurto(g.nome)} stackId="imp" fill={COR[g.id] || "#64748b"} />)}
-              <Line yAxisId="p" type="monotone" dataKey="carga" name="Carga" stroke="#111827" strokeWidth={2} dot={{ r: 3 }} connectNulls />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      </Bloco>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Bloco titulo="Carga acumulada no ano" nota="impostos acumulados ÷ faturamento acumulado, mês a mês">
-          <div className="h-[240px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={acumulada} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
-                <Tooltip formatter={(value, name) => (name === "Carga acumulada" ? [`${Number(value).toLocaleString("pt-BR")}%`, name] : [moneyFull(value), name])} />
-                <Area type="monotone" dataKey="carga" name="Carga acumulada" stroke="#d97706" fill="#d97706" fillOpacity={0.18} strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </Bloco>
-        <Bloco titulo="Faturamento por mês" nota={temVendas ? "serviços e vendas" : "notas de serviço"}>
-          <div className="h-[240px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={fatMes} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={compacto} />
-                <Tooltip formatter={tooltipMoney} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="servicos" name="Serviços" stackId="f" fill="#2563eb" />
-                {temVendas && <Bar dataKey="vendas" name="Vendas" stackId="f" fill="#0891b2" radius={[4, 4, 0, 0]} />}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Bloco>
-      </div>
-
-      {/* trimestres */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Bloco titulo="Carga por trimestre" nota="o trimestre é a comparação mais justa, porque IRPJ e CSLL são trimestrais">
-          <div className="h-[220px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={tri} margin={{ top: 16, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
-                <Tooltip formatter={(value) => [`${Number(value).toLocaleString("pt-BR")}%`, "Carga"]} />
-                <Bar dataKey="carga" radius={[4, 4, 0, 0]} label={{ position: "top", fontSize: 11, formatter: (v) => (v ? pct1(v) : "") }}>
-                  {tri.map((t, index) => <Cell key={index} fill={sel === `T${index + 1}` ? "#d97706" : "#2563eb"} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Bloco>
-        <Bloco titulo="Trimestre a trimestre" className="overflow-x-auto">
-          <table className="w-full border-collapse text-[13px]">
-            <thead>
-              <tr className="border-b border-line-strong text-[10.5px] uppercase tracking-wide text-ink-500">
-                <th className="px-3 py-2 text-left font-semibold">Trimestre</th><th className="px-3 py-2 text-right font-semibold">Faturamento</th><th className="px-3 py-2 text-right font-semibold">Impostos</th><th className="px-3 py-2 text-right font-semibold">Carga</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dados.trimestres.map((t, i) => (
-                <tr key={i} className={`border-b border-line ${sel === `T${i + 1}` ? "bg-accent-500/10" : ""}`}>
-                  <td className="px-3 py-2 text-left">{i + 1}º trimestre</td><td className="px-3 py-2 text-right tabular-nums">{money(t.fat.total)}</td><td className="px-3 py-2 text-right tabular-nums">{money(t.impTotal)}</td><td className="px-3 py-2 text-right font-semibold tabular-nums">{pctCarga(t.carga)}</td>
-                </tr>
-              ))}
-              <tr className="bg-surface-muted font-bold">
-                <td className="px-3 py-2 text-left">Ano {ano}</td><td className="px-3 py-2 text-right tabular-nums">{money(total.fat.total)}</td><td className="px-3 py-2 text-right tabular-nums">{money(total.impTotal)}</td><td className="px-3 py-2 text-right tabular-nums">{pctCarga(total.carga)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </Bloco>
-      </div>
-
-      {/* comparativo com o ano anterior */}
-      {tAnt && (
-        <Bloco titulo={`Comparativo ${ano} × ${ano - 1}`} nota="ano inteiro" className="overflow-x-auto">
-          <table className="w-full border-collapse text-[13px]">
-            <thead>
-              <tr className="border-b border-line-strong text-[10.5px] uppercase tracking-wide text-ink-500">
-                <th className="px-3 py-2 text-left font-semibold"> </th><th className="px-3 py-2 text-right font-semibold">{ano - 1}</th><th className="px-3 py-2 text-right font-semibold">{ano}</th><th className="px-3 py-2 text-right font-semibold">Variação</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-line font-semibold"><td className="px-3 py-2 text-left">Faturamento</td><td className="px-3 py-2 text-right tabular-nums">{money(tAnt.fat.total)}</td><td className="px-3 py-2 text-right tabular-nums">{money(total.fat.total)}</td><td className="px-3 py-2 text-right tabular-nums">{deltaTxt(delta(total.fat.total, tAnt.fat.total))}</td></tr>
-              {grupos.filter((g) => total.imp[g.id] || tAnt.imp[g.id]).map((g) => (
-                <tr key={g.id} className="border-b border-line">
-                  <td className="px-3 py-2 text-left">{g.nome}</td><td className="px-3 py-2 text-right tabular-nums">{money(tAnt.imp[g.id])}</td><td className="px-3 py-2 text-right tabular-nums">{money(total.imp[g.id])}</td><td className="px-3 py-2 text-right tabular-nums">{deltaTxt(delta(total.imp[g.id], tAnt.imp[g.id]))}</td>
-                </tr>
-              ))}
-              <tr className="border-b border-line font-semibold"><td className="px-3 py-2 text-left">Total de impostos</td><td className="px-3 py-2 text-right tabular-nums">{money(tAnt.impTotal)}</td><td className="px-3 py-2 text-right tabular-nums">{money(total.impTotal)}</td><td className="px-3 py-2 text-right tabular-nums">{deltaTxt(delta(total.impTotal, tAnt.impTotal))}</td></tr>
-              <tr className="bg-surface-muted font-bold"><td className="px-3 py-2 text-left">Carga tributária</td><td className="px-3 py-2 text-right tabular-nums">{pctCarga(tAnt.carga)}</td><td className="px-3 py-2 text-right tabular-nums">{pctCarga(total.carga)}</td><td className="px-3 py-2 text-right tabular-nums">{tAnt.carga != null && total.carga != null ? `${((total.carga - tAnt.carga) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} p.p.` : "—"}</td></tr>
-            </tbody>
-          </table>
-        </Bloco>
-      )}
-
-      {/* mapa de calor */}
-      <Bloco titulo="Mapa de calor dos impostos" nota="quanto mais forte a cor, maior o valor do imposto naquele mês" className="overflow-x-auto">
-        <table className="w-full border-collapse text-[12px]">
-          <thead>
-            <tr className="text-[10.5px] uppercase tracking-wide text-ink-500">
-              <th className="px-2 py-1.5 text-left font-semibold">Imposto</th>
-              {MES_CURTO.map((m) => <th key={m} className="px-2 py-1.5 text-center font-semibold">{m}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {calor.map(({ g, vals, max }) => (
-              <tr key={g.id}>
-                <td className="whitespace-nowrap px-2 py-1 text-left text-[12.5px]">{nomeCurto(g.nome)}</td>
-                {vals.map((v, i) => (
-                  <td key={i} title={v ? `${nomeCurto(g.nome)} · ${MES_LONGO[i]}: ${moneyFull(v)}` : ""} className="px-1 py-1 text-center tabular-nums" style={{ background: v ? `color-mix(in srgb, ${COR[g.id] || "#64748b"} ${Math.round(12 + (v / max) * 70)}%, transparent)` : "transparent" }}>
-                    {v ? compacto(v) : ""}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Bloco>
-
-      {/* mês a mês */}
-      <Bloco titulo="Mês a mês" nota="IRPJ e CSLL são trimestrais — caem no último mês do trimestre" className="overflow-x-auto">
-        <table className="w-full border-collapse text-[13px]">
-          <thead>
-            <tr className="border-b border-line-strong text-[10.5px] uppercase tracking-wide text-ink-500">
-              <th className="px-3 py-2 text-left font-semibold">Mês</th><th className="px-3 py-2 text-right font-semibold">Faturamento</th>
-              {colunas.map((g) => <th key={g.id} className="px-3 py-2 text-right font-semibold">{nomeCurto(g.nome)}</th>)}
-              <th className="px-3 py-2 text-right font-semibold">Impostos</th><th className="px-3 py-2 text-right font-semibold">Carga</th>
-            </tr>
-          </thead>
-          <tbody>
-            {dados.meses.flatMap((m, i) => {
-              const out = [linha(MES_LONGO[i], m)];
-              if (i % 3 === 2) out.push(linha(`${Math.floor(i / 3) + 1}º trimestre`, dados.trimestres[Math.floor(i / 3)], "bg-accent-500/10 font-semibold"));
-              return out;
+      {/* personalização: escolher e ordenar os blocos */}
+      {editando && rascunho && (
+        <div className="rounded-xl border border-accent-500/40 bg-surface-card p-4 shadow-sm">
+          <p className="text-[14px] font-semibold text-ink-900">Personalizar a tela</p>
+          <p className="mt-0.5 text-[12px] text-ink-400">Marque o que quer ver e use as setas para mudar a ordem. Vale para quem abrir esta empresa.</p>
+          <div className="mt-3 grid grid-cols-1 gap-1.5 md:grid-cols-2 xl:grid-cols-3">
+            {rascunho.ordem.map((id) => {
+              const bloco = POR_ID.get(id);
+              const on = rascunho.ligados.has(id);
+              return (
+                <div key={id} className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[12.5px] ${on ? "border-accent-500/40 bg-accent-500/5" : "border-line"}`}>
+                  <input type="checkbox" checked={on} onChange={() => alternar(id)} className="h-4 w-4" />
+                  <span className="min-w-0 flex-1 truncate">{bloco.nome}{bloco.kind === "kpi" && <span className="ml-1 text-[10.5px] text-ink-400">indicador</span>}</span>
+                  {on && (
+                    <>
+                      <button type="button" onClick={() => mover(id, -1)} aria-label="Subir" className="rounded p-1 text-ink-400 hover:bg-surface-muted hover:text-ink-700"><ArrowUp size={13} /></button>
+                      <button type="button" onClick={() => mover(id, 1)} aria-label="Descer" className="rounded p-1 text-ink-400 hover:bg-surface-muted hover:text-ink-700"><ArrowDown size={13} /></button>
+                    </>
+                  )}
+                </div>
+              );
             })}
-            {linha(`Ano ${ano}`, total, "bg-surface-muted font-bold")}
-          </tbody>
-        </table>
-      </Bloco>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button type="button" onClick={salvar} disabled={salvando} className="rounded-md bg-accent-500 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-accent-600 disabled:opacity-50">{salvando ? "Salvando…" : "Salvar"}</button>
+            <button type="button" onClick={() => setEditando(false)} className="rounded-md border border-line-strong px-3 py-1.5 text-[12px] text-ink-600 hover:bg-surface-muted">Cancelar</button>
+            <button type="button" onClick={() => setRascunho({ ordem: [...PADRAO, ...BLOCOS.map((b) => b.id).filter((id) => !PADRAO.includes(id))], ligados: new Set(PADRAO) })} className="ml-auto text-[12px] text-ink-500 underline decoration-dotted hover:text-ink-800">Voltar ao essencial</button>
+          </div>
+          {error && <p className="mt-2 text-[12px] text-danger-600">{error}</p>}
+        </div>
+      )}
 
-      {/* avisos e metodologia */}
-      {naoClass.length > 0 && (
-        <div className="rounded-lg border-l-[3px] border-warning-500 bg-warning-50 px-3 py-2 text-[12.5px] text-warning-700">
-          Impostos fora do catálogo (não entraram na carga — confira): {naoClass.map(([nome, valor]) => `${nome} ${moneyFull(valor)}`).join(" · ")}
-        </div>
+      <p className="-mb-1 text-[16px] font-bold text-ink-900">{titulo}<span className="ml-3 text-[12px] font-normal text-ink-400">atualizado em {new Date(row.synced_at).toLocaleString("pt-BR")}</span></p>
+
+      {itens.map((item) =>
+        item.cartoes ? (
+          <div key={item.chave} className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{item.cartoes}</div>
+        ) : (
+          item.el
+        )
       )}
-      {total.fat.outrasSaidas > 0 && (
-        <div className="rounded-lg border-l-[3px] border-warning-500 bg-warning-50 px-3 py-2 text-[12.5px] text-warning-700">
-          Saídas que não contam como faturamento (devolução, remessa, transferência…): {moneyFull(total.fat.outrasSaidas)} no ano.
-        </div>
-      )}
-      {(total.reforma?.ibs || total.reforma?.cbs) > 0 && (
-        <div className="rounded-lg border-l-[3px] border-accent-500 bg-accent-500/10 px-3 py-2 text-[12.5px] text-ink-700">
-          <b>Reforma tributária (valores de teste de {ano}):</b> IBS {moneyFull(total.reforma.ibs)} · CBS {moneyFull(total.reforma.cbs)}. Não entram na carga acima; somados, a carga seria {pctCarga(total.fat.total ? (total.impTotal + total.reforma.ibs + total.reforma.cbs) / total.fat.total : null)}.
-        </div>
-      )}
-      <div className="rounded-xl bg-surface-card p-4 text-[12.5px] leading-relaxed text-ink-500 shadow-sm">
-        <p className="mb-1 text-[14px] font-semibold text-ink-900">Como é calculado</p>
-        <p><b className="text-ink-800">Impostos:</b> saldo devedor apurado mês a mês no fiscal da Domínio (ISS, ICMS com DIFAL/ST/antecipação, IPI, PIS, COFINS, CSLL, IRPJ e Simples) — o imposto devido, antes de retenções sofridas e de pagamentos.</p>
-        <p><b className="text-ink-800">Faturamento:</b> valor das notas de serviço e das notas de saída de venda, sem canceladas e denegadas.</p>
-        <p><b className="text-ink-800">Fora da conta:</b> folha e encargos, impostos retidos na fonte (de terceiros) e IBS/CBS (em 2026 só de teste).</p>
-      </div>
+      {!itens.length && <p className="rounded-xl bg-surface-card p-6 text-center text-[13px] text-ink-400 shadow-sm">Nenhum bloco escolhido. {podeEditar ? "Use Personalizar para escolher o que mostrar." : ""}</p>}
     </div>
   );
 }

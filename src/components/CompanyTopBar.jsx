@@ -465,7 +465,11 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
   // make sense (this isn't part of the workspace they built), so it gets
   // its own fixed "Dados | De/Para" nav instead.
   const isDataArea = ["/empresa/relatorios", "/empresa/de-para", "/empresa/vinculo-dfc", "/empresa/conferencia"].some((prefix) => location.pathname.startsWith(prefix));
-  const showNav = !isPersonalizar && !isDataArea && tabs.length > 0;
+  // Módulos complementares (Orçamento, Carga tributária) são coisas separadas do B.I Contábil: sem as abas do B.I (Resumo, Demonstrativos…), e a
+  // Carga tributária também sem os botões do B.I (período, relatórios, personalizar) -- ela tem o período e a personalização dela.
+  const isCarga = location.pathname.startsWith("/empresa/carga-tributaria");
+  const isModulo = isCarga || location.pathname.startsWith("/empresa/orcamento");
+  const showNav = !isPersonalizar && !isDataArea && !isModulo && tabs.length > 0;
   const hasData = appState.accounts.length > 0 || appState.journal.length > 0;
 
   return (
@@ -537,8 +541,8 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {hasData && <PendingMappingsBadge company={company} />}
-          {hasData && (
+          {hasData && !isCarga && <PendingMappingsBadge company={company} />}
+          {hasData && !isCarga && (
             <PeriodPicker
               label="Período"
               start={appState.periodStart}
@@ -546,12 +550,12 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
               onChange={(start, end) => setData({ periodStart: start, periodEnd: end })}
             />
           )}
-          <ReportsMenu />
+          {!isCarga && <ReportsMenu />}
           {/* Visível pra qualquer colaborador, responsável ou não — dá pra
               ENTRAR sem poder editar (útil pra usar como modelo em
               "Replicar relatórios"); quem não é responsável só não vê os
               controles de edição lá dentro (ver PersonalizarHub.jsx). */}
-          {(appState.isAdmin || appState.isColaborador) && (
+          {(appState.isAdmin || appState.isColaborador) && !isCarga && (
             <button
               type="button"
               onClick={() => navigate("/empresa/personalizar")}

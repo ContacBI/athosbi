@@ -1163,6 +1163,21 @@ export function replaceAccounts(newAccounts, meta) {
   setLastBalanceteMeta(meta);
 }
 
+// Blocos que a tela "Carga tributária" mostra (e a ordem), escolhidos em "Personalizar" — ids em pages/CargaTributaria.jsx. Fica na empresa, então
+// vale pra todo mundo que abre a tela. Espera o Supabase confirmar e desfaz se falhar (mesmo contrato de applyBalancete).
+export async function saveCargaLayout(layout) {
+  const company = state.companies.find((item) => item.id === state.activeCompanyId);
+  if (!company || state.activeGroupId) return;
+  const before = state.companies;
+  setData({ companies: state.companies.map((item) => (item.id === company.id ? { ...item, cargaLayout: layout } : item)) });
+  try {
+    await persistActiveCompany();
+  } catch (error) {
+    setData({ companies: before });
+    throw error;
+  }
+}
+
 // Modelo de DFC da empresa "instituto" que veio da Domínio (lib/dfcInstituto.js): guarda na empresa a estrutura e as contas
 // ligadas a cada grupo, como estão na Domínio. Espera o Supabase confirmar e desfaz se falhar (mesmo contrato de applyBalancete).
 export async function applyDfcInstituto(modelo) {
