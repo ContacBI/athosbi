@@ -600,6 +600,7 @@ export function createCompany({
   planoPadraoId = null,
   responsaveis = [],
   dfcModelo = "padrao",
+  metasIndicadores = {},
 }) {
   const companyName = String(name || "").trim();
   if (!companyName) return null;
@@ -626,6 +627,8 @@ export function createCompany({
     // "padrao" (DFC padrão do portal) ou "instituto" (estrutura e contas da DFC
     // da Domínio, trazidas pela Central — ver lib/dfcInstituto.js).
     dfcModelo,
+    // Metas dos indicadores desta empresa (ver lib/metas.js); vazio = padrão.
+    metasIndicadores,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     mappings: [],
@@ -664,7 +667,7 @@ export function createCompany({
 
 export function updateCompany(
   id,
-  { name, cnpj = "", codigo = "", atividade = "", municipio = "", uf = "", representanteIds = [], natureRules = DEFAULT_NATURE_RULES, planoPadraoId, responsaveis, dfcModelo }
+  { name, cnpj = "", codigo = "", atividade = "", municipio = "", uf = "", representanteIds = [], natureRules = DEFAULT_NATURE_RULES, planoPadraoId, responsaveis, dfcModelo, metasIndicadores }
 ) {
   const companyName = String(name || "").trim();
   if (!companyName) return null;
@@ -686,6 +689,7 @@ export function updateCompany(
           ...(planoPadraoId !== undefined ? { planoPadraoId } : {}),
           ...(responsaveis !== undefined ? { responsaveis } : {}),
           ...(dfcModelo !== undefined ? { dfcModelo } : {}),
+          ...(metasIndicadores !== undefined ? { metasIndicadores } : {}),
           updatedAt: new Date().toISOString(),
         }
       : company

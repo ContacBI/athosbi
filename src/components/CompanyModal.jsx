@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { X, Loader2, Plus, IdCard, PenTool } from "lucide-react";
+import { X, Loader2, Plus, IdCard, PenTool, Target } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { formatCnpj, cnpjDigits, lookupCnpj } from "../lib/cnpj.js";
 import { DEFAULT_NATURE_RULES, NATURE_LABELS, NATURE_ORDER, formatPrefixList, parsePrefixList } from "../lib/accountNature.js";
 import { createPlanoPadrao } from "../lib/planosPadrao.js";
 import { listAdmins, listColaboradores, pickablePessoas } from "../lib/colaboradores.js";
 import SelectField from "./SelectField.jsx";
+import { INDICATOR_GOALS, cleanGoals, formatGoal } from "../lib/metas.js";
 
 export default function CompanyModal({ onClose, onSubmit, company = null }) {
   const state = useAppState();
@@ -25,6 +26,10 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
   const [lookupState, setLookupState] = useState(company?.atividade ? "done" : "idle");
   const [error, setError] = useState("");
   const [tab, setTab] = useState("dados");
+  // Metas dos indicadores (lib/metas.js): o texto digitado; vazio = padrão.
+  const [metas, setMetas] = useState(() =>
+    Object.fromEntries(INDICATOR_GOALS.map((goal) => [goal.id, company?.metasIndicadores?.[goal.id] != null ? String(company.metasIndicadores[goal.id]).replace(".", ",") : ""]))
+  );
   const [natureText, setNatureText] = useState(() => {
     const rules = company?.natureRules || DEFAULT_NATURE_RULES;
     return Object.fromEntries(NATURE_ORDER.map((nature) => [nature, formatPrefixList(rules[nature])]));
@@ -112,7 +117,7 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
       return;
     }
     const natureRules = Object.fromEntries(NATURE_ORDER.map((nature) => [nature, parsePrefixList(natureText[nature])]));
-    onSubmit({ codigo, cnpj, name, atividade, municipio, uf, representanteIds, natureRules, planoPadraoId: planoPadraoId || null, responsaveis, dfcModelo });
+    onSubmit({ codigo, cnpj, name, atividade, municipio, uf, representanteIds, natureRules, planoPadraoId: planoPadraoId || null, responsaveis, dfcModelo, metasIndicadores: cleanGoals(metas) });
   }
 
   const socios = state.representantes.filter((representante) => representante.tipo !== "contador");
@@ -149,6 +154,7 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
           {[
             { id: "dados", label: "Dados gerais", icon: IdCard },
             { id: "assinaturas", label: "Assinaturas", icon: PenTool },
+            { id: "metas", label: "Metas", icon: Target },
           ].map((item) => (
             <button
               key={item.id}
@@ -321,6 +327,30 @@ export default function CompanyModal({ onClose, onSubmit, company = null }) {
           </div>
         </div>
         </>
+        ) : tab === "metas" ? (
+        <div className="flex flex-col gap-3">
+          <p className="text-[12.5px] text-ink-500">
+            A régua desta empresa para os alertas do assistente de slides e o radar de indicadores do B.I. Em branco, vale o padrão (a referência geral, igual para todas as empresas).
+          </p>
+          {INDICATOR_GOALS.map((goal) => (
+            <label key={goal.id} className="grid grid-cols-[1fr_170px] items-center gap-4 rounded-lg border border-line px-4 py-3">
+              <span>
+                <span className="block text-[13px] font-medium text-ink-800">{goal.label}</span>
+                <span className="mt-0.5 block text-[11.5px] leading-snug text-ink-400">{goal.help}</span>
+              </span>
+              <span className="flex items-center gap-2">
+                <input
+                  value={metas[goal.id]}
+                  onChange={(event) => setMetas((current) => ({ ...current, [goal.id]: event.target.value }))}
+                  placeholder={`padrão: ${formatGoal(goal.id, goal.default)}`}
+                  inputMode="decimal"
+                  className={`empresa-meta-${goal.id} w-full rounded-md border border-line-strong px-2.5 py-1.5 text-right text-[13px] outline-none placeholder:text-ink-300 focus:border-accent-500`}
+                />
+                <span className="w-12 shrink-0 text-[11.5px] text-ink-400">{goal.unit}</span>
+              </span>
+            </label>
+          ))}
+        </div>
         ) : (
         <div className="grid grid-cols-2 gap-5">
           <div>

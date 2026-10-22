@@ -5,6 +5,7 @@ import { accumulatedBalanceValue } from "./reportColumns.js";
 import { activeGroup } from "./groups.js";
 import { buildPerCompanyReports } from "./groupExport.js";
 import { directChildren } from "./reportTree.js";
+import { activeGoals } from "./metas.js";
 
 export function monthLabel(month) {
   const [year, mm] = String(month || "").split("-");
@@ -282,19 +283,30 @@ export function buildDashboardContext() {
 
   // --- Radar de indicadores: 4 métricas em escalas bem diferentes (razão,
   // razão, %, %) normalizadas pra 0-100 contra uma referência de mercado
-  // comum (não uma meta configurada pela empresa — não existe uma hoje).
+  // comum — ou contra a meta da empresa, quando ela tiver uma.
   // Faixas usadas: liquidez corrente 0→0, 2,0+→100; endividamento (quanto
   // MENOR melhor) 0→100, 3,0+→0; margem líquida -10%→0, 20%+→100; ROE
   // -10%→0, 30%+→100. É só uma leitura rápida "acima/abaixo da média",
   // não substitui olhar o número real (que aparece no tooltip).
+  // Com meta própria da empresa (lib/metas.js), a escala muda para a meta
+  // cair a 60% do raio; "ref" é onde fica a régua (a meta, ou o padrão de
+  // referência: liquidez 1, endividamento 2x, margem 3%, ROE 10%) — o
+  // contorno tracejado do radar.
   const clamp01 = (value) => Math.max(0, Math.min(1, value));
   const scoreUp = (value, min, max) => (value == null ? 0 : clamp01((value - min) / (max - min)) * 100);
   const scoreDown = (value, min, max) => (value == null ? 0 : clamp01((max - value) / (max - min)) * 100);
+  const goals = activeGoals();
+  const liqGoal = goals.liquidezCorrente.custom && goals.liquidezCorrente.value > 0 ? goals.liquidezCorrente.value : null;
+  const endGoal = goals.endividamento.custom && goals.endividamento.value > 0 ? goals.endividamento.value : null;
+  const margemGoal = goals.margemLiquida.custom && goals.margemLiquida.value > -10 ? goals.margemLiquida.value : null;
+  const liqMax = liqGoal ? liqGoal / 0.6 : 2;
+  const endMax = endGoal ? endGoal / 0.4 : 3;
+  const margemMax = margemGoal != null ? -10 + (margemGoal + 10) / 0.6 : 20;
   const radarIndicators = [
-    { indicator: "Liquidez corrente", score: scoreUp(liquidezCorrente, 0, 2), raw: liquidezCorrente, format: "ratio" },
-    { indicator: "Endividamento", score: scoreDown(endividamento, 0, 3), raw: endividamento, format: "ratio" },
-    { indicator: "Margem líquida", score: scoreUp(margemLiquida, -10, 20), raw: margemLiquida, format: "percent" },
-    { indicator: "ROE", score: scoreUp(roe, -10, 30), raw: roe, format: "percent" },
+    { indicator: "Liquidez corrente", score: scoreUp(liquidezCorrente, 0, liqMax), raw: liquidezCorrente, format: "ratio", ref: scoreUp(liqGoal ?? 1, 0, liqMax), meta: liqGoal },
+    { indicator: "Endividamento", score: scoreDown(endividamento, 0, endMax), raw: endividamento, format: "ratio", ref: scoreDown(endGoal ?? 2, 0, endMax), meta: endGoal },
+    { indicator: "Margem líquida", score: scoreUp(margemLiquida, -10, margemMax), raw: margemLiquida, format: "percent", ref: scoreUp(margemGoal ?? 3, -10, margemMax), meta: margemGoal },
+    { indicator: "ROE", score: scoreUp(roe, -10, 30), raw: roe, format: "percent", ref: scoreUp(10, -10, 30), meta: null },
   ];
 
   // --- Margens no tempo: bruta e líquida mês a mês, mesma leitura de
