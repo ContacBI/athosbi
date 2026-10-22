@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, LayoutGrid, Network, Presentation, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, LayoutGrid, Network, Presentation, SlidersHorizontal, Target, TriangleAlert, X } from "lucide-react";
 import { useAppState, setData, state } from "../data/useStore.js";
 import { missingMappingAccounts } from "../data/calculations.js";
 import { groupCompanies, activeWorkspaceName } from "../lib/groups.js";
@@ -534,6 +534,17 @@ export default function CompanyTopBar({ company }) {
               end={appState.periodEnd}
               onChange={(start, end) => setData({ periodStart: start, periodEnd: end })}
             />
+          )}
+          {hasData && (
+            <button
+              type="button"
+              onClick={() => navigate("/empresa/orcamento")}
+              title="Orçamento x Realizado"
+              className={`${BAR_BUTTON} ${location.pathname.startsWith("/empresa/orcamento") ? "border-white/40 bg-white/15 text-white" : ""}`}
+            >
+              <Target size={13} strokeWidth={1.8} />
+              Orçamento
+            </button>
           )}
           <ReportsMenu />
           {/* Visível pra qualquer colaborador, responsável ou não — dá pra

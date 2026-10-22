@@ -4,7 +4,7 @@ import { useAppState } from "../../data/useStore.js";
 import { WIDGET_CATALOG } from "../../lib/dashboardWidgets.js";
 import { WidgetBody } from "./WidgetGrid.jsx";
 
-const CATEGORY_ORDER = ["Demonstrações", "DRE", "Balanço", "Indicadores", "Gráficos", "Listas"];
+const CATEGORY_ORDER = ["Demonstrações", "DRE", "Balanço", "Indicadores", "Orçamento", "Gráficos", "Listas"];
 
 function groupCatalog() {
   const byCategory = new Map();

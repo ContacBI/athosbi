@@ -463,7 +463,7 @@ function KpiContent({ block, theme, env }) {
   else valueColor = resolveColor(block.valueColor, theme) || theme.colors.text;
   const Icon = definition.icon;
   const label = block.label || definition.label;
-  const caption = block.showCaption && definition.formula && !isSingleLineFormula(definition.formula) ? describeIndicatorFormula(definition.formula) : "";
+  const caption = !block.showCaption ? "" : definition.caption && env.ctx ? definition.caption(env.ctx) : definition.formula && !isSingleLineFormula(definition.formula) ? describeIndicatorFormula(definition.formula) : "";
   const pad = (block.style?.padding || 0) * 2;
   const innerW = Math.max(40, block.w - pad);
   const innerH = Math.max(40, block.h - pad);

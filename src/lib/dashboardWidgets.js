@@ -32,9 +32,11 @@ import {
   Network,
 } from "lucide-react";
 import { money } from "./format.js";
+import { budgetFor } from "./budget.js";
 import { evaluateIndicatorFormula, describeIndicatorFormula, indicatorDetailRows, richLineDetail, isSingleLineFormula } from "./indicatorFormula.js";
 
 function pct(value) {
+  if (value == null || !Number.isFinite(Number(value))) return "—";
   return `${Number(value || 0).toFixed(1).replace(".", ",")}%`;
 }
 
@@ -314,4 +316,58 @@ export const LINK_WIDGETS = [
   },
 ];
 
-WIDGET_CATALOG.push(...TABLE_WIDGETS, ...LINK_WIDGETS);
+// Orçamento x Realizado (lib/budget.js): o principal do ano do período,
+// só nos meses do período. Sem orçamento cadastrado mostram "—".
+function compactMoney(value) {
+  const n = Number(value || 0);
+  const abs = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  if (abs >= 1e6) return `${sign}R$ ${(abs / 1e6).toFixed(2).replace(".", ",")} mi`;
+  if (abs >= 1e4) return `${sign}R$ ${(abs / 1e3).toFixed(1).replace(".", ",")} mil`;
+  return money(n);
+}
+
+function budgetKpi({ id, label, icon, pick, note }) {
+  return {
+    id,
+    label,
+    category: "Orçamento",
+    type: "kpi",
+    icon,
+    defaultSize: "sm",
+    value: (ctx) => {
+      const item = budgetFor(ctx) ? pick(budgetFor(ctx)) : null;
+      return { value: item && item.orcado ? item.reach : null, format: "percent" };
+    },
+    caption: (ctx) => {
+      const budget = budgetFor(ctx);
+      if (!budget) return "Sem orçamento para o ano do período";
+      const item = pick(budget);
+      return `Realizado ${compactMoney(Math.abs(item.realizado))} de ${compactMoney(Math.abs(item.orcado))} orçado${note ? ` — ${note}` : ""}`;
+    },
+    detail: (ctx) => {
+      const budget = budgetFor(ctx);
+      if (!budget) return { formula: "Cadastre o orçamento em Orçamento (no topo da empresa).", rows: [] };
+      const item = pick(budget);
+      return {
+        formula: `Realizado ÷ orçado — ${budget.versao}, ${budget.ano}`,
+        rows: [
+          { label: "Orçado", value: item.orcado },
+          { label: "Realizado", value: item.realizado },
+          { label: "Diferença (realizado − orçado)", value: item.diff },
+          { label: "% do orçado", display: pct(item.reach), bold: true },
+        ],
+      };
+    },
+  };
+}
+
+export const BUDGET_WIDGETS = [
+  budgetKpi({ id: "orc_receita", label: "Receita líquida x orçado", icon: Target, pick: (budget) => budget.receita }),
+  budgetKpi({ id: "orc_despesas", label: "Despesas x orçado", icon: Receipt, pick: (budget) => budget.despesas, note: "abaixo de 100% é bom" }),
+  budgetKpi({ id: "orc_resultado", label: "Resultado x orçado", icon: PiggyBank, pick: (budget) => budget.resultado }),
+  { id: "chart_orcado_realizado", label: "Orçado x realizado mês a mês", category: "Orçamento", icon: BarChart3, defaultSize: "lg", type: "chart", chart: "orcado_realizado" },
+  { id: "chart_orcado_tabela", label: "Orçado x realizado (DRE)", category: "Orçamento", icon: Table2, defaultSize: "lg", type: "chart", chart: "orcado_tabela" },
+];
+
+WIDGET_CATALOG.push(...TABLE_WIDGETS, ...LINK_WIDGETS, ...BUDGET_WIDGETS);

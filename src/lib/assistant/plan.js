@@ -119,6 +119,9 @@ export function resolvePlan(request, analysis, overrides = {}) {
     const defaults = !occasionDef && !audienceDef && typedReal.length < 3 ? DEFAULT_TOPICS : ["visao", "alertas", "proximos"];
     const pool = new Set([...occasionTopics, ...audienceTopics, ...defaults]);
     if (pool.has("visao")) maybe("visao", occasionTopics.includes("visao") ? "ocasiao" : audienceTopics.includes("visao") ? "publico" : "padrao");
+    // Com orçamento cadastrado pro ano, "orçado x realizado" entra cedo.
+    if (analysis?.facts?.budget && ["socios", "diretoria", "conselho", "gestao", "investidores"].includes(audienceDef?.id || "") ) maybe("metas", "dados");
+    else if (analysis?.facts?.budget && occasionDef && ["mensal", "trimestral", "anual", "planejamento", "prestacao"].includes(occasionDef.id)) maybe("metas", "dados");
     // O que os números gritam entra mesmo sem ninguém pedir.
     (analysis?.alerts || [])
       .filter((alert) => alert.severity >= 3 && VIEW[alert.topic] && valid(alert.topic) && !sourceOf.has(alert.topic))
@@ -144,7 +147,7 @@ export function resolvePlan(request, analysis, overrides = {}) {
   };
   if (!analysis?.comparison) drop("comparativo", overrides.compareLabel ? { kind: "aviso", text: `Não há lançamentos em ${overrides.compareLabel} para comparar — deixei a comparação de fora.` } : null);
   if (!analysis?.facts?.group?.length) drop("grupo", { kind: "aviso", text: "Comparação entre empresas só existe quando um grupo está aberto." });
-  if (!(request.goals || []).length) drop("metas", { kind: "dica", text: 'Para um slide de metas, escreva o valor: "meta de faturamento de 1,5 milhão".' });
+  if (!(request.goals || []).length && !analysis?.facts?.budget) drop("metas", { kind: "dica", text: 'Para um slide de metas, cadastre o orçamento (botão Orçamento, no topo da empresa) ou escreva o valor: "meta de faturamento de 1,5 milhão".' });
   if (analysis?.facts?.empty) notices.push({ kind: "aviso", text: "Não encontrei lançamentos nesse período — os slides vão sair zerados." });
 
   // Tamanho.
@@ -237,6 +240,7 @@ export function resolvePlan(request, analysis, overrides = {}) {
   lines.forEach((line) => {
     if (!lineSlidesDone.has(line)) push({ kind: "linha", line, label: `Em destaque: ${line.name}` });
   });
+  if (has("metas") && analysis?.facts?.budget) push({ kind: "orcamento", topic: "metas", label: "Orçado x realizado" });
   if (has("metas") && goals.length) push({ kind: "metas", topic: "metas", label: "Metas" });
   if (has("positivos") || optional.includes("positivos")) push({ kind: "positivos", topic: "positivos", label: "Pontos positivos" });
   if (has("alertas") || optional.includes("alertas")) push({ kind: "alertas", topic: "alertas", label: "Pontos de atenção" });
@@ -540,8 +544,22 @@ function metasSlide(goals, analysis, ctx) {
   return slide(blocks, `${bullets.join("\n")}\n\nAs barras se atualizam com os números; o texto ao lado foi escrito com os números de ${ctx.label}.`);
 }
 
+function budgetSlide(section, ctx) {
+  const ids = ["orc_receita", "orc_despesas", "orc_resultado"];
+  const gap = 16;
+  const w = (720 - gap * 2) / 3;
+  const top = section?.message ? 190 : 176;
+  const blocks = [
+    ...heading("Orçamento", section?.title || "Orçado x realizado", section?.message || "", section?.status),
+    ...ids.map((id, i) => kpi(id, M + i * (w + gap), top, w, 132, { anim: "rise", valueSize: 30, labelSize: 14, trend: false, delta: false, showCaption: true })),
+    widget("chart_orcado_tabela", M, top + 150, 720, 660 - top - 150, { anim: "fade", showTitle: false }),
+    ...reading(830, top + 8, SLIDE_W - M - 830, 660 - top - 8, bulletsFor(section, ctx.tones, 6)),
+  ];
+  return slide(blocks, notesFor(section, ctx.label));
+}
+
 function pautaSlide(outline) {
-  const items = [...new Set(outline.filter((item) => ["topic", "metas", "alertas", "positivos", "proximos", "visao"].includes(item.kind)).map((item) => (item.kind === "visao" ? "Visão geral" : item.label)))];
+  const items = [...new Set(outline.filter((item) => ["topic", "metas", "orcamento", "alertas", "positivos", "proximos", "visao"].includes(item.kind)).map((item) => (item.kind === "visao" ? "Visão geral" : item.label)))];
   const text = items.slice(0, 10).join("\n");
   return makeSlide("titulo-texto", { kicker: "Pauta", heading: "O que vamos ver hoje", text });
 }
@@ -580,7 +598,8 @@ export function buildDeck(plan, analysis, { request, brand = "athos", themeId = 
     } else if (item.kind === "linha") {
       const info = analysis.lineInfo?.[`${item.line.kind}:${item.line.code}:${item.line.classificacao || ""}`];
       slides.push(lineSlide(item.line, info, ctx));
-    } else if (item.kind === "metas") slides.push(metasSlide(request?.goals || [], analysis, ctx));
+    } else if (item.kind === "orcamento") slides.push(budgetSlide(analysis.sections.metas, ctx));
+    else if (item.kind === "metas") slides.push(metasSlide(request?.goals || [], analysis, ctx));
     else if (item.kind === "alertas") {
       const alerts = analysis.alerts.filter((alert) => alert.severity >= 2).length >= 2 ? analysis.alerts.filter((alert) => alert.severity >= 2) : analysis.alerts;
       if (alerts.length) slides.push(cardsSlide("Pontos de atenção", alerts.length === 1 ? alerts[0].title : `${Math.min(4, alerts.length)} pontos pedem atenção`, alerts, { icon: "TriangleAlert", color: (alert) => (alert.severity >= 3 ? "@negative" : "@accent"), withAction: true }, `${alerts.map((alert) => `• ${alert.title}: ${alert.text} Ação: ${alert.action}.`).join("\n")}\n\nPontos levantados pelo assistente nos números de ${label}.`));
