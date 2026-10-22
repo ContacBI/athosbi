@@ -348,6 +348,25 @@ check("Fonte: primeira da lista, sem o \"Variable\"", pptxLib.firstFont('"Fraunc
 const paras = pptxLib.paragraphs([{ runs: [{ text: "Receita " }, { text: "subiu", bold: true }] }, { runs: [] }, { runs: [{ text: "fim" }] }], { list: "bullet", uppercase: true }, { fontSize: 12 });
 check("Texto: um parágrafo por linha, negrito e marcador mantidos", paras.length === 4 && paras[1].options.bold && paras[1].options.breakLine && paras[0].options.bullet === true && !paras[2].options.bullet && paras[3].text === "FIM" && !paras[3].options.breakLine, paras);
 
+// ── Comentários nos números ──
+section("Comentários nos números");
+const coment = await src("lib/comentarios.js");
+check("Assunto do slide pela linha (aluguel → despesas, salários → pessoal, bancos → caixa)", coment.topicForCode("DRE.07.02.01.01") === "despesas" && coment.topicForCode("DRE.07.01.01") === "pessoal" && coment.topicForCode("01.01.01.02.01") === "caixa" && coment.topicForCode("DRE.17") === "resultado", null);
+const notas = [
+  { id: "c1", code: "DRE.07.02.01.01", month: "2026-02", text: "Reajuste do aluguel em fevereiro", author: "a@b", createdAt: "2026-03-01T10:00:00Z" },
+  { id: "c2", code: "DRE.01.01.01.02", month: "2025-12", text: "Fora do período", author: "a@b", createdAt: "2026-01-05T10:00:00Z" },
+];
+check("Comentário da linha de baixo aparece na de cima (aluguel → despesas administrativas)", coment.commentsFor(notas, "DRE.07", ["2026-01", "2026-02", "2026-03"]).length === 1 && coment.commentsFor(notas, "DRE.07.02", null).length === 1 && coment.commentsFor(notas, "DRE.01", ["2026-02"]).length === 0, null);
+check("Card do B.I.: comentários pelas linhas da fórmula", coment.formulaComments({ numerator: [{ code: "DRE.07", sign: 1 }] }, ["2026-02"], notas).length === 1, null);
+check("Comentário sem mês válido ou sem texto não grava", coment.addComment({ code: "DRE.07", month: "fev", text: "x" }) === null && coment.addComment({ code: "DRE.07", month: "2026-02", text: "  " }) === null, null);
+setCompanyState();
+state.companies = [{ ...company, comentarios: notas }];
+const comAnalise = analyze(buildDashboardContext(), { period: PERIOD, label: "1º tri" });
+state.companies = [company];
+const despesasBullets = comAnalise.sections.despesas.bullets;
+check("Assistente: o comentário vira observação no slide de despesas", /^Observação — aluguel predial, fevereiro\/2026: Reajuste do aluguel/i.test(despesasBullets[0]), despesasBullets[0]);
+check("…e entra na visão geral (anotações); o de fora do período não", comAnalise.sections.visao.bullets.some((item) => /Reajuste do aluguel/.test(item)) && comAnalise.facts.comentarios.length === 1, comAnalise.facts.comentarios);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);

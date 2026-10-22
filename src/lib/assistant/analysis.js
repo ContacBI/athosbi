@@ -6,6 +6,7 @@
 // Tudo por regra — nada sai da empresa, nada é pago.
 
 import { GLOSSARY } from "./vocab.js";
+import { state } from "../../data/useStore.js";
 import { sentenceCase } from "../planCase.js";
 import { ACCENTS, restoreAccents } from "../accents.js";
 import { budgetFor } from "../budget.js";
@@ -13,6 +14,7 @@ import { buildCashBridge, bridgeSentence } from "../cashBridge.js";
 import { prazosMedios, topMatches } from "../prazos.js";
 import { projecaoDoCtx, projectionSentence, projectionShort } from "../projecao.js";
 import { activeGoals, breaksGoal, formatGoal, hasCustomGoals } from "../metas.js";
+import { allComments, monthNamePt, topicForCode } from "../comentarios.js";
 
 // Projeção do ano (lib/projecao.js) — só quando o período vai até o último
 // mês fechado (é "o ano até agora") e ainda faltam meses.
@@ -1268,6 +1270,21 @@ export function analyze(ctx, { period = {}, label = "", prevCtx = null, prevPeri
       console.error(`assistente: falha ao analisar ${id}`, error);
       sections[id] = { id, title: "", bullets: [], status: "neutro", note: "", missing: true };
     }
+  });
+  // Comentários do período (lib/comentarios.js): cada um vira observação no
+  // assunto da linha (aparece no slide desse assunto) e entra também na
+  // visão geral (anotações do apresentador).
+  const monthSet = new Set(facts.months || []);
+  const planNames = new Map((state.plano || []).map((row) => [row.codigo_gerencial, row.nome]));
+  facts.comentarios = allComments()
+    .filter((comment) => monthSet.has(comment.month))
+    .sort((a, b) => a.month.localeCompare(b.month))
+    .map((comment) => ({ ...comment, lineName: lineName(planNames.get(comment.code) || comment.code), topic: topicForCode(comment.code) }));
+  facts.comentarios.forEach((comment) => {
+    const bullet = `Observação — ${inSentence(comment.lineName)}, ${monthNamePt(comment.month)}: ${comment.text}`;
+    const target = sections[comment.topic] && !sections[comment.topic].missing ? sections[comment.topic] : null;
+    if (target) target.bullets = [bullet, ...(target.bullets || [])];
+    if (sections.visao && target !== sections.visao) sections.visao.bullets = [...(sections.visao.bullets || []), bullet];
   });
   const lineInfo = {};
   lines.forEach((line) => {
