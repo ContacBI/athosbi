@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, LabelList, Line, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowDown, ArrowUp, Percent, SlidersHorizontal } from "lucide-react";
+import { ArrowDown, ArrowUp, Pencil, Percent, SlidersHorizontal } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
-import { saveCargaContabil, saveCargaLayout } from "../lib/companies.js";
+import { saveCargaContabil, saveCargaLayout, saveCargaManual } from "../lib/companies.js";
 import { fetchCargaTributaria, pctCarga } from "../lib/cargaTributaria.js";
 import { money } from "../lib/format.js";
 
@@ -18,6 +18,10 @@ const compacto = (value) => {
   if (abs >= 1e6) return `${(n / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} mi`;
   if (abs >= 1e3) return `${(n / 1e3).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} mil`;
   return n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+};
+const numBR = (texto) => {
+  const n = Number(String(texto ?? "").trim().replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? n : 0;
 };
 const pct1 = (value) => `${Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 const delta = (atual, anterior) => (anterior ? (atual - anterior) / Math.abs(anterior) : null);
@@ -165,9 +169,38 @@ export default function CargaTributaria() {
 
   const row = useMemo(() => (rows || []).find((item) => item.ano === ano) || null, [rows, ano]);
   const anterior = useMemo(() => (rows || []).find((item) => item.ano === ano - 1) || null, [rows, ano]);
-  const dadosBrutos = row?.dados;
+  const dadosCentral = row?.dados;
   const usarContabil = Boolean(company?.cargaContabil);
-  // Impostos que só existem no contábil (provisão) ficam à parte; se a empresa escolheu considerá-los, somam em imp/impTotal/carga.
+  const manualAno = (company?.cargaManual || {})[String(ano)] || {};
+  // Meses sem fiscal (ex.: empresa nova na Domínio): faturamento e impostos informados à mão entram no lugar. Valor informado de um imposto
+  // substitui o que o contábil tiver pra ele naquele mês (não soma duas vezes). Mês, trimestre e ano são refeitos a partir disso.
+  const dadosBrutos = useMemo(() => {
+    if (!dadosCentral || !Object.keys(manualAno).length) return dadosCentral;
+    const meses = dadosCentral.meses.map((m) => ({ ...m, fat: { ...m.fat }, imp: { ...m.imp }, contabil: { ...(m.contabil || {}) } }));
+    const tri = dadosCentral.trimestres.map((t) => ({ ...t, fat: { ...t.fat }, imp: { ...t.imp }, contabil: { ...(t.contabil || {}) } }));
+    const tot = { ...dadosCentral.ano_total, fat: { ...dadosCentral.ano_total.fat }, imp: { ...dadosCentral.ano_total.imp }, contabil: { ...(dadosCentral.ano_total.contabil || {}) } };
+    const aplicar = (p, m, cont) => {
+      p.fat.total = (p.fat.total || 0) + (m.fat || 0);
+      p.fat.servicos = (p.fat.servicos || 0) + (m.fat || 0);
+      for (const [id, v] of Object.entries(m.imp || {})) {
+        p.imp[id] = (p.imp[id] || 0) + v;
+        p.impTotal = (p.impTotal || 0) + v;
+        p.contabil[id] = Math.max((p.contabil[id] || 0) - cont[id], 0); // o que o contábil tinha desse imposto no mês sai (o informado vale no lugar)
+        p.contabilTotal = Math.max((p.contabilTotal || 0) - cont[id], 0);
+      }
+      p.carga = p.fat.total ? p.impTotal / p.fat.total : null;
+    };
+    for (const [mesTxt, m] of Object.entries(manualAno)) {
+      const i = Number(mesTxt);
+      const base = meses[i];
+      if (!base || base.fat.total || base.impTotal) continue; // só vale em mês que o fiscal não tem
+      const cont = Object.fromEntries(Object.keys(m.imp || {}).map((id) => [id, Math.min(base.contabil[id] || 0, m.imp[id])]));
+      for (const alvo of [base, tri[Math.floor(i / 3)], tot]) aplicar(alvo, m, cont);
+      base.manual = true;
+    }
+    return { ...dadosCentral, meses, trimestres: tri, ano_total: tot };
+  }, [dadosCentral, company?.cargaManual, ano]);
+  // Contábil por cima (se a empresa escolheu considerá-lo).
   const dados = useMemo(() => {
     if (!dadosBrutos || !usarContabil) return dadosBrutos;
     const soma = (p) => {
@@ -179,6 +212,28 @@ export default function CargaTributaria() {
     };
     return { ...dadosBrutos, meses: dadosBrutos.meses.map(soma), trimestres: dadosBrutos.trimestres.map(soma), ano_total: soma(dadosBrutos.ano_total) };
   }, [dadosBrutos, usarContabil]);
+  const [manualForm, setManualForm] = useState({ fat: "", imp: {} });
+  const [salvandoManual, setSalvandoManual] = useState(false);
+  const mesSel = typeof sel === "number" ? sel : null;
+  const mesCentral = mesSel != null ? dadosCentral?.meses?.[mesSel] : null;
+  const mesSemFiscal = Boolean(mesCentral && !mesCentral.fat.total && !mesCentral.impTotal);
+  useEffect(() => {
+    const m = mesSel != null ? manualAno[mesSel] : null;
+    setManualForm({ fat: m?.fat ? String(m.fat).replace(".", ",") : "", imp: Object.fromEntries(Object.entries(m?.imp || {}).map(([id, v]) => [id, String(v).replace(".", ",")])) });
+  }, [mesSel, ano, company?.id]);
+  async function salvarManual(limpar) {
+    setSalvandoManual(true);
+    try {
+      const imp = Object.fromEntries(Object.entries(manualForm.imp).map(([id, v]) => [id, numBR(v)]).filter(([, v]) => v > 0));
+      const fat = numBR(manualForm.fat);
+      await saveCargaManual(ano, mesSel, limpar || (!fat && !Object.keys(imp).length) ? null : { fat, imp });
+    } catch (err) {
+      console.error("Falha ao salvar os valores informados:", err);
+      setError(/recarregue/i.test(err?.message || "") ? err.message : "Não consegui salvar agora. Tente de novo.");
+    } finally {
+      setSalvandoManual(false);
+    }
+  }
   const [salvandoContabil, setSalvandoContabil] = useState(false);
   async function alternarContabil() {
     setSalvandoContabil(true);
@@ -389,7 +444,7 @@ export default function CargaTributaria() {
       if (naoClass.length) itens.push(["warn", `Impostos fora do catálogo (não entraram em nenhuma soma — confira): ${naoClass.map(([nome, valor]) => `${nome} ${moneyFull(valor)}`).join(" · ")}`]);
       if (total.fat.outrasSaidas > 0) itens.push(["warn", `Saídas que não contam como faturamento (devolução, remessa, transferência…): ${moneyFull(total.fat.outrasSaidas)} no ano.`]);
       if ((total.reforma?.ibs || 0) + (total.reforma?.cbs || 0) > 0) itens.push(["info", `Reforma tributária (valores de teste de ${ano}): IBS ${moneyFull(total.reforma.ibs)} · CBS ${moneyFull(total.reforma.cbs)} — não entram na carga.`]);
-      const tc = dadosBrutos?.ano_total;
+      const tc = dadosBrutos?.ano_total;  // já com os valores informados à mão
       const soContabil = tc?.contabilTotal > 0 ? grupos.filter((g) => tc.contabil?.[g.id] > 0) : [];
       if (!itens.length && !soContabil.length) return null;
       return (
@@ -737,7 +792,7 @@ export default function CargaTributaria() {
             const vazio = !m.fat.total && !m.impTotal && !m.retTotal && !m.folhaTotal;
             return (
               <button key={i} type="button" onClick={() => setSel(i)} className={`flex min-w-[58px] flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 text-[12px] ${sel === i ? "bg-surface-card font-semibold text-ink-900 shadow-sm" : vazio ? "text-ink-300" : "text-ink-600 hover:bg-surface-card/60"}`}>
-                {MES_CURTO[i]}
+                {MES_CURTO[i]}{m.manual && <Pencil size={9} className="ml-1 inline text-accent-600" />}
                 <small className="text-[10.5px] text-ink-400">{m.carga == null ? "—" : pctCarga(m.carga)}</small>
               </button>
             );
@@ -784,6 +839,31 @@ export default function CargaTributaria() {
             <button type="button" onClick={() => setRascunho({ ordem: [...PADRAO, ...BLOCOS.map((b) => b.id).filter((id) => !PADRAO.includes(id))], ligados: new Set(PADRAO) })} className="ml-auto text-[12px] text-ink-500 underline decoration-dotted hover:text-ink-800">Voltar ao essencial</button>
           </div>
           {error && <p className="mt-2 text-[12px] text-danger-600">{error}</p>}
+        </div>
+      )}
+
+      {mesSel != null && (mesSemFiscal || manualAno[mesSel]) && (podeEditar || manualAno[mesSel]) && (
+        <div className="rounded-xl border border-dashed border-line-strong bg-surface-card p-4 shadow-sm">
+          <p className="flex items-center gap-2 text-[13.5px] font-semibold text-ink-900"><Pencil size={13} /> {MES_LONGO[mesSel]} sem dados do fiscal — {manualAno[mesSel] ? "valores informados manualmente" : "informe à mão se quiser"}</p>
+          {podeEditar ? (
+            <>
+              <p className="mt-0.5 text-[12px] text-ink-400">Use quando o mês ainda não está na apuração da Domínio. Só entra na carga enquanto o fiscal não tiver o mês. Deixe em branco o que não existe.</p>
+              <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+                <label className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">Faturamento
+                  <input value={manualForm.fat} onChange={(e) => setManualForm((a) => ({ ...a, fat: e.target.value }))} inputMode="decimal" placeholder="0,00" className="mt-1 w-full rounded-md border border-line-strong bg-surface-card px-2 py-1.5 text-[13px] font-normal normal-case tabular-nums text-ink-900" />
+                </label>
+                {grupos.filter((g) => g.id !== "outros").map((g) => (
+                  <label key={g.id} className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">{nomeCurto(g.nome)}
+                    <input value={manualForm.imp[g.id] || ""} onChange={(e) => setManualForm((a) => ({ ...a, imp: { ...a.imp, [g.id]: e.target.value } }))} inputMode="decimal" placeholder="0,00" className="mt-1 w-full rounded-md border border-line-strong bg-surface-card px-2 py-1.5 text-[13px] font-normal normal-case tabular-nums text-ink-900" />
+                  </label>
+                ))}
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button type="button" disabled={salvandoManual} onClick={() => salvarManual(false)} className="rounded-md bg-accent-500 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-accent-600 disabled:opacity-50">{salvandoManual ? "Salvando…" : "Salvar valores"}</button>
+                {manualAno[mesSel] && <button type="button" disabled={salvandoManual} onClick={() => salvarManual(true)} className="rounded-md border border-line-strong px-3 py-1.5 text-[12px] text-ink-600 hover:bg-surface-muted">Remover</button>}
+              </div>
+            </>
+          ) : <p className="mt-0.5 text-[12px] text-ink-400">Valores informados pela contabilidade; o fiscal da Domínio ainda não tem este mês.</p>}
         </div>
       )}
 

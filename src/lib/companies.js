@@ -1192,6 +1192,26 @@ export async function saveCargaContabil(valor) {
   }
 }
 
+// Carga tributária: faturamento e impostos informados à mão num mês que o fiscal da Domínio ainda não tem. company.cargaManual[ano][mes] = { fat, imp: { grupo: valor } }; valor null remove.
+export async function saveCargaManual(ano, mes, valor) {
+  const company = state.companies.find((item) => item.id === state.activeCompanyId);
+  if (!company || state.activeGroupId) return;
+  const before = state.companies;
+  const todos = { ...(company.cargaManual || {}) };
+  const doAno = { ...(todos[String(ano)] || {}) };
+  if (valor) doAno[String(mes)] = valor;
+  else delete doAno[String(mes)];
+  if (Object.keys(doAno).length) todos[String(ano)] = doAno;
+  else delete todos[String(ano)];
+  setData({ companies: state.companies.map((item) => (item.id === company.id ? { ...item, cargaManual: todos } : item)) });
+  try {
+    await persistActiveCompany();
+  } catch (error) {
+    setData({ companies: before });
+    throw error;
+  }
+}
+
 // Modelo de DFC da empresa "instituto" que veio da Domínio (lib/dfcInstituto.js): guarda na empresa a estrutura e as contas
 // ligadas a cada grupo, como estão na Domínio. Espera o Supabase confirmar e desfaz se falhar (mesmo contrato de applyBalancete).
 export async function applyDfcInstituto(modelo) {
