@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Bar, CartesianGrid, Cell, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowLeft, BookOpen, ChevronRight, ChevronsDownUp, ChevronsUpDown, Download, Search, X } from "lucide-react";
+import { ArrowLeft, BookOpen, ChevronRight, ChevronsDownUp, ChevronsUpDown, Download, MessageSquare, Search, X } from "lucide-react";
 import { state } from "../../data/useStore.js";
 import { buildDrill } from "../../lib/drill.js";
 import { ledgerData } from "../../lib/slideDemo.js";
@@ -8,6 +8,7 @@ import { formatWidgetValue } from "../../lib/dashboardWidgets.js";
 import { exportLedgerPdf } from "../../lib/exportLoaders.js";
 import { slug } from "../../lib/demonstrativoExport.js";
 import { money, periodLabelPt } from "../../lib/format.js";
+import { formulaComments, monthNamePt } from "../../lib/comentarios.js";
 
 // "De onde vem esse número?": a composição de um card do B.I. (ou de uma
 // linha das tabelas) até as contas e, numa conta, os lançamentos do razão
@@ -417,6 +418,8 @@ export default function DrillModal({ target, ctx, onClose }) {
   }
 
   const headerValue = formatWidgetValue(drill.valueAt(column), drill.format);
+  // Comentários das linhas deste número no período (lib/comentarios.js).
+  const comments = formulaComments(target.formula, column === "total" ? ctx.months : [column]);
   const periodText = column === "total" ? periodLabelPt(state.periodStart, state.periodEnd) : `Só ${monthName(column)}`;
 
   return (
@@ -431,6 +434,18 @@ export default function DrillModal({ target, ctx, onClose }) {
               <span className="text-[12px] text-ink-400">{periodText}</span>
             </div>
             {drill.formulaText && normalize(drill.formulaText) !== normalize(drill.label) && <p className="mt-1 text-[12px] italic text-ink-400">= {drill.formulaText}</p>}
+            {comments.length > 0 && (
+              <div className="drill-comentarios mt-2 flex flex-col gap-1 rounded-lg bg-accent-50 px-3 py-2">
+                {comments.map((comment) => (
+                  <p key={comment.id} className="flex gap-1.5 text-[12.5px] leading-snug text-ink-700">
+                    <MessageSquare size={13} className="mt-0.5 shrink-0 text-accent-600" />
+                    <span>
+                      <b className="font-semibold">{monthNamePt(comment.month)}:</b> {comment.text}
+                    </span>
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
           <button type="button" onClick={onClose} aria-label="Fechar" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-400 hover:bg-surface-muted hover:text-ink-900">
             <X size={17} />

@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ChevronRight, Maximize2, Minimize2, ScanSearch, Search, TriangleAlert } from "lucide-react";
+import { ChevronRight, Maximize2, MessageSquare, Minimize2, ScanSearch, Search, TriangleAlert } from "lucide-react";
 import { useAppState, setData, state } from "../data/useStore.js";
 import { visibleReportRows, missingMappingAccounts, reportMonths, buildReportTree, balanceteCobrePeriodo } from "../data/calculations.js";
 import { rowsForPeriod, rowValue, rowKey } from "../lib/periodCompare.js";
@@ -29,6 +29,8 @@ import ReportSettingsMenu from "../components/ReportSettingsMenu.jsx";
 import PeriodPicker from "../components/PeriodPicker.jsx";
 import { comparisonPeriod, dataMonths } from "../lib/assistant/context.js";
 import { detectAnomalies } from "../lib/anomalias.js";
+import { allComments, commentsFor, exactComments, monthNamePt } from "../lib/comentarios.js";
+import ComentariosPanel from "../components/ComentariosPanel.jsx";
 
 const MODES = [
   { id: "padrao", label: "Padrão" },
@@ -103,7 +105,7 @@ function nameStyle(row, isHighlight) {
   return "text-[12.5px] font-normal text-ink-500";
 }
 
-function RowLabel({ row, canToggle, isOpen, isHighlight }) {
+function RowLabel({ row, canToggle, isOpen, isHighlight, comments = [] }) {
   const nivel = Number(row.nivel || 0);
   return (
     <div className="relative flex min-w-0 items-center gap-1.5" style={{ paddingLeft: 4 + nivel * 15 }}>
@@ -115,6 +117,12 @@ function RowLabel({ row, canToggle, isOpen, isHighlight }) {
         {canToggle && <ChevronRight size={13} className={`transition-transform ${isOpen ? "rotate-90" : ""}`} />}
       </span>
       <span className={`truncate ${nameStyle(row, isHighlight)}`}>{row.categoria_gerencial || row.nome_conta}</span>
+      {comments.length > 0 && (
+        <span className="demo-comentarios flex shrink-0 items-center gap-0.5 rounded bg-accent-50 px-1 py-px text-[10px] font-semibold text-accent-700" title={comments.map((comment) => `${monthNamePt(comment.month)}: ${comment.text}`).join("\n")}>
+          <MessageSquare size={10} strokeWidth={2.2} />
+          {comments.length}
+        </span>
+      )}
     </div>
   );
 }
@@ -279,6 +287,10 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
   const navigate = useNavigate();
   const activeCompany = appState.activeGroupId ? null : appState.companies.find((item) => item.id === appState.activeCompanyId);
   const canConfer = Boolean(activeCompany) && !lockedTabProp && location.pathname.startsWith("/empresa/demonstrativos") && (appState.isAdmin || (activeCompany.responsaveis || []).includes(appState.userEmail));
+  // Comentários nos números (lib/comentarios.js) — só no modo empresa.
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const canComment = Boolean(activeCompany) && (appState.isAdmin || (activeCompany.responsaveis || []).includes(appState.userEmail));
+  const companyComments = allComments(activeCompany);
   const conferencia = useMemo(
     () => (canConfer && appState.journal.length ? detectAnomalies(appState.journal, { start: appState.periodStart, end: appState.periodEnd, natureRules: appState.natureRules, dismissed: activeCompany.anomaliasOk || [] }) : null),
     [canConfer, appState.journal, appState.periodStart, appState.periodEnd, appState.natureRules, activeCompany]
@@ -363,6 +375,11 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
   ]);
 
   const months = useMemo(() => (hasData ? reportMonths() : []), [hasData, appState.periodStart, appState.periodEnd, appState.journal]);
+  const periodComments = useMemo(() => {
+    const monthSet = new Set(months);
+    return companyComments.filter((comment) => monthSet.has(comment.month));
+  }, [companyComments, months]);
+  const periodCommentCount = periodComments.length;
 
   const showPreviousBalance = tab === "BP" ? appState.showPreviousBalanceBP : appState.showPreviousBalanceDRE;
 
@@ -703,6 +720,18 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {activeCompany && (canComment || companyComments.length > 0) && (
+              <button
+                type="button"
+                onClick={() => setCommentsOpen(true)}
+                title="Comentários nos números do período"
+                className="demonstrativos-comentarios flex h-8 items-center gap-1.5 rounded-md border border-line-strong px-2.5 text-[12px] font-medium text-ink-600 transition-colors hover:bg-surface-muted"
+              >
+                <MessageSquare size={14} strokeWidth={1.8} />
+                <span className="hidden md:inline">Comentários</span>
+                {periodCommentCount > 0 && <span className="rounded-full bg-accent-500 px-1.5 text-[10.5px] font-semibold tabular-nums text-white">{periodCommentCount}</span>}
+              </button>
+            )}
             {conferencia && (
               <button
                 type="button"
@@ -966,16 +995,18 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                       index !== rows.length - 1 ? "border-b border-line" : ""
                     } ${isHighlight ? "bg-accent-50/50" : index % 2 ? "bg-surface-page/60" : "bg-surface-card"}`}
                   >
-                    <RowLabel row={row} canToggle={canToggle} isOpen={appState.expandedLines.has(row.codigo_gerencial)} isHighlight={isHighlight} />
+                    <RowLabel row={row} canToggle={canToggle} isOpen={appState.expandedLines.has(row.codigo_gerencial)} isHighlight={isHighlight} comments={isSynthetic && periodComments.length ? commentsFor(periodComments, row.codigo_gerencial) : []} />
 
                     {mode === "padrao" && (
                       <>
                         {columns.map((column) => {
                           const value = columnValue(row, column, { tab, bpMonthlyMode: appState.bpMonthlyMode, months, granularity });
                           const tone = columnTone(column) || moneyClass(value);
+                          const cellComments = isSynthetic && periodComments.length && /^\d{4}-\d{2}$/.test(column) ? exactComments(periodComments, row.codigo_gerencial, column) : [];
                           return (
-                            <span key={column} className={`whitespace-nowrap text-right tabular-nums ${tone} ${isHighlight ? "font-semibold" : ""}`}>
+                            <span key={column} className={`relative whitespace-nowrap text-right tabular-nums ${tone} ${isHighlight ? "font-semibold" : ""}`}>
                               {money(value)}
+                              {cellComments.length > 0 && <span className="demo-comentario-celula absolute -right-1 -top-1.5 h-0 w-0 border-l-[7px] border-t-[7px] border-l-transparent border-t-accent-500" title={cellComments.map((comment) => comment.text).join("\n")} />}
                             </span>
                           );
                         })}
@@ -1064,6 +1095,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
       </div>
 
       {ledgerRow && <LedgerModal row={ledgerRow} onClose={() => setLedgerRow(null)} />}
+      {commentsOpen && <ComentariosPanel tab={tab} months={months} canEdit={canComment} onClose={() => setCommentsOpen(false)} />}
     </div>
   );
 }

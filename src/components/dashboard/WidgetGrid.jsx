@@ -21,7 +21,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowLeft, ArrowUpRight, ChevronRight, X, CheckCircle2, Circle, TriangleAlert } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, ChevronRight, X, CheckCircle2, Circle, MessageSquare, TriangleAlert } from "lucide-react";
+import { formulaComments, monthNamePt } from "../../lib/comentarios.js";
 import { WIDGET_CATALOG, formatWidgetValue } from "../../lib/dashboardWidgets.js";
 import { isSingleLineFormula, describeIndicatorFormula } from "../../lib/indicatorFormula.js";
 import { useIsMobile } from "../../lib/useIsMobile.js";
@@ -1394,10 +1395,20 @@ function KpiInline({ definition, ctx }) {
   // pra montar o PDF (domSnapshotPdf.js tira um "print" dele), então esse
   // resuminho sai tanto na tela quanto no PDF de um só lugar.
   const caption = definition.caption ? definition.caption(ctx) : definition.formula && !isSingleLineFormula(definition.formula) ? describeIndicatorFormula(definition.formula) : null;
+  // Comentários das linhas deste card no período (lib/comentarios.js).
+  const comments = definition.formula ? formulaComments(definition.formula, ctx.months) : [];
   return (
     <>
       <div className="flex items-center justify-between">
-        <p className="text-[12px] text-ink-400">{definition.label}</p>
+        <p className="flex min-w-0 items-center gap-1.5 text-[12px] text-ink-400">
+          <span className="truncate">{definition.label}</span>
+          {comments.length > 0 && (
+            <span className="kpi-comentarios flex shrink-0 items-center gap-0.5 rounded bg-accent-50 px-1 py-px text-[10px] font-semibold text-accent-700" title={comments.map((comment) => `${monthNamePt(comment.month)}: ${comment.text}`).join("\n")}>
+              <MessageSquare size={10} strokeWidth={2.2} />
+              {comments.length}
+            </span>
+          )}
+        </p>
         {Icon && (
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-50 text-accent-600">
             <Icon size={14} strokeWidth={1.8} />
