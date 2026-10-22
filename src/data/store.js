@@ -136,6 +136,11 @@ export const state = {
   // Orçamento x Realizado (ver lib/budget.js e pages/Orcamento.jsx) —
   // versões por ano, no registro da empresa/grupo como as apresentações.
   orcamentos: [],
+  // Biblioteca do escritório (ver lib/officeLibrary.js): pedidos salvos do
+  // assistente e slides prontos — valem pra todas as empresas, não ficam
+  // no registro de nenhuma.
+  assistantFavorites: [],
+  slideLibrary: [],
   // Ajuste pessoal de espaçamento das linhas dos demonstrativos — ver
   // lib/density.js. Fica só neste navegador (nunca entra em
   // persistActiveCompany), por isso mora aqui já inicializado do

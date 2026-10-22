@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, ChevronDown, Info, Lightbulb, Mic, Plus, Sparkles, Square, Star, TriangleAlert, Wand2, X } from "lucide-react";
+import { Bookmark, BookmarkPlus, CheckCircle2, ChevronDown, Info, Lightbulb, Mic, Play, Plus, Sparkles, Square, Star, TriangleAlert, Wand2, X } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import { parseRequest } from "../../lib/assistant/parse.js";
 import { analyze } from "../../lib/assistant/analysis.js";
@@ -7,6 +7,7 @@ import { resolvePlan, buildDeck } from "../../lib/assistant/plan.js";
 import { buildCatalog, comparisonPeriod, contextForPeriod, shortPeriod } from "../../lib/assistant/context.js";
 import { AUDIENCES, OCCASIONS, TONES, TOPICS, TOPIC_BY_ID } from "../../lib/assistant/vocab.js";
 import { friendlyPeriod, tokenInfo } from "../../lib/presentations.js";
+import { deleteFavorite, saveFavorite } from "../../lib/officeLibrary.js";
 import { SlideThumb } from "./pickers.jsx";
 
 const EXAMPLES = [
@@ -154,10 +155,26 @@ function Select({ value, onChange, options, className = "" }) {
   );
 }
 
-export default function AssistantBuilder({ env, brand, themeId, name, shared, onBrand, onCreate }) {
+// Nome sugerido ao salvar um pedido: o título que a pessoa deu, senão a
+// ocasião + o público ("Reunião mensal · Sócios"), senão o começo do texto.
+function suggestFavoriteName(request, text) {
+  if (request.title) return request.title;
+  const parts = [request.occasion?.label, request.audience?.label].filter(Boolean);
+  if (parts.length) return parts.join(" · ");
+  const clean = String(text || "").replace(/\s+/g, " ").trim();
+  return clean.length > 48 ? `${clean.slice(0, 48)}…` : clean;
+}
+
+export default function AssistantBuilder({ env, brand, themeId, name, shared, onBrand, onTheme, onCreate, initialFavorite = null, autoCreate = false }) {
   const appState = useAppState();
-  const [text, setText] = useState("");
-  const [overrides, setOverrides] = useState({});
+  const [text, setText] = useState(initialFavorite?.text || "");
+  const [overrides, setOverrides] = useState(() => (initialFavorite?.overrides ? structuredClone(initialFavorite.overrides) : {}));
+  // "Gerar" num pedido salvo: carrega o pedido e cria a apresentação assim
+  // que o roteiro estiver pronto, sem mais nenhum clique.
+  const [pendingAuto, setPendingAuto] = useState(Boolean(initialFavorite && autoCreate));
+  const [saving, setSaving] = useState(null); // { name } enquanto o campo de nome está aberto
+  const [savedFlash, setSavedFlash] = useState("");
+  const favorites = [...(appState.assistantFavorites || [])].sort((a, b) => String(a.name).localeCompare(String(b.name), "pt-BR"));
   const [showHints, setShowHints] = useState(false);
   const textRef = useRef(null);
   const dictation = useDictation((spoken) => {
@@ -224,6 +241,48 @@ export default function AssistantBuilder({ env, brand, themeId, name, shared, on
   const info = tokenInfo();
   const previewEnv = useMemo(() => (result ? { ...env, ctx: result.ctx, info: { ...info, start: period?.start || "", end: period?.end || "" } } : env), [result, env, info.empresa, period?.start, period?.end]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Cria sozinho só quando o roteiro já é do pedido carregado: o texto já
+  // passou pela leitura (debounce) e a análise é do período certo.
+  const resultKey = period ? `${period.start}|${period.end}|${cmpPeriod?.start || ""}` : "";
+  useEffect(() => {
+    if (!pendingAuto || busy || !deck || debouncedText !== text || result?.key !== resultKey) return;
+    setPendingAuto(false);
+    onCreate(deck);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAuto, busy, deck, debouncedText, text, result, resultKey]);
+
+  function loadFavorite(favorite, create = false) {
+    setText(favorite.text || "");
+    setOverrides(favorite.overrides ? structuredClone(favorite.overrides) : {});
+    if (favorite.brand && favorite.brand !== brand) onBrand?.(favorite.brand);
+    if (favorite.themeId) onTheme?.(favorite.themeId);
+    setPendingAuto(create);
+  }
+
+  async function confirmSave() {
+    const clean = String(saving?.name || "").trim();
+    if (!clean) return;
+    try {
+      await saveFavorite({ name: clean, text, overrides, brand, themeId });
+      setSaving(null);
+      setSavedFlash(`“${clean}” salvo — aparece em “Pedidos salvos” para todo o escritório.`);
+      setTimeout(() => setSavedFlash(""), 5000);
+    } catch (error) {
+      console.error(error);
+      setSavedFlash("Não consegui salvar o pedido agora — confira a conexão e tente de novo.");
+    }
+  }
+
+  async function removeFavorite(favorite) {
+    if (!window.confirm(`Apagar o pedido salvo “${favorite.name}”? Ele some para todo o escritório.`)) return;
+    try {
+      await deleteFavorite(favorite.id);
+    } catch (error) {
+      console.error(error);
+      window.alert("Não consegui apagar agora — confira a conexão.");
+    }
+  }
+
   const set = (patch) => setOverrides((current) => ({ ...current, ...patch }));
   const toggleTone = (id) => set({ tones: tones.includes(id) ? tones.filter((item) => item !== id) : [...tones, id] });
   const removeTopic = (id) =>
@@ -240,6 +299,30 @@ export default function AssistantBuilder({ env, brand, themeId, name, shared, on
   return (
     <div className="grid gap-6 p-6 lg:grid-cols-[1fr_400px]">
       <div className="flex min-w-0 flex-col gap-5">
+        {favorites.length > 0 && (
+          <div className="assistant-favoritos rounded-xl bg-surface-muted p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-[12px] font-medium text-ink-600">
+              <Bookmark size={13} className="text-accent-500" /> Pedidos salvos do escritório
+              <span className="font-normal text-ink-400">— “Gerar” monta a apresentação desta empresa na hora</span>
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {favorites.map((favorite) => (
+                <span key={favorite.id} className="assistant-favorito group inline-flex h-8 items-center rounded-full border border-line bg-surface-card pl-3 pr-1 text-[12.5px] text-ink-700" title={favorite.text}>
+                  <button type="button" onClick={() => loadFavorite(favorite)} className="max-w-[220px] truncate hover:text-accent-700" title="Carregar o pedido para ajustar antes de criar">
+                    {favorite.name}
+                  </button>
+                  <button type="button" onClick={() => loadFavorite(favorite, true)} className="assistant-gerar ml-1.5 flex h-6 items-center gap-1 rounded-full bg-accent-500 px-2 text-[11px] font-semibold text-white hover:bg-accent-600" title="Montar e criar a apresentação com este pedido">
+                    <Play size={10} fill="currentColor" /> Gerar
+                  </button>
+                  <button type="button" onClick={() => removeFavorite(favorite)} className="ml-0.5 hidden h-6 w-6 items-center justify-center rounded-full text-ink-300 hover:bg-danger-50 hover:text-danger-600 group-hover:flex" title="Apagar este pedido salvo">
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+            </div>
+            {pendingAuto && <p className="mt-2 text-[12px] font-medium text-accent-700">Montando a apresentação com o pedido salvo…</p>}
+          </div>
+        )}
         <div>
           <div className="mb-2 flex items-center justify-between gap-2">
             <p className="flex items-center gap-1.5 text-[12px] font-medium text-ink-600">
@@ -486,6 +569,40 @@ export default function AssistantBuilder({ env, brand, themeId, name, shared, on
         >
           <Sparkles size={16} /> Criar e editar
         </button>
+        {saving ? (
+          <div className="flex flex-col gap-2 rounded-xl border border-line p-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-[11.5px] font-medium text-ink-600">Nome do pedido salvo</span>
+              <input
+                autoFocus
+                value={saving.name}
+                onChange={(event) => setSaving({ name: event.target.value })}
+                onKeyDown={(event) => event.key === "Enter" && confirmSave()}
+                className="assistant-nome-favorito h-9 rounded-lg border border-line bg-surface-card px-2.5 text-[13px] outline-none focus:border-accent-400"
+              />
+            </label>
+            <p className="text-[11px] leading-snug text-ink-400">Guarda o texto e os seus ajustes (público, jeito, assuntos, tamanho, comparação), a marca e o tema. O período não vai junto: em cada empresa vale o que o texto disser (“mês passado”) ou o da tela.</p>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setSaving(null)} className="h-8 rounded-lg px-3 text-[12.5px] text-ink-500 hover:bg-surface-muted">
+                Cancelar
+              </button>
+              <button type="button" onClick={confirmSave} disabled={!saving.name.trim()} className="assistant-confirmar-favorito h-8 rounded-lg bg-navy-900 px-3 text-[12.5px] font-semibold text-white disabled:opacity-40">
+                Salvar pedido
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled={!text.trim()}
+            onClick={() => setSaving({ name: suggestFavoriteName(request, text) })}
+            className="assistant-salvar-favorito flex h-9 items-center justify-center gap-1.5 rounded-lg border border-line text-[12.5px] font-medium text-ink-600 hover:border-accent-300 hover:text-accent-700 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Guardar este pedido para gerar a mesma apresentação de outros clientes com um clique"
+          >
+            <BookmarkPlus size={14} /> Salvar este pedido
+          </button>
+        )}
+        {savedFlash && <p className="text-center text-[11.5px] font-medium text-success-600">{savedFlash}</p>}
         <p className="text-center text-[11px] leading-snug text-ink-400">Gráficos e números se atualizam sozinhos; os textos são uma sugestão — tudo continua editável.</p>
       </div>
     </div>

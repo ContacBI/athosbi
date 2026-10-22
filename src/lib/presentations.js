@@ -1183,6 +1183,23 @@ export function duplicatePresentation(id) {
   return copy;
 }
 
+// Cópia de uma apresentação pra OUTRA empresa/grupo: ids novos, sem o
+// período (lá vale o período escolhido na empresa de destino) e com a
+// origem anotada.
+export function deckCopyForOtherWorkspace(source) {
+  const now = new Date().toISOString();
+  return {
+    ...structuredClone(source),
+    id: newId("pr"),
+    createdAt: now,
+    updatedAt: now,
+    createdBy: state.userEmail || "",
+    period: null,
+    copiedFrom: activeWorkspaceName() || "",
+    slides: source.slides.map(cloneSlide),
+  };
+}
+
 // Imagens entram no próprio registro (não há bucket de arquivos no app):
 // reduz pra no máximo 1600px e JPEG — uma foto de celular de 4 MB vira uns
 // 200 KB. PNG com transparência (logo) fica PNG, só redimensionado.

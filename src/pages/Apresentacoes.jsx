@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Copy, Download, LayoutTemplate, MoreHorizontal, Pencil, Play, Plus, Presentation, Sparkles, Trash2 } from "lucide-react";
+import { Bookmark, Building2, Copy, Download, LayoutTemplate, MoreHorizontal, Pencil, Play, Plus, Presentation, Search, Sparkles, Trash2, X } from "lucide-react";
 import { useAppState, setData } from "../data/useStore.js";
 import { buildDashboardContext } from "../lib/dashboardData.js";
-import { isResponsavelForGroup } from "../lib/colaboradores.js";
-import { DECK_TEMPLATES, THEMES, deletePresentation, duplicatePresentation, fontStack, makePresentation, themeById, tokenInfo, upsertPresentation } from "../lib/presentations.js";
+import { companiesResponsavel, groupsResponsavel, isResponsavelForGroup } from "../lib/colaboradores.js";
+import { DECK_TEMPLATES, THEMES, deckCopyForOtherWorkspace, deletePresentation, duplicatePresentation, fontStack, makePresentation, themeById, tokenInfo, upsertPresentation } from "../lib/presentations.js";
+import { addPresentationToCompanies } from "../lib/companies.js";
+import { addPresentationToGroups } from "../lib/groups.js";
+import { loadOfficeLibrary } from "../lib/officeLibrary.js";
 import SlideEditor from "../components/slides/SlideEditor.jsx";
 import AssistantBuilder from "../components/slides/AssistantBuilder.jsx";
 import PresentMode, { SlidesExporter, visibleSlides } from "../components/slides/PresentMode.jsx";
@@ -18,12 +21,12 @@ function formatWhen(iso) {
   return `${date.toLocaleDateString("pt-BR")} às ${date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
-function NewDeckModal({ onCreate, onClose, env }) {
+function NewDeckModal({ onCreate, onClose, env, initialFavorite = null, autoCreate = false }) {
   const [mode, setMode] = useState("contexto");
   const [name, setName] = useState("");
   const [templateId, setTemplateId] = useState("resultados");
-  const [themeId, setThemeId] = useState("athos-premium");
-  const [brand, setBrand] = useState("athos");
+  const [themeId, setThemeId] = useState(() => initialFavorite?.themeId || BRANDS.find((item) => item.id === initialFavorite?.brand)?.themeId || "athos-premium");
+  const [brand, setBrand] = useState(initialFavorite?.brand || "athos");
   const preview = useMemo(() => makePresentation({ templateId, themeId, brand }), [templateId, themeId, brand]);
 
   const nameField = (placeholder) => (
@@ -112,6 +115,9 @@ function NewDeckModal({ onCreate, onClose, env }) {
             setBrand(id);
             setThemeId(BRANDS.find((item) => item.id === id)?.themeId || themeId);
           }}
+          onTheme={(id) => THEMES.some((theme) => theme.id === id) && setThemeId(id)}
+          initialFavorite={initialFavorite}
+          autoCreate={autoCreate}
           shared={
             <div className="flex flex-col gap-5 rounded-xl border border-line p-4">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -169,7 +175,83 @@ function NewDeckModal({ onCreate, onClose, env }) {
   );
 }
 
-function DeckMenu({ onDuplicate, onDelete }) {
+// "Copiar para outras empresas": a apresentação (slides, tema, marca)
+// entra como uma nova em cada empresa/grupo marcado — os números e
+// gráficos passam a ser os de lá. Só aparecem as empresas que a pessoa
+// pode editar (admin vê a carteira toda).
+function CopyDeckModal({ deck, targets, onClose, onDone }) {
+  const [selected, setSelected] = useState(new Set());
+  const [search, setSearch] = useState("");
+  const term = search.trim().toLowerCase();
+  const shown = targets.filter((item) => !term || `${item.name} ${item.cnpj || ""} ${item.codigo || ""}`.toLowerCase().includes(term));
+  const sections = [
+    { label: "Empresas", items: shown.filter((item) => item.kind === "empresa") },
+    { label: "Grupos", items: shown.filter((item) => item.kind === "grupo") },
+  ].filter((section) => section.items.length);
+  const toggle = (id) =>
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const allShown = shown.length > 0 && shown.every((item) => selected.has(item.id));
+  function toggleAll() {
+    setSelected((current) => {
+      const next = new Set(current);
+      shown.forEach((item) => (allShown ? next.delete(item.id) : next.add(item.id)));
+      return next;
+    });
+  }
+  function apply() {
+    const chosen = targets.filter((item) => selected.has(item.id));
+    if (!chosen.length) return;
+    const make = () => deckCopyForOtherWorkspace(deck);
+    const companies = addPresentationToCompanies(make, chosen.filter((item) => item.kind === "empresa").map((item) => item.id));
+    const groups = addPresentationToGroups(make, chosen.filter((item) => item.kind === "grupo").map((item) => item.id));
+    onDone(companies + groups);
+  }
+  return (
+    <Modal title="Copiar para outras empresas" subtitle={`“${deck.name}” entra como uma apresentação nova em cada empresa marcada, com os números de lá.`} onClose={onClose} width="max-w-lg">
+      <div className="flex max-h-[60vh] flex-col">
+        <div className="flex items-center gap-2 border-b border-line px-6 py-3">
+          <label className="relative flex flex-1 items-center">
+            <Search size={14} className="pointer-events-none absolute left-2.5 text-ink-300" />
+            <input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar empresa…" className="h-9 w-full rounded-lg border border-line bg-surface-page pl-8 pr-3 text-[13px] outline-none focus:border-accent-400" />
+          </label>
+          <button type="button" onClick={toggleAll} disabled={!shown.length} className="h-9 rounded-lg px-2.5 text-[12px] font-medium text-accent-600 hover:bg-accent-50 disabled:opacity-40">
+            {allShown ? "Desmarcar" : "Marcar"} {term ? "os achados" : "todas"}
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-3">
+          {!targets.length && <p className="text-[13px] text-ink-400">Não há outra empresa que você possa editar.</p>}
+          {targets.length > 0 && !shown.length && <p className="text-[13px] text-ink-400">Nenhuma empresa com “{search}”.</p>}
+          {sections.map((section) => (
+            <div key={section.label} className="mb-3">
+              {sections.length > 1 && <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-ink-400">{section.label}</p>}
+              {section.items.map((item) => (
+                <label key={item.id} className={`copy-deck-alvo flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 ${selected.has(item.id) ? "bg-accent-50" : "hover:bg-surface-muted"}`}>
+                  <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggle(item.id)} className="h-4 w-4" />
+                  <span className="truncate text-[13px] text-ink-700">{item.name}</span>
+                </label>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-end gap-2 border-t border-line px-6 py-3">
+          <button type="button" onClick={onClose} className="h-9 rounded-lg px-3 text-[13px] text-ink-600 hover:bg-surface-muted">
+            Cancelar
+          </button>
+          <button type="button" onClick={apply} disabled={!selected.size} className="copy-deck-aplicar h-9 rounded-lg bg-accent-500 px-4 text-[13px] font-semibold text-white hover:bg-accent-600 disabled:opacity-40">
+            Copiar{selected.size ? ` para ${selected.size}` : ""}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function DeckMenu({ onDuplicate, onDelete, onCopyOut }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
@@ -179,10 +261,15 @@ function DeckMenu({ onDuplicate, onDelete }) {
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-[calc(100%+4px)] z-40 w-44 rounded-lg bg-surface-card p-1 shadow-lg ring-1 ring-line" onClick={() => setOpen(false)}>
+          <div className="absolute right-0 top-[calc(100%+4px)] z-40 w-56 rounded-lg bg-surface-card p-1 shadow-lg ring-1 ring-line" onClick={() => setOpen(false)}>
             <button type="button" onClick={onDuplicate} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-[13px] text-ink-700 hover:bg-surface-muted">
               <Copy size={14} /> Duplicar
             </button>
+            {onCopyOut && (
+              <button type="button" onClick={onCopyOut} className="deck-copiar-para flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] text-ink-700 hover:bg-surface-muted">
+                <Building2 size={14} /> Copiar para outras empresas
+              </button>
+            )}
             <button type="button" onClick={onDelete} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-[13px] text-danger-600 hover:bg-danger-50">
               <Trash2 size={14} /> Excluir
             </button>
@@ -203,7 +290,10 @@ export default function Apresentacoes() {
   const backTo = searchParams.get("voltar") === "celular" ? "/empresa/celular" : null;
   const autoPresented = useRef(false);
   const state = useAppState();
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(false); // true, ou { favorite, auto } vindo de um pedido salvo
+  const [copying, setCopying] = useState(null);
+  const [favoritesOpen, setFavoritesOpen] = useState(false);
+  const [flash, setFlash] = useState("");
   const [presenting, setPresenting] = useState(null); // { deck, index }
   const [exporting, setExporting] = useState(null); // { deck, only }
   const [error, setError] = useState("");
@@ -215,6 +305,16 @@ export default function Apresentacoes() {
     state.isAdmin || (company && (company.responsaveis || []).includes(state.userEmail)) || (state.activeGroupId && isResponsavelForGroup(state, state.activeGroupId))
   );
   const decks = state.presentations || [];
+  const favorites = [...(state.assistantFavorites || [])].sort((a, b) => String(a.name).localeCompare(String(b.name), "pt-BR"));
+  useEffect(() => {
+    loadOfficeLibrary();
+  }, []);
+  // Pra onde dá pra copiar uma apresentação: o que a pessoa edita (admin:
+  // a carteira toda), menos a própria empresa/grupo aberto.
+  const copyTargets = [
+    ...(state.isAdmin ? state.companies : companiesResponsavel(state)).filter((company) => state.activeGroupId || company.id !== state.activeCompanyId).map((company) => ({ ...company, kind: "empresa" })),
+    ...(state.isAdmin ? state.groups : groupsResponsavel(state)).filter((group) => group.id !== state.activeGroupId).map((group) => ({ ...group, kind: "grupo" })),
+  ].sort((a, b) => String(a.name).localeCompare(String(b.name), "pt-BR"));
   const deck = deckId ? decks.find((item) => item.id === deckId) || null : null;
 
   const ctx = useMemo(() => {
@@ -315,13 +415,56 @@ export default function Apresentacoes() {
           <p className="mt-1 text-[13px] text-ink-500">Slides com os números {state.activeGroupId ? "do grupo" : "da empresa"} — monte do seu jeito, apresente em tela cheia e baixe em PDF.</p>
         </div>
         {canEdit && (
-          <button type="button" onClick={() => setCreating(true)} className="flex h-10 items-center gap-2 rounded-lg bg-accent-500 px-4 text-[13px] font-semibold text-white shadow-sm hover:bg-accent-600">
-            <Plus size={16} /> Nova apresentação
-          </button>
+          <div className="flex items-center gap-2">
+            {favorites.length > 0 && (
+              <div className="relative">
+                <button type="button" onClick={() => setFavoritesOpen((value) => !value)} className="pedidos-salvos flex h-10 items-center gap-2 rounded-lg border border-line-strong bg-surface-card px-3.5 text-[13px] font-medium text-ink-700 hover:border-accent-300">
+                  <Bookmark size={15} className="text-accent-500" /> Pedidos salvos
+                </button>
+                {favoritesOpen && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setFavoritesOpen(false)} />
+                    <div className="absolute right-0 top-[calc(100%+6px)] z-40 w-80 rounded-xl bg-surface-card p-1.5 shadow-lg ring-1 ring-line">
+                      <p className="px-2.5 pb-1.5 pt-1 text-[11.5px] text-ink-400">Gera a apresentação desta empresa com um clique.</p>
+                      {favorites.map((favorite) => (
+                        <button
+                          key={favorite.id}
+                          type="button"
+                          onClick={() => {
+                            setFavoritesOpen(false);
+                            setCreating({ favorite, auto: true });
+                          }}
+                          className="pedido-salvo-gerar flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-surface-muted"
+                          title={favorite.text}
+                        >
+                          <Play size={13} className="shrink-0 text-accent-500" fill="currentColor" />
+                          <span className="min-w-0">
+                            <span className="block truncate text-[13px] font-medium text-ink-800">{favorite.name}</span>
+                            <span className="block truncate text-[11px] text-ink-400">{favorite.text}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            <button type="button" onClick={() => setCreating(true)} className="flex h-10 items-center gap-2 rounded-lg bg-accent-500 px-4 text-[13px] font-semibold text-white shadow-sm hover:bg-accent-600">
+              <Plus size={16} /> Nova apresentação
+            </button>
+          </div>
         )}
       </div>
 
       {error && <p className="rounded-lg bg-warning-50 px-4 py-2.5 text-[13px] text-warning-700">{error}</p>}
+      {flash && (
+        <p className="flex items-center justify-between gap-2 rounded-lg bg-success-50 px-4 py-2.5 text-[13px] text-success-600">
+          {flash}
+          <button type="button" onClick={() => setFlash("")} aria-label="Fechar">
+            <X size={14} />
+          </button>
+        </p>
+      )}
 
       {decks.length === 0 ? (
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-line-strong bg-surface-card px-6 py-16 text-center">
@@ -363,6 +506,7 @@ export default function Apresentacoes() {
                     {canEdit && (
                       <DeckMenu
                         onDuplicate={() => duplicatePresentation(item.id)?.id && setError("")}
+                        onCopyOut={() => setCopying(item)}
                         onDelete={() => {
                           if (window.confirm(`Excluir a apresentação "${item.name}"? Não dá pra desfazer.`)) deletePresentation(item.id).catch((err) => setError(err.message));
                         }}
@@ -386,7 +530,18 @@ export default function Apresentacoes() {
         </div>
       )}
 
-      {creating && <NewDeckModal env={env} onCreate={create} onClose={() => setCreating(false)} />}
+      {creating && <NewDeckModal env={env} onCreate={create} onClose={() => setCreating(false)} initialFavorite={creating.favorite || null} autoCreate={Boolean(creating.auto)} />}
+      {copying && (
+        <CopyDeckModal
+          deck={copying}
+          targets={copyTargets}
+          onClose={() => setCopying(null)}
+          onDone={(count) => {
+            setCopying(null);
+            setFlash(`“${copying.name}” copiada para ${count} ${count === 1 ? "empresa" : "empresas"}. Ela aparece em Apresentações de cada uma, com os números de lá.`);
+          }}
+        />
+      )}
       {overlays}
     </div>
   );

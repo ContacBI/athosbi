@@ -29,6 +29,7 @@ import {
   Undo2,
   ChartColumnBig,
   Sheet,
+  BookmarkPlus,
 } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import PeriodPicker from "../PeriodPicker.jsx";
@@ -37,7 +38,8 @@ import { BRANDS, brandLogoFor, loadBrandLogos, saveBrandLogos } from "../../lib/
 import SlideView from "./SlideView.jsx";
 import { SHAPES } from "./SlideView.jsx";
 import { BlockInspector, MultiInspector, SlideInspector, ThemeInspector } from "./Inspector.jsx";
-import { IconPicker, LayoutPicker, SlideThumb, WidgetPicker } from "./pickers.jsx";
+import { IconPicker, LayoutPicker, SaveSlideModal, SlideThumb, WidgetPicker } from "./pickers.jsx";
+import { deleteLibrarySlide, loadOfficeLibrary, saveSlideToLibrary, suggestSlideName } from "../../lib/officeLibrary.js";
 
 // Área de transferência dos blocos (Ctrl+C / Ctrl+V) — vale entre slides e
 // entre apresentações enquanto a aba estiver aberta.
@@ -556,6 +558,8 @@ export default function SlideEditor({ initial, ctx, info, readOnly, onExit, onPr
   const [saveState, setSaveState] = useState("saved");
   const [brandLogos, setBrandLogos] = useState([]);
   const [dragSlide, setDragSlide] = useState(null);
+  const [savingSlide, setSavingSlide] = useState(null); // slide sendo guardado na biblioteca
+  const [libraryFlash, setLibraryFlash] = useState("");
   const saveTimer = useRef(null);
   const pendingSave = useRef(false);
 
@@ -567,6 +571,7 @@ export default function SlideEditor({ initial, ctx, info, readOnly, onExit, onPr
 
   useEffect(() => {
     loadBrandLogos().then(setBrandLogos);
+    loadOfficeLibrary();
   }, []);
 
   const flushSave = useCallback(async () => {
@@ -810,6 +815,30 @@ export default function SlideEditor({ initial, ctx, info, readOnly, onExit, onPr
     setSlideIndex(index + 1);
     setSelected([]);
     setLayoutOpen(false);
+  }
+
+  // Slide da biblioteca do escritório: entra com ids novos e a logo/
+  // assinatura da marca desta apresentação.
+  function addLibrarySlide(entry) {
+    const [created] = applyBrand([cloneSlide(entry.slide)], deckRef.current.brand || "athos");
+    update((d) => {
+      const slides = [...d.slides];
+      slides.splice(index + 1, 0, created);
+      return { ...d, slides };
+    });
+    setSlideIndex(index + 1);
+    setSelected([]);
+    setLayoutOpen(false);
+  }
+
+  async function removeLibrarySlide(entry) {
+    if (!window.confirm(`Tirar “${entry.name}” da biblioteca do escritório? Os slides que já foram usados em apresentações continuam lá.`)) return;
+    try {
+      await deleteLibrarySlide(entry.id);
+    } catch (error) {
+      console.error(error);
+      window.alert("Não consegui tirar agora — confira a conexão.");
+    }
   }
 
   function duplicateSlide(i) {
@@ -1114,6 +1143,7 @@ export default function SlideEditor({ initial, ctx, info, readOnly, onExit, onPr
                   {!readOnly && (
                     <div className="absolute right-1 top-1 hidden gap-0.5 group-hover:flex">
                       <SlideAction title="Duplicar" onClick={() => duplicateSlide(i)} icon={Copy} />
+                      <SlideAction title="Guardar na biblioteca do escritório" onClick={() => setSavingSlide(item)} icon={BookmarkPlus} />
                       <SlideAction title={item.hidden ? "Mostrar" : "Pular na apresentação"} onClick={() => update((d) => ({ ...d, slides: d.slides.map((s, n2) => (n2 === i ? { ...s, hidden: !s.hidden } : s)) }))} icon={item.hidden ? Eye : EyeOff} />
                       {deck.slides.length > 1 && <SlideAction title="Apagar slide" onClick={() => deleteSlide(i)} icon={Trash2} danger />}
                     </div>
@@ -1220,7 +1250,33 @@ export default function SlideEditor({ initial, ctx, info, readOnly, onExit, onPr
 
       {picker && picker.type === "icon" && <IconPicker value={single?.icon} onPick={handlePick} onClose={() => setPicker(null)} />}
       {picker && picker.type !== "icon" && <WidgetPicker kind={picker.type} ctx={ctx} onPick={handlePick} onClose={() => setPicker(null)} />}
-      {layoutOpen && <LayoutPicker deck={deck} env={env} onPick={addSlide} onClose={() => setLayoutOpen(false)} />}
+      {layoutOpen && (
+        <LayoutPicker
+          deck={deck}
+          env={env}
+          onPick={addSlide}
+          onClose={() => setLayoutOpen(false)}
+          library={appState.slideLibrary || []}
+          onPickLibrary={addLibrarySlide}
+          onDeleteLibrary={removeLibrarySlide}
+        />
+      )}
+      {savingSlide && (
+        <SaveSlideModal
+          slide={savingSlide}
+          deck={deck}
+          env={env}
+          defaultName={suggestSlideName(savingSlide)}
+          onClose={() => setSavingSlide(null)}
+          onSave={async ({ name, brand }) => {
+            await saveSlideToLibrary({ name, brand, slide: savingSlide, theme: deck.theme });
+            setSavingSlide(null);
+            setLibraryFlash(`“${name}” guardado na biblioteca do escritório.`);
+            setTimeout(() => setLibraryFlash(""), 4000);
+          }}
+        />
+      )}
+      {libraryFlash && <div className="biblioteca-flash fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-navy-900 px-4 py-2 text-[13px] font-medium text-white shadow-lg">{libraryFlash}</div>}
     </div>
   );
 }

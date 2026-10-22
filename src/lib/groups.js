@@ -126,6 +126,22 @@ export function replicateGroupDashboardTabs(sourceId, targetIds) {
   return applied;
 }
 
+// Mesma ideia de addPresentationToCompanies (lib/companies.js), pros grupos.
+export function addPresentationToGroups(makeCopy, targetIds) {
+  const targetSet = new Set(targetIds);
+  targetSet.delete(state.activeGroupId);
+  if (!targetSet.size) return 0;
+  let applied = 0;
+  const groups = state.groups.map((group) => {
+    if (!targetSet.has(group.id)) return group;
+    applied += 1;
+    return { ...group, presentations: [...(group.presentations || []), makeCopy()], updatedAt: new Date().toISOString() };
+  });
+  writeStoredGroups(groups);
+  setData({ groups });
+  return applied;
+}
+
 // A group's consolidated workspace used as the model for individual
 // companies (member or not) — same idea as replicateGroupDashboardTabs, just
 // stamped onto state.companies instead of state.groups.
