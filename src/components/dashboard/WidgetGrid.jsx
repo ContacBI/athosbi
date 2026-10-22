@@ -665,19 +665,23 @@ function IndicatorRadarChart({ ctx }) {
             <PolarGrid stroke="var(--color-line)" />
             <PolarAngleAxis dataKey="indicator" tick={{ fontSize: 11, fill: "var(--color-ink-500)" }} />
             <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-            <RechartsRadar isAnimationActive={anim} name="Score" dataKey="score" stroke="var(--color-accent-500)" fill="var(--color-accent-500)" fillOpacity={0.35} />
+            <RechartsRadar isAnimationActive={anim} name="Empresa" dataKey="score" stroke="var(--color-accent-500)" fill="var(--color-accent-500)" fillOpacity={0.35} />
+            <RechartsRadar isAnimationActive={anim} name="Meta" dataKey="ref" stroke="var(--color-navy-700)" strokeDasharray="4 3" strokeWidth={1.5} fill="none" fillOpacity={0} />
             <Tooltip
               formatter={(value, name, props) => {
-                const raw = props?.payload?.raw;
-                if (raw == null) return "—";
-                return formatWidgetValue(raw, props?.payload?.format);
+                const item = props?.payload || {};
+                if (name === "Meta") return [item.meta != null ? formatWidgetValue(item.meta, item.format) : "referência padrão", "Meta da empresa"];
+                if (item.raw == null) return "—";
+                return [formatWidgetValue(item.raw, item.format), "Empresa"];
               }}
               contentStyle={{ fontSize: 12, borderRadius: 8 }}
             />
           </RadarChart>
         </ResponsiveContainer>
       </div>
-      <p className="mt-1 text-center text-[10.5px] text-ink-400">Posição relativa a uma faixa de referência (0–100), não uma meta da empresa.</p>
+      <p className="mt-1 text-center text-[10.5px] text-ink-400">
+        {data.some((item) => item.meta != null) ? "Tracejado: as metas da empresa (onde não há meta, a referência padrão). Fora do tracejado = melhor que a meta." : "Tracejado: referência padrão (liquidez 1, endividamento 2x, margem 3%, ROE 10%). Fora do tracejado = melhor."}
+      </p>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { budgetFor } from "../budget.js";
 import { buildCashBridge, bridgeSentence } from "../cashBridge.js";
 import { prazosMedios, topMatches } from "../prazos.js";
 import { projecaoDoCtx, projectionSentence, projectionShort } from "../projecao.js";
+import { activeGoals, breaksGoal, formatGoal, hasCustomGoals } from "../metas.js";
 
 // Projeção do ano (lib/projecao.js) — só quando o período vai até o último
 // mês fechado (é "o ano até agora") e ainda faltam meses.
@@ -410,6 +411,7 @@ export function buildFacts(ctx, period = {}) {
     budget: budgetFor(ctx),
     bridge: buildCashBridge(ctx),
     projecao: projectionFacts(ctx),
+    metas: activeGoals(),
   };
 }
 
@@ -463,20 +465,23 @@ function fmtMetric(metric, value) {
 function buildAlerts(f, cmp, label) {
   const alerts = [];
   const add = (id, topic, severity, title, text, action) => alerts.push({ id, topic, severity, title, text, action });
+  // Régua da empresa (lib/metas.js): sem meta própria, o padrão de sempre.
+  const goals = f.metas || {};
+  const metaNote = (id) => (goals[id]?.custom ? ` — a meta da empresa é ${formatGoal(id, goals[id].value)}` : "");
 
   if (Math.abs(f.diferencaBalanco) >= 1) add("balanco_nao_fecha", "balanco", 3, "Balanço não fecha", `Ativo e passivo + PL têm diferença de ${fmtMoney(f.diferencaBalanco)} — vale conferir antes de apresentar.`, "Conferir com a contabilidade a diferença do balanço antes da reunião");
   if (f.missing > 0) add("sem_depara", "balanco", 2, "Contas sem De/Para", `${f.missing} conta${f.missing === 1 ? "" : "s"} ainda sem De/Para — os números podem estar incompletos.`, "Completar o De/Para das contas pendentes");
 
   if (f.lucro < -0.5) add("prejuizo", "resultado", 3, "Prejuízo no período", `Resultado de ${fmtMoney(f.lucro)} em ${label}${f.receitaLiquida ? ` (${fmtPct(f.margemLiquida)} da receita)` : ""}.`, "Rever preços e as despesas que mais pesam para voltar ao lucro");
-  else if (f.receitaLiquida > 0 && f.margemLiquida < 3) add("margem_apertada", "margens", 2, "Margem apertada", `De cada R$ 100 vendidos sobraram só R$ ${nf(Math.max(0, f.margemLiquida), 2)}.`, "Atacar custos e despesas para abrir margem");
+  else if (f.receitaLiquida > 0 && breaksGoal("margemLiquida", f.margemLiquida, goals)) add("margem_apertada", "margens", 2, goals.margemLiquida.custom ? "Margem abaixo da meta" : "Margem apertada", `De cada R$ 100 vendidos sobraram só R$ ${nf(Math.max(0, f.margemLiquida), 2)}${metaNote("margemLiquida")}.`, "Atacar custos e despesas para abrir margem");
 
   if (f.ebitda < -0.5) add("ebitda_negativo", "ebitda", 3, "Operação não se paga", `EBITDA negativo de ${fmtMoney(f.ebitda)}: a operação consumiu recursos antes de juros e impostos.`, "Plano de corte de despesas e revisão de preços com metas mensais");
 
-  if (f.liquidezCorrente != null && f.liquidezCorrente < 1) add("liquidez_baixa", "liquidez", f.liquidezCorrente < 0.8 ? 3 : 2, "Liquidez abaixo de 1", `Para cada R$ 1 que vence no curto prazo há R$ ${fmtRatio(f.liquidezCorrente)} de ativos de curto prazo.`, "Alongar as obrigações de curto prazo e reforçar o capital de giro");
+  if (f.liquidezCorrente != null && breaksGoal("liquidezCorrente", f.liquidezCorrente, goals)) add("liquidez_baixa", "liquidez", f.liquidezCorrente < 0.8 * goals.liquidezCorrente.value ? 3 : 2, goals.liquidezCorrente.custom ? "Liquidez abaixo da meta" : "Liquidez abaixo de 1", `Para cada R$ 1 que vence no curto prazo há R$ ${fmtRatio(f.liquidezCorrente)} de ativos de curto prazo${metaNote("liquidezCorrente")}.`, "Alongar as obrigações de curto prazo e reforçar o capital de giro");
   if (f.capitalGiro < -0.5) add("capital_giro_negativo", "capitalGiro", 2, "Capital de giro negativo", `O passivo circulante supera o ativo circulante em ${fmtMoney(Math.abs(f.capitalGiro))}.`, "Renegociar prazos e evitar novas saídas de caixa de curto prazo");
-  if (f.endividamento != null && f.endividamento > 2 && f.pl.end > 0.5) add("endividamento_alto", "endividamento", f.endividamento > 3 ? 3 : 2, "Endividamento elevado", `O passivo é ${fmtRatio(f.endividamento)}x o patrimônio líquido.`, "Reduzir o passivo e reforçar o patrimônio (reter lucros)");
+  if (f.endividamento != null && breaksGoal("endividamento", f.endividamento, goals) && f.pl.end > 0.5) add("endividamento_alto", "endividamento", f.endividamento > 1.5 * goals.endividamento.value ? 3 : 2, goals.endividamento.custom ? "Endividamento acima da meta" : "Endividamento elevado", `O passivo é ${fmtRatio(f.endividamento)}x o patrimônio líquido${metaNote("endividamento")}.`, "Reduzir o passivo e reforçar o patrimônio (reter lucros)");
   if (f.composicaoEndividamento > 80 && f.passivo.end > 0.5) add("divida_curto_prazo", "endividamento", 2, "Obrigações concentradas no curto prazo", `${fmtPct(f.composicaoEndividamento, 0)} das obrigações vencem em até 12 meses.`, "Alongar o perfil das obrigações (trocar curto por longo prazo)");
-  if (f.dividaEbitda != null && f.dividaEbitda > 3) add("divida_ebitda", "endividamento", f.dividaEbitda > 4 ? 3 : 2, "Dívida alta para a geração de caixa", `A dívida líquida equivale a ${nf(f.dividaEbitda, 1)} anos de EBITDA.`, "Priorizar amortização e evitar novas dívidas");
+  if (f.dividaEbitda != null && breaksGoal("dividaEbitda", f.dividaEbitda, goals)) add("divida_ebitda", "endividamento", f.dividaEbitda > (4 / 3) * goals.dividaEbitda.value ? 3 : 2, goals.dividaEbitda.custom ? "Dívida acima da meta" : "Dívida alta para a geração de caixa", `A dívida líquida equivale a ${nf(f.dividaEbitda, 1)} anos de EBITDA${metaNote("dividaEbitda")}.`, "Priorizar amortização e evitar novas dívidas");
   if (f.ebitda > 0.5 && Math.abs(f.despFin) > 0.3 * f.ebitda) add("juros_pesados", "financeiro", 2, "Juros pesando no resultado", `Despesas financeiras consomem ${fmtPct(share(f.despFin, f.ebitda), 0)} do EBITDA.`, "Renegociar taxas e trocar dívidas caras");
 
   const cashChange = change(f.caixa.end, f.caixa.start);
@@ -490,7 +495,7 @@ function buildAlerts(f, cmp, label) {
 
   const estChange = change(f.estoques.end, f.estoques.start);
   if (estChange != null && estChange > 30 && f.estoques.end > 0.05 * Math.abs(f.ativo.end)) add("estoque_subiu", "estoques", 2, "Estoques subiram", `De ${fmtMoney(f.estoques.start)} para ${fmtMoney(f.estoques.end)} (${fmtSigned(estChange, 0)}) — dinheiro parado na prateleira.`, "Rever compras e girar o estoque parado");
-  if (f.pmr != null && f.pmr > 60) add("prazo_recebimento", "recebiveis", f.pmr > 90 ? 2 : 1, "Prazo de recebimento longo", `Os clientes levam em média ${fmtDays(f.pmr)} para pagar.`, "Rever a política de crédito e cobrança");
+  if (f.pmr != null && breaksGoal("pmr", f.pmr, goals)) add("prazo_recebimento", "recebiveis", f.pmr > 1.5 * goals.pmr.value ? 2 : 1, goals.pmr.custom ? "Prazo de recebimento acima da meta" : "Prazo de recebimento longo", `Os clientes levam em média ${fmtDays(f.pmr)} para pagar${metaNote("pmr")}.`, "Rever a política de crédito e cobrança");
   if (f.pmr != null && f.pmp != null && f.pmr > f.pmp + 15) add("descasamento_prazos", "capitalGiro", 1, "Recebe depois de pagar", `Recebe em ${fmtDays(f.pmr)} e paga em ${fmtDays(f.pmp)}: a empresa financia o cliente.`, "Negociar prazos maiores com fornecedores ou menores com clientes");
   if (f.pmeRaw != null && f.pme == null && f.estoques.end > 0.5) add("pme_estranho", "estoques", 1, "Estoque alto para o custo apurado", `O estoque equivale a mais de 2 anos do custo registrado na DRE — vale conferir a apuração do CMV.`, "Conferir com a contabilidade o custo das mercadorias vendidas");
 
@@ -540,6 +545,12 @@ function buildAlerts(f, cmp, label) {
 function buildPositives(f, cmp) {
   const items = [];
   const add = (id, topic, title, text) => items.push({ id, topic, title, text });
+  // Empresa com metas próprias e todas cumpridas (as que dá para medir).
+  if (hasCustomGoals(f.metas)) {
+    const values = { margemLiquida: f.receitaLiquida > 0 ? f.margemLiquida : null, liquidezCorrente: f.liquidezCorrente, endividamento: f.pl.end > 0.5 ? f.endividamento : null, pmr: f.pmr, dividaEbitda: f.dividaEbitda };
+    const custom = Object.entries(f.metas).filter(([id, goal]) => goal.custom && values[id] != null && Number.isFinite(values[id]));
+    if (custom.length && custom.every(([id]) => !breaksGoal(id, values[id], f.metas))) add("metas_ok", "indicadores", custom.length === 1 ? "Indicador dentro da meta" : "Indicadores dentro das metas", `${custom.length === 1 ? "A meta definida" : `As ${custom.length} metas definidas`} para a empresa foram cumpridas no período.`);
+  }
   if (f.lucro > 0.5 && f.margemLiquida >= 10) add("lucro", "resultado", "Lucro com boa margem", `Resultado de ${fmtMoney(f.lucro)}, ${fmtPct(f.margemLiquida)} da receita.`);
   else if (f.lucro > 0.5) add("lucro", "resultado", "Período no lucro", `Resultado positivo de ${fmtMoney(f.lucro)}.`);
   if (f.margemEbitda >= 15 && f.ebitda > 0.5) add("ebitda", "ebitda", "Operação gera caixa", `EBITDA de ${fmtMoney(f.ebitda)} (margem de ${fmtPct(f.margemEbitda)}).`);
@@ -1027,7 +1038,7 @@ function sectionBuilders(f, cmp, opts) {
         f.liquidezCorrente != null ? `Liquidez corrente: ${fmtRatio(f.liquidezCorrente)}` : "",
         f.endividamento != null ? `Endividamento: ${fmtRatio(f.endividamento)}x o PL` : "",
       ].filter(Boolean),
-      note: `${GLOSSARY.roe} O radar compara liquidez, endividamento, margem e ROE com referências de mercado (quanto mais para fora, melhor).`,
+      note: `${GLOSSARY.roe} O radar compara liquidez, endividamento, margem e ROE com ${hasCustomGoals(f.metas) ? "as metas da empresa (onde houver) e referências de mercado" : "referências de mercado"} (quanto mais para fora, melhor).`,
     }),
 
     equilibrio: () => {

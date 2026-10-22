@@ -314,6 +314,32 @@ check("Frase pronta para o assistente", /^Se o ritmo do ano continuar, A Exemplo
 const janeiro = projectYear({ ano: 2026, ctx: anoCtx, budgets: [orcProj], method: "media", today: new Date("2026-01-10T12:00:00") });
 check("Sem mês fechado: só o orçamento projeta o ano", !janeiro.available.media && janeiro.method === "orcamento" && near(janeiro.receita.provavel, 2400000), janeiro.method);
 
+// ── Metas dos indicadores por empresa ──
+section("Metas dos indicadores");
+const { goalsOf, parseGoalInput, cleanGoals } = await src("lib/metas.js");
+const padrao = goalsOf(company);
+check("Sem metas: vale a régua padrão (margem 3%, liquidez 1, endividamento 2x, prazo 60 dias)", padrao.margemLiquida.value === 3 && padrao.liquidezCorrente.value === 1 && padrao.endividamento.value === 2 && padrao.pmr.value === 60 && !padrao.pmr.custom, padrao);
+check("Lê o que a pessoa digita (\"1,2\", \"15%\", vazio)", parseGoalInput("1,2") === 1.2 && parseGoalInput("15%") === 15 && parseGoalInput(" ") === null && JSON.stringify(cleanGoals({ pmr: "45", margemLiquida: "" })) === '{"pmr":45}', null);
+const comMeta = (metasIndicadores) => {
+  state.companies = [{ ...company, metasIndicadores }];
+  const result = analyze(buildDashboardContext(), { period: PERIOD, label: "1º tri" });
+  state.companies = [company];
+  return result;
+};
+setCompanyState();
+const semMeta = analyze(buildDashboardContext(), { period: PERIOD, label: "1º tri" });
+const liq = semMeta.facts.liquidezCorrente;
+check(`Liquidez da empresa-exemplo (${liq?.toFixed(2)}) não dispara alerta pela régua padrão`, liq >= 1 && !semMeta.alerts.some((item) => item.id === "liquidez_baixa"), liq);
+const exigente = comMeta({ liquidezCorrente: Math.ceil((liq + 0.5) * 10) / 10 });
+const alertaMeta = exigente.alerts.find((item) => item.id === "liquidez_baixa");
+check("Meta de liquidez acima do realizado → alerta pela meta da empresa", alertaMeta?.title === "Liquidez abaixo da meta" && /a meta da empresa é/.test(alertaMeta.text), alertaMeta);
+const folgada = comMeta({ liquidezCorrente: Math.floor((liq - 0.2) * 10) / 10, margemLiquida: -50 });
+check("Metas cumpridas → ponto positivo \"dentro das metas\"", folgada.positives.some((item) => item.id === "metas_ok") && !folgada.alerts.some((item) => item.id === "liquidez_baixa"), folgada.positives.map((item) => item.id));
+state.companies = [{ ...company, metasIndicadores: { liquidezCorrente: Math.ceil((liq + 0.5) * 10) / 10 } }];
+const radar = buildDashboardContext().radarIndicators.find((item) => item.indicator === "Liquidez corrente");
+state.companies = [company];
+check("Radar: a meta fica a 60% do raio (contorno tracejado)", Math.abs(radar.ref - 60) < 0.01 && radar.meta != null && radar.score < 60, radar);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
