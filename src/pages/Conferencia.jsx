@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { ArrowDownUp, CalendarRange, Check, ChevronDown, ChevronRight, Copy, FilePlus2, RotateCcw, ScanSearch, TrendingUp } from "lucide-react";
 import { useAppState, setData, state } from "../data/useStore.js";
 import { persistActiveCompany } from "../lib/companies.js";
@@ -31,7 +32,10 @@ function setDismissed(companyId, ids) {
 export default function Conferencia() {
   const app = useAppState();
   const company = app.companies.find((item) => item.id === app.activeCompanyId) || null;
-  const [scope, setScope] = useState("periodo");
+  // Vindo do assistente de slides: o período da apresentação.
+  const location = useLocation();
+  const fromDeck = location.state?.periodo?.start && location.state?.periodo?.end ? location.state.periodo : null;
+  const [scope, setScope] = useState(fromDeck ? "apresentacao" : "periodo");
   const [kind, setKind] = useState("todos");
   const [showDismissed, setShowDismissed] = useState(false);
   const [open, setOpen] = useState(() => new Set());
@@ -40,12 +44,12 @@ export default function Conferencia() {
   const result = useMemo(
     () =>
       detectAnomalies(app.journal, {
-        start: scope === "periodo" ? app.periodStart : "",
-        end: scope === "periodo" ? app.periodEnd : "",
+        start: scope === "periodo" ? app.periodStart : scope === "apresentacao" ? fromDeck.start : "",
+        end: scope === "periodo" ? app.periodEnd : scope === "apresentacao" ? fromDeck.end : "",
         natureRules: app.natureRules,
         dismissed: dismissed || [],
       }),
-    [app.journal, app.periodStart, app.periodEnd, app.natureRules, dismissed, scope]
+    [app.journal, app.periodStart, app.periodEnd, app.natureRules, dismissed, scope, fromDeck]
   );
 
   if (app.activeGroupId || !company) {
@@ -94,6 +98,7 @@ export default function Conferencia() {
         <div className="flex flex-col items-end gap-1.5">
           <div className="inline-flex gap-0.5 rounded-full bg-surface-muted p-1">
             {[
+              ...(fromDeck ? [{ id: "apresentacao", label: `Apresentação: ${periodLabelPt(fromDeck.start, fromDeck.end)}` }] : []),
               { id: "periodo", label: periodLabelPt(app.periodStart, app.periodEnd) || "Período" },
               { id: "tudo", label: "Todo o razão" },
             ].map((item) => (
@@ -108,7 +113,7 @@ export default function Conferencia() {
                 <b className="font-semibold text-ink-800">{result.open}</b> para conferir{result.alta ? <> · <b className="font-semibold text-danger-600">{result.alta}</b> de prioridade alta</> : ""}
               </>
             ) : (
-              <span className="font-medium text-success-600">Nada estranho {scope === "periodo" ? "no período" : "no razão"}</span>
+              <span className="font-medium text-success-600">Nada estranho {scope === "tudo" ? "no razão" : "no período"}</span>
             )}
             {result.dismissed > 0 && ` · ${result.dismissed} marcado${result.dismissed === 1 ? "" : "s"} como certo${result.dismissed === 1 ? "" : "s"}`}
           </p>

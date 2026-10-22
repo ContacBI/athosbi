@@ -8,6 +8,8 @@ import { buildCatalog, comparisonPeriod, contextForPeriod, shortPeriod } from ".
 import { AUDIENCES, OCCASIONS, TONES, TOPICS, TOPIC_BY_ID } from "../../lib/assistant/vocab.js";
 import { friendlyPeriod, tokenInfo } from "../../lib/presentations.js";
 import { deleteFavorite, saveFavorite } from "../../lib/officeLibrary.js";
+import { detectAnomalies } from "../../lib/anomalias.js";
+import { useNavigate } from "react-router-dom";
 import { SlideThumb } from "./pickers.jsx";
 
 const EXAMPLES = [
@@ -295,6 +297,17 @@ export default function AssistantBuilder({ env, brand, themeId, name, shared, on
   const addable = TOPICS.filter((topic) => !topicIds.has(topic.id));
   const hasText = debouncedText.trim().length > 0;
   const periodLabel = period ? friendlyPeriod(period.start, period.end) : "—";
+  // Conferência antes de apresentar (ver pages/Conferencia.jsx): lançamentos
+  // de prioridade alta ainda abertos no período e contas sem De/Para — só
+  // para quem edita a empresa.
+  const navigate = useNavigate();
+  const editCompany = appState.activeGroupId ? null : appState.companies.find((item) => item.id === appState.activeCompanyId);
+  const canConfer = Boolean(editCompany) && (appState.isAdmin || (editCompany.responsaveis || []).includes(appState.userEmail));
+  const conferencia = useMemo(() => {
+    if (!canConfer || !period || !appState.journal.length) return null;
+    const found = detectAnomalies(appState.journal, { start: period.start, end: period.end, natureRules: appState.natureRules, dismissed: editCompany.anomaliasOk || [] });
+    return { alta: found.alta, open: found.open, missing: result?.analysis?.facts?.missing || 0 };
+  }, [canConfer, period?.start, period?.end, appState.journal, appState.natureRules, editCompany, result]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="grid gap-6 p-6 lg:grid-cols-[1fr_400px]">
@@ -422,6 +435,21 @@ export default function AssistantBuilder({ env, brand, themeId, name, shared, on
               )}
               {!overrides.period && request.period?.note && <span className="w-full text-[11.5px] text-ink-400">{request.period.note}</span>}
               {!overrides.period && !request.period && hasText && <span className="w-full text-[11.5px] text-ink-400">Não vi período no pedido — usei o da tela.</span>}
+              {conferencia && (conferencia.alta > 0 || conferencia.missing > 0) && (
+                <span className="assistant-conferencia flex w-full flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-warning-50 px-2.5 py-1.5 text-[12px] text-warning-700">
+                  <TriangleAlert size={13} className="shrink-0" />
+                  <span>
+                    Antes de apresentar:{" "}
+                    {[conferencia.alta > 0 && `${conferencia.alta} ${conferencia.alta === 1 ? "lançamento" : "lançamentos"} de prioridade alta para conferir`, conferencia.missing > 0 && `${conferencia.missing} ${conferencia.missing === 1 ? "conta" : "contas"} sem De/Para`].filter(Boolean).join(" e ")}{" "}
+                    neste período.
+                  </span>
+                  {conferencia.alta > 0 && (
+                    <button type="button" onClick={() => navigate("/empresa/conferencia", { state: { periodo: { start: period.start, end: period.end } } })} className="assistant-conferir font-semibold underline">
+                      Conferir agora
+                    </button>
+                  )}
+                </span>
+              )}
             </Row>
             <Row label="Para quem">
               <Select value={overrides.audience ?? request.audience?.id ?? ""} onChange={(value) => set({ audience: value })} options={[{ value: "", label: "Geral" }, ...AUDIENCES.map((a) => ({ value: a.id, label: a.label }))]} />

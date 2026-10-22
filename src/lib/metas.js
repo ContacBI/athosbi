@@ -73,3 +73,21 @@ export function breaksGoal(id, value, goals) {
   if (value == null || !Number.isFinite(Number(value)) || target == null) return false;
   return goal.direction === "min" ? value < target : value > target;
 }
+
+// Cards do B.I. que mostram a meta da empresa (só quando ela tem meta
+// própria para o indicador): id do card → id da meta.
+export const GOAL_BY_WIDGET = {
+  ratio_margem_liquida: "margemLiquida",
+  ratio_liquidez_corrente: "liquidezCorrente",
+  ratio_endividamento: "endividamento",
+  prazo_recebimento: "pmr",
+};
+
+// { label: "meta ≥ 1,2x", ok: true } para o card, ou null.
+export function cardGoal(widgetId, value, goals = activeGoals()) {
+  const id = GOAL_BY_WIDGET[widgetId];
+  const goal = id ? goals[id] : null;
+  if (!goal?.custom || value == null || !Number.isFinite(Number(value))) return null;
+  const def = INDICATOR_GOALS.find((item) => item.id === id);
+  return { label: `meta ${def.direction === "min" ? "≥" : "≤"} ${formatGoal(id, goal.value)}`, ok: !breaksGoal(id, Number(value), goals) };
+}
