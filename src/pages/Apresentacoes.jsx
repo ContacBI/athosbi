@@ -379,7 +379,7 @@ export default function Apresentacoes() {
           }}
         />
       )}
-      {exporting && <SlidesExporter deck={exporting.deck} env={env} only={exporting.only} onDone={() => setExporting(null)} />}
+      {exporting && <SlidesExporter deck={exporting.deck} env={env} only={exporting.only} format={exporting.format} onDone={() => setExporting(null)} />}
       {sharing && <ShareDeckModal deck={sharing} env={env} onClose={() => setSharing(null)} />}
     </>
   );
@@ -405,7 +405,7 @@ export default function Apresentacoes() {
           readOnly={!canEdit}
           onExit={() => navigate("/empresa/apresentacoes")}
           onPresent={(current, index) => setPresenting({ deck: current, index })}
-          onExport={(current, only) => setExporting({ deck: current, only })}
+          onExport={(current, only, format) => setExporting({ deck: current, only, format })}
           onPeriodChange={onPeriodChange}
           onShare={canEdit ? (current) => setSharing(current) : undefined}
         />

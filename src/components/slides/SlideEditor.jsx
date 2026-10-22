@@ -31,6 +31,7 @@ import {
   Sheet,
   BookmarkPlus,
   Link2,
+  Presentation,
 } from "lucide-react";
 import { useAppState } from "../../data/useStore.js";
 import PeriodPicker from "../PeriodPicker.jsx";
@@ -1032,6 +1033,7 @@ export default function SlideEditor({ initial, ctx, info, readOnly, onExit, onPr
             )}
           >
             <MenuItem icon={FileText} label="PDF da apresentação" hint="Todos os slides (menos os marcados pra pular)" onClick={async () => { await flushSave(); onExport(deckRef.current, null); }} />
+            <MenuItem icon={Presentation} label="PowerPoint (.pptx)" hint="Textos editáveis; gráficos e quadros como imagem" onClick={async () => { await flushSave(); onExport(deckRef.current, null, "pptx"); }} />
             <MenuItem icon={FileImage} label="Imagem deste slide (PNG)" hint="Pra mandar no WhatsApp ou e-mail" onClick={() => onExport(deckRef.current, index)} />
           </Dropdown>
           {onShare && !readOnly && <ToolButton icon={Link2} label="Compartilhar" title="Enviar por link (sem login, com validade e senha opcional)" onClick={async () => { await flushSave(); onShare(deckRef.current); }} />}

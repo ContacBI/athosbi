@@ -340,6 +340,14 @@ const radar = buildDashboardContext().radarIndicators.find((item) => item.indica
 state.companies = [company];
 check("Radar: a meta fica a 60% do raio (contorno tracejado)", Math.abs(radar.ref - 60) < 0.01 && radar.meta != null && radar.score < 60, radar);
 
+// ── PowerPoint ──
+section("PowerPoint");
+const pptxLib = await src("lib/slidesPptx.js");
+check("Cores do slide viram cor do PowerPoint (transparente fica de fora)", pptxLib.hexColor("rgb(255, 102, 0)") === "FF6600" && pptxLib.hexColor("rgba(0, 0, 0, 0)") === null && pptxLib.hexColor("#abc") === "AABBCC", null);
+check("Fonte: primeira da lista, sem o \"Variable\"", pptxLib.firstFont('"Fraunces Variable", Georgia, serif') === "Fraunces" && pptxLib.firstFont("") === "Calibri", null);
+const paras = pptxLib.paragraphs([{ runs: [{ text: "Receita " }, { text: "subiu", bold: true }] }, { runs: [] }, { runs: [{ text: "fim" }] }], { list: "bullet", uppercase: true }, { fontSize: 12 });
+check("Texto: um parágrafo por linha, negrito e marcador mantidos", paras.length === 4 && paras[1].options.bold && paras[1].options.breakLine && paras[0].options.bullet === true && !paras[2].options.bullet && paras[3].text === "FIM" && !paras[3].options.breakLine, paras);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
