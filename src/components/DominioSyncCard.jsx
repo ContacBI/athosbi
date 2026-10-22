@@ -134,6 +134,8 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
   const balancete = (balancetes || []).find((item) => item.ano === String(year)) || null;
   const pending = withStatus.filter((month) => isDominioPending(month.status) && noPeriodo(month.competencia));
   const balancetePendente = Boolean(balancete && balancete.status !== "igual");
+  // Contas que a Central já mandou da Domínio (balancete do ano da tela) e ainda não têm De/Para — avisa ANTES de trazer, pra ninguém descobrir só no relatório.
+  const semDeParaNovas = balancete ? unmappedBalanceteAccounts(balancete.accounts || [], state.mappings || []) : [];
   const pendingCount = pending.length + (balancetePendente ? 1 : 0);
   const lastSync = [...withStatus.map((month) => month.syncedAt), balancete?.syncedAt || ""].reduce((latest, at) => (at > latest ? at : latest), "");
   // Só dá pra pedir mês que já começou.
@@ -402,6 +404,15 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
         {pedido && (
           <div className="mt-2">
             <PedidoStatus pedido={pedido} months={months} onCancelar={handleCancelar} cancelando={cancelando} />
+          </div>
+        )}
+        {semDeParaNovas.length > 0 && (
+          <div className="mt-2 flex items-start gap-1.5 rounded-lg border-l-[3px] border-warning-500 bg-warning-50 px-3 py-2 text-[12.5px] text-warning-700">
+            <TriangleAlert size={14} strokeWidth={2} className="mt-0.5 shrink-0" />
+            <span>
+              <b>{plural(semDeParaNovas.length, "conta nova da Domínio sem De/Para", "contas novas da Domínio sem De/Para")}</b> ({semDeParaNovas.slice(0, 4).map((account) => `${account.codigo} ${account.nome_conta}`).join(" · ")}
+              {semDeParaNovas.length > 4 ? ` e mais ${semDeParaNovas.length - 4}` : ""}). Vincule em <b>De/Para</b> logo depois de trazer os dados — enquanto não vincular, os valores dessas contas ficam fora dos relatórios.
+            </span>
           </div>
         )}
         {(loadError || balanceteError) && (
