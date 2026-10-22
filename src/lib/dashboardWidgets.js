@@ -221,6 +221,7 @@ export const WIDGET_CATALOG = [
   { id: "chart_margens_comparativo", label: "Comparativo de margens", category: "Gráficos", icon: BarChart3, defaultSize: "md", type: "chart", chart: "margens_comparativo" },
   { id: "chart_estrutura_capital", label: "Estrutura de capital (Passivo x PL)", category: "Gráficos", icon: PieChart, defaultSize: "md", type: "chart", chart: "estrutura_capital" },
   { id: "chart_dfc_cascata", label: "Cascata do fluxo de caixa (DFC)", category: "Gráficos", icon: Waves, defaultSize: "lg", type: "chart", chart: "dfc_cascata" },
+  { id: "chart_ponte_caixa", label: "Do lucro ao caixa (ponte)", category: "Gráficos", icon: Waves, defaultSize: "lg", type: "chart", chart: "ponte_caixa" },
   { id: "chart_caixa_evolucao", label: "Evolução do saldo de caixa", category: "Gráficos", icon: LineChart, defaultSize: "lg", type: "chart", chart: "caixa_evolucao" },
   { id: "chart_ativo_passivo_pl", label: "Ativo x Passivo x PL no tempo", category: "Gráficos", icon: Building, defaultSize: "lg", type: "chart", chart: "ativo_passivo_pl" },
   { id: "chart_receita_custo_despesa", label: "Receita x Custo x Despesa", category: "Gráficos", icon: BarChart3, defaultSize: "lg", type: "chart", chart: "receita_custo_despesa" },
