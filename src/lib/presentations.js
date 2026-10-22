@@ -833,6 +833,10 @@ function widget(widgetId, x, y, w, h, extra = {}) {
   return makeBlock("widget", { widgetId, x, y, w, h, ...extra });
 }
 
+// As mesmas peças, pro assistente de apresentação (lib/assistant/plan.js)
+// montar slides com o acabamento dos layouts prontos.
+export const slideParts = { M, brandLogo, eyebrow, title, header, lede, insight, kpi, widget };
+
 export const LAYOUTS = [
   {
     id: "capa",
