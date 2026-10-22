@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Smartphone } from "lucide-react";
 import CompanyTopBar from "./CompanyTopBar.jsx";
+import ModulesSidebar from "./ModulesSidebar.jsx";
 import WorkspaceLoading from "./WorkspaceLoading.jsx";
 import { useAppState } from "../data/useStore.js";
 import { isResponsavelForGroup } from "../lib/colaboradores.js";
@@ -26,8 +28,27 @@ import { setPrefersFullPanel } from "../lib/installApp.js";
 // os controles de edição quando falso).
 const EDIT_ONLY_PREFIXES = ["/empresa/relatorios", "/empresa/de-para", "/empresa/vinculo-dfc", "/empresa/conferencia"];
 
+const MODULOS_ABERTO_KEY = "athosbi.menuModulos";
+
 export default function CompanyLayout() {
   const state = useAppState();
+  // Menu lateral de módulos (B.I Contábil, Orçamento, Carga tributária): abre e fecha pelo botão do topo e lembra a escolha neste navegador.
+  const [modulosAberto, setModulosAberto] = useState(() => {
+    try {
+      return localStorage.getItem(MODULOS_ABERTO_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const alternarModulos = () =>
+    setModulosAberto((atual) => {
+      try {
+        localStorage.setItem(MODULOS_ABERTO_KEY, atual ? "0" : "1");
+      } catch {
+        /* sem armazenamento: só não lembra */
+      }
+      return !atual;
+    });
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -67,7 +88,7 @@ export default function CompanyLayout() {
   return (
     <PageActionsProvider>
       <div className="min-h-screen bg-surface-page">
-        <CompanyTopBar company={company} />
+        <CompanyTopBar company={company} modulesOpen={modulosAberto} onToggleModules={alternarModulos} />
         {isMobile && (
           <button
             type="button"
@@ -83,9 +104,19 @@ export default function CompanyLayout() {
         {/* --col-gap cascata pra qualquer grid de demonstrativo (DRE/BP/DFC)
             que use gap-x-[var(--col-gap,...)] — distância entre as colunas
             de mês, ajustável em ReportSettingsMenu (ver lib/density.js). */}
-        <main className="w-full px-6 py-5" style={{ "--col-gap": densityColumnGap(state.reportDensity) }}>
-          <Outlet />
-        </main>
+        <div className="flex">
+          {modulosAberto && (
+            <ModulesSidebar
+              overlay={isMobile}
+              isGroup={Boolean(state.activeGroupId)}
+              hasData={state.accounts.length > 0 || state.journal.length > 0}
+              onClose={alternarModulos}
+            />
+          )}
+          <main className="min-w-0 flex-1 px-6 py-5" style={{ "--col-gap": densityColumnGap(state.reportDensity) }}>
+            <Outlet />
+          </main>
+        </div>
       </div>
     </PageActionsProvider>
   );

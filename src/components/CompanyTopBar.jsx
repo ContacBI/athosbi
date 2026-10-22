@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, LayoutGrid, Network, Percent, Presentation, SlidersHorizontal, Target, TriangleAlert, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, LayoutGrid, Network, PanelLeft, Presentation, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
 import { useAppState, setData, state } from "../data/useStore.js";
 import { missingMappingAccounts } from "../data/calculations.js";
 import { groupCompanies, activeWorkspaceName } from "../lib/groups.js";
@@ -443,7 +443,7 @@ function PendingMappingsBadge({ company }) {
   );
 }
 
-export default function CompanyTopBar({ company }) {
+export default function CompanyTopBar({ company, modulesOpen = false, onToggleModules }) {
   const appState = useAppState();
   const navigate = useNavigate();
   const location = useLocation();
@@ -481,6 +481,18 @@ export default function CompanyTopBar({ company }) {
       )}
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
         <div className="flex min-w-0 items-center gap-3">
+          {onToggleModules && (
+            <button
+              type="button"
+              onClick={onToggleModules}
+              aria-label={modulesOpen ? "Fechar menu de módulos" : "Abrir menu de módulos"}
+              aria-pressed={Boolean(modulesOpen)}
+              title="Módulos: B.I Contábil, Orçamento e Carga tributária"
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors ${modulesOpen ? "border-white/40 bg-white/15 text-white" : "border-white/15 bg-white/5 text-white/85 hover:border-white/25 hover:bg-white/10 hover:text-white"}`}
+            >
+              <PanelLeft size={15} strokeWidth={1.8} />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => navigate("/")}
@@ -533,28 +545,6 @@ export default function CompanyTopBar({ company }) {
               end={appState.periodEnd}
               onChange={(start, end) => setData({ periodStart: start, periodEnd: end })}
             />
-          )}
-          {hasData && (
-            <button
-              type="button"
-              onClick={() => navigate("/empresa/orcamento")}
-              title="Orçamento x Realizado"
-              className={`${BAR_BUTTON} ${location.pathname.startsWith("/empresa/orcamento") ? "border-white/40 bg-white/15 text-white" : ""}`}
-            >
-              <Target size={13} strokeWidth={1.8} />
-              Orçamento
-            </button>
-          )}
-          {hasData && !appState.activeGroupId && (
-            <button
-              type="button"
-              onClick={() => navigate("/empresa/carga-tributaria")}
-              title="Carga tributária: impostos do fiscal ÷ faturamento"
-              className={`${BAR_BUTTON} ${location.pathname.startsWith("/empresa/carga-tributaria") ? "border-white/40 bg-white/15 text-white" : ""}`}
-            >
-              <Percent size={13} strokeWidth={1.8} />
-              Carga tributária
-            </button>
           )}
           <ReportsMenu />
           {/* Visível pra qualquer colaborador, responsável ou não — dá pra
