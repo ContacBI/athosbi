@@ -48,6 +48,7 @@ const BiAdmin = lazy(() => import("./pages/parametros/BiAdmin.jsx"));
 const AcessosAdmin = lazy(() => import("./pages/parametros/AcessosAdmin.jsx"));
 const Sistema = lazy(() => import("./pages/parametros/Sistema.jsx"));
 const PlanoGerencial = lazy(() => import("./pages/parametros/PlanoGerencial.jsx"));
+const HistoricoVersoes = lazy(() => import("./pages/parametros/HistoricoVersoes.jsx"));
 const PlanoPadraoAdmin = lazy(() => import("./pages/parametros/PlanoPadraoAdmin.jsx"));
 const ColaborarAdmin = lazy(() => import("./pages/parametros/ColaborarAdmin.jsx"));
 const ReformaParametros = lazy(() => import("./pages/parametros/ReformaParametros.jsx"));
@@ -195,6 +196,7 @@ function AuthedApp() {
           <Route path="acessos" element={<AcessosAdmin />} />
           <Route path="sistema" element={<Sistema />} />
           <Route path="sistema/plano-gerencial" element={<PlanoGerencial />} />
+          <Route path="sistema/historico" element={<HistoricoVersoes />} />
           <Route path="planos-padrao" element={<PlanoPadraoAdmin />} />
           <Route path="colaborar" element={<ColaborarAdmin />} />
           <Route path="reforma" element={<ReformaParametros />} />

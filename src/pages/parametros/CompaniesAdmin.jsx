@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "../../data/useStore.js";
 import { createCompany, updateCompany, deleteCompany, importBackupFile } from "../../lib/companies.js";
-import { exportFullBackup, importFullBackup } from "../../lib/fullBackup.js";
+import { exportCompanyBackup, exportFullBackup, importCompanyBackup, importFullBackup, inspectBackupFile } from "../../lib/fullBackup.js";
 import { listAdmins, listColaboradores } from "../../lib/colaboradores.js";
 import CompanyModal from "../../components/CompanyModal.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import PageHeader from "../../components/PageHeader.jsx";
-import { Building2, Users2, FileSpreadsheet, Pencil, Trash2, Repeat, SlidersHorizontal, Download, Upload, ArrowRight, UserCheck } from "lucide-react";
+import { Building2, Users2, FileSpreadsheet, Pencil, Trash2, Repeat, SlidersHorizontal, Download, ArrowRight, UserCheck, ArchiveRestore, FolderDown } from "lucide-react";
 
 // Tempo restante estimado a partir do ritmo médio até agora (tempo
 // decorrido / itens já feitos, projetado pros itens que faltam) — não dá
@@ -90,11 +90,60 @@ export default function CompaniesAdmin() {
     }
   }
 
+  async function handleCompanyBackup(company) {
+    const startedAt = Date.now();
+    setBusy({ label: `Gerando o backup de ${company.name}...`, done: 0, total: 0, startedAt });
+    try {
+      const result = await exportCompanyBackup(company.id, (done, total) => {
+        setBusy({ label: total && done < total ? "Baixando anexos..." : "Montando o arquivo...", done, total, startedAt });
+      });
+      setBusy(null);
+      alert(`Backup de ${result.name} gerado: ${result.journal.toLocaleString("pt-BR")} lançamentos, ${result.attachments} anexo(s).`);
+    } catch (error) {
+      console.error("Falha ao gerar o backup da empresa:", error);
+      setBusy(null);
+      alert("Não consegui gerar o backup desta empresa. Confira a conexão e tente de novo.");
+    }
+  }
+
   async function handleBackupImport(event) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
     const isZip = file.name.toLowerCase().endsWith(".zip");
+    // Backup de UMA empresa (empresa.json): substitui só ela.
+    if (isZip) {
+      let inspected = null;
+      try {
+        inspected = await inspectBackupFile(file);
+      } catch (error) {
+        console.error("Falha ao ler o arquivo de backup:", error);
+        alert("Não consegui ler esse arquivo de backup.");
+        return;
+      }
+      if (inspected.kind === "empresa") {
+        const when = inspected.exportedAt ? new Date(inspected.exportedAt).toLocaleString("pt-BR") : "data desconhecida";
+        if (!confirm(`Restaurar a empresa "${inspected.name}" do backup de ${when} (${inspected.journal.toLocaleString("pt-BR")} lançamentos)? Só esta empresa volta a ficar como estava no backup; as outras não mudam.`)) return;
+        const startedAt = Date.now();
+        setBusy({ label: "Restaurando a empresa...", done: 0, total: 0, startedAt });
+        try {
+          const result = await importCompanyBackup(inspected, (done, total) => {
+            setBusy({ label: total && done < total ? "Restaurando anexos..." : "Salvando dados...", done, total, startedAt });
+          });
+          setBusy(null);
+          alert(`${result.name} restaurada: ${result.journal.toLocaleString("pt-BR")} lançamentos, ${result.attachments} anexo(s).`);
+        } catch (error) {
+          console.error("Falha ao restaurar a empresa:", error);
+          setBusy(null);
+          alert(`Não consegui restaurar a empresa: ${error.message || error}`);
+        }
+        return;
+      }
+      if (inspected.kind !== "geral") {
+        alert("Esse arquivo não parece um backup do AthosBI.");
+        return;
+      }
+    }
     if (
       !confirm(
         "Restaurar esse backup substitui TUDO que está aqui agora (empresas, grupos" +
@@ -164,6 +213,12 @@ export default function CompaniesAdmin() {
             )}
           </div>
 
+          {busy && !state.isAdmin && (
+            <div className="mt-2 rounded-lg bg-surface-card py-2 shadow-sm">
+              <BackupProgress busy={busy} />
+            </div>
+          )}
+
           <div className="mt-3 flex flex-col gap-1.5">
             {state.companies.length === 0 && (
               <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-card px-6 py-12 text-center shadow-sm">
@@ -193,6 +248,16 @@ export default function CompaniesAdmin() {
                   </div>
                   {canEditCompany(company) && (
                     <div className="flex shrink-0 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleCompanyBackup(company)}
+                        disabled={Boolean(busy)}
+                        title="Baixar tudo desta empresa (backup)"
+                        aria-label={`Baixar backup de ${company.name}`}
+                        className="backup-empresa flex h-7 w-7 items-center justify-center rounded-md border border-line-strong text-ink-600 hover:bg-surface-muted disabled:opacity-40"
+                      >
+                        <FolderDown size={13} />
+                      </button>
                       <button
                         type="button"
                         onClick={() => setModalCompany(company)}
@@ -253,7 +318,7 @@ export default function CompaniesAdmin() {
           <div className="rounded-xl bg-surface-card p-3.5 shadow-sm">
             <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-ink-400">Backup geral</p>
             <p className="mb-2.5 text-[11px] text-ink-400">
-              Empresas, De/Para, relatórios criados, plano gerencial, indicadores, representantes e os anexos de todo mundo — tudo num arquivo só.
+              Empresas, De/Para, relatórios criados, plano gerencial, indicadores, representantes, biblioteca de apresentações e os anexos de todo mundo — tudo num arquivo só. Para uma empresa só, use o ícone de pasta na linha dela; o mesmo “Restaurar backup” aceita os dois tipos.
             </p>
             <div className="flex flex-col gap-1.5">
               <button
@@ -271,7 +336,7 @@ export default function CompaniesAdmin() {
                 disabled={Boolean(busy)}
                 className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] text-ink-700 hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <Upload size={14} strokeWidth={1.8} className="text-ink-400" />
+                <ArchiveRestore size={14} strokeWidth={1.8} className="text-ink-400" />
                 Restaurar backup
               </button>
               <input ref={backupInput} type="file" accept=".zip,.json" className="hidden" onChange={handleBackupImport} />

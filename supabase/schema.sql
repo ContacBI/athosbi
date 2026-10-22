@@ -943,3 +943,114 @@ revoke all on function public.open_shared_presentation(text, text, text) from pu
 grant execute on function public.open_shared_presentation(text, text, text) to anon, authenticated;
 revoke all on function public.set_shared_presentation_password(uuid, text) from public;
 grant execute on function public.set_shared_presentation_password(uuid, text) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Backup automático (Parâmetros → Sistema → Histórico de versões, ver
+-- src/pages/parametros/HistoricoVersoes.jsx): antes de qualquer gaveta do
+-- app_storage ser substituída ou apagada, a versão anterior vai para
+-- app_storage_history — no máximo uma cópia a cada 10 minutos por gaveta
+-- (exclusão e restauração sempre guardam). O razão fica de fora: vem da
+-- Domínio/importação e já mantém a versão anterior no outro "slot" (ver
+-- writeCompanyJournal em src/lib/persistence.js). Limpeza diária via
+-- pg_cron: 60 dias, e as 5 versões mais recentes de cada gaveta ficam
+-- sempre.
+create table if not exists public.app_storage_history (
+  id bigint generated always as identity primary key,
+  key text not null,
+  value jsonb not null,
+  saved_at timestamptz not null default now(),
+  saved_by text not null default lower(coalesce(auth.jwt()->>'email', '')),
+  motivo text not null default 'alteracao' check (motivo in ('alteracao', 'exclusao', 'restauracao'))
+);
+create index if not exists app_storage_history_key_idx on public.app_storage_history (key, saved_at desc);
+
+alter table public.app_storage_history enable row level security;
+revoke all on public.app_storage_history from anon;
+revoke insert, update, delete, truncate, references, trigger on public.app_storage_history from authenticated;
+drop policy if exists "app_storage_history_admin_select" on public.app_storage_history;
+create policy "app_storage_history_admin_select" on public.app_storage_history
+  for select to authenticated using (is_portal_admin());
+
+create or replace function public.app_storage_keep_history()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if old.key like 'portalGerencial.companyJournal.%' then
+    return coalesce(new, old);
+  end if;
+  if tg_op = 'UPDATE' then
+    if new.value is not distinct from old.value then
+      return new;
+    end if;
+    if coalesce(current_setting('athos.restaurando', true), '') <> 'sim'
+       and exists (select 1 from public.app_storage_history h where h.key = old.key and h.saved_at > now() - interval '10 minutes') then
+      return new;
+    end if;
+  end if;
+  insert into public.app_storage_history (key, value, motivo)
+  values (
+    old.key,
+    old.value,
+    case when tg_op = 'DELETE' then 'exclusao' when coalesce(current_setting('athos.restaurando', true), '') = 'sim' then 'restauracao' else 'alteracao' end
+  );
+  return coalesce(new, old);
+end;
+$$;
+revoke all on function public.app_storage_keep_history() from public;
+
+drop trigger if exists app_storage_history_trg on public.app_storage;
+create trigger app_storage_history_trg
+  before update or delete on public.app_storage
+  for each row execute function public.app_storage_keep_history();
+
+create or replace function public.restore_app_storage_version(p_history_id bigint)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  h public.app_storage_history%rowtype;
+  restored jsonb;
+begin
+  if not is_portal_admin() then
+    raise exception 'só o administrador pode restaurar versões';
+  end if;
+  select * into h from public.app_storage_history where id = p_history_id;
+  if not found then
+    raise exception 'versão não encontrada';
+  end if;
+  restored := h.value;
+  if h.key like 'portalGerencial.company.%' and jsonb_typeof(restored) = 'object' then
+    restored := jsonb_set(restored, '{updatedAt}', to_jsonb(to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')));
+  end if;
+  perform set_config('athos.restaurando', 'sim', true);
+  insert into public.app_storage (key, value, updated_at) values (h.key, restored, now())
+  on conflict (key) do update set value = excluded.value, updated_at = excluded.updated_at;
+  perform set_config('athos.restaurando', '', true);
+  return h.key;
+end;
+$$;
+revoke all on function public.restore_app_storage_version(bigint) from public;
+grant execute on function public.restore_app_storage_version(bigint) to authenticated;
+
+create extension if not exists pg_cron;
+select cron.unschedule(jobid) from cron.job where jobname = 'athos-historico-limpeza';
+select cron.schedule(
+  'athos-historico-limpeza',
+  '15 6 * * *',
+  $job$
+  delete from public.app_storage_history h
+   where h.saved_at < now() - interval '60 days'
+     and h.id not in (
+       select id from (
+         select id, row_number() over (partition by key order by saved_at desc) as rn
+           from public.app_storage_history
+       ) ranked
+       where rn <= 5
+     );
+  $job$
+);

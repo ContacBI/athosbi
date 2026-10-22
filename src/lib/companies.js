@@ -1034,6 +1034,30 @@ export async function restoreCompaniesAndGroups({ companies, groups, activeCompa
   return nextCompanies.length;
 }
 
+// Restaura UMA empresa a partir do backup dela (lib/fullBackup.js,
+// exportCompanyBackup): troca só o registro e o razão daquela empresa — as
+// outras nem são lidas nem regravadas. Mesmo "forçar a gravação" do
+// restore geral (ignora o que esta aba acha que já está salvo).
+export async function restoreOneCompany({ company, journal }) {
+  if (!company?.id) throw new Error("O arquivo não tem empresa.");
+  const restored = {
+    ...company,
+    journal: Array.isArray(journal) ? journal : [],
+    journalLoaded: true,
+    journalLoadFailed: false,
+    updatedAt: new Date().toISOString(),
+  };
+  lastWrittenRecords.delete(restored.id);
+  knownVersions.delete(restored.id);
+  lastWrittenJournals.delete(restored.id);
+  const exists = state.companies.some((item) => item.id === restored.id);
+  const companies = exists ? state.companies.map((item) => (item.id === restored.id ? restored : item)) : [...state.companies, restored];
+  await writeStoredCompanies(companies, { allowEmptyJournal: true });
+  setData({ companies });
+  if (state.activeCompanyId === restored.id && !state.activeGroupId) await selectCompany(restored.id, { skipPersist: true });
+  return restored;
+}
+
 export async function importBackupFile(file) {
   const text = await file.text();
   const payload = JSON.parse(text);
