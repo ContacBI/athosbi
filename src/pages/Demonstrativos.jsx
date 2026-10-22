@@ -28,6 +28,7 @@ import Sparkline from "../components/Sparkline.jsx";
 import MiniBar from "../components/MiniBar.jsx";
 import ReportSettingsMenu from "../components/ReportSettingsMenu.jsx";
 import PeriodPicker from "../components/PeriodPicker.jsx";
+import { comparisonPeriod, dataMonths } from "../lib/assistant/context.js";
 
 const MODES = [
   { id: "padrao", label: "Padrão" },
@@ -118,8 +119,8 @@ function RowLabel({ row, canToggle, isOpen, isHighlight }) {
   );
 }
 
-function gridTemplate({ mode, columnsCount, showTrend }) {
-  if (mode === "comparativo") return "minmax(260px,1fr) 118px 118px 118px 90px";
+function gridTemplate({ mode, columnsCount, showTrend, compareAV }) {
+  if (mode === "comparativo") return compareAV ? "minmax(260px,1fr) 118px 70px 118px 70px 158px 90px" : "minmax(260px,1fr) 118px 118px 158px 90px";
   if (mode === "vertical" && columnsCount) return `minmax(260px,1fr) ${Array(columnsCount).fill("170px").join(" ")}`;
   if (mode === "vertical") return "minmax(260px,1fr) 118px 170px";
   // Na análise horizontal cada mês mostra o valor e, ao lado, a variação %.
@@ -298,6 +299,27 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
   const [compareAEnd, setCompareAEnd] = useState("");
   const effectiveAStart = compareAStart || appState.periodStart;
   const effectiveAEnd = compareAEnd || appState.periodEnd;
+  // Comparativo: "% da receita/do ativo" de cada período e o destaque das
+  // maiores variações.
+  const [compareAV, setCompareAV] = useState(false);
+  const [highlightTop, setHighlightTop] = useState(true);
+  // Atalhos do Período B: o mesmo período do ano anterior ou o de mesmo
+  // tamanho logo antes. Entrando no Comparativo sem B, já vem com o ano
+  // anterior (ou o período anterior, se não houver dados do ano passado).
+  function presetB(kind) {
+    const range = comparisonPeriod({ start: effectiveAStart, end: effectiveAEnd }, kind);
+    if (!range) return;
+    setCompareStart(range.start);
+    setCompareEnd(range.end);
+  }
+  useEffect(() => {
+    if (mode !== "comparativo" || compareStart || !effectiveAStart || !effectiveAEnd) return;
+    const months = new Set(dataMonths());
+    const yoy = comparisonPeriod({ start: effectiveAStart, end: effectiveAEnd }, "yoy");
+    const hasYoy = yoy && [...months].some((month) => month >= yoy.start.slice(0, 7) && month <= yoy.end.slice(0, 7));
+    presetB(hasYoy ? "yoy" : "anterior");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
   const [ledgerRow, setLedgerRow] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [ebitdaChart, setEbitdaChart] = useState("evolucao");
@@ -369,8 +391,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
   ]);
 
   const showTrend = mode === "padrao" && !appState.reportCompare;
-  const template = gridTemplate({ mode, columnsCount: columns?.length || 0, showTrend });
-
+  const template = gridTemplate({ mode, columnsCount: columns?.length || 0, showTrend, compareAV });
   const dreTreeForExecutive = useMemo(() => {
     if (tab !== "DRE" || (mode !== "executiva" && mode !== "graficos")) return [];
     return buildReportTree("DRE");
@@ -413,6 +434,45 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
     if (!compareARows) return null;
     return new Map(compareARows.map((row) => [rowKey(row), row]));
   }, [compareARows]);
+
+  // Valores do comparativo de uma linha (A, B, variação, % e o "peso" de
+  // cada período na receita líquida/no ativo).
+  const compareBase = useMemo(() => {
+    if (mode !== "comparativo" || !compareMap) return null;
+    const code = tab === "DRE" ? "DRE.03" : "01";
+    const a = compareAMap?.get(code) || rows.find((row) => row.codigo_gerencial === code);
+    const b = compareMap.get(code);
+    return { a: a ? Math.abs(rowValue(a, tab)) : 0, b: b ? Math.abs(rowValue(b, tab)) : 0 };
+  }, [mode, tab, compareMap, compareAMap, rows]);
+  function compareValues(row) {
+    const compareARow = compareAMap?.get(rowKey(row));
+    const a = compareARow ? rowValue(compareARow, tab) : rowValue(row, tab);
+    const compareRow = compareMap?.get(rowKey(row));
+    const b = compareRow ? rowValue(compareRow, tab) : 0;
+    const diff = a - b;
+    const diffPct = Math.abs(b) > 0.005 ? (diff / Math.abs(b)) * 100 : null;
+    const avA = compareBase?.a ? (Math.abs(a) / compareBase.a) * 100 : null;
+    const avB = compareBase?.b ? (Math.abs(b) / compareBase.b) * 100 : null;
+    return { a, b, diff, diffPct, avA, avB };
+  }
+  // Período B sem nenhum valor (ex.: o ano anterior não foi importado):
+  // avisa em vez de mostrar "variações" que são só o Período A inteiro.
+  const compareBEmpty = !!compareRows && compareRows.every((row) => Math.abs(rowValue(row, tab)) < 0.005);
+  // As 5 linhas (fora os totais) que mais mudaram em R$.
+  const topVariations = useMemo(() => {
+    if (mode !== "comparativo" || !compareMap || compareBEmpty) return [];
+    return rows
+      .filter((row) => row.kind === "synthetic" && !HIGHLIGHT_CODES[tab]?.has(row.codigo_gerencial) && Number(row.nivel || 0) >= 2)
+      .map((row) => ({ row, ...compareValues(row) }))
+      .filter((item) => Math.abs(item.diff) > 0.5)
+      .sort((x, y) => Math.abs(y.diff) - Math.abs(x.diff))
+      .slice(0, 5);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, tab, rows, compareMap, compareAMap, compareBase, compareBEmpty]);
+  const topKeys = new Set(highlightTop ? topVariations.map((item) => rowKey(item.row)) : []);
+  // Na DRE os valores já têm sinal (receita +, despesa −): variação positiva
+  // é sempre favorável. No Balanço subir ou cair não é bom nem ruim.
+  const variationClass = (value) => (tab === "DRE" ? moneyClass(value) : "text-ink-700");
 
   const baseValue = useMemo(() => {
     if (mode !== "vertical") return 0;
@@ -462,12 +522,22 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
 
   function buildExportColumns() {
     if (mode === "comparativo") {
-      return [
-        { key: "a", label: "Período A" },
-        { key: "b", label: "Período B" },
-        { key: "diff", label: "Variação" },
-        { key: "diffPct", label: "Var. %" },
-      ];
+      const av = tab === "DRE" ? "% receita" : "% ativo";
+      return compareAV
+        ? [
+            { key: "a", label: "Período A" },
+            { key: "avA", label: av },
+            { key: "b", label: "Período B" },
+            { key: "avB", label: av },
+            { key: "diff", label: "Variação" },
+            { key: "diffPct", label: "Var. %" },
+          ]
+        : [
+            { key: "a", label: "Período A" },
+            { key: "b", label: "Período B" },
+            { key: "diff", label: "Variação" },
+            { key: "diffPct", label: "Var. %" },
+          ];
     }
     if (mode === "vertical" && baseValueByMonth) {
       return columns.map((month) => ({ key: month, label: columnLabel(month) }));
@@ -495,11 +565,10 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
         isAnalytic: row.kind !== "synthetic",
       };
       if (mode === "comparativo") {
-        const a = compareAMap ? rowValue(compareAMap.get(rowKey(row)) || {}, tab) : rowValue(row, tab);
-        const b = compareMap ? rowValue(compareMap.get(rowKey(row)) || {}, tab) : 0;
-        const diff = a - b;
-        const diffPct = b ? (diff / Math.abs(b)) * 100 : 0;
-        return { ...base, cells: { a: format(a), b: format(b), diff: format(diff), diffPct: format(diffPct, true) } };
+        const { a, b, diff, diffPct, avA, avB } = compareValues(row);
+        const cells = { a: format(a), b: format(b), diff: format(diff), diffPct: diffPct == null ? "—" : format(diffPct, true) };
+        if (compareAV) Object.assign(cells, { avA: avA == null ? "—" : format(avA, true), avB: avB == null ? "—" : format(avB, true) });
+        return { ...base, cells };
       }
       if (mode === "vertical" && baseValueByMonth) {
         const cells = {};
@@ -687,6 +756,20 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                   setCompareEnd(end);
                 }}
               />
+              <div className="flex items-center gap-1">
+                <button type="button" onClick={() => presetB("yoy")} className="cmp-yoy rounded-md bg-surface-muted px-2 py-1 text-[11.5px] font-medium text-ink-600 hover:bg-accent-50 hover:text-accent-700" title="Período B = mesmo período do ano anterior">
+                  Ano anterior
+                </button>
+                <button type="button" onClick={() => presetB("anterior")} className="cmp-anterior rounded-md bg-surface-muted px-2 py-1 text-[11.5px] font-medium text-ink-600 hover:bg-accent-50 hover:text-accent-700" title="Período B = período de mesmo tamanho logo antes do A">
+                  Período anterior
+                </button>
+              </div>
+              <label className="flex items-center gap-1.5 text-[11.5px] text-ink-600">
+                <input type="checkbox" className="cmp-av" checked={compareAV} onChange={(event) => setCompareAV(event.target.checked)} />% {tab === "DRE" ? "da receita" : "do ativo"}
+              </label>
+              <label className="flex items-center gap-1.5 text-[11.5px] text-ink-600">
+                <input type="checkbox" checked={highlightTop} onChange={(event) => setHighlightTop(event.target.checked)} />Destacar maiores variações
+              </label>
             </div>
           )}
         </div>
@@ -696,6 +779,28 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
         <div className="flex items-center gap-2.5 rounded-xl bg-warning-500/10 px-4 py-2.5 text-[12px] text-warning-500">
           <TriangleAlert size={15} strokeWidth={1.8} />
           {missing.length} conta{missing.length > 1 ? "s" : ""} do balancete ainda sem de/para — o valor delas não entra nos demonstrativos.
+        </div>
+      )}
+
+      {mode === "comparativo" && compareBEmpty && (
+        <div className="cmp-vazio flex items-center gap-2 rounded-xl bg-warning-50 px-4 py-3 text-[12.5px] text-warning-700">
+          <TriangleAlert size={15} />
+          Não há valores no Período B ({periodLabelPt(compareStart, compareEnd)}). Talvez esse período ainda não tenha sido importado — escolha outro período ou use "Período anterior".
+        </div>
+      )}
+
+      {mode === "comparativo" && compareMap && highlightTop && topVariations.length > 0 && (
+        <div className="cmp-resumo flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl bg-surface-card px-4 py-3 text-[12.5px] shadow-sm">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-400">Maiores variações</span>
+          {topVariations.map((item) => (
+            <span key={rowKey(item.row)} className="flex items-center gap-1.5 text-ink-700">
+              {item.row.categoria_gerencial}
+              <span className={`font-medium tabular-nums ${variationClass(item.diff)}`}>
+                {item.diff > 0 ? "+" : ""}
+                {money(item.diff)}
+              </span>
+            </span>
+          ))}
         </div>
       )}
 
@@ -799,7 +904,9 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                 {mode === "comparativo" && (
                   <>
                     <span className="text-right">Período A</span>
+                    {compareAV && <span className="text-right">{tab === "DRE" ? "% rec." : "% ativo"}</span>}
                     <span className="text-right">Período B</span>
+                    {compareAV && <span className="text-right">{tab === "DRE" ? "% rec." : "% ativo"}</span>}
                     <span className="text-right">Variação</span>
                     <span className="text-right">Var. %</span>
                   </>
@@ -878,18 +985,19 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
 
                     {mode === "comparativo" &&
                       (() => {
-                        const compareARow = compareAMap?.get(rowKey(row));
-                        const a = compareARow ? rowValue(compareARow, tab) : rowValue(row, tab);
-                        const compareRow = compareMap.get(rowKey(row));
-                        const b = compareRow ? rowValue(compareRow, tab) : 0;
-                        const diff = a - b;
-                        const diffPct = b ? (diff / Math.abs(b)) * 100 : a ? 100 : 0;
+                        const { a, b, diff, diffPct, avA, avB } = compareValues(row);
+                        const top = topKeys.has(rowKey(row));
                         return (
                           <>
                             <span className="text-right tabular-nums text-ink-600">{money(a)}</span>
+                            {compareAV && <span className="text-right text-[11.5px] tabular-nums text-ink-400">{avA == null ? "—" : formatPercent(avA)}</span>}
                             <span className="text-right tabular-nums text-ink-400">{money(b)}</span>
-                            <span className={`text-right tabular-nums font-medium ${moneyClass(diff)}`}>{money(diff)}</span>
-                            <span className={`text-right tabular-nums ${moneyClass(diffPct)}`}>{formatPercent(diffPct)}</span>
+                            {compareAV && <span className="text-right text-[11.5px] tabular-nums text-ink-400">{avB == null ? "—" : formatPercent(avB)}</span>}
+                            <span className={`flex items-center justify-end gap-1 whitespace-nowrap text-right tabular-nums font-medium ${variationClass(diff)}`}>
+                              {top && <span className="demo-top-var rounded bg-accent-100 px-1 text-[9.5px] font-bold uppercase text-accent-700" title="Uma das 5 maiores variações">top</span>}
+                              {money(diff)}
+                            </span>
+                            <span className={`text-right tabular-nums ${diffPct == null ? "text-ink-300" : variationClass(diffPct)}`}>{diffPct == null ? "—" : formatPercent(diffPct)}</span>
                           </>
                         );
                       })()}
