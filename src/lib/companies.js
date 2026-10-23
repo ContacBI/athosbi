@@ -351,11 +351,21 @@ export function applySiblingMappings(sourceCompanyId, newMappings) {
   let totalApplied = 0;
   const companies = state.companies.map((company) => {
     if (company.id === sourceCompanyId || company.planoPadraoId !== source.planoPadraoId) return company;
-    const already = new Set((company.mappings || []).map((row) => row.classificacao));
+    // Mudou o De/Para numa empresa do plano => muda nas irmãs (mesmo código + classificação da Domínio; o nome só como reserva): vínculo que já existia
+    // com OUTRO destino é trocado, e conta ainda sem vínculo ganha o vínculo (pedido do Izaias, 23/10/2026 — o grupo segue um De/Para só).
+    const acharIgual = (codigo, classificacao, nome) => byCode.get(`${codigo}||${classificacao}`) || bySignature.get(`${classificacao}||${normalizeName(nome)}`);
+    let trocados = 0;
+    const atuais = (company.mappings || []).map((row) => {
+      const match = acharIgual(row.codigo_conta, row.classificacao, row.nome_conta);
+      if (!match || match.codigo_gerencial === row.codigo_gerencial) return row;
+      trocados += 1;
+      return { ...row, codigo_gerencial: match.codigo_gerencial, categoria_gerencial: match.categoria_gerencial, demonstrativo: match.demonstrativo, grupo_macro: match.grupo_macro, observacao: `conforme ${source.name}` };
+    });
+    const already = new Set(atuais.map((row) => row.classificacao));
     const additions = (company.accounts || [])
       .filter((account) => !already.has(account.classificacao))
       .map((account) => {
-        const match = byCode.get(`${account.codigo}||${account.classificacao}`) || bySignature.get(`${account.classificacao}||${normalizeName(account.nome_conta)}`);
+        const match = acharIgual(account.codigo, account.classificacao, account.nome_conta);
         if (!match) return null;
         return {
           codigo_conta: account.codigo,
@@ -370,9 +380,9 @@ export function applySiblingMappings(sourceCompanyId, newMappings) {
         };
       })
       .filter(Boolean);
-    if (!additions.length) return company;
-    totalApplied += additions.length;
-    const mappings = [...(company.mappings || []), ...additions];
+    if (!additions.length && !trocados) return company;
+    totalApplied += additions.length + trocados;
+    const mappings = [...atuais, ...additions];
     return { ...company, mappings, journal: remapJournal(company.journal || [], mappings), updatedAt: new Date().toISOString() };
   });
   if (!totalApplied) return 0;
