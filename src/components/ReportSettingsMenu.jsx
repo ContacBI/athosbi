@@ -10,7 +10,7 @@ export default function ReportSettingsMenu({ tab }) {
 
   const nonOperatingOptions = state.plano
     .filter((row) => String(row.demonstrativo || "").toUpperCase() === "DRE")
-    .filter((row) => String(row.codigo_gerencial || "").startsWith("DRE.14."))
+    .filter((row) => String(row.codigo_gerencial || "").startsWith("DRE.15."))
     .filter((row) => Number(row.nivel || 0) >= 3)
     .sort((a, b) => String(a.codigo_gerencial).localeCompare(String(b.codigo_gerencial), "pt-BR", { numeric: true }));
 
@@ -124,7 +124,7 @@ export default function ReportSettingsMenu({ tab }) {
 
             {state.hideNonOperatingResults && (
               <div className="mt-1 max-h-40 overflow-y-auto rounded-lg bg-surface-muted p-2">
-                {nonOperatingOptions.length === 0 && <p className="px-1 text-[11px] text-ink-400">Nenhuma linha em DRE.14.</p>}
+                {nonOperatingOptions.length === 0 && <p className="px-1 text-[11px] text-ink-400">Nenhuma linha em DRE.15.</p>}
                 {nonOperatingOptions.map((row) => (
                   <label key={row.codigo_gerencial} className="flex items-center gap-2 px-1 py-1 text-[12px] text-ink-700">
                     <input

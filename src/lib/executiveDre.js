@@ -8,31 +8,31 @@ export const EXECUTIVE_DRE_MAP = [
   { code: "DEX.03", name: "Receita Líquida", sources: ["DRE.03"], formula: true },
   { code: "DEX.04", name: "(-) Custos dos Serviços", sources: ["DRE.04"] },
   { code: "DEX.05", name: "Resultado Bruto", sources: ["DRE.05"], formula: true },
-  { code: "DEX.06", name: "(-) Despesas Administrativas e Operacionais", sources: ["DRE.06", "DRE.07", "DRE.08"] },
-  { code: "DEX.07", name: "Outras Receitas/Despesas Operacionais", sources: ["DRE.09"] },
-  { code: "DEX.08", name: "Resultado antes do Resultado Financeiro (EBIT)", sources: ["DRE.12"], formula: true },
-  // DRE.11 é a depreciação "destacada" (linha própria). Nem toda empresa
+  { code: "DEX.06", name: "(-) Despesas Administrativas e Operacionais", sources: ["DRE.06", "DRE.07", "DRE.08", "DRE.09"] },
+  { code: "DEX.07", name: "Outras Receitas/Despesas Operacionais", sources: ["DRE.10"] },
+  { code: "DEX.08", name: "Resultado antes do Resultado Financeiro (EBIT)", sources: ["DRE.13"], formula: true },
+  // DRE.12 é a depreciação "destacada" (linha própria). Nem toda empresa
   // separa assim — parte da depreciação/amortização às vezes fica dentro
   // de Despesas Administrativas mesmo, na linha gerencial dedicada
   // "Depreciação e amortização administrativa" (DRE.07.07.03, dentro da
   // árvore de DRE.06/07/08 que compõe DEX.06). Soma as duas fontes aqui —
   // sem isso o EBITDA ficava subestimado sempre que a depreciação
-  // administrativa existia só dentro desse ramo, sem linha própria em DRE.11.
-  { code: "DEX.09", name: "(+) Depreciação e Amortização", sources: ["DRE.11", "DRE.07.07.03"], invert: true },
+  // administrativa existia só dentro desse ramo, sem linha própria em DRE.12.
+  { code: "DEX.09", name: "(+) Depreciação e Amortização", sources: ["DRE.12", "DRE.07.07.03"], invert: true },
   // EBITDA recalculado como EBIT + a linha acima (ver applyExecutiveEbitda
-  // logo abaixo) em vez de simplesmente reaproveitar DRE.10 — DRE.10 já
+  // logo abaixo) em vez de simplesmente reaproveitar DRE.11 — DRE.11 já
   // vem com QUALQUER depreciação administrativa embutida como custo (ela é
-  // filha de DRE.06 na árvore gerencial), então usar DRE.10 direto deixava
+  // filha de DRE.06 na árvore gerencial), então usar DRE.11 direto deixava
   // essa parcela de fora do "somar de volta". `sources` aqui vira só um
   // valor inicial, sempre sobrescrito depois.
-  { code: "DEX.10", name: "EBITDA", sources: ["DRE.10"], formula: true },
+  { code: "DEX.10", name: "EBITDA", sources: ["DRE.11"], formula: true },
   { code: "DEX.11", name: "Margem EBITDA (% da Receita Líquida)", percentage: true },
-  { code: "DEX.12", name: "Resultados não operacionais", sources: ["DRE.14"] },
-  { code: "DEX.13", name: "Receitas Financeiras", sources: ["DRE.13.01"] },
-  { code: "DEX.14", name: "(-) Despesas Financeiras", sources: ["DRE.13.02", "DRE.13.03"] },
-  { code: "DEX.15", name: "Resultado antes dos Tributos sobre o Lucro", sources: ["DRE.15"], formula: true },
-  { code: "DEX.16", name: "(-) IRPJ e CSLL", sources: ["DRE.16"] },
-  { code: "DEX.17", name: "Lucro (Prejuízo) Líquido do Período", sources: ["DRE.17"], formula: true },
+  { code: "DEX.12", name: "Resultados não operacionais", sources: ["DRE.15"] },
+  { code: "DEX.13", name: "Receitas Financeiras", sources: ["DRE.14.01"] },
+  { code: "DEX.14", name: "(-) Despesas Financeiras", sources: ["DRE.14.02", "DRE.14.03"] },
+  { code: "DEX.15", name: "Resultado antes dos Tributos sobre o Lucro", sources: ["DRE.16"], formula: true },
+  { code: "DEX.16", name: "(-) IRPJ e CSLL", sources: ["DRE.17"] },
+  { code: "DEX.17", name: "Lucro (Prejuízo) Líquido do Período", sources: ["DRE.18"], formula: true },
 ];
 
 // A shorter, non-EBITDA rollup — same "sum these DRE codes into one line"
@@ -44,11 +44,11 @@ export const DRE_RESUMIDA_MAP = [
   { code: "DRS.03", name: "Receita Líquida", sources: ["DRE.03"], formula: true },
   { code: "DRS.04", name: "(-) Custo", sources: ["DRE.04"] },
   { code: "DRS.05", name: "Resultado Bruto", sources: ["DRE.05"], formula: true },
-  { code: "DRS.06", name: "(-) Despesas operacionais", sources: ["DRE.06", "DRE.07", "DRE.08"] },
-  { code: "DRS.07", name: "Outras receitas e despesas", sources: ["DRE.09"] },
-  { code: "DRS.08", name: "Resultado financeiro", sources: ["DRE.13"] },
-  { code: "DRS.09", name: "Resultado antes dos tributos sobre o lucro", sources: ["DRE.15"], formula: true },
-  { code: "DRS.10", name: "Lucro (Prejuízo) líquido do período", sources: ["DRE.17"], formula: true },
+  { code: "DRS.06", name: "(-) Despesas operacionais", sources: ["DRE.06", "DRE.07", "DRE.08", "DRE.09"] },
+  { code: "DRS.07", name: "Outras receitas e despesas", sources: ["DRE.10"] },
+  { code: "DRS.08", name: "Resultado financeiro", sources: ["DRE.14"] },
+  { code: "DRS.09", name: "Resultado antes dos tributos sobre o lucro", sources: ["DRE.16"], formula: true },
+  { code: "DRS.10", name: "Lucro (Prejuízo) líquido do período", sources: ["DRE.18"], formula: true },
 ];
 
 export function buildExecutiveDreRows(dreRows, map = EXECUTIVE_DRE_MAP) {
@@ -95,7 +95,7 @@ export function buildExecutiveDreRows(dreRows, map = EXECUTIVE_DRE_MAP) {
 }
 
 // EBITDA = EBIT + Depreciação e Amortização somada de volta, sempre — em
-// vez de reaproveitar o subtotal DRE.10 (que já vem com qualquer
+// vez de reaproveitar o subtotal DRE.11 (que já vem com qualquer
 // depreciação administrativa embutida como custo, ver comentário de DEX.10
 // acima). Mesma mecânica de soma campo a campo que applyExecutiveMargin já
 // usa logo abaixo, só que soma em vez de dividir.

@@ -108,7 +108,7 @@ export function buildDashboardContext() {
       : null;
 
   // Rentabilidade e eficiência — cruzam DRE com Balanço.
-  const operatingResult = Number(findRow(dre, "DRE.12")?.saldo || 0);
+  const operatingResult = Number(findRow(dre, "DRE.13")?.saldo || 0);
   const roe = plTotal && Number(plTotal.saldo || 0) !== 0 ? (indicators.resultado / Math.abs(Number(plTotal.saldo || 0))) * 100 : 0;
   const roa = indicators.totalAtivo ? (indicators.resultado / Math.abs(indicators.totalAtivo)) * 100 : 0;
   const margemOperacional = indicators.receita ? (operatingResult / indicators.receita) * 100 : 0;
@@ -120,7 +120,7 @@ export function buildDashboardContext() {
       : 0;
 
   const revenueRow = findRow(dre, "DRE.03");
-  const resultRow = findRow(dre, "DRE.17") || findRow(dre, "DRE.12");
+  const resultRow = findRow(dre, "DRE.18") || findRow(dre, "DRE.13");
   const series = months.map((month) => ({
     month: monthLabel(month),
     receita: Number(revenueRow?.monthValues?.[month] || 0),
@@ -209,7 +209,7 @@ export function buildDashboardContext() {
 
   // --- Receita x Custo x Despesa mês a mês + margem líquida sobreposta ---
   const custoRow = findRow(dre, "DRE.04");
-  const despesaCodes = ["DRE.06", "DRE.07", "DRE.08", "DRE.09"];
+  const despesaCodes = ["DRE.06", "DRE.07", "DRE.08", "DRE.09", "DRE.10"];
   const despesaRows = despesaCodes.map((code) => findRow(dre, code)).filter(Boolean);
   const expenseSeries = months.map((month) => {
     const receita = Number(revenueRow?.monthValues?.[month] || 0);
@@ -228,7 +228,7 @@ export function buildDashboardContext() {
   // linhas de fórmula (são somatórios de outras, contariam a mesma
   // despesa duas vezes) e linhas com filhos sintéticos (mesmo motivo, num
   // plano com mais níveis).
-  const DRE_FORMULA_CODES = new Set(["DRE.03", "DRE.05", "DRE.10", "DRE.12", "DRE.15", "DRE.17"]);
+  const DRE_FORMULA_CODES = new Set(["DRE.03", "DRE.05", "DRE.11", "DRE.13", "DRE.16", "DRE.18"]);
   function periodValue(row) {
     if (!row) return 0;
     const values = Object.values(row.monthValues || {});
@@ -363,11 +363,11 @@ export function buildDashboardContext() {
     { name: "Custos", value: periodValue(findRow(dre, "DRE.04")), isTotal: false },
     { name: "Lucro bruto", value: Number(findRow(dre, "DRE.05")?.saldo || 0), isTotal: true },
     { name: "Despesas", value: despesasOpTotal, isTotal: false },
-    { name: "Result. operacional", value: Number(findRow(dre, "DRE.12")?.saldo || 0), isTotal: true },
-    { name: "Result. financeiro", value: periodValue(findRow(dre, "DRE.13")), isTotal: false },
-    { name: "Antes de IR/CSLL", value: Number(findRow(dre, "DRE.15")?.saldo || 0), isTotal: true },
-    { name: "IRPJ/CSLL", value: periodValue(findRow(dre, "DRE.16")), isTotal: false },
-    { name: "Resultado líquido", value: Number(findRow(dre, "DRE.17")?.saldo || 0), isTotal: true },
+    { name: "Result. operacional", value: Number(findRow(dre, "DRE.13")?.saldo || 0), isTotal: true },
+    { name: "Result. financeiro", value: periodValue(findRow(dre, "DRE.14")), isTotal: false },
+    { name: "Antes de IR/CSLL", value: Number(findRow(dre, "DRE.16")?.saldo || 0), isTotal: true },
+    { name: "IRPJ/CSLL", value: periodValue(findRow(dre, "DRE.17")), isTotal: false },
+    { name: "Resultado líquido", value: Number(findRow(dre, "DRE.18")?.saldo || 0), isTotal: true },
   ];
 
   // --- Composição das despesas operacionais: os 4 grandes grupos da DRE
@@ -378,7 +378,8 @@ export function buildDashboardContext() {
     "DRE.06": "Despesas comerciais",
     "DRE.07": "Despesas administrativas",
     "DRE.08": "Tributos e provisões",
-    "DRE.09": "Outros resultados operacionais",
+    "DRE.09": "Despesas indedutíveis",
+    "DRE.10": "Outros resultados operacionais",
   };
   const despesasComposicao = despesaCodes
     .map((code) => ({ name: DESPESA_GROUP_LABEL[code] || code, value: Math.abs(periodValue(findRow(dre, code))) }))

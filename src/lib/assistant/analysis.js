@@ -184,14 +184,14 @@ export function buildFacts(ctx, period = {}) {
   const despComerciais = dre("DRE.06");
   const despAdm = dre("DRE.07");
   const tribOp = dre("DRE.08");
-  const outrasOp = dre("DRE.09");
+  const outrasOp = dre("DRE.10");
   const despesasOp = despComerciais + despAdm + tribOp + outrasOp;
-  const resultadoOp = dre("DRE.12");
-  const resultadoFin = dre("DRE.13");
-  const naoOp = dre("DRE.14");
-  const lair = dre("DRE.15");
-  const irpj = dre("DRE.16");
-  const lucro = dre("DRE.17") || lair + irpj;
+  const resultadoOp = dre("DRE.13");
+  const resultadoFin = dre("DRE.14");
+  const naoOp = dre("DRE.15");
+  const lair = dre("DRE.16");
+  const irpj = dre("DRE.17");
+  const lucro = dre("DRE.18") || lair + irpj;
   const recFin = exec("DEX.13");
   const despFin = exec("DEX.14");
   const deprec = exec("DEX.09");
@@ -232,15 +232,15 @@ export function buildFacts(ctx, period = {}) {
   const tribOpRows = topMatches(ctx.dre, ["DRE.08"], /tribut|impost|taxa|iptu|ipva/);
   const tributosOperacionais = tribOpRows.reduce((sum, row) => sum + periodValue(row), 0);
   const impostos = impostosReceita + tributosOperacionais + irpj;
-  const taxLeaves = leavesUnder(ctx.dre, ["DRE.02", "DRE.08", "DRE.16"])
+  const taxLeaves = leavesUnder(ctx.dre, ["DRE.02", "DRE.08", "DRE.17"])
     .filter((row) => periodValue(row) < -0.5 && !cancelRows.some((cancel) => row.codigo_gerencial.startsWith(`${cancel.codigo_gerencial}.`)))
     .sort((a, b) => periodValue(a) - periodValue(b));
 
-  const expenseLeaves = leavesUnder(ctx.dre, ["DRE.06", "DRE.07", "DRE.08", "DRE.09"])
+  const expenseLeaves = leavesUnder(ctx.dre, ["DRE.06", "DRE.07", "DRE.08", "DRE.09", "DRE.10"])
     .map((row) => ({ code: row.codigo_gerencial, name: lineName(row.categoria_gerencial), value: periodValue(row) }))
     .filter((item) => item.value < -0.5)
     .sort((a, b) => a.value - b.value);
-  const expenseGroups = ["DRE.06", "DRE.07", "DRE.08", "DRE.09"]
+  const expenseGroups = ["DRE.06", "DRE.07", "DRE.08", "DRE.09", "DRE.10"]
     .flatMap((code) => childrenOf(ctx.dre, code))
     .map((row) => ({ code: row.codigo_gerencial, name: lineName(row.categoria_gerencial), value: periodValue(row) }))
     .filter((item) => item.value < -0.5)
@@ -277,7 +277,7 @@ export function buildFacts(ctx, period = {}) {
 
   const monthly = {
     receita: monthlyStats(dreMonthly("DRE.03"), months),
-    lucro: monthlyStats(dreMonthly("DRE.17").some((value) => value) ? dreMonthly("DRE.17") : (ctx.series || []).map((item) => item.resultado), months),
+    lucro: monthlyStats(dreMonthly("DRE.18").some((value) => value) ? dreMonthly("DRE.18") : (ctx.series || []).map((item) => item.resultado), months),
     ebitda: monthlyStats((ctx.ebitdaSeries || []).map((item) => item.ebitda), months),
     despesas: monthlyStats((ctx.expenseSeries || []).map((item) => Math.abs(item.despesa)), months),
     custos: monthlyStats((ctx.expenseSeries || []).map((item) => Math.abs(item.custo)), months),

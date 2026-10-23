@@ -328,14 +328,14 @@ export function buildDfcIndirect() {
       contas,
       qtd_lancamentos: contas.reduce((sum, conta) => sum + (conta.qtd_lancamentos || 0), 0),
     });
-  const resultMonths = rowMonths(dre, "DRE.17");
-  const depreciationMonths = rowMonths(dre, "DRE.11");
+  const resultMonths = rowMonths(dre, "DRE.18");
+  const depreciationMonths = rowMonths(dre, "DRE.12");
   const clientMonths = scaledMonths(rowMonths(bp, "01.01.02"), -1);
   const inventoryMonths = scaledMonths(rowMonths(bp, "01.01.03"), -1);
   const supplierMonths = rowMonths(bp, "02.01.01");
   const obligationMonths = sumMonths(rowMonths(bp, "02.01.03"), rowMonths(bp, "02.01.04"));
-  add("DFCI.OP.RESULTADO", "Resultado líquido do período", value(dre, "DRE.17"), "Operacional", "analytic", resultMonths, analyticBreakdown(dre, "DRE.17"));
-  add("DFCI.OP.DEPRECIACAO", "Depreciações e amortizações", value(dre, "DRE.11"), "Operacional", "analytic", depreciationMonths, analyticBreakdown(dre, "DRE.11"));
+  add("DFCI.OP.RESULTADO", "Resultado líquido do período", value(dre, "DRE.18"), "Operacional", "analytic", resultMonths, analyticBreakdown(dre, "DRE.18"));
+  add("DFCI.OP.DEPRECIACAO", "Depreciações e amortizações", value(dre, "DRE.12"), "Operacional", "analytic", depreciationMonths, analyticBreakdown(dre, "DRE.12"));
   add("DFCI.OP.CLIENTES", "Variação em clientes e outros recebíveis", -variation("01.01.02"), "Operacional", "analytic", clientMonths, analyticBreakdown(bp, "01.01.02"));
   add("DFCI.OP.ESTOQUES", "Variação em estoques", -variation("01.01.03"), "Operacional", "analytic", inventoryMonths, analyticBreakdown(bp, "01.01.03"));
   add("DFCI.OP.FORNECEDORES", "Variação em fornecedores", variation("02.01.01"), "Operacional", "analytic", supplierMonths, analyticBreakdown(bp, "02.01.01"));
@@ -510,8 +510,8 @@ export function buildReportTree(type, { comZeramento = false } = {}) {
 function applyBpPeriodResult(rows) {
   const targetCode = "03.02.01.05";
   const dreRows = buildReportTree("DRE", { comZeramento: true });
-  const resultRow = dreRows.find((row) => row.codigo_gerencial === "DRE.17")
-    || dreRows.find((row) => row.codigo_gerencial === "DRE.12");
+  const resultRow = dreRows.find((row) => row.codigo_gerencial === "DRE.18")
+    || dreRows.find((row) => row.codigo_gerencial === "DRE.13");
   if (!resultRow) return;
 
   const monthValues = resultRow.monthValues || {};
@@ -575,17 +575,17 @@ function dreResultBeforePeriodStart({ comZeramento = false } = {}) {
   });
 
   applyDreFormulaValues(values);
-  return values.get("DRE.17") || values.get("DRE.12") || 0;
+  return values.get("DRE.18") || values.get("DRE.13") || 0;
 }
 
 function applyDreFormulaValues(values) {
   [
     ["DRE.03", ["DRE.01", "DRE.02"]],
     ["DRE.05", ["DRE.03", "DRE.04"]],
-    ["DRE.10", ["DRE.05", "DRE.06", "DRE.07", "DRE.08", "DRE.09"]],
-    ["DRE.12", ["DRE.10", "DRE.11"]],
-    ["DRE.15", ["DRE.12", "DRE.13", "DRE.14"]],
-    ["DRE.17", ["DRE.15", "DRE.16"]],
+    ["DRE.11", ["DRE.05", "DRE.06", "DRE.07", "DRE.08", "DRE.09", "DRE.10"]],
+    ["DRE.13", ["DRE.11", "DRE.12"]],
+    ["DRE.16", ["DRE.13", "DRE.14", "DRE.15"]],
+    ["DRE.18", ["DRE.16", "DRE.17"]],
   ].forEach(([target, sources]) => {
     values.set(target, sources.reduce((sum, code) => sum + Number(values.get(code) || 0), 0));
   });
@@ -878,12 +878,12 @@ function classifyDfcEntry(cashEntry, counterpart, dfcConfig) {
 function dfcCodeHeuristic(code, cashValue, text = "") {
   if (code.startsWith("03.01")) return "DFC.FIN.CAPITAL";
   if (code.startsWith("02.01.02") || code.startsWith("02.02.01")) return cashValue >= 0 ? "DFC.FIN.EMPRESTIMOS_TOMADOS" : "DFC.FIN.EMPRESTIMOS_PAGOS";
-  if (code.startsWith("02.01.07") || code.startsWith("03.02.01.04") || code.startsWith("DRE.09.02.05")) return "DFC.FIN.LUCROS_DIV_PAGOS";
+  if (code.startsWith("02.01.07") || code.startsWith("03.02.01.04") || code.startsWith("DRE.10.02.05")) return "DFC.FIN.LUCROS_DIV_PAGOS";
   if (code.startsWith("01.02.03") || code.startsWith("01.02.04")) return cashValue >= 0 ? "DFC.INV.VENDA_ATIVOS" : "DFC.INV.IMOBILIZADO";
   if (code.startsWith("01.02.02")) return cashValue >= 0 ? "DFC.INV.VENDA_ATIVOS" : "DFC.INV.ACOES_COTAS";
-  if (code.startsWith("DRE.13.01")) return text.includes("emprest") ? "DFC.INV.JUROS_EMPRESTIMOS" : "DFC.OP.REC_FIN";
-  if (code.startsWith("DRE.13.02")) return "DFC.OP.DESP_FIN";
-  if (code.startsWith("DRE.02") || code.startsWith("DRE.08") || code.startsWith("DRE.16") || code.startsWith("02.01.03")) return "DFC.OP.TRIBUTOS";
+  if (code.startsWith("DRE.14.01")) return text.includes("emprest") ? "DFC.INV.JUROS_EMPRESTIMOS" : "DFC.OP.REC_FIN";
+  if (code.startsWith("DRE.14.02")) return "DFC.OP.DESP_FIN";
+  if (code.startsWith("DRE.02") || code.startsWith("DRE.08") || code.startsWith("DRE.17") || code.startsWith("02.01.03")) return "DFC.OP.TRIBUTOS";
   if (code.startsWith("02.01.04") || code.startsWith("DRE.04.03.07") || code.startsWith("DRE.07.01") || text.includes("salario") || text.includes("folha") || text.includes("fgts") || text.includes("inss")) return "DFC.OP.EMPREGADOS";
   if (code.startsWith("DRE.01") || code.startsWith("01.01.02.01")) return "DFC.OP.CLIENTES";
   if (code.startsWith("02.01.01") || code.startsWith("DRE.04") || code.startsWith("DRE.06") || code.startsWith("DRE.07")) return "DFC.OP.FORNECEDORES";
@@ -1211,10 +1211,10 @@ function applyDreFormulas(rows) {
   const formulas = [
     ["DRE.03", ["DRE.01", "DRE.02"]],
     ["DRE.05", ["DRE.03", "DRE.04"]],
-    ["DRE.10", ["DRE.05", "DRE.06", "DRE.07", "DRE.08", "DRE.09"]],
-    ["DRE.12", ["DRE.10", "DRE.11"]],
-    ["DRE.15", ["DRE.12", "DRE.13", "DRE.14"]],
-    ["DRE.17", ["DRE.15", "DRE.16"]],
+    ["DRE.11", ["DRE.05", "DRE.06", "DRE.07", "DRE.08", "DRE.09", "DRE.10"]],
+    ["DRE.13", ["DRE.11", "DRE.12"]],
+    ["DRE.16", ["DRE.13", "DRE.14", "DRE.15"]],
+    ["DRE.18", ["DRE.16", "DRE.17"]],
   ];
 
   formulas.forEach(([targetCode, sourceCodes]) => {
@@ -1260,7 +1260,7 @@ function applyNonOperatingExclusions(rows) {
 function topLevelExcludedNonOperatingCodes() {
   const codes = [...new Set((state.excludedNonOperatingCodes || [])
     .map((code) => String(code || "").trim())
-    .filter((code) => code.startsWith("DRE.14")))]
+    .filter((code) => code.startsWith("DRE.15")))]
     .sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
   return codes.filter((code) => !codes.some((candidate) => candidate !== code && isDescendantCode(code, candidate)));
 }
@@ -1433,12 +1433,12 @@ function applyNonOperatingVisibility(rows, type) {
 
 function removeDuplicateDreSubtotal(rows, type) {
   if (type !== "DRE") return rows;
-  const beforeTax = rows.find((row) => row.codigo_gerencial === "DRE.15");
-  const net = rows.find((row) => row.codigo_gerencial === "DRE.17");
+  const beforeTax = rows.find((row) => row.codigo_gerencial === "DRE.16");
+  const net = rows.find((row) => row.codigo_gerencial === "DRE.18");
   if (!beforeTax || !net) return rows;
   const sameTotal = nearZero(Number(beforeTax.saldo || 0) - Number(net.saldo || 0));
   const sameMonths = sameMonthValues(beforeTax.monthValues || {}, net.monthValues || {});
-  return sameTotal && sameMonths ? rows.filter((row) => row.codigo_gerencial !== "DRE.15") : rows;
+  return sameTotal && sameMonths ? rows.filter((row) => row.codigo_gerencial !== "DRE.16") : rows;
 }
 
 function sameMonthValues(left, right) {
@@ -1623,7 +1623,7 @@ export function kpis() {
     return Object.keys(row.monthValues || {}).length ? sumObjectValues(row.monthValues) : Number(row.saldo || 0);
   };
   const receita = rowPeriodValue(dre, "DRE.03");
-  const resultado = rowPeriodValue(dre, "DRE.17") || rowPeriodValue(dre, "DRE.12");
+  const resultado = rowPeriodValue(dre, "DRE.18") || rowPeriodValue(dre, "DRE.13");
   const analyticAccounts = balanceteDoPeriodo().filter((account) => account.tipo_sintetica === "nao");
   const totalAtivoBalancete = analyticAccounts
     .filter((account) => String(account.classificacao || "").startsWith("1"))

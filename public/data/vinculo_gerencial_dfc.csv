@@ -289,80 +289,93 @@ DRE.08.02.01.02;DRE;Contingencias operacionais;Tributos e Provisoes;5;Analitica;
 DRE.08.02.02;DRE;Perdas estimadas e diversas;Tributos e Provisoes;4;Sintetica;;;;
 DRE.08.02.02.01;DRE;Perdas estimadas com clientes;Tributos e Provisoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
 DRE.08.02.02.02;DRE;Perdas diversas;Tributos e Provisoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
-DRE.09;DRE;Outros resultados operacionais;Outros Resultados Operacionais;2;Sintetica;;;;
-DRE.09.01;DRE;Outras receitas operacionais;Outros Resultados Operacionais;3;Sintetica;;;;
-DRE.09.01.01;DRE;Recuperacoes e bonificacoes;Outros Resultados Operacionais;4;Sintetica;;;;
-DRE.09.01.01.01;DRE;Bonificacoes recebidas;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
-DRE.09.01.01.02;DRE;Recuperacoes operacionais;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
-DRE.09.01.02;DRE;Alienacao de ativos;Outros Resultados Operacionais;4;Sintetica;;;;
-DRE.09.01.02.01;DRE;Receita na alienacao de ativos;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
-DRE.09.01.03;DRE;Demais receitas operacionais;Outros Resultados Operacionais;4;Sintetica;;;;
-DRE.09.01.03.01;DRE;Demais receitas operacionais;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
-DRE.09.02;DRE;Outras despesas operacionais;Outros Resultados Operacionais;3;Sintetica;;;;
-DRE.09.02.01;DRE;Baixas e alienacao de ativos;Outros Resultados Operacionais;4;Sintetica;;;;
-DRE.09.02.01.01;DRE;Custo na alienacao de ativos;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
-DRE.09.02.01.02;DRE;Baixas operacionais;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
-DRE.09.02.02;DRE;Perdas e demais despesas operacionais;Outros Resultados Operacionais;4;Sintetica;;;;
-DRE.09.02.02.01;DRE;Perdas operacionais nao recorrentes;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
-DRE.09.02.02.02;DRE;Demais despesas operacionais;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
-DRE.09.02.02.03;DRE;Outros resultados operacionais identificados;Outros Resultados;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
-DRE.10;DRE;Resultado operacional;Resultado Operacional;2;Subtotal;;;;
-DRE.11;DRE;Depreciacao e amortizacao destacada;Depreciacao e Amortizacao;2;Sintetica;;;;
-DRE.11.01;DRE;Depreciacao e amortizacao;Depreciacao e Amortizacao;3;Sintetica;;;;
-DRE.11.01.01;DRE;Depreciacao;Depreciacao e Amortizacao;4;Sintetica;;;;
-DRE.11.01.01.01;DRE;Depreciacao destacada;Depreciacao e Amortizacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
-DRE.11.01.02;DRE;Amortizacao;Depreciacao e Amortizacao;4;Sintetica;;;;
-DRE.11.01.02.01;DRE;Amortizacao destacada;Depreciacao e Amortizacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
-DRE.11.01.03;DRE;Exaustao;Depreciacao e Amortizacao;4;Sintetica;;;;
-DRE.11.01.03.01;DRE;Exaustao destacada;Depreciacao e Amortizacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
-DRE.12;DRE;Resultado operacional;Resultado Operacional;2;Subtotal;;;;
-DRE.13;DRE;Resultado financeiro;Resultado Financeiro;2;Sintetica;;;;
-DRE.13.01;DRE;Receitas financeiras;Resultado Financeiro;3;Sintetica;;;;
-DRE.13.01.01;DRE;Rendimentos de aplicacoes;Resultado Financeiro;4;Sintetica;;;;
-DRE.13.01.01.01;DRE;Rendimentos de aplicacoes financeiras;Resultado Financeiro;5;Analitica;6;DFC.OP.REC_FIN;Receitas financeiras;preenchido pelo plano gerencial editavel
-DRE.13.01.02;DRE;Juros, descontos e recuperacoes financeiras;Resultado Financeiro;4;Sintetica;;;;
-DRE.13.01.02.01;DRE;Juros ativos;Resultado Financeiro;5;Analitica;6;DFC.OP.REC_FIN;Receitas financeiras;preenchido pelo plano gerencial editavel
-DRE.13.01.02.02;DRE;Descontos obtidos;Resultado Financeiro;5;Analitica;6;DFC.OP.REC_FIN;Receitas financeiras;preenchido pelo plano gerencial editavel
-DRE.13.01.02.03;DRE;Recuperacoes e atualizacoes financeiras;Resultado Financeiro;5;Analitica;6;DFC.OP.REC_FIN;Receitas financeiras;preenchido pelo plano gerencial editavel
-DRE.13.02;DRE;Despesas financeiras;Resultado Financeiro;3;Sintetica;;;;
-DRE.13.02.01;DRE;Tarifas e despesas bancarias;Resultado Financeiro;4;Sintetica;;;;
-DRE.13.02.01.01;DRE;Despesas bancarias;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
-DRE.13.02.01.02;DRE;Tarifas de cartao debito/credito;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
-DRE.13.02.01.03;DRE;IOF e impostos financeiros;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
-DRE.13.02.02;DRE;Juros, multas e descontos financeiros;Resultado Financeiro;4;Sintetica;;;;
-DRE.13.02.02.01;DRE;Juros e multas passivos;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
-DRE.13.02.02.02;DRE;Descontos concedidos financeiros;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
-DRE.13.02.03;DRE;Outras despesas financeiras;Resultado Financeiro;4;Sintetica;;;;
-DRE.13.02.03.01;DRE;Outras despesas financeiras;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
-DRE.13.03;DRE;Variacao cambial;Resultado Financeiro;3;Sintetica;;;;
-DRE.13.03.01;DRE;Variacao cambial ativa;Resultado Financeiro;4;Sintetica;;;;
-DRE.13.03.01.01;DRE;Variacao cambial ativa;Resultado Financeiro;5;Analitica;6;DFC.OP.REC_FIN;Receitas financeiras;preenchido pelo plano gerencial editavel
-DRE.13.03.02;DRE;Variacao cambial passiva;Resultado Financeiro;4;Sintetica;;;;
-DRE.13.03.02.01;DRE;Variacao cambial passiva;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
-DRE.14;DRE;Resultados nao operacionais;Resultados Nao Operacionais;2;Sintetica;;;;
-DRE.14.01;DRE;Receitas nao operacionais;Resultados Nao Operacionais;3;Sintetica;;;;
-DRE.14.01.01;DRE;Receitas nao operacionais recorrentes;Resultados Nao Operacionais;4;Sintetica;;;;
-DRE.14.01.01.01;DRE;Outras receitas nao operacionais;Resultados Nao Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
-DRE.14.01.02;DRE;Ganhos nao operacionais;Resultados Nao Operacionais;4;Sintetica;;;;
-DRE.14.01.02.01;DRE;Ganhos na venda de ativos nao operacionais;Resultados Nao Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
-DRE.14.02;DRE;Despesas nao operacionais;Resultados Nao Operacionais;3;Sintetica;;;;
-DRE.14.02.01;DRE;Despesas nao operacionais recorrentes;Resultados Nao Operacionais;4;Sintetica;;;;
-DRE.14.02.01.01;DRE;Outras despesas nao operacionais;Resultados Nao Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
-DRE.14.02.02;DRE;Perdas nao operacionais;Resultados Nao Operacionais;4;Sintetica;;;;
-DRE.14.02.02.01;DRE;Perdas na baixa de ativos nao operacionais;Resultados Nao Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
-DRE.15;DRE;Resultado antes de IRPJ e CSLL;Resultado Antes dos Impostos;2;Subtotal;;;;
-DRE.16;DRE;IRPJ e CSLL;IRPJ e CSLL;2;Sintetica;;;;
-DRE.16.01;DRE;IRPJ;IRPJ e CSLL;3;Sintetica;;;;
-DRE.16.01.01;DRE;IRPJ corrente;IRPJ e CSLL;4;Sintetica;;;;
-DRE.16.01.01.01;DRE;IRPJ corrente;IRPJ e CSLL;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
-DRE.16.01.02;DRE;IRPJ diferido;IRPJ e CSLL;4;Sintetica;;;;
-DRE.16.01.02.01;DRE;IRPJ diferido;IRPJ e CSLL;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
-DRE.16.02;DRE;CSLL;IRPJ e CSLL;3;Sintetica;;;;
-DRE.16.02.01;DRE;CSLL corrente;IRPJ e CSLL;4;Sintetica;;;;
-DRE.16.02.01.01;DRE;CSLL corrente;IRPJ e CSLL;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
-DRE.16.02.02;DRE;CSLL diferida;IRPJ e CSLL;4;Sintetica;;;;
-DRE.16.02.02.01;DRE;CSLL diferida;IRPJ e CSLL;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
-DRE.17;DRE;Resultado liquido;Resultado Liquido;2;Subtotal;;;;
+DRE.09;DRE;Despesas indedutiveis;Despesas Indedutiveis;2;Sintetica;;;;
+DRE.09.01;DRE;Despesas indedutiveis gerais;Despesas Indedutiveis;3;Sintetica;;;;
+DRE.09.01.01;DRE;Despesas indedutiveis gerais;Despesas Indedutiveis;4;Sintetica;;;;
+DRE.09.01.01.01;DRE;Despesas indedutiveis gerais;Despesas Indedutiveis;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;
+DRE.09.02;DRE;Multas e penalidades;Despesas Indedutiveis;3;Sintetica;;;;
+DRE.09.02.01;DRE;Multas e penalidades;Despesas Indedutiveis;4;Sintetica;;;;
+DRE.09.02.01.01;DRE;Multas e penalidades indedutiveis;Despesas Indedutiveis;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;
+DRE.09.03;DRE;Brindes e doacoes;Despesas Indedutiveis;3;Sintetica;;;;
+DRE.09.03.01;DRE;Brindes e doacoes;Despesas Indedutiveis;4;Sintetica;;;;
+DRE.09.03.01.01;DRE;Brindes e doacoes indedutiveis;Despesas Indedutiveis;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;
+DRE.09.04;DRE;Despesas sem comprovacao;Despesas Indedutiveis;3;Sintetica;;;;
+DRE.09.04.01;DRE;Despesas sem comprovacao;Despesas Indedutiveis;4;Sintetica;;;;
+DRE.09.04.01.01;DRE;Despesas sem comprovacao fiscal;Despesas Indedutiveis;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;
+DRE.10;DRE;Outros resultados operacionais;Outros Resultados Operacionais;2;Sintetica;;;;
+DRE.10.01;DRE;Outras receitas operacionais;Outros Resultados Operacionais;3;Sintetica;;;;
+DRE.10.01.01;DRE;Recuperacoes e bonificacoes;Outros Resultados Operacionais;4;Sintetica;;;;
+DRE.10.01.01.01;DRE;Bonificacoes recebidas;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.10.01.01.02;DRE;Recuperacoes operacionais;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.10.01.02;DRE;Alienacao de ativos;Outros Resultados Operacionais;4;Sintetica;;;;
+DRE.10.01.02.01;DRE;Receita na alienacao de ativos;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.10.01.03;DRE;Demais receitas operacionais;Outros Resultados Operacionais;4;Sintetica;;;;
+DRE.10.01.03.01;DRE;Demais receitas operacionais;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.10.02;DRE;Outras despesas operacionais;Outros Resultados Operacionais;3;Sintetica;;;;
+DRE.10.02.01;DRE;Baixas e alienacao de ativos;Outros Resultados Operacionais;4;Sintetica;;;;
+DRE.10.02.01.01;DRE;Custo na alienacao de ativos;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.10.02.01.02;DRE;Baixas operacionais;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.10.02.02;DRE;Perdas e demais despesas operacionais;Outros Resultados Operacionais;4;Sintetica;;;;
+DRE.10.02.02.01;DRE;Perdas operacionais nao recorrentes;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.10.02.02.02;DRE;Demais despesas operacionais;Outros Resultados Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.10.02.02.03;DRE;Outros resultados operacionais identificados;Outros Resultados;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.11;DRE;Resultado operacional;Resultado Operacional;2;Subtotal;;;;
+DRE.12;DRE;Depreciacao e amortizacao destacada;Depreciacao e Amortizacao;2;Sintetica;;;;
+DRE.12.01;DRE;Depreciacao e amortizacao;Depreciacao e Amortizacao;3;Sintetica;;;;
+DRE.12.01.01;DRE;Depreciacao;Depreciacao e Amortizacao;4;Sintetica;;;;
+DRE.12.01.01.01;DRE;Depreciacao destacada;Depreciacao e Amortizacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.12.01.02;DRE;Amortizacao;Depreciacao e Amortizacao;4;Sintetica;;;;
+DRE.12.01.02.01;DRE;Amortizacao destacada;Depreciacao e Amortizacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.12.01.03;DRE;Exaustao;Depreciacao e Amortizacao;4;Sintetica;;;;
+DRE.12.01.03.01;DRE;Exaustao destacada;Depreciacao e Amortizacao;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.13;DRE;Resultado operacional;Resultado Operacional;2;Subtotal;;;;
+DRE.14;DRE;Resultado financeiro;Resultado Financeiro;2;Sintetica;;;;
+DRE.14.01;DRE;Receitas financeiras;Resultado Financeiro;3;Sintetica;;;;
+DRE.14.01.01;DRE;Rendimentos de aplicacoes;Resultado Financeiro;4;Sintetica;;;;
+DRE.14.01.01.01;DRE;Rendimentos de aplicacoes financeiras;Resultado Financeiro;5;Analitica;6;DFC.OP.REC_FIN;Receitas financeiras;preenchido pelo plano gerencial editavel
+DRE.14.01.02;DRE;Juros, descontos e recuperacoes financeiras;Resultado Financeiro;4;Sintetica;;;;
+DRE.14.01.02.01;DRE;Juros ativos;Resultado Financeiro;5;Analitica;6;DFC.OP.REC_FIN;Receitas financeiras;preenchido pelo plano gerencial editavel
+DRE.14.01.02.02;DRE;Descontos obtidos;Resultado Financeiro;5;Analitica;6;DFC.OP.REC_FIN;Receitas financeiras;preenchido pelo plano gerencial editavel
+DRE.14.01.02.03;DRE;Recuperacoes e atualizacoes financeiras;Resultado Financeiro;5;Analitica;6;DFC.OP.REC_FIN;Receitas financeiras;preenchido pelo plano gerencial editavel
+DRE.14.02;DRE;Despesas financeiras;Resultado Financeiro;3;Sintetica;;;;
+DRE.14.02.01;DRE;Tarifas e despesas bancarias;Resultado Financeiro;4;Sintetica;;;;
+DRE.14.02.01.01;DRE;Despesas bancarias;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
+DRE.14.02.01.02;DRE;Tarifas de cartao debito/credito;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
+DRE.14.02.01.03;DRE;IOF e impostos financeiros;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
+DRE.14.02.02;DRE;Juros, multas e descontos financeiros;Resultado Financeiro;4;Sintetica;;;;
+DRE.14.02.02.01;DRE;Juros e multas passivos;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
+DRE.14.02.02.02;DRE;Descontos concedidos financeiros;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
+DRE.14.02.03;DRE;Outras despesas financeiras;Resultado Financeiro;4;Sintetica;;;;
+DRE.14.02.03.01;DRE;Outras despesas financeiras;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
+DRE.14.03;DRE;Variacao cambial;Resultado Financeiro;3;Sintetica;;;;
+DRE.14.03.01;DRE;Variacao cambial ativa;Resultado Financeiro;4;Sintetica;;;;
+DRE.14.03.01.01;DRE;Variacao cambial ativa;Resultado Financeiro;5;Analitica;6;DFC.OP.REC_FIN;Receitas financeiras;preenchido pelo plano gerencial editavel
+DRE.14.03.02;DRE;Variacao cambial passiva;Resultado Financeiro;4;Sintetica;;;;
+DRE.14.03.02.01;DRE;Variacao cambial passiva;Resultado Financeiro;5;Analitica;7;DFC.OP.DESP_FIN;Despesas financeiras;preenchido pelo plano gerencial editavel
+DRE.15;DRE;Resultados nao operacionais;Resultados Nao Operacionais;2;Sintetica;;;;
+DRE.15.01;DRE;Receitas nao operacionais;Resultados Nao Operacionais;3;Sintetica;;;;
+DRE.15.01.01;DRE;Receitas nao operacionais recorrentes;Resultados Nao Operacionais;4;Sintetica;;;;
+DRE.15.01.01.01;DRE;Outras receitas nao operacionais;Resultados Nao Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.15.01.02;DRE;Ganhos nao operacionais;Resultados Nao Operacionais;4;Sintetica;;;;
+DRE.15.01.02.01;DRE;Ganhos na venda de ativos nao operacionais;Resultados Nao Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.15.02;DRE;Despesas nao operacionais;Resultados Nao Operacionais;3;Sintetica;;;;
+DRE.15.02.01;DRE;Despesas nao operacionais recorrentes;Resultados Nao Operacionais;4;Sintetica;;;;
+DRE.15.02.01.01;DRE;Outras despesas nao operacionais;Resultados Nao Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.15.02.02;DRE;Perdas nao operacionais;Resultados Nao Operacionais;4;Sintetica;;;;
+DRE.15.02.02.01;DRE;Perdas na baixa de ativos nao operacionais;Resultados Nao Operacionais;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;preenchido pelo plano gerencial editavel
+DRE.16;DRE;Resultado antes de IRPJ e CSLL;Resultado Antes dos Impostos;2;Subtotal;;;;
+DRE.17;DRE;IRPJ e CSLL;IRPJ e CSLL;2;Sintetica;;;;
+DRE.17.01;DRE;IRPJ;IRPJ e CSLL;3;Sintetica;;;;
+DRE.17.01.01;DRE;IRPJ corrente;IRPJ e CSLL;4;Sintetica;;;;
+DRE.17.01.01.01;DRE;IRPJ corrente;IRPJ e CSLL;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.17.01.02;DRE;IRPJ diferido;IRPJ e CSLL;4;Sintetica;;;;
+DRE.17.01.02.01;DRE;IRPJ diferido;IRPJ e CSLL;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.17.02;DRE;CSLL;IRPJ e CSLL;3;Sintetica;;;;
+DRE.17.02.01;DRE;CSLL corrente;IRPJ e CSLL;4;Sintetica;;;;
+DRE.17.02.01.01;DRE;CSLL corrente;IRPJ e CSLL;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.17.02.02;DRE;CSLL diferida;IRPJ e CSLL;4;Sintetica;;;;
+DRE.17.02.02.01;DRE;CSLL diferida;IRPJ e CSLL;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
+DRE.18;DRE;Resultado liquido;Resultado Liquido;2;Subtotal;;;;
 01;BP;Ativo;Ativo;1;Sintetica;;;;
 01.01;BP;Ativo circulante;Ativo Circulante;2;Sintetica;;;;
 01.01.01;BP;Caixa e equivalentes de caixa;Ativo Circulante;3;Sintetica;;;;

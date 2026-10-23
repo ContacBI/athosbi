@@ -60,10 +60,10 @@ export function buildCashBridge(ctx) {
     const months = Object.values(row.monthValues || {});
     return months.length ? months.reduce((sum, value) => sum + Number(value || 0), 0) : Number(row.saldo || 0);
   };
-  const lucro = dre("DRE.17") || dre("DRE.12");
+  const lucro = dre("DRE.18") || dre("DRE.13");
   // Mesma depreciação da DRE Ebitda (DEX.09): a destacada e a que mora
   // dentro das despesas administrativas.
-  const depreciacao = Math.abs(dre("DRE.11") + dre("DRE.07.07.03"));
+  const depreciacao = Math.abs(dre("DRE.12") + dre("DRE.07.07.03"));
 
   // Os grupos de nível 3 do Balanço (fora o caixa e o PL), cada um numa etapa.
   const groups = [...rowsAtLevel(bp, 3)].filter((row) => !startsWith(row.codigo_gerencial, "01.01.01") && !startsWith(row.codigo_gerencial, "03"));

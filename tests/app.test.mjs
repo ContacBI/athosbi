@@ -68,21 +68,21 @@ check(`Receita bruta = vendas (${expected.vendas})`, near(value(ctx.dre, "DRE.01
 check(`Receita líquida = vendas − PIS (${expected.receitaLiquida})`, near(value(ctx.dre, "DRE.03"), expected.receitaLiquida), value(ctx.dre, "DRE.03"));
 check(`Lucro bruto (${expected.lucroBruto})`, near(value(ctx.dre, "DRE.05"), expected.lucroBruto), value(ctx.dre, "DRE.05"));
 check(`Despesas administrativas (${expected.despesasAdm})`, near(value(ctx.dre, "DRE.07"), expected.despesasAdm), value(ctx.dre, "DRE.07"));
-check(`Resultado financeiro (${expected.financeiro})`, near(value(ctx.dre, "DRE.13"), expected.financeiro), value(ctx.dre, "DRE.13"));
-check(`Lucro líquido (${expected.lucro})`, near(value(ctx.dre, "DRE.17"), expected.lucro), value(ctx.dre, "DRE.17"));
+check(`Resultado financeiro (${expected.financeiro})`, near(value(ctx.dre, "DRE.14"), expected.financeiro), value(ctx.dre, "DRE.14"));
+check(`Lucro líquido (${expected.lucro})`, near(value(ctx.dre, "DRE.18"), expected.lucro), value(ctx.dre, "DRE.18"));
 const formulas = [
   ["DRE.03", ["DRE.01", "DRE.02"]],
   ["DRE.05", ["DRE.03", "DRE.04"]],
-  ["DRE.10", ["DRE.05", "DRE.06", "DRE.07", "DRE.08", "DRE.09"]],
-  ["DRE.12", ["DRE.10", "DRE.11"]],
-  ["DRE.15", ["DRE.12", "DRE.13", "DRE.14"]],
-  ["DRE.17", ["DRE.15", "DRE.16"]],
+  ["DRE.11", ["DRE.05", "DRE.06", "DRE.07", "DRE.08", "DRE.10"]],
+  ["DRE.13", ["DRE.11", "DRE.12"]],
+  ["DRE.16", ["DRE.13", "DRE.14", "DRE.15"]],
+  ["DRE.18", ["DRE.16", "DRE.17"]],
 ];
 formulas.forEach(([target, parts]) => {
   const sum = parts.reduce((acc, code) => acc + value(ctx.dre, code), 0);
   check(`${target} = ${parts.join(" + ")}`, near(value(ctx.dre, target), sum), { target: value(ctx.dre, target), sum });
 });
-check(`EBITDA = lucro operacional + depreciação (${expected.depreciacao})`, near(ctx.ebitda, value(ctx.dre, "DRE.12") + expected.depreciacao), { ebitda: ctx.ebitda, dre12: value(ctx.dre, "DRE.12") });
+check(`EBITDA = lucro operacional + depreciação (${expected.depreciacao})`, near(ctx.ebitda, value(ctx.dre, "DRE.13") + expected.depreciacao), { ebitda: ctx.ebitda, dre12: value(ctx.dre, "DRE.13") });
 
 // ── Balanço ──
 section("Balanço");
@@ -351,7 +351,7 @@ check("Texto: um parágrafo por linha, negrito e marcador mantidos", paras.lengt
 // ── Comentários nos números ──
 section("Comentários nos números");
 const coment = await src("lib/comentarios.js");
-check("Assunto do slide pela linha (aluguel → despesas, salários → pessoal, bancos → caixa)", coment.topicForCode("DRE.07.02.01.01") === "despesas" && coment.topicForCode("DRE.07.01.01") === "pessoal" && coment.topicForCode("01.01.01.02.01") === "caixa" && coment.topicForCode("DRE.17") === "resultado", null);
+check("Assunto do slide pela linha (aluguel → despesas, salários → pessoal, bancos → caixa)", coment.topicForCode("DRE.07.02.01.01") === "despesas" && coment.topicForCode("DRE.07.01.01") === "pessoal" && coment.topicForCode("01.01.01.02.01") === "caixa" && coment.topicForCode("DRE.18") === "resultado", null);
 const notas = [
   { id: "c1", code: "DRE.07.02.01.01", month: "2026-02", text: "Reajuste do aluguel em fevereiro", author: "a@b", createdAt: "2026-03-01T10:00:00Z" },
   { id: "c2", code: "DRE.01.01.01.02", month: "2025-12", text: "Fora do período", author: "a@b", createdAt: "2026-01-05T10:00:00Z" },

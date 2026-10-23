@@ -273,79 +273,92 @@ DRE.08.02.01.02;Contingencias operacionais;Tributos e Provisoes;5;Analitica;DFC.
 DRE.08.02.02;Perdas estimadas e diversas;Tributos e Provisoes;4;Sintetica;;;
 DRE.08.02.02.01;Perdas estimadas com clientes;Tributos e Provisoes;5;Analitica;DFC.OP.CLIENTES;Valores recebidos de clientes;"preenchido automaticamente; edite destino_dfc se quiser mudar"
 DRE.08.02.02.02;Perdas diversas;Tributos e Provisoes;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.09;Outros resultados operacionais;Outros Resultados Operacionais;2;Sintetica;;;
-DRE.09.01;Outras receitas operacionais;Outros Resultados Operacionais;3;Sintetica;;;
-DRE.09.01.01;Recuperacoes e bonificacoes;Outros Resultados Operacionais;4;Sintetica;;;
-DRE.09.01.01.01;Bonificacoes recebidas;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.09.01.01.02;Recuperacoes operacionais;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.09.01.02;Alienacao de ativos;Outros Resultados Operacionais;4;Sintetica;;;
-DRE.09.01.02.01;Receita na alienacao de ativos;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.09.01.03;Demais receitas operacionais;Outros Resultados Operacionais;4;Sintetica;;;
-DRE.09.01.03.01;Demais receitas operacionais;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.09.02;Outras despesas operacionais;Outros Resultados Operacionais;3;Sintetica;;;
-DRE.09.02.01;Baixas e alienacao de ativos;Outros Resultados Operacionais;4;Sintetica;;;
-DRE.09.02.01.01;Custo na alienacao de ativos;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.09.02.01.02;Baixas operacionais;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.09.02.02;Perdas e demais despesas operacionais;Outros Resultados Operacionais;4;Sintetica;;;
-DRE.09.02.02.01;Perdas operacionais nao recorrentes;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.09.02.02.02;Demais despesas operacionais;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.09.02.02.03;Outros resultados operacionais identificados;Outros Resultados;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.09.02.03;Retiradas e distribuicoes no resultado;Outros Resultados;4;Sintetica;;;
-DRE.09.02.03.01;Retiradas e distribuicoes lancadas no resultado;Outros Resultados;5;Analitica;DFC.FIN.LUCROS_DIV_PAGOS;Lucros e dividendos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.10;EBITDA gerencial;EBITDA;2;Subtotal;;;
-DRE.11;Depreciacao e amortizacao destacada;Depreciacao e Amortizacao;2;Sintetica;;;
-DRE.11.01;Depreciacao e amortizacao;Depreciacao e Amortizacao;3;Sintetica;;;
-DRE.11.01.01;Depreciacao;Depreciacao e Amortizacao;4;Sintetica;;;
-DRE.11.01.01.01;Depreciacao destacada;Depreciacao e Amortizacao;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.11.01.02;Amortizacao;Depreciacao e Amortizacao;4;Sintetica;;;
-DRE.11.01.02.01;Amortizacao destacada;Depreciacao e Amortizacao;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.11.01.03;Exaustao;Depreciacao e Amortizacao;4;Sintetica;;;
-DRE.11.01.03.01;Exaustao destacada;Depreciacao e Amortizacao;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.12;Resultado operacional;Resultado Operacional;2;Subtotal;;;
-DRE.13;Resultado financeiro;Resultado Financeiro;2;Sintetica;;;
-DRE.13.01;Receitas financeiras;Resultado Financeiro;3;Sintetica;;;
-DRE.13.01.01;Rendimentos de aplicacoes;Resultado Financeiro;4;Sintetica;;;
-DRE.13.01.01.01;Rendimentos de aplicacoes financeiras;Resultado Financeiro;5;Analitica;DFC.OP.REC_FIN;Receitas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.13.01.02;Juros, descontos e recuperacoes financeiras;Resultado Financeiro;4;Sintetica;;;
-DRE.13.01.02.01;Juros ativos;Resultado Financeiro;5;Analitica;DFC.OP.REC_FIN;Receitas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.13.01.02.02;Descontos obtidos;Resultado Financeiro;5;Analitica;DFC.OP.REC_FIN;Receitas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.13.01.02.03;Recuperacoes e atualizacoes financeiras;Resultado Financeiro;5;Analitica;DFC.OP.REC_FIN;Receitas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.13.02;Despesas financeiras;Resultado Financeiro;3;Sintetica;;;
-DRE.13.02.01;Tarifas e despesas bancarias;Resultado Financeiro;4;Sintetica;;;
-DRE.13.02.01.01;Despesas bancarias;Resultado Financeiro;5;Analitica;DFC.OP.DESP_FIN;Despesas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.13.02.01.02;Tarifas de cartao debito/credito;Resultado Financeiro;5;Analitica;DFC.OP.DESP_FIN;Despesas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.13.02.01.03;IOF e impostos financeiros;Resultado Financeiro;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.13.02.02;Juros, multas e descontos financeiros;Resultado Financeiro;4;Sintetica;;;
-DRE.13.02.02.01;Juros e multas passivos;Resultado Financeiro;5;Analitica;DFC.OP.DESP_FIN;Despesas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.13.02.02.02;Descontos concedidos financeiros;Resultado Financeiro;5;Analitica;DFC.OP.DESP_FIN;Despesas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.13.02.03;Outras despesas financeiras;Resultado Financeiro;4;Sintetica;;;
-DRE.13.02.03.01;Outras despesas financeiras;Resultado Financeiro;5;Analitica;DFC.OP.DESP_FIN;Despesas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.13.03;Variacao cambial;Resultado Financeiro;3;Sintetica;;;
-DRE.13.03.01;Variacao cambial ativa;Resultado Financeiro;4;Sintetica;;;
-DRE.13.03.01.01;Variacao cambial ativa;Resultado Financeiro;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.13.03.02;Variacao cambial passiva;Resultado Financeiro;4;Sintetica;;;
-DRE.13.03.02.01;Variacao cambial passiva;Resultado Financeiro;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.14;Resultados nao operacionais;Resultados Nao Operacionais;2;Sintetica;;;
-DRE.14.01;Receitas nao operacionais;Resultados Nao Operacionais;3;Sintetica;;;
-DRE.14.01.01;Receitas nao operacionais recorrentes;Resultados Nao Operacionais;4;Sintetica;;;
-DRE.14.01.01.01;Outras receitas nao operacionais;Resultados Nao Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.14.01.02;Ganhos nao operacionais;Resultados Nao Operacionais;4;Sintetica;;;
-DRE.14.01.02.01;Ganhos na venda de ativos nao operacionais;Resultados Nao Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.14.02;Despesas nao operacionais;Resultados Nao Operacionais;3;Sintetica;;;
-DRE.14.02.01;Despesas nao operacionais recorrentes;Resultados Nao Operacionais;4;Sintetica;;;
-DRE.14.02.01.01;Outras despesas nao operacionais;Resultados Nao Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.14.02.02;Perdas nao operacionais;Resultados Nao Operacionais;4;Sintetica;;;
-DRE.14.02.02.01;Perdas na baixa de ativos nao operacionais;Resultados Nao Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.15;Resultado antes de IRPJ e CSLL;Resultado Antes dos Impostos;2;Subtotal;;;
-DRE.16;IRPJ e CSLL;IRPJ e CSLL;2;Sintetica;;;
-DRE.16.01;IRPJ;IRPJ e CSLL;3;Sintetica;;;
-DRE.16.01.01;IRPJ corrente;IRPJ e CSLL;4;Sintetica;;;
-DRE.16.01.01.01;IRPJ corrente;IRPJ e CSLL;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.16.01.02;IRPJ diferido;IRPJ e CSLL;4;Sintetica;;;
-DRE.16.01.02.01;IRPJ diferido;IRPJ e CSLL;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.16.02;CSLL;IRPJ e CSLL;3;Sintetica;;;
-DRE.16.02.01;CSLL corrente;IRPJ e CSLL;4;Sintetica;;;
-DRE.16.02.01.01;CSLL corrente;IRPJ e CSLL;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.16.02.02;CSLL diferida;IRPJ e CSLL;4;Sintetica;;;
-DRE.16.02.02.01;CSLL diferida;IRPJ e CSLL;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
-DRE.17;Resultado liquido;Resultado Liquido;2;Subtotal;;;
+DRE.09;Despesas indedutiveis;Despesas Indedutiveis;2;Sintetica;;;
+DRE.09.01;Despesas indedutiveis gerais;Despesas Indedutiveis;3;Sintetica;;;
+DRE.09.01.01;Despesas indedutiveis gerais;Despesas Indedutiveis;4;Sintetica;;;
+DRE.09.01.01.01;Despesas indedutiveis gerais;Despesas Indedutiveis;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;
+DRE.09.02;Multas e penalidades;Despesas Indedutiveis;3;Sintetica;;;
+DRE.09.02.01;Multas e penalidades;Despesas Indedutiveis;4;Sintetica;;;
+DRE.09.02.01.01;Multas e penalidades indedutiveis;Despesas Indedutiveis;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;
+DRE.09.03;Brindes e doacoes;Despesas Indedutiveis;3;Sintetica;;;
+DRE.09.03.01;Brindes e doacoes;Despesas Indedutiveis;4;Sintetica;;;
+DRE.09.03.01.01;Brindes e doacoes indedutiveis;Despesas Indedutiveis;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;
+DRE.09.04;Despesas sem comprovacao;Despesas Indedutiveis;3;Sintetica;;;
+DRE.09.04.01;Despesas sem comprovacao;Despesas Indedutiveis;4;Sintetica;;;
+DRE.09.04.01.01;Despesas sem comprovacao fiscal;Despesas Indedutiveis;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;
+DRE.10;Outros resultados operacionais;Outros Resultados Operacionais;2;Sintetica;;;
+DRE.10.01;Outras receitas operacionais;Outros Resultados Operacionais;3;Sintetica;;;
+DRE.10.01.01;Recuperacoes e bonificacoes;Outros Resultados Operacionais;4;Sintetica;;;
+DRE.10.01.01.01;Bonificacoes recebidas;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.10.01.01.02;Recuperacoes operacionais;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.10.01.02;Alienacao de ativos;Outros Resultados Operacionais;4;Sintetica;;;
+DRE.10.01.02.01;Receita na alienacao de ativos;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.10.01.03;Demais receitas operacionais;Outros Resultados Operacionais;4;Sintetica;;;
+DRE.10.01.03.01;Demais receitas operacionais;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.10.02;Outras despesas operacionais;Outros Resultados Operacionais;3;Sintetica;;;
+DRE.10.02.01;Baixas e alienacao de ativos;Outros Resultados Operacionais;4;Sintetica;;;
+DRE.10.02.01.01;Custo na alienacao de ativos;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.10.02.01.02;Baixas operacionais;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.10.02.02;Perdas e demais despesas operacionais;Outros Resultados Operacionais;4;Sintetica;;;
+DRE.10.02.02.01;Perdas operacionais nao recorrentes;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.10.02.02.02;Demais despesas operacionais;Outros Resultados Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.10.02.02.03;Outros resultados operacionais identificados;Outros Resultados;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.10.02.03;Retiradas e distribuicoes no resultado;Outros Resultados;4;Sintetica;;;
+DRE.10.02.03.01;Retiradas e distribuicoes lancadas no resultado;Outros Resultados;5;Analitica;DFC.FIN.LUCROS_DIV_PAGOS;Lucros e dividendos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.11;EBITDA gerencial;EBITDA;2;Subtotal;;;
+DRE.12;Depreciacao e amortizacao destacada;Depreciacao e Amortizacao;2;Sintetica;;;
+DRE.12.01;Depreciacao e amortizacao;Depreciacao e Amortizacao;3;Sintetica;;;
+DRE.12.01.01;Depreciacao;Depreciacao e Amortizacao;4;Sintetica;;;
+DRE.12.01.01.01;Depreciacao destacada;Depreciacao e Amortizacao;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.12.01.02;Amortizacao;Depreciacao e Amortizacao;4;Sintetica;;;
+DRE.12.01.02.01;Amortizacao destacada;Depreciacao e Amortizacao;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.12.01.03;Exaustao;Depreciacao e Amortizacao;4;Sintetica;;;
+DRE.12.01.03.01;Exaustao destacada;Depreciacao e Amortizacao;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.13;Resultado operacional;Resultado Operacional;2;Subtotal;;;
+DRE.14;Resultado financeiro;Resultado Financeiro;2;Sintetica;;;
+DRE.14.01;Receitas financeiras;Resultado Financeiro;3;Sintetica;;;
+DRE.14.01.01;Rendimentos de aplicacoes;Resultado Financeiro;4;Sintetica;;;
+DRE.14.01.01.01;Rendimentos de aplicacoes financeiras;Resultado Financeiro;5;Analitica;DFC.OP.REC_FIN;Receitas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.14.01.02;Juros, descontos e recuperacoes financeiras;Resultado Financeiro;4;Sintetica;;;
+DRE.14.01.02.01;Juros ativos;Resultado Financeiro;5;Analitica;DFC.OP.REC_FIN;Receitas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.14.01.02.02;Descontos obtidos;Resultado Financeiro;5;Analitica;DFC.OP.REC_FIN;Receitas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.14.01.02.03;Recuperacoes e atualizacoes financeiras;Resultado Financeiro;5;Analitica;DFC.OP.REC_FIN;Receitas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.14.02;Despesas financeiras;Resultado Financeiro;3;Sintetica;;;
+DRE.14.02.01;Tarifas e despesas bancarias;Resultado Financeiro;4;Sintetica;;;
+DRE.14.02.01.01;Despesas bancarias;Resultado Financeiro;5;Analitica;DFC.OP.DESP_FIN;Despesas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.14.02.01.02;Tarifas de cartao debito/credito;Resultado Financeiro;5;Analitica;DFC.OP.DESP_FIN;Despesas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.14.02.01.03;IOF e impostos financeiros;Resultado Financeiro;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.14.02.02;Juros, multas e descontos financeiros;Resultado Financeiro;4;Sintetica;;;
+DRE.14.02.02.01;Juros e multas passivos;Resultado Financeiro;5;Analitica;DFC.OP.DESP_FIN;Despesas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.14.02.02.02;Descontos concedidos financeiros;Resultado Financeiro;5;Analitica;DFC.OP.DESP_FIN;Despesas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.14.02.03;Outras despesas financeiras;Resultado Financeiro;4;Sintetica;;;
+DRE.14.02.03.01;Outras despesas financeiras;Resultado Financeiro;5;Analitica;DFC.OP.DESP_FIN;Despesas financeiras;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.14.03;Variacao cambial;Resultado Financeiro;3;Sintetica;;;
+DRE.14.03.01;Variacao cambial ativa;Resultado Financeiro;4;Sintetica;;;
+DRE.14.03.01.01;Variacao cambial ativa;Resultado Financeiro;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.14.03.02;Variacao cambial passiva;Resultado Financeiro;4;Sintetica;;;
+DRE.14.03.02.01;Variacao cambial passiva;Resultado Financeiro;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.15;Resultados nao operacionais;Resultados Nao Operacionais;2;Sintetica;;;
+DRE.15.01;Receitas nao operacionais;Resultados Nao Operacionais;3;Sintetica;;;
+DRE.15.01.01;Receitas nao operacionais recorrentes;Resultados Nao Operacionais;4;Sintetica;;;
+DRE.15.01.01.01;Outras receitas nao operacionais;Resultados Nao Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.15.01.02;Ganhos nao operacionais;Resultados Nao Operacionais;4;Sintetica;;;
+DRE.15.01.02.01;Ganhos na venda de ativos nao operacionais;Resultados Nao Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.15.02;Despesas nao operacionais;Resultados Nao Operacionais;3;Sintetica;;;
+DRE.15.02.01;Despesas nao operacionais recorrentes;Resultados Nao Operacionais;4;Sintetica;;;
+DRE.15.02.01.01;Outras despesas nao operacionais;Resultados Nao Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.15.02.02;Perdas nao operacionais;Resultados Nao Operacionais;4;Sintetica;;;
+DRE.15.02.02.01;Perdas na baixa de ativos nao operacionais;Resultados Nao Operacionais;5;Analitica;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.16;Resultado antes de IRPJ e CSLL;Resultado Antes dos Impostos;2;Subtotal;;;
+DRE.17;IRPJ e CSLL;IRPJ e CSLL;2;Sintetica;;;
+DRE.17.01;IRPJ;IRPJ e CSLL;3;Sintetica;;;
+DRE.17.01.01;IRPJ corrente;IRPJ e CSLL;4;Sintetica;;;
+DRE.17.01.01.01;IRPJ corrente;IRPJ e CSLL;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.17.01.02;IRPJ diferido;IRPJ e CSLL;4;Sintetica;;;
+DRE.17.01.02.01;IRPJ diferido;IRPJ e CSLL;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.17.02;CSLL;IRPJ e CSLL;3;Sintetica;;;
+DRE.17.02.01;CSLL corrente;IRPJ e CSLL;4;Sintetica;;;
+DRE.17.02.01.01;CSLL corrente;IRPJ e CSLL;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.17.02.02;CSLL diferida;IRPJ e CSLL;4;Sintetica;;;
+DRE.17.02.02.01;CSLL diferida;IRPJ e CSLL;5;Analitica;DFC.OP.TRIBUTOS;Tributos pagos;"preenchido automaticamente; edite destino_dfc se quiser mudar"
+DRE.18;Resultado liquido;Resultado Liquido;2;Subtotal;;;

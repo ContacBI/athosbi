@@ -23,11 +23,12 @@ export const INPUT_LINES = [
   { code: "DRE.06", sign: -1 },
   { code: "DRE.07", sign: -1 },
   { code: "DRE.08", sign: -1 },
-  { code: "DRE.09", sign: 0 },
-  { code: "DRE.11", sign: -1 },
-  { code: "DRE.13", sign: 0 },
+  { code: "DRE.09", sign: -1 },
+  { code: "DRE.10", sign: 0 },
+  { code: "DRE.12", sign: -1 },
   { code: "DRE.14", sign: 0 },
-  { code: "DRE.16", sign: -1 },
+  { code: "DRE.15", sign: 0 },
+  { code: "DRE.17", sign: -1 },
 ];
 
 // Totais, na ordem da DRE (iguais aos de applyDreFormulaValues em
@@ -35,15 +36,15 @@ export const INPUT_LINES = [
 export const FORMULAS = [
   ["DRE.03", ["DRE.01", "DRE.02"]],
   ["DRE.05", ["DRE.03", "DRE.04"]],
-  ["DRE.10", ["DRE.05", "DRE.06", "DRE.07", "DRE.08", "DRE.09"]],
-  ["DRE.12", ["DRE.10", "DRE.11"]],
-  ["DRE.15", ["DRE.12", "DRE.13", "DRE.14"]],
-  ["DRE.17", ["DRE.15", "DRE.16"]],
+  ["DRE.11", ["DRE.05", "DRE.06", "DRE.07", "DRE.08", "DRE.09", "DRE.10"]],
+  ["DRE.13", ["DRE.11", "DRE.12"]],
+  ["DRE.16", ["DRE.13", "DRE.14", "DRE.15"]],
+  ["DRE.18", ["DRE.16", "DRE.17"]],
 ];
 
-// A ordem em que as linhas aparecem (DRE.10 fica de fora: com a
-// depreciação destacada vazia ele repete o DRE.12).
-export const LINE_ORDER = ["DRE.01", "DRE.02", "DRE.03", "DRE.04", "DRE.05", "DRE.06", "DRE.07", "DRE.08", "DRE.09", "DRE.11", "DRE.12", "DRE.13", "DRE.14", "DRE.15", "DRE.16", "DRE.17"];
+// A ordem em que as linhas aparecem (DRE.11 fica de fora: com a
+// depreciação destacada vazia ele repete o DRE.13).
+export const LINE_ORDER = ["DRE.01", "DRE.02", "DRE.03", "DRE.04", "DRE.05", "DRE.06", "DRE.07", "DRE.08", "DRE.09", "DRE.10", "DRE.12", "DRE.13", "DRE.14", "DRE.15", "DRE.16", "DRE.17", "DRE.18"];
 
 const FALLBACK_NAMES = {
   "DRE.01": "Receita bruta",
@@ -54,15 +55,16 @@ const FALLBACK_NAMES = {
   "DRE.06": "Despesas comerciais",
   "DRE.07": "Despesas administrativas",
   "DRE.08": "Tributos e provisões operacionais",
-  "DRE.09": "Outros resultados operacionais",
-  "DRE.10": "Resultado operacional",
-  "DRE.11": "Depreciação e amortização destacada",
-  "DRE.12": "Resultado operacional",
-  "DRE.13": "Resultado financeiro",
-  "DRE.14": "Resultados não operacionais",
-  "DRE.15": "Resultado antes de IRPJ e CSLL",
-  "DRE.16": "IRPJ e CSLL",
-  "DRE.17": "Resultado líquido",
+  "DRE.09": "Despesas indedutíveis",
+  "DRE.10": "Outros resultados operacionais",
+  "DRE.11": "Resultado operacional",
+  "DRE.12": "Depreciação e amortização destacada",
+  "DRE.13": "Resultado operacional",
+  "DRE.14": "Resultado financeiro",
+  "DRE.15": "Resultados não operacionais",
+  "DRE.16": "Resultado antes de IRPJ e CSLL",
+  "DRE.17": "IRPJ e CSLL",
+  "DRE.18": "Resultado líquido",
 };
 
 export const FORMULA_CODES = new Set(FORMULAS.map(([code]) => code));
@@ -168,7 +170,7 @@ export function actualMonths(ctx, code) {
 // Meses do ano que já têm lançamento (o "realizado até aqui").
 export function monthsWithActuals(ctx, ano) {
   const revenue = actualMonths(ctx, "DRE.01");
-  const result = actualMonths(ctx, "DRE.17");
+  const result = actualMonths(ctx, "DRE.18");
   return yearMonths(ano).filter((month) => Number(revenue[month] || 0) || Number(result[month] || 0));
 }
 
@@ -209,7 +211,7 @@ export function fillFromActuals(budget, baseCtx, { mode, pct = 0, months }) {
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const baseMonths = (baseCtx?.months || []).filter((month) => {
     const revenue = Number(actualMonths(baseCtx, "DRE.01")[month] || 0);
-    const result = Number(actualMonths(baseCtx, "DRE.17")[month] || 0);
+    const result = Number(actualMonths(baseCtx, "DRE.18")[month] || 0);
     return (revenue || result) && month < currentMonth;
   });
   codes.forEach((code) => {
@@ -244,12 +246,12 @@ export function budgetContext(ctx, list = state.orcamentos) {
   const matrix = budgetMatrix(budget, inYear);
   const actualTotal = (code) => sumMonths(actualMonths(ctx, code), inYear);
   const budgetTotal = (code) => sumMonths(matrix[code], inYear);
-  const lines = LINE_ORDER.filter((code) => code !== "DRE.11" || Math.abs(budgetTotal(code)) > 0.5 || Math.abs(actualTotal(code)) > 0.5).map((code) => {
+  const lines = LINE_ORDER.filter((code) => code !== "DRE.12" || Math.abs(budgetTotal(code)) > 0.5 || Math.abs(actualTotal(code)) > 0.5).map((code) => {
     const orcado = budgetTotal(code);
     const realizado = actualTotal(code);
     return { code, name: lineName(code), formula: FORMULA_CODES.has(code), orcado, realizado, ...deviation(orcado, realizado) };
   });
-  const despesasCodes = ["DRE.06", "DRE.07", "DRE.08", "DRE.09"];
+  const despesasCodes = ["DRE.06", "DRE.07", "DRE.08", "DRE.09", "DRE.10"];
   const despesas = { orcado: despesasCodes.reduce((sum, code) => sum + budgetTotal(code), 0), realizado: despesasCodes.reduce((sum, code) => sum + actualTotal(code), 0) };
   return {
     id: budget.id,
@@ -261,15 +263,15 @@ export function budgetContext(ctx, list = state.orcamentos) {
     receita: { orcado: budgetTotal("DRE.03"), realizado: actualTotal("DRE.03"), ...deviation(budgetTotal("DRE.03"), actualTotal("DRE.03")) },
     receitaBruta: { orcado: budgetTotal("DRE.01"), realizado: actualTotal("DRE.01"), ...deviation(budgetTotal("DRE.01"), actualTotal("DRE.01")) },
     despesas: { ...despesas, ...deviation(despesas.orcado, despesas.realizado) },
-    resultado: { orcado: budgetTotal("DRE.17"), realizado: actualTotal("DRE.17"), ...deviation(budgetTotal("DRE.17"), actualTotal("DRE.17")) },
+    resultado: { orcado: budgetTotal("DRE.18"), realizado: actualTotal("DRE.18"), ...deviation(budgetTotal("DRE.18"), actualTotal("DRE.18")) },
     series: inYear.map((month) => ({
       month: monthShort(month),
       receitaOrcado: Number(matrix["DRE.03"]?.[month] || 0),
       receitaRealizado: Number(actualMonths(ctx, "DRE.03")[month] || 0),
       despesasOrcado: Math.abs(despesasCodes.reduce((sum, code) => sum + Number(matrix[code]?.[month] || 0), 0)),
       despesasRealizado: Math.abs(despesasCodes.reduce((sum, code) => sum + Number(actualMonths(ctx, code)[month] || 0), 0)),
-      resultadoOrcado: Number(matrix["DRE.17"]?.[month] || 0),
-      resultadoRealizado: Number(actualMonths(ctx, "DRE.17")[month] || 0),
+      resultadoOrcado: Number(matrix["DRE.18"]?.[month] || 0),
+      resultadoRealizado: Number(actualMonths(ctx, "DRE.18")[month] || 0),
     })),
   };
 }

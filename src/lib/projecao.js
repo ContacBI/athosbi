@@ -22,7 +22,7 @@ export const PROJECTION_METHODS = {
   orcamento: { label: "Orçamento nos meses que faltam", short: "orçamento", by: "pelo orçamento" },
 };
 
-export const PROJECTION_HEADLINE = ["DRE.01", "DRE.03", "DRE.05", "DRE.12", "DRE.17"];
+export const PROJECTION_HEADLINE = ["DRE.01", "DRE.03", "DRE.05", "DRE.13", "DRE.18"];
 
 const sum = (values) => values.reduce((total, value) => total + Number(value || 0), 0);
 
@@ -51,7 +51,7 @@ function cashByMonth(ctx) {
 export function closedMonths(ctx, ano, today = new Date()) {
   const current = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const revenue = actualMonths(ctx, "DRE.01");
-  const result = actualMonths(ctx, "DRE.17");
+  const result = actualMonths(ctx, "DRE.18");
   return yearMonths(ano).filter((month) => month < current && (Number(revenue[month] || 0) || Number(result[month] || 0)));
 }
 
@@ -126,7 +126,7 @@ export function projectYear({ ano, ctx, prevCtx = null, budgets = [], method = "
     const anoAnterior = prevCtx ? sum(prevMonths.map((month) => actualMonths(prevCtx, code)[month])) : null;
     return { code, name: lineName(code), realizado, projetado, provavel, otimista: provavel + margin, pessimista: provavel - margin, margin, orcado: hasBudget || budget ? orcado : null, anoAnterior: anoAnterior || null, monthly: monthly[code] || {} };
   };
-  const lines = LINE_ORDER.filter((code) => code !== "DRE.11" || Math.abs(lineOf(code).provavel) > 0.5).map(lineOf);
+  const lines = LINE_ORDER.filter((code) => code !== "DRE.12" || Math.abs(lineOf(code).provavel) > 0.5).map(lineOf);
   const byCode = Object.fromEntries(lines.map((line) => [line.code, line]));
 
   // Caixa.
@@ -149,8 +149,8 @@ export function projectYear({ ano, ctx, prevCtx = null, budgets = [], method = "
   const series = months.map((month) => ({
     key: month,
     month: monthShort(month),
-    realizado: closed.includes(month) ? Number(monthly["DRE.17"][month] || 0) : null,
-    projetado: remaining.includes(month) ? Number(monthly["DRE.17"][month] || 0) : null,
+    realizado: closed.includes(month) ? Number(monthly["DRE.18"][month] || 0) : null,
+    projetado: remaining.includes(month) ? Number(monthly["DRE.18"][month] || 0) : null,
   }));
   let running = 0;
   series.forEach((item) => {
@@ -172,7 +172,7 @@ export function projectYear({ ano, ctx, prevCtx = null, budgets = [], method = "
     lines,
     receita: byCode["DRE.01"],
     receitaLiquida: byCode["DRE.03"],
-    resultado: byCode["DRE.17"],
+    resultado: byCode["DRE.18"],
     caixa,
     series,
     finished: Boolean(last) && !remaining.length,

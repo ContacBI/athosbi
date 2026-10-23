@@ -23,14 +23,14 @@ const VIEW = {
   composicaoReceita: { chart: "chart_receita_composicao", demo: { source: "DRE", open: { "DRE.01": "all" } } },
   deducoes: { layout: "demo", demo: { source: "DRE", open: { "DRE.02": "all" } } },
   custos: { kpis: ["dre_custos", "ratio_margem_bruta"], chart: "chart_receita_custo_despesa", demo: { source: "DRE", open: { "DRE.04": "one" } }, glossary: "margemBruta" },
-  despesas: { kpis: ["dre_despesas_adm", "dre_despesas_comerciais"], chart: "chart_despesas_composicao", demo: { source: "DRE", open: { "DRE.06": "one", "DRE.07": "one", "DRE.08": "one" } } },
+  despesas: { kpis: ["dre_despesas_adm", "dre_despesas_comerciais"], chart: "chart_despesas_composicao", demo: { source: "DRE", open: { "DRE.06": "one", "DRE.07": "one", "DRE.08": "one", "DRE.09": "one" } } },
   pessoal: { layout: "demo", demo: { source: "DRE", open: { "DRE.07": "one" } } },
   pareto: { layout: "staticChart" },
   margens: { kpis: ["ratio_margem_bruta", "ratio_margem_ebitda", "ratio_margem_liquida"], chart: "chart_margens_evolucao", glossary: "margemLiquida" },
   resultado: { kpis: ["dre_resultado_liquido", "ratio_margem_liquida"], chart: "chart_dre_cascata", demo: { source: "DRE", depth: 0 } },
   ebitda: { kpis: ["ratio_ebitda", "ratio_margem_ebitda"], chart: "chart_ebitda_evolucao", demo: { source: "DRE", depth: 0 }, glossary: "ebitda" },
-  financeiro: { layout: "demo", demo: { source: "DRE", open: { "DRE.13": "all" } } },
-  tributos: { layout: "demo", demo: { source: "DRE", open: { "DRE.02": "all", "DRE.08": "one", "DRE.16": "one" } } },
+  financeiro: { layout: "demo", demo: { source: "DRE", open: { "DRE.14": "all" } } },
+  tributos: { layout: "demo", demo: { source: "DRE", open: { "DRE.02": "all", "DRE.08": "one", "DRE.17": "one" } } },
   caixa: { kpis: ["bp_disponibilidades", "ratio_liquidez_corrente"], chart: "chart_caixa_evolucao", demo: { source: "BP", open: { "01": "one", "01.01": "one", "01.01.01": "all" }, highlight: ["01.01.01"] } },
   fluxo: { chart: "chart_ponte_caixa", demo: { source: "DFC", depth: 1 }, glossary: "dfc" },
   endividamento: { kpis: ["ratio_endividamento", "ratio_composicao_endividamento", "bp_passivo_circulante"], chart: "chart_capital_giro_vs_divida", demo: { source: "BP", open: { "02": "one", "02.01": "one", "02.02": "one" } }, glossary: "endividamento" },
@@ -70,9 +70,9 @@ function topicForLine(line) {
   if (code.startsWith("DRE.01")) return "receita";
   if (code.startsWith("DRE.02")) return "deducoes";
   if (code.startsWith("DRE.04")) return "custos";
-  if (code.startsWith("DRE.13")) return "financeiro";
-  if (code.startsWith("DRE.16")) return "tributos";
-  if (/^DRE\.0[6-9]/.test(code)) return "despesas";
+  if (code.startsWith("DRE.14")) return "financeiro";
+  if (code.startsWith("DRE.17")) return "tributos";
+  if (/^DRE\.(0[6-9]|10)/.test(code)) return "despesas";
   return "resultado";
 }
 

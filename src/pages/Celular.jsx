@@ -34,12 +34,12 @@ import DrillModal from "../components/dashboard/DrillModal.jsx";
 // pode ser instalado na tela inicial (manifest + public/sw.js).
 
 const F = {
-  lucro: { kind: "sum", format: "money", numerator: [{ code: "DRE.17", sign: 1 }] },
+  lucro: { kind: "sum", format: "money", numerator: [{ code: "DRE.18", sign: 1 }] },
   receita: { kind: "sum", format: "money", numerator: [{ code: "DRE.03", sign: 1 }] },
-  despesas: { kind: "sum", format: "money", numerator: ["DRE.06", "DRE.07", "DRE.08", "DRE.09"].map((code) => ({ code, sign: 1 })) },
+  despesas: { kind: "sum", format: "money", numerator: ["DRE.06", "DRE.07", "DRE.08", "DRE.09", "DRE.10"].map((code) => ({ code, sign: 1 })) },
   ebitda: { kind: "sum", format: "money", numerator: [{ code: "DEX.08", sign: 1 }, { code: "DEX.09", sign: 1 }] },
   caixa: { kind: "sum", format: "money", numerator: [{ code: "01.01.01", sign: 1 }] },
-  margem: { kind: "ratio", format: "percent", numerator: [{ code: "DRE.17", sign: 1 }], denominator: [{ code: "DRE.03", sign: 1 }] },
+  margem: { kind: "ratio", format: "percent", numerator: [{ code: "DRE.18", sign: 1 }], denominator: [{ code: "DRE.03", sign: 1 }] },
 };
 
 function lastDay(year, month) {
@@ -228,7 +228,7 @@ export default function Celular() {
       if (trendMonths.length > 1) {
         const trendCtx = contextForPeriod(`${trendMonths[0]}-01`, period.end);
         const row = (code) => trendCtx.dre.find((item) => item.codigo_gerencial === code);
-        const lucro = row("DRE.17");
+        const lucro = row("DRE.18");
         trend = trendMonths.map((month) => ({ month, label: monthName(month, false).slice(0, 3), lucro: Number(lucro?.monthValues?.[month] || 0), current: month >= period.start.slice(0, 7) }));
       }
       setExtra({ prev, prevCtx, trend });

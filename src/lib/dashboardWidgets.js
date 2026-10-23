@@ -95,11 +95,11 @@ export const WIDGET_CATALOG = [
   // administrativas (o card "Despesas administrativas" lia DRE.06 por engano).
   lineEntry({ id: "dre_despesas_comerciais", label: "Despesas comerciais", category: "DRE", icon: Receipt, code: "DRE.06" }),
   lineEntry({ id: "dre_despesas_adm", label: "Despesas administrativas", category: "DRE", icon: Receipt, code: "DRE.07" }),
-  lineEntry({ id: "dre_resultado_operacional", label: "Resultado operacional", category: "DRE", icon: Wallet, code: "DRE.12" }),
-  lineEntry({ id: "dre_resultado_financeiro", label: "Resultado financeiro", category: "DRE", icon: Coins, code: "DRE.13" }),
-  lineEntry({ id: "dre_resultado_antes_ir", label: "Resultado antes de IR/CSLL", category: "DRE", icon: Scale, code: "DRE.15" }),
-  lineEntry({ id: "dre_impostos", label: "IRPJ e CSLL", category: "DRE", icon: Receipt, code: "DRE.16" }),
-  lineEntry({ id: "dre_resultado_liquido", label: "Resultado líquido do período", category: "DRE", icon: PiggyBank, code: "DRE.17" }),
+  lineEntry({ id: "dre_resultado_operacional", label: "Resultado operacional", category: "DRE", icon: Wallet, code: "DRE.13" }),
+  lineEntry({ id: "dre_resultado_financeiro", label: "Resultado financeiro", category: "DRE", icon: Coins, code: "DRE.14" }),
+  lineEntry({ id: "dre_resultado_antes_ir", label: "Resultado antes de IR/CSLL", category: "DRE", icon: Scale, code: "DRE.16" }),
+  lineEntry({ id: "dre_impostos", label: "IRPJ e CSLL", category: "DRE", icon: Receipt, code: "DRE.17" }),
+  lineEntry({ id: "dre_resultado_liquido", label: "Resultado líquido do período", category: "DRE", icon: PiggyBank, code: "DRE.18" }),
 
   // Balanço patrimonial
   lineEntry({ id: "bp_ativo", label: "Total do ativo", category: "Balanço", icon: Landmark, code: "01" }),
@@ -123,7 +123,7 @@ export const WIDGET_CATALOG = [
     label: "Margem líquida",
     category: "Indicadores",
     icon: Percent,
-    formula: { kind: "ratio", format: "percent", numerator: [{ code: "DRE.17", sign: 1 }], denominator: [{ code: "DRE.03", sign: 1 }] },
+    formula: { kind: "ratio", format: "percent", numerator: [{ code: "DRE.18", sign: 1 }], denominator: [{ code: "DRE.03", sign: 1 }] },
   }),
   formulaEntry({
     id: "ratio_margem_ebitda",
@@ -177,21 +177,21 @@ export const WIDGET_CATALOG = [
     label: "ROE (retorno sobre o PL)",
     category: "Indicadores",
     icon: Percent,
-    formula: { kind: "ratio", format: "percent", numerator: [{ code: "DRE.17", sign: 1 }], denominator: [{ code: "03", sign: 1 }] },
+    formula: { kind: "ratio", format: "percent", numerator: [{ code: "DRE.18", sign: 1 }], denominator: [{ code: "03", sign: 1 }] },
   }),
   formulaEntry({
     id: "ratio_roa",
     label: "ROA (retorno sobre o ativo)",
     category: "Indicadores",
     icon: Percent,
-    formula: { kind: "ratio", format: "percent", numerator: [{ code: "DRE.17", sign: 1 }], denominator: [{ code: "01", sign: 1 }] },
+    formula: { kind: "ratio", format: "percent", numerator: [{ code: "DRE.18", sign: 1 }], denominator: [{ code: "01", sign: 1 }] },
   }),
   formulaEntry({
     id: "ratio_margem_operacional",
     label: "Margem operacional",
     category: "Indicadores",
     icon: Gauge,
-    formula: { kind: "ratio", format: "percent", numerator: [{ code: "DRE.12", sign: 1 }], denominator: [{ code: "DRE.03", sign: 1 }] },
+    formula: { kind: "ratio", format: "percent", numerator: [{ code: "DRE.13", sign: 1 }], denominator: [{ code: "DRE.03", sign: 1 }] },
   }),
   formulaEntry({
     id: "ratio_giro_ativo",
@@ -252,7 +252,7 @@ export const WIDGET_CATALOG = [
   { id: "list_sem_depara", label: "Contas sem de/para", category: "Listas", icon: AlertTriangle, defaultSize: "md", type: "list", list: "sem_depara" },
 
   // Extras — atalhos monetários rápidos
-  lineEntry({ id: "dre_despesas_operacionais", label: "Outras despesas operacionais", category: "DRE", icon: Receipt, code: "DRE.09" }),
+  lineEntry({ id: "dre_despesas_operacionais", label: "Outras despesas operacionais", category: "DRE", icon: Receipt, code: "DRE.10" }),
   lineEntry({ id: "dre_tributos_op", label: "Tributos e provisões operacionais", category: "DRE", icon: Receipt, code: "DRE.08" }),
   lineEntry({ id: "bp_disponibilidades", label: "Caixa e equivalentes", category: "Balanço", icon: Banknote, code: "01.01.01" }),
 ];

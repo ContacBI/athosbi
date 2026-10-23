@@ -73,7 +73,7 @@ export function demoTree(source, ctx) {
     JSON.stringify(a.monthValues || {}) === JSON.stringify(b.monthValues || {});
   // Mesmo corte da tela de Demonstrativos: "Resultado antes de IRPJ e
   // CSLL" igual ao líquido (empresa sem IR no período) aparece uma vez só.
-  const skip = source === "DRE" && sameDre(byCode.get("DRE.15"), byCode.get("DRE.17")) ? new Set(["DRE.15"]) : new Set();
+  const skip = source === "DRE" && sameDre(byCode.get("DRE.16"), byCode.get("DRE.18")) ? new Set(["DRE.16"]) : new Set();
   const synthNode = (row) => ({
     key: row.codigo_gerencial,
     code: row.codigo_gerencial,

@@ -26,8 +26,8 @@ const CONTAS = [
   ["9.3.1.01", "SALARIOS ADMINISTRATIVOS", "DRE.07.01.01.01", 0],
   ["9.3.2.01", "ALUGUEL", "DRE.07.02.01.01", 0],
   ["9.3.3.01", "DEPRECIACAO", "DRE.07.07.03.01", 0],
-  ["9.4.1.01", "DESPESAS BANCARIAS", "DRE.13.02.01.01", 0],
-  ["9.4.2.01", "RENDIMENTOS DE APLICACOES", "DRE.13.01.01.01", 0],
+  ["9.4.1.01", "DESPESAS BANCARIAS", "DRE.14.02.01.01", 0],
+  ["9.4.2.01", "RENDIMENTOS DE APLICACOES", "DRE.14.01.01.01", 0],
 ];
 
 const round = (n) => Math.round(n * 100) / 100;

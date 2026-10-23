@@ -55,10 +55,10 @@
 3073;9.4.20.901.1;BRINDES;RESULTADO;DRE.07.07.04.02;Brindes institucionais;DRE;Despesas Administrativas;
 3075;9.4.20.901.2;EVENTOS;RESULTADO;DRE.06.02.02.01;Eventos, feiras e patrocinio;DRE;Despesas Comerciais;
 3076;9.4.20.901.3;PROPAGANDA E PUBLICIDADE;RESULTADO;DRE.06.02.01.01;Publicidade e propaganda;DRE;Despesas Comerciais;
-2805;9.4.21.200.5;IOF;RESULTADO;DRE.13.02.01.03;IOF e impostos financeiros;DRE;Resultado Financeiro;
-2913;9.5.10.100.1;DESPESAS BANCÁRIAS;RESULTADO;DRE.13.02.01.01;Despesas bancarias;DRE;Resultado Financeiro;
-2914;9.5.10.100.2;JUROS E MULTAS PASSIVOS;RESULTADO;DRE.13.02.02.01;Juros e multas passivos;DRE;Resultado Financeiro;
-2932;9.5.20.100.1;RENDIMENTOS DE APLICAÇÕES FINANCEIRAS;RESULTADO;DRE.13.01.01.01;Rendimentos de aplicacoes financeiras;DRE;Resultado Financeiro;
+2805;9.4.21.200.5;IOF;RESULTADO;DRE.14.02.01.03;IOF e impostos financeiros;DRE;Resultado Financeiro;
+2913;9.5.10.100.1;DESPESAS BANCÁRIAS;RESULTADO;DRE.14.02.01.01;Despesas bancarias;DRE;Resultado Financeiro;
+2914;9.5.10.100.2;JUROS E MULTAS PASSIVOS;RESULTADO;DRE.14.02.02.01;Juros e multas passivos;DRE;Resultado Financeiro;
+2932;9.5.20.100.1;RENDIMENTOS DE APLICAÇÕES FINANCEIRAS;RESULTADO;DRE.14.01.01.01;Rendimentos de aplicacoes financeiras;DRE;Resultado Financeiro;
 11;1.1.10.200.1;BANCO ITAU 43186-0;ATIVO;01.01.01.02.01;Bancos nacionais;BP;Ativo Circulante;cadastrado no portal
 20;1.1.10.201.1;ITAU 99363-8;ATIVO;01.01.01.02.01;Bancos nacionais;BP;Ativo Circulante;cadastrado no portal
 2033;9.2.10.100.1;PIS;RESULTADO;DRE.02.01.01.01;PIS sobre receita;DRE;Deducoes;cadastrado no portal
@@ -67,4 +67,4 @@
 2405;9.3.30.100.4;INSS;RESULTADO;DRE.04.03.01.03;INSS da equipe operacional;DRE;Custos;cadastrado no portal
 2407;9.3.30.100.6;IRRF;RESULTADO;DRE.04.03.01.03;INSS da equipe operacional;DRE;Custos;cadastrado no portal
 2658;9.4.20.100.7;IRRF;RESULTADO;DRE.07.01.02.02;INSS administrativo;DRE;Despesas Administrativas;cadastrado no portal
-3080;9.4.90.900.4;EMPRESTIMOS;RESULTADO;DRE.14.02.01.01;Outras despesas nao operacionais;DRE;Resultados Nao Operacionais;cadastrado no portal
+3080;9.4.90.900.4;EMPRESTIMOS;RESULTADO;DRE.15.02.01.01;Outras despesas nao operacionais;DRE;Resultados Nao Operacionais;cadastrado no portal

@@ -307,7 +307,7 @@ export default function Orcamento() {
   const fullYear = useMemo(() => (budget && ctx ? budgetContext({ ...ctx, months }, [{ ...budget, principal: true }]) : null), [budget, ctx]); // eslint-disable-line react-hooks/exhaustive-deps
   const [serie, setSerie] = useState("receita");
 
-  const visibleLines = LINE_ORDER.filter((code) => code !== "DRE.11" || Math.abs(sumMonths(matrix[code], months)) > 0.5 || (ctx && Math.abs(sumMonths(actualMonths(ctx, code), months)) > 0.5));
+  const visibleLines = LINE_ORDER.filter((code) => code !== "DRE.12" || Math.abs(sumMonths(matrix[code], months)) > 0.5 || (ctx && Math.abs(sumMonths(actualMonths(ctx, code), months)) > 0.5));
 
   // Desvios por linha (as de preenchimento e as filhas abertas).
   const deviations = useMemo(() => {

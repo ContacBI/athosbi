@@ -65,7 +65,7 @@ const EBITDA_CHARTS = [
 const LEVELS = [1, 2, 3, 4, 5, 6];
 
 const HIGHLIGHT_CODES = {
-  DRE: new Set(["DRE.03", "DRE.05", "DRE.10", "DRE.12", "DRE.15", "DRE.17"]),
+  DRE: new Set(["DRE.03", "DRE.05", "DRE.11", "DRE.13", "DRE.16", "DRE.18"]),
   BP: new Set(["01", "02", "03"]),
 };
 
