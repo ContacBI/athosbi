@@ -290,18 +290,12 @@ DRE.08.02.02;DRE;Perdas estimadas e diversas;Tributos e Provisoes;4;Sintetica;;;
 DRE.08.02.02.01;DRE;Perdas estimadas com clientes;Tributos e Provisoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
 DRE.08.02.02.02;DRE;Perdas diversas;Tributos e Provisoes;5;Analitica;8;DFC.OP.TRIBUTOS;Tributos pagos;preenchido pelo plano gerencial editavel
 DRE.09;DRE;Despesas indedutiveis;Despesas Indedutiveis;2;Sintetica;;;;
-DRE.09.01;DRE;Despesas indedutiveis gerais;Despesas Indedutiveis;3;Sintetica;;;;
-DRE.09.01.01;DRE;Despesas indedutiveis gerais;Despesas Indedutiveis;4;Sintetica;;;;
+DRE.09.01;DRE;Despesas indedutiveis;Despesas Indedutiveis;3;Sintetica;;;;
+DRE.09.01.01;DRE;Despesas indedutiveis;Despesas Indedutiveis;4;Sintetica;;;;
 DRE.09.01.01.01;DRE;Despesas indedutiveis gerais;Despesas Indedutiveis;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;
-DRE.09.02;DRE;Multas e penalidades;Despesas Indedutiveis;3;Sintetica;;;;
-DRE.09.02.01;DRE;Multas e penalidades;Despesas Indedutiveis;4;Sintetica;;;;
-DRE.09.02.01.01;DRE;Multas e penalidades indedutiveis;Despesas Indedutiveis;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;
-DRE.09.03;DRE;Brindes e doacoes;Despesas Indedutiveis;3;Sintetica;;;;
-DRE.09.03.01;DRE;Brindes e doacoes;Despesas Indedutiveis;4;Sintetica;;;;
-DRE.09.03.01.01;DRE;Brindes e doacoes indedutiveis;Despesas Indedutiveis;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;
-DRE.09.04;DRE;Despesas sem comprovacao;Despesas Indedutiveis;3;Sintetica;;;;
-DRE.09.04.01;DRE;Despesas sem comprovacao;Despesas Indedutiveis;4;Sintetica;;;;
-DRE.09.04.01.01;DRE;Despesas sem comprovacao fiscal;Despesas Indedutiveis;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;
+DRE.09.01.01.02;DRE;Multas e penalidades;Despesas Indedutiveis;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;
+DRE.09.01.01.03;DRE;Brindes e doacoes;Despesas Indedutiveis;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;
+DRE.09.01.01.04;DRE;Despesas sem comprovacao;Despesas Indedutiveis;5;Analitica;12;DFC.OP.OUTROS;Outros recebimentos/(pagamento) liquidos;
 DRE.10;DRE;Outros resultados operacionais;Outros Resultados Operacionais;2;Sintetica;;;;
 DRE.10.01;DRE;Outras receitas operacionais;Outros Resultados Operacionais;3;Sintetica;;;;
 DRE.10.01.01;DRE;Recuperacoes e bonificacoes;Outros Resultados Operacionais;4;Sintetica;;;;
