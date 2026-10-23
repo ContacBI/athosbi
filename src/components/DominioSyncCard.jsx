@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Clock, LoaderCircle, Send, TriangleAlert } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { attachJournalMonths } from "../lib/journalMonths.js";
-import { applyBalancete, applyBalanceteAno } from "../lib/companies.js";
+import { applyBalancete, applyBalanceteAno, fillMappingsFromSiblings } from "../lib/companies.js";
 import {
   fetchDominioEntries,
   isDominioPending,
@@ -231,6 +231,7 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
     if ((!targets.length && !bal) || applying) return;
     setApplying(true);
     let balanceteSalvo = false;
+    let vinculadasDoPlano = 0;
     try {
       onBusy("Buscando os dados da Domínio…");
       // Balancete primeiro: o De/Para pode acompanhar conta renumerada na
@@ -305,11 +306,17 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
         if (doAno) await applyBalanceteAno(bal.ano, bal.accounts, mappingsFinais, meta);
         else await applyBalancete(bal.accounts, migracao.mappings, meta);
         balanceteSalvo = true;
+        // contas novas que outra empresa do mesmo Plano padrão já tem vinculada (mesmo código e classificação): nascem vinculadas
+        try {
+          vinculadasDoPlano = await fillMappingsFromSiblings(state.activeCompanyId);
+        } catch (error) {
+          console.warn("Não consegui aplicar os vínculos das empresas do mesmo plano padrão:", error);
+        }
       }
       // Mesmo caminho da importação de diário: troca só esses meses e só
       // resolve depois que o Supabase confirmou (desfaz tudo se falhar).
       if (entries.length) await attachJournalMonths(entries, { onProgress: onProgress("Salvando os lançamentos da Domínio...") });
-      onDone(`Pronto, veio da Domínio: ${[bal ? `balancete${doAno ? ` de ${bal.ano}` : ""}` : "", labels].filter(Boolean).join(" e ")}.${semDePara.length ? ` Atenção: ${plural(semDePara.length, "conta ainda sem", "contas ainda sem")} De/Para (veja a aba De/Para).` : ""}`);
+      onDone(`Pronto, veio da Domínio: ${[bal ? `balancete${doAno ? ` de ${bal.ano}` : ""}` : "", labels].filter(Boolean).join(" e ")}.${vinculadasDoPlano ? ` ${plural(vinculadasDoPlano, "conta já veio vinculada", "contas já vieram vinculadas")} pelo plano padrão (mesmo código e classificação de outra empresa do plano).` : ""}${semDePara.length ? ` Atenção: ${plural(semDePara.length, "conta ainda sem", "contas ainda sem")} De/Para (veja a aba De/Para).` : ""}`);
     } catch (error) {
       console.error("Falha ao aplicar os dados da Domínio:", error);
       if (balanceteSalvo) onError("O balancete foi atualizado, mas os meses não — tente de novo os meses pendentes.");

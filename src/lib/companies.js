@@ -347,6 +347,7 @@ export function applySiblingMappings(sourceCompanyId, newMappings) {
   const source = state.companies.find((company) => company.id === sourceCompanyId);
   if (!source?.planoPadraoId || !newMappings?.length) return 0;
   const bySignature = new Map(newMappings.map((row) => [`${row.classificacao}||${normalizeName(row.nome_conta)}`, row]));
+  const byCode = new Map(newMappings.filter((row) => row.codigo_conta).map((row) => [`${row.codigo_conta}||${row.classificacao}`, row]));
   let totalApplied = 0;
   const companies = state.companies.map((company) => {
     if (company.id === sourceCompanyId || company.planoPadraoId !== source.planoPadraoId) return company;
@@ -354,7 +355,7 @@ export function applySiblingMappings(sourceCompanyId, newMappings) {
     const additions = (company.accounts || [])
       .filter((account) => !already.has(account.classificacao))
       .map((account) => {
-        const match = bySignature.get(`${account.classificacao}||${normalizeName(account.nome_conta)}`);
+        const match = byCode.get(`${account.codigo}||${account.classificacao}`) || bySignature.get(`${account.classificacao}||${normalizeName(account.nome_conta)}`);
         if (!match) return null;
         return {
           codigo_conta: account.codigo,
@@ -377,8 +378,68 @@ export function applySiblingMappings(sourceCompanyId, newMappings) {
   if (!totalApplied) return 0;
   const active = companies.find((company) => company.id === state.activeCompanyId && company.id !== sourceCompanyId);
   setData({ companies, ...(active ? { mappings: active.mappings, journal: active.journal } : {}) });
-  writeStoredCompanies(companies);
+  writeStoredCompanies(companies).catch((error) => setData({ saveError: { message: String(error?.message || error).slice(0, 240), at: Date.now() } }));
   return totalApplied;
+}
+
+// O caminho inverso (pedido do Izaias, 23/10/2026): quando chegam contas novas da Domínio numa empresa de um Plano padrão (balancete novo), elas já
+// nascem vinculadas se outra empresa do MESMO plano tem a mesma conta (mesmo código e mesma classificação da Domínio) vinculada — vincula-se uma vez só.
+// Só preenche conta que ainda está sem vínculo (nunca troca um vínculo existente) e só quando as empresas irmãs concordam no destino (se divergem,
+// a conta fica pendente pra pessoa decidir). Devolve quantas contas foram vinculadas; já grava.
+export async function fillMappingsFromSiblings(companyId) {
+  const target = state.companies.find((company) => company.id === companyId);
+  if (!target?.planoPadraoId) return 0;
+  const isActive = companyId === state.activeCompanyId && !state.activeGroupId;
+  const accounts = (isActive ? state.accounts : target.accounts) || [];
+  const mappings = (isActive ? state.mappings : target.mappings) || [];
+  const have = new Set(mappings.map((row) => row.classificacao));
+  const indexar = (mapa, chave, row) => {
+    const destinos = mapa.get(chave) ?? mapa.set(chave, new Map()).get(chave);
+    if (!destinos.has(row.codigo_gerencial)) destinos.set(row.codigo_gerencial, row);
+  };
+  const byCode = new Map();
+  const byName = new Map();
+  for (const sibling of state.companies) {
+    if (sibling.id === companyId || sibling.planoPadraoId !== target.planoPadraoId) continue;
+    for (const row of sibling.mappings || []) {
+      if (!row.codigo_gerencial) continue;
+      if (row.codigo_conta) indexar(byCode, `${row.codigo_conta}||${row.classificacao}`, row);
+      indexar(byName, `${row.classificacao}||${normalizeName(row.nome_conta)}`, row);
+    }
+  }
+  const escolher = (mapa, chave) => {
+    const destinos = mapa.get(chave);
+    return destinos && destinos.size === 1 ? [...destinos.values()][0] : null; // sem irmã com a conta, ou irmãs discordando: não decide
+  };
+  const additions = accounts
+    .filter((account) => !have.has(account.classificacao))
+    .map((account) => {
+      const match = escolher(byCode, `${account.codigo}||${account.classificacao}`) || escolher(byName, `${account.classificacao}||${normalizeName(account.nome_conta)}`);
+      if (!match) return null;
+      return {
+        codigo_conta: account.codigo,
+        classificacao: account.classificacao,
+        nome_conta: account.nome_conta,
+        tipo_conta: "",
+        codigo_gerencial: match.codigo_gerencial,
+        categoria_gerencial: match.categoria_gerencial,
+        demonstrativo: match.demonstrativo,
+        grupo_macro: match.grupo_macro,
+        observacao: "",
+      };
+    })
+    .filter(Boolean);
+  if (!additions.length) return 0;
+  const novos = [...mappings, ...additions];
+  if (isActive) {
+    setData({ mappings: novos, journal: remapJournal(state.journal || [], novos) });
+    await persistActiveCompany();
+  } else {
+    const companies = state.companies.map((company) => (company.id === companyId ? { ...company, mappings: novos, journal: remapJournal(company.journal || [], novos), updatedAt: new Date().toISOString() } : company));
+    setData({ companies });
+    await writeStoredCompanies(companies);
+  }
+  return additions.length;
 }
 
 // Returns { groupId } when a group was the last active workspace — App.jsx
