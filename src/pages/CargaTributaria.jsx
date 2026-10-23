@@ -3,7 +3,8 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Leg
 import { ArrowDown, ArrowUp, Pencil, Percent, SlidersHorizontal } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { saveCargaContabil, saveCargaLayout, saveCargaManual } from "../lib/companies.js";
-import { fetchCargaTributaria, pctCarga } from "../lib/cargaTributaria.js";
+import { aplicarContabil, aplicarManual, fetchCargaTributaria, pctCarga, somarCargas } from "../lib/cargaTributaria.js";
+import { groupCompanies } from "../lib/groups.js";
 import { money } from "../lib/format.js";
 
 const MES_CURTO = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -100,6 +101,7 @@ function TabelaGrupos({ grupos, valores, total, faturamento, vazio }) {
 const BLOCOS = [
   { id: "resumo", kind: "bloco", padrao: true, nome: "Resumo (carga, faturamento e quanto cada imposto pesa)" },
   { id: "avisos", kind: "bloco", padrao: true, nome: "Avisos" },
+  { id: "por-empresa", kind: "bloco", padrao: true, nome: "Por empresa (aparece só no grupo)" },
   { id: "painel", kind: "bloco", padrao: true, nome: "Painel (R$ 100 faturados e faturamento × impostos por mês)" },
   { id: "kpi-fat", kind: "kpi", nome: "Faturamento" },
   { id: "kpi-imp", kind: "kpi", nome: "Impostos próprios" },
@@ -136,7 +138,10 @@ const POR_ID = new Map(BLOCOS.map((b) => [b.id, b]));
 export default function CargaTributaria() {
   const state = useAppState();
   const company = state.companies.find((item) => item.id === state.activeCompanyId);
-  const [rows, setRows] = useState(null); // null = carregando
+  const grupo = state.activeGroupId ? state.groups.find((item) => item.id === state.activeGroupId) : null;
+  const membros = useMemo(() => (grupo ? groupCompanies(grupo) : []), [grupo, state.companies]);
+  const [brutosGrupo, setBrutosGrupo] = useState(null); // { [companyId]: linhas do dominio_carga }
+  const [rowsEmpresa, setRows] = useState(null); // null = carregando
   const [error, setError] = useState("");
   const [ano, setAno] = useState(null);
   const [sel, setSel] = useState("ano"); // "ano" | "T1".."T4" | 0..11
@@ -144,9 +149,54 @@ export default function CargaTributaria() {
   const [rascunho, setRascunho] = useState(null); // { ordem: [ids de todos os blocos], ligados: Set }
   const [salvando, setSalvando] = useState(false);
 
-  const podeEditar = Boolean(state.isAdmin || (company && (company.responsaveis || []).includes(state.userEmail)));
+  // Grupo: cada empresa com os seus valores informados à mão e a sua opção do contábil, e depois a soma de todas.
+  const dadosDaEmpresa = (membro, ano) => {
+    const linha = (brutosGrupo?.[membro.id] || []).find((item) => item.ano === ano);
+    if (!linha?.dados) return null;
+    const comManual = aplicarManual(linha.dados, (membro.cargaManual || {})[String(ano)]);
+    return membro.cargaContabil ? aplicarContabil(comManual) : comManual;
+  };
+  const rowsGrupo = useMemo(() => {
+    if (!grupo || !brutosGrupo) return null;
+    const anos = [...new Set(Object.values(brutosGrupo).flatMap((linhas) => linhas.map((item) => item.ano)))].sort((a, b) => b - a);
+    return anos
+      .map((ano) => {
+        const dados = somarCargas(membros.map((membro) => dadosDaEmpresa(membro, ano)));
+        const synced = Object.values(brutosGrupo).flatMap((linhas) => linhas.filter((item) => item.ano === ano).map((item) => item.synced_at)).sort().pop();
+        return dados ? { ano, dados, synced_at: synced } : null;
+      })
+      .filter(Boolean);
+  }, [grupo, membros, brutosGrupo]);
+  const rows = grupo ? rowsGrupo : rowsEmpresa;
+
+  const podeEditar = Boolean(!grupo && state.isAdmin || (!grupo && company && (company.responsaveis || []).includes(state.userEmail)));
   const salvo = Array.isArray(company?.cargaLayout) ? company.cargaLayout.filter((id) => POR_ID.has(id)) : PADRAO;
   const ligados = editando && rascunho ? BLOCOS.map((b) => b.id).filter((id) => rascunho.ligados.has(id)).sort((a, b) => rascunho.ordem.indexOf(a) - rascunho.ordem.indexOf(b)) : salvo;
+
+  // Grupo: lê a carga de cada empresa membro (a soma é feita em rowsGrupo).
+  const idsMembros = membros.map((membro) => membro.id).join(",");
+  useEffect(() => {
+    if (!grupo) return undefined;
+    let ativo = true;
+    setBrutosGrupo(null);
+    setError("");
+    Promise.all(membros.map((membro) => fetchCargaTributaria(membro.id).then((linhas) => [membro.id, linhas])))
+      .then((pares) => {
+        if (ativo) setBrutosGrupo(Object.fromEntries(pares));
+      })
+      .catch((err) => {
+        console.error("Falha ao ler a carga tributária do grupo:", err);
+        if (ativo) setError("Não consegui carregar a carga tributária do grupo agora. Tente de novo.");
+      });
+    return () => {
+      ativo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grupo?.id, idsMembros]);
+  useEffect(() => {
+    if (!grupo || !rowsGrupo) return;
+    setAno((atual) => (atual && rowsGrupo.some((item) => item.ano === atual) ? atual : rowsGrupo[0]?.ano ?? null));
+  }, [grupo, rowsGrupo]);
 
   useEffect(() => {
     if (!company || state.activeGroupId) return undefined;
@@ -171,8 +221,8 @@ export default function CargaTributaria() {
   const row = useMemo(() => (rows || []).find((item) => item.ano === ano) || null, [rows, ano]);
   const anterior = useMemo(() => (rows || []).find((item) => item.ano === ano - 1) || null, [rows, ano]);
   const dadosCentral = row?.dados;
-  const usarContabil = Boolean(company?.cargaContabil);
-  const manualAno = (company?.cargaManual || {})[String(ano)] || {};
+  const usarContabil = grupo ? false : Boolean(company?.cargaContabil);
+  const manualAno = grupo ? {} : (company?.cargaManual || {})[String(ano)] || {};
   // Meses sem fiscal (ex.: empresa nova na Domínio): faturamento e impostos informados à mão entram no lugar. Valor informado de um imposto
   // substitui o que o contábil tiver pra ele naquele mês (não soma duas vezes). Mês, trimestre e ano são refeitos a partir disso.
   const dadosBrutos = useMemo(() => {
@@ -328,7 +378,7 @@ export default function CargaTributaria() {
     }
   }
 
-  if (!company || state.activeGroupId) {
+  if (!company && !grupo) {
     return <p className="rounded-xl bg-surface-card p-6 text-[13px] text-ink-500 shadow-sm">A carga tributária é por empresa — abra uma empresa para ver.</p>;
   }
   if (error && !rows) return <p className="rounded-xl bg-danger-50 p-4 text-[13px] text-danger-600">{error}</p>;
@@ -422,6 +472,40 @@ export default function CargaTributaria() {
           </div>
         </Bloco>
         </div>
+      );
+    },
+    "por-empresa": () => {
+      if (!grupo) return null;
+      const periodoDe = (d) => (sel === "ano" ? d.ano_total : typeof sel === "string" ? d.trimestres[Number(sel.slice(1)) - 1] : d.meses[sel]);
+      const linhas = membros.map((membro) => { const d = dadosDaEmpresa(membro, ano); return { membro, p: d ? periodoDe(d) : null }; }).filter((x) => x.p);
+      if (!linhas.length) return null;
+      const maxImp = Math.max(...linhas.map((x) => x.p.impTotal || 0), 1);
+      return (
+        <Bloco key="por-empresa" titulo="Por empresa do grupo" nota={`${titulo} · carga de cada uma e do grupo`} className="overflow-x-auto">
+          <table className="w-full border-collapse text-[13px]">
+            <thead>
+              <tr className={CABECALHO}><th className="px-3 py-2 text-left font-semibold">Empresa</th><th className={TH}>Faturamento</th><th className={TH}>Impostos próprios</th><th className={TH}>Carga</th><th className={TH}>% dos impostos do grupo</th></tr>
+            </thead>
+            <tbody>
+              {linhas.map(({ membro, p }) => (
+                <tr key={membro.id} className="border-b border-line">
+                  <td className="px-3 py-2 text-left">{membro.name}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{money(p.fat.total)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{money(p.impTotal)}</td>
+                  <td className="px-3 py-2 text-right font-semibold tabular-nums">{pctCarga(p.carga)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{periodo.impTotal ? pctCarga(p.impTotal / periodo.impTotal) : "—"}<span className="ml-2 inline-block h-2 rounded bg-accent-500 align-middle" style={{ width: `${Math.round(((p.impTotal || 0) / maxImp) * 60)}px` }} /></td>
+                </tr>
+              ))}
+              <tr className="bg-surface-muted font-bold">
+                <td className="px-3 py-2 text-left">Grupo</td>
+                <td className="px-3 py-2 text-right tabular-nums">{money(periodo.fat.total)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{money(periodo.impTotal)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{pctCarga(periodo.carga)}</td>
+                <td className="px-3 py-2 text-right">{periodo.impTotal ? "100,00%" : "—"}</td>
+              </tr>
+            </tbody>
+          </table>
+        </Bloco>
       );
     },
     resumo: () => {
@@ -523,7 +607,7 @@ export default function CargaTributaria() {
       if (total.fat.outrasSaidas > 0) itens.push(["warn", `Saídas que não contam como faturamento (devolução, remessa, transferência…): ${moneyFull(total.fat.outrasSaidas)} no ano.`]);
       if ((total.reforma?.ibs || 0) + (total.reforma?.cbs || 0) > 0) itens.push(["info", `Reforma tributária (valores de teste de ${ano}): IBS ${moneyFull(total.reforma.ibs)} · CBS ${moneyFull(total.reforma.cbs)} — não entram na carga.`]);
       const tc = dadosBrutos?.ano_total;  // já com os valores informados à mão
-      const soContabil = tc?.contabilTotal > 0 ? grupos.filter((g) => tc.contabil?.[g.id] > 0) : [];
+      const soContabil = !grupo && tc?.contabilTotal > 0 ? grupos.filter((g) => tc.contabil?.[g.id] > 0) : [];
       if (!itens.length && !soContabil.length) return null;
       return (
         <div key="avisos" className="flex flex-col gap-2">
@@ -851,6 +935,7 @@ export default function CargaTributaria() {
           <div>
             <p className="flex items-center gap-2 text-[15px] font-semibold text-ink-900"><Percent size={16} /> Carga tributária</p>
             <p className="mt-0.5 max-w-2xl text-[12px] text-ink-400">Os impostos próprios apurados no fiscal da Domínio sobre o faturamento (valor das notas): quanto a empresa realmente paga de imposto para cada R$ 1 faturado.</p>
+            {grupo && <p className="mt-1 max-w-2xl text-[12px] font-medium text-ink-600">Grupo {grupo.name}: soma de {membros.length} empresas ({membros.map((membro) => membro.name).join(", ")}). Cada uma entra com os valores informados à mão e a opção do contábil que tiver na própria empresa.</p>}
           </div>
           <div className="flex items-center gap-2">
             {podeEditar && !editando && (

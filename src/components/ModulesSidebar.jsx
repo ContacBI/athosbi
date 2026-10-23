@@ -29,7 +29,6 @@ const MODULOS = [
     icone: Percent,
     to: "/empresa/carga-tributaria",
     ativo: (path) => path.startsWith("/empresa/carga-tributaria"),
-    soEmpresa: true, // grupo não tem carga tributária
   },
 ];
 
