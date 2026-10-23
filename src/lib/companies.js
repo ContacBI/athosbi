@@ -815,7 +815,19 @@ export async function selectCompany(id, { skipPersist = false } = {}) {
 // certeza de que um razão vazio agora é intencional (ex.: removeJournalMonths
 // depois do usuário confirmar a exclusão) — ver a trava correspondente em
 // writeStoredCompanies.
-export function persistActiveCompany({ allowEmptyJournal = false, onProgress } = {}) {
+export function persistActiveCompany(options = {}) {
+  const promise = persistActiveCompanyInner(options);
+  promise.then(
+    () => { if (state.saveError) setData({ saveError: null }); },
+    (error) => {
+      console.error("Falha ao gravar a última alteração:", error);
+      setData({ saveError: { message: String(error?.message || error || "erro desconhecido").slice(0, 240), at: Date.now() } });
+    }
+  );
+  return promise;
+}
+
+function persistActiveCompanyInner({ allowEmptyJournal = false, onProgress } = {}) {
   if (state.activeGroupId) {
     return persistActiveGroupWorkspace();
   }

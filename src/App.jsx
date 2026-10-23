@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import CompanyLayout from "./components/CompanyLayout.jsx";
+import SaveErrorBanner from "./components/SaveErrorBanner.jsx";
 import ParametrosLayout from "./components/ParametrosLayout.jsx";
 import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
@@ -181,6 +182,7 @@ function AuthedApp() {
 
   return (
     <BrowserRouter>
+      <SaveErrorBanner />
       <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route index element={<Landing />} />

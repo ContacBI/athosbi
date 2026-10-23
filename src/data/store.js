@@ -33,6 +33,8 @@ export const state = {
   // Each record either overrides a built-in indicator's id (its formula
   // patched in place) or introduces a brand-new custom one.
   indicatorOverrides: [],
+  // Última gravação que falhou ({ message, at }) — aparece num aviso fixo (components/SaveErrorBanner.jsx) até a próxima gravação dar certo.
+  saveError: null,
   activeCompanyId: "",
   activeGroupId: "",
   // true só pro(s) e-mail(s) cadastrados em portal_admins (ver lib/access.js
