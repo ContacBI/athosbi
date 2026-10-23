@@ -136,6 +136,8 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
   const balancetePendente = Boolean(balancete && balancete.status !== "igual");
   // Contas que a Central já mandou da Domínio (balancete do ano da tela) e ainda não têm De/Para — avisa ANTES de trazer, pra ninguém descobrir só no relatório.
   const semDeParaNovas = balancete ? unmappedBalanceteAccounts(balancete.accounts || [], state.mappings || []) : [];
+  // Aviso: qualquer mês que a Domínio mudou ou trouxe novo, mesmo fora do período escolhido nos seletores
+  const avisoPendentes = withStatus.filter((month) => isDominioPending(month.status));
   const pendingCount = pending.length + (balancetePendente ? 1 : 0);
   const lastSync = [...withStatus.map((month) => month.syncedAt), balancete?.syncedAt || ""].reduce((latest, at) => (at > latest ? at : latest), "");
   // Só dá pra pedir mês que já começou.
@@ -362,6 +364,18 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
           </div>
         ) : (
           <p className="mt-2 text-[12.5px] text-ink-400">Nada de {year} chegou da Domínio ainda. Escolha o período abaixo e peça à Central.</p>
+        )}
+        {avisoPendentes.length > 0 && !applying && !pedidoAberto && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-3 rounded-lg border-l-[3px] border-accent-500 bg-accent-500/10 px-3 py-2 text-[12.5px] text-ink-800">
+            <span className="min-w-0 flex-1">
+              <b>{avisoPendentes.some((month) => month.status === "pendente") ? "Lançamentos alterados na Domínio" : "Lançamentos novos na Domínio"}:</b>{" "}
+              {avisoPendentes.map((month) => monthLabel(month.competencia)).join(", ")}
+              {balancetePendente ? " e o balancete" : ""}. Atualize para trazer ao portal.
+            </span>
+            <button type="button" onClick={() => apply(avisoPendentes, balancetePendente)} className="rounded-md bg-accent-500 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm hover:bg-accent-600">
+              Atualizar agora
+            </button>
+          </div>
         )}
         <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12px] text-ink-500">
           <span>Período</span>

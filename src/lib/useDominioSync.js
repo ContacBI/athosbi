@@ -68,6 +68,31 @@ export function useDominioSync(company) {
     reload();
   }, [reload]);
 
+  // Alteração feita na Domínio depois da última importação: a Central detecta e reenvia (ver detectarAlteracoes no servidor); aqui a tela confere sozinha
+  // a cada 3 min (e ao voltar pra aba) pra mostrar o aviso "alterado na Domínio" sem ninguém recarregar. Silencioso: não pisca "Verificando…".
+  useEffect(() => {
+    if (!codigo || !cnpj) return undefined;
+    let ativo = true;
+    const atualizar = async () => {
+      if (document.hidden) return;
+      try {
+        const [months, balancetes] = await Promise.all([fetchDominioMonths(codigo, cnpj), fetchDominioBalancetes(codigo, cnpj)]);
+        if (!ativo) return;
+        setRawMonths(months);
+        setRawBalancetes(balancetes);
+      } catch {
+        /* sem rede agora: tenta no próximo ciclo */
+      }
+    };
+    const timer = setInterval(atualizar, 180000);
+    document.addEventListener("visibilitychange", atualizar);
+    return () => {
+      ativo = false;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", atualizar);
+    };
+  }, [codigo, cnpj]);
+
   // Pedido aberto: acompanha o status e, enquanto a Central manda, os meses
   // que já chegaram (sem piscar "Verificando…" — só troca a lista).
   const aberto = isPedidoAberto(pedido);
