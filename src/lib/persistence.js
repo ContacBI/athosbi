@@ -344,7 +344,9 @@ export async function readPersistentByPrefix(prefix) {
     // Antes voltava [] aqui — pra loadCompanies() isso é indistinguível de
     // "não existe empresa nenhuma", o que apagava a lista inteira da tela
     // só por causa de uma falha de rede. Propaga o erro em vez disso.
-    throw new PersistenceReadError(`Não consegui listar "${prefix}*" do Supabase.`, { cause: error });
+    // Inclui a causa real na mensagem (antes só aparecia no console), pra quem vê a tela já saber se foi tempo esgotado, sessão vencida ou erro do banco.
+    const motivo = [error?.code, error?.message || error?.name].filter(Boolean).join(" · ");
+    throw new PersistenceReadError(`Não consegui listar "${prefix}*" do Supabase${motivo ? ` (${String(motivo).slice(0, 160)})` : ""}.`, { cause: error });
   }
   return (data || []).map((row) => row.value);
 }
