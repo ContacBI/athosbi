@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Check, RotateCcw, Search, X } from "lucide-react";
 import { useAppState, setData } from "../data/useStore.js";
-import { persistActiveCompany } from "../lib/companies.js";
+import { persistActiveCompany, applySiblingDfcOverride } from "../lib/companies.js";
 import { dfcDirectTargetOptions, resolveDfcDirectDestino, isCashGerencialCode } from "../data/calculations.js";
 
 const norm = (value) => String(value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -98,6 +98,7 @@ export default function VinculoDfc() {
     const next = (state.dfcOverrides || []).filter((item) => item.codigo_gerencial !== picker.codigoGerencial);
     next.push({ codigo_gerencial: picker.codigoGerencial, destino: code });
     setData({ dfcOverrides: next });
+    applySiblingDfcOverride(state.activeCompanyId, picker.codigoGerencial, code);
     persistActiveCompany();
     setPicker(null);
   }
@@ -106,6 +107,7 @@ export default function VinculoDfc() {
     if (!picker) return;
     const next = (state.dfcOverrides || []).filter((item) => item.codigo_gerencial !== picker.codigoGerencial);
     setData({ dfcOverrides: next });
+    applySiblingDfcOverride(state.activeCompanyId, picker.codigoGerencial, null);
     persistActiveCompany();
     setPicker(null);
   }

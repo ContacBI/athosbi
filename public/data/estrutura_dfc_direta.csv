@@ -23,6 +23,8 @@
 22;DFC.FIN.LUCROS_DIV_PAGOS;Pagamentos de lucros e dividendos;Financiamento;2;analytic
 23;DFC.FIN.EMPRESTIMOS_TOMADOS;Emprestimos tomados;Financiamento;2;analytic
 24;DFC.FIN.EMPRESTIMOS_PAGOS;Pagamentos de emprestimos/Debentures;Financiamento;2;analytic
+29;DFC.FIN.MUTUO_TOMADO;Mutuos tomados de empresas do grupo (liquido);Financiamento;2;analytic
+30;DFC.FIN.MUTUO_CONCEDIDO;Mutuos concedidos a empresas do grupo (liquido);Financiamento;2;analytic
 25;DFC.FIN.CAIXA_LIQUIDO;CAIXA LIQUIDO GERADO PELAS ATIVIDADES DE FINANCIAMENTOS;Financiamento;2;subtotal
 26;DFC.CASH.VARIACAO;AUMENTO/REDUCAO NAS DISPONIBILIDADES;Disponibilidades;1;subtotal
 27;DFC.CASH.INICIO;DISPONIBILIDADES - NO INICIO DO PERIODO;Disponibilidades;1;subtotal

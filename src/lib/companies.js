@@ -392,6 +392,28 @@ export function applySiblingMappings(sourceCompanyId, newMappings) {
   return totalApplied;
 }
 
+// Vínculo DFC (tela "Vínculo DFC"): o destino é por código do plano gerencial, igual em todas as empresas do mesmo Plano padrão —
+// então mudar numa empresa muda nas irmãs (pedido do Izaias, 26/10/2026). destino null = voltou ao padrão (tira o ajuste das irmãs).
+export function applySiblingDfcOverride(sourceCompanyId, codigoGerencial, destino) {
+  const source = state.companies.find((company) => company.id === sourceCompanyId);
+  if (!source?.planoPadraoId || !codigoGerencial) return 0;
+  let changed = 0;
+  const companies = state.companies.map((company) => {
+    if (company.id === sourceCompanyId || company.planoPadraoId !== source.planoPadraoId) return company;
+    const atuais = company.dfcOverrides || [];
+    const jaTem = atuais.find((item) => item.codigo_gerencial === codigoGerencial);
+    if ((jaTem?.destino || null) === (destino || null)) return company;
+    changed += 1;
+    const resto = atuais.filter((item) => item.codigo_gerencial !== codigoGerencial);
+    return { ...company, dfcOverrides: destino ? [...resto, { codigo_gerencial: codigoGerencial, destino }] : resto, updatedAt: new Date().toISOString() };
+  });
+  if (!changed) return 0;
+  const active = companies.find((company) => company.id === state.activeCompanyId && company.id !== sourceCompanyId);
+  setData({ companies, ...(active ? { dfcOverrides: active.dfcOverrides } : {}) });
+  writeStoredCompanies(companies).catch((error) => setData({ saveError: { message: String(error?.message || error).slice(0, 240), at: Date.now() } }));
+  return changed;
+}
+
 // O caminho inverso (pedido do Izaias, 23/10/2026): quando chegam contas novas da Domínio numa empresa de um Plano padrão (balancete novo), elas já
 // nascem vinculadas se outra empresa do MESMO plano tem a mesma conta (mesmo código e mesma classificação da Domínio) vinculada — vincula-se uma vez só.
 // Só preenche conta que ainda está sem vínculo (nunca troca um vínculo existente) e só quando as empresas irmãs concordam no destino (se divergem,

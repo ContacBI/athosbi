@@ -376,7 +376,7 @@ export function buildDfcIndirect() {
     "Financiamento",
     "subtotal",
     financingMonths,
-    directContasFrom(["DFC.FIN.CAPITAL", "DFC.FIN.LUCROS_DIV_PAGOS", "DFC.FIN.EMPRESTIMOS_TOMADOS", "DFC.FIN.EMPRESTIMOS_PAGOS"])
+    directContasFrom(["DFC.FIN.CAPITAL", "DFC.FIN.LUCROS_DIV_PAGOS", "DFC.FIN.EMPRESTIMOS_TOMADOS", "DFC.FIN.EMPRESTIMOS_PAGOS", "DFC.FIN.MUTUO_TOMADO", "DFC.FIN.MUTUO_CONCEDIDO"])
   );
   add("DFCI.CASH.VARIACAO", "AUMENTO/(REDUÇÃO) NAS DISPONIBILIDADES", operating + directValue("DFC.INV.CAIXA_LIQUIDO") + directValue("DFC.FIN.CAIXA_LIQUIDO"), "Disponibilidades", "subtotal", sumMonths(operatingMonths, investmentMonths, financingMonths));
   add("DFCI.CASH.INICIO", "DISPONIBILIDADES NO INÍCIO DO PERÍODO", directValue("DFC.CASH.INICIO"), "Disponibilidades", "subtotal", rowMonths(direct, "DFC.CASH.INICIO"));
@@ -633,6 +633,8 @@ function defaultDfcStructure() {
     { code: "DFC.FIN.LUCROS_DIV_PAGOS", name: "Pagamentos de lucros e dividendos", group: "Financiamento", level: 2, nature: "analytic" },
     { code: "DFC.FIN.EMPRESTIMOS_TOMADOS", name: "Emprestimos tomados", group: "Financiamento", level: 2, nature: "analytic" },
     { code: "DFC.FIN.EMPRESTIMOS_PAGOS", name: "Pagamentos de emprestimos/Debentures", group: "Financiamento", level: 2, nature: "analytic" },
+    { code: "DFC.FIN.MUTUO_TOMADO", name: "Mutuos tomados de empresas do grupo (liquido)", group: "Financiamento", level: 2, nature: "analytic" },
+    { code: "DFC.FIN.MUTUO_CONCEDIDO", name: "Mutuos concedidos a empresas do grupo (liquido)", group: "Financiamento", level: 2, nature: "analytic" },
     { code: "DFC.FIN.CAIXA_LIQUIDO", name: "CAIXA LIQUIDO GERADO PELAS ATIVIDADES DE FINANCIAMENTOS", group: "Financiamento", level: 2, nature: "subtotal" },
     { code: "DFC.CASH.VARIACAO", name: "AUMENTO/REDUCAO NAS DISPONIBILIDADES", group: "Disponibilidades", level: 1, nature: "subtotal" },
     { code: "DFC.CASH.INICIO", name: "DISPONIBILIDADES - NO INICIO DO PERIODO", group: "Disponibilidades", level: 1, nature: "subtotal" },
@@ -1037,7 +1039,7 @@ function applyDfcSubtotals(byCode) {
   sumDfcRows(byCode, "DFC.OP.CAIXA_ANTES_EXTRA", ["DFC.OP.CAIXA_OPERACOES", "DFC.OP.REC_FIN", "DFC.OP.DESP_FIN", "DFC.OP.TRIBUTOS"]);
   sumDfcRows(byCode, "DFC.OP.CAIXA_LIQUIDO", ["DFC.OP.CAIXA_ANTES_EXTRA", "DFC.OP.SEGUROS", "DFC.OP.LUCROS_DIV_RECEBIDOS", "DFC.OP.OUTROS"]);
   sumDfcRows(byCode, "DFC.INV.CAIXA_LIQUIDO", ["DFC.INV.IMOBILIZADO", "DFC.INV.ACOES_COTAS", "DFC.INV.VENDA_ATIVOS", "DFC.INV.JUROS_EMPRESTIMOS"]);
-  sumDfcRows(byCode, "DFC.FIN.CAIXA_LIQUIDO", ["DFC.FIN.CAPITAL", "DFC.FIN.LUCROS_DIV_PAGOS", "DFC.FIN.EMPRESTIMOS_TOMADOS", "DFC.FIN.EMPRESTIMOS_PAGOS"]);
+  sumDfcRows(byCode, "DFC.FIN.CAIXA_LIQUIDO", ["DFC.FIN.CAPITAL", "DFC.FIN.LUCROS_DIV_PAGOS", "DFC.FIN.EMPRESTIMOS_TOMADOS", "DFC.FIN.EMPRESTIMOS_PAGOS", "DFC.FIN.MUTUO_TOMADO", "DFC.FIN.MUTUO_CONCEDIDO"]);
   sumDfcRows(byCode, "DFC.CASH.VARIACAO", ["DFC.OP.CAIXA_LIQUIDO", "DFC.INV.CAIXA_LIQUIDO", "DFC.FIN.CAIXA_LIQUIDO"]);
 }
 
