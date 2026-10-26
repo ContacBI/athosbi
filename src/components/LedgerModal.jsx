@@ -230,20 +230,14 @@ export default function LedgerModal({ row, onClose }) {
             sem rolagem horizontal aqui a tabela simplesmente vazava pra
             fora do modal, cortada. */}
         <div className="overflow-auto scrollbar-thin">
-          <table className="w-full min-w-[560px] table-fixed text-[13px]">
-            <colgroup>
-              <col style={{ width: "104px" }} />
-              <col />
-              <col style={{ width: "128px" }} />
-              <col style={{ width: "128px" }} />
-            </colgroup>
+          <table className="w-full min-w-[560px] text-[13px]">
             <thead className="sticky top-0 bg-surface-card text-ink-400 shadow-[0_1px_0_var(--color-line)]">
               <tr>
-                <th className="px-6 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Data</th>
-                {showCompany && <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Empresa</th>}
-                <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Histórico</th>
-                <th className="px-4 py-2.5 text-right text-[11px] font-medium uppercase tracking-wide">Débito</th>
-                <th className="px-6 py-2.5 text-right text-[11px] font-medium uppercase tracking-wide">Crédito</th>
+                <th className="w-px whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Data</th>
+                {showCompany && <th className="w-px whitespace-nowrap px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Empresa</th>}
+                <th className="w-full px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Histórico</th>
+                <th className="w-px whitespace-nowrap px-4 py-2.5 text-right text-[11px] font-medium uppercase tracking-wide">Débito</th>
+                <th className="w-px whitespace-nowrap px-6 py-2.5 text-right text-[11px] font-medium uppercase tracking-wide">Crédito</th>
               </tr>
             </thead>
             <tbody>
@@ -261,7 +255,7 @@ export default function LedgerModal({ row, onClose }) {
                     )}
                     <tr className={`transition-colors hover:bg-accent-50/40 ${index % 2 ? "bg-surface-muted/70" : "bg-surface-card"}`}>
                       <td className="whitespace-nowrap px-6 py-2 align-top text-ink-600">{formatDate(entry.data)}</td>
-                      {showCompany && <td className="max-w-[180px] truncate px-4 py-2 align-top text-[12px] text-ink-600" title={entry.companyName || ""}>{entry.companyName || "—"}</td>}
+                      {showCompany && <td className="max-w-[240px] truncate whitespace-nowrap px-4 py-2 align-top text-[12px] text-ink-600" title={entry.companyName || ""}>{entry.companyName || "—"}</td>}
                       <td className="max-w-0 px-4 py-2 align-top text-ink-900">
                         <p className="truncate" title={entry.historico}>{entry.historico}</p>
                         <p className="mt-0.5 truncate text-[11px] text-ink-400" title={counterpartText || undefined}>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowLeft, ChevronRight, Gauge, Layers, LayoutGrid, ListOrdered, TriangleAlert } from "lucide-react";
+import { ArrowLeft, ChevronRight, Gauge, Search, X, Layers, LayoutGrid, ListOrdered, TriangleAlert } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { monthLabel, takeDashboardContext } from "../lib/dashboardData.js";
 import { directChildren } from "../lib/reportTree.js";
@@ -79,6 +79,8 @@ export default function AnaliseDesempenho() {
     if (novoFoco) novos.set("f", novoFoco);
     setParams(novos);
   };
+  const [busca, setBusca] = useState(""); // procurar um grupo, item ou conta pelo nome
+  const [buscaAberta, setBuscaAberta] = useState(false);
   const [hover, setHover] = useState(null); // código destacado (passar o mouse no ranking realça a barra da cascata e vice-versa)
   const voltarRef = useRef(null);
   const modalAbertoRef = useRef(false);
@@ -88,7 +90,7 @@ export default function AnaliseDesempenho() {
 
   useEffect(() => {
     const aoTeclar = (event) => {
-      if (event.key === "Escape" && !modalAbertoRef.current) voltarRef.current?.();
+      if (event.key === "Escape" && !modalAbertoRef.current && document.activeElement?.tagName !== "INPUT") voltarRef.current?.();
     };
     window.addEventListener("keydown", aoTeclar);
     return () => window.removeEventListener("keydown", aoTeclar);
@@ -173,6 +175,42 @@ export default function AnaliseDesempenho() {
     ? foco.split(".").map((_, i, partes) => partes.slice(0, i + 1).join(".")).filter((code) => code !== "DRE" && porCodigo.has(code))
     : [];
 
+  // --- busca: grupos, itens e contas (pelo nome) ---
+  const normaliza = (v) => String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const termos = normaliza(busca).split(" ").filter(Boolean);
+  const resultadosBusca = (() => {
+    if (!termos.length) return [];
+    const raizesBusca = ["DRE.02", ...deptos.map((d) => d.code)];
+    const achados = [];
+    dre.forEach((row) => {
+      const code = row.codigo_gerencial;
+      if (!raizesBusca.some((r) => code === r || code.startsWith(`${r}.`)) || Math.abs(dados.valorPeriodo(row)) < 0.005) return;
+      const pai = porCodigo.get(code.split(".").slice(0, -1).join("."))?.categoria_gerencial || "";
+      const nome = row.categoria_gerencial || code;
+      const folha = !row.hasSyntheticChildren;
+      if (termos.every((t) => normaliza(nome).includes(t))) {
+        const montado = montar(row);
+        achados.push({ id: code, code, nome, tipo: folha ? "Item" : "Grupo", onde: pai, consumo: montado.consumo, pct: montado.pct });
+      }
+      if (folha) {
+        const vistos = new Set();
+        (row.contas || []).forEach((conta) => {
+          const nomeConta = conta.nome_conta || "";
+          const chave = normaliza(nomeConta);
+          if (!chave || vistos.has(chave) || !termos.every((t) => chave.includes(t))) return;
+          vistos.add(chave);
+          achados.push({ id: `${code}::${chave}`, code, nome: nomeConta, tipo: "Conta", onde: nome, consumo: -dados.valorPeriodo(row), pct: receita ? (-dados.valorPeriodo(row) / receita) * 100 : null });
+        });
+      }
+    });
+    return achados.sort((a, b) => b.consumo - a.consumo).slice(0, 12);
+  })();
+  function escolherResultado(item) {
+    setBusca("");
+    setBuscaAberta(false);
+    abrir(item.code);
+  }
+
   // --- visão 1: departamentos ---
   const ordenados = [...deptos].sort((a, b) => b.consumo - a.consumo);
   const dadosCascata = cascataDeDepartamentos(dados);
@@ -256,6 +294,36 @@ export default function AnaliseDesempenho() {
               ))}
             </div>
           )}
+          <div className="relative ml-auto w-full max-w-[320px] min-w-[200px]">
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+            <input
+              value={busca}
+              onChange={(event) => { setBusca(event.target.value); setBuscaAberta(true); }}
+              onFocus={() => setBuscaAberta(true)}
+              onBlur={() => setTimeout(() => setBuscaAberta(false), 150)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && resultadosBusca[0]) escolherResultado(resultadosBusca[0]);
+                if (event.key === "Escape") { setBusca(""); event.currentTarget.blur(); }
+              }}
+              placeholder="Buscar um grupo, item ou conta…"
+              aria-label="Buscar um grupo, item ou conta"
+              className="h-9 w-full rounded-xl border border-line bg-surface-card pl-9 pr-8 text-[13px] text-ink-900 placeholder:text-ink-400 focus:border-accent-500 focus:outline-none"
+            />
+            {busca && <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => setBusca("")} aria-label="Limpar busca" className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-ink-400 hover:text-ink-700"><X size={13} /></button>}
+            {buscaAberta && termos.length > 0 && (
+              <div className="absolute right-0 top-full z-40 mt-1 max-h-[360px] w-[440px] max-w-[90vw] overflow-auto rounded-xl border border-line bg-surface-card p-1 shadow-lg">
+                {resultadosBusca.length ? resultadosBusca.map((item) => (
+                  <button key={item.id} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => escolherResultado(item)} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-surface-muted">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-medium text-ink-900">{item.nome}</span>
+                      <span className="block truncate text-[11.5px] text-ink-400">{item.tipo}{item.onde ? ` · ${item.onde}` : ""}</span>
+                    </span>
+                    <span className="shrink-0 text-right text-[12px] tabular-nums"><b className="text-ink-900">{pct1(item.pct)}</b><span className="block text-ink-400">{money(item.consumo)}</span></span>
+                  </button>
+                )) : <p className="px-3 py-4 text-center text-[12.5px] text-ink-400">Nada encontrado para "{busca}".</p>}
+              </div>
+            )}
+          </div>
           {foco && (
             <button type="button" onClick={voltar} title="Voltar um nível (Esc)" className="flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-[12.5px] font-medium text-ink-600 transition-colors hover:bg-surface-muted hover:text-ink-900">
               <ArrowLeft size={13} /> Voltar
