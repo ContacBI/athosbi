@@ -1,31 +1,13 @@
 import { useMemo, useState } from "react";
-import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, Treemap, XAxis, YAxis } from "recharts";
-import { ChevronRight, Flame, Gauge, Layers, LayoutGrid, ListOrdered, TriangleAlert } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ChevronRight, Gauge, Layers, LayoutGrid, ListOrdered, TriangleAlert } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { monthLabel, takeDashboardContext } from "../lib/dashboardData.js";
 import { directChildren } from "../lib/reportTree.js";
+import { COR_DEDUCOES, COR_RESULTADO, cascataDeDepartamentos, corDoDepto, DEPARTAMENTOS, folhasDeDeducoes, itensPareto, montarAnalise } from "../lib/analiseDesempenho.js";
 import { entriesForAccount } from "../data/calculations.js";
 import LedgerModal from "../components/LedgerModal.jsx";
 import { money } from "../lib/format.js";
-
-// Análise de desempenho: o que mais pesa no faturamento (base = receita bruta do período escolhido no topo). Três visões da MESMA análise, em zoom:
-// Departamentos (custos, comerciais, administrativas…) → Grupos (dentro de cada departamento) → Contas (os itens, com gargalos e picos).
-// Os números saem do DRE do B.I (mesmo período, mesma consolidação de grupo): despesa é negativa na DRE, aqui vira "consumo" positivo da receita.
-const DEPARTAMENTOS = [
-  { code: "DRE.04", curto: "Custos", nome: "Custos", cor: "#2563eb" },
-  { code: "DRE.06", curto: "Comerciais", nome: "Despesas comerciais", cor: "#0891b2" },
-  { code: "DRE.07", curto: "Administrativas", nome: "Despesas administrativas", cor: "#7c3aed" },
-  { code: "DRE.08", curto: "Tributos op.", nome: "Tributos e provisões operacionais", cor: "#f59e0b" },
-  { code: "DRE.09", curto: "Indedutíveis", nome: "Despesas indedutíveis", cor: "#dc2626" },
-  { code: "DRE.10", curto: "Outros result.", nome: "Outros resultados operacionais", cor: "#64748b" },
-  { code: "DRE.12", curto: "Deprec.", nome: "Depreciação e amortização", cor: "#84cc16" },
-  { code: "DRE.14", curto: "Financeiro", nome: "Resultado financeiro", cor: "#14b8a6" },
-  { code: "DRE.15", curto: "Não operac.", nome: "Resultados não operacionais", cor: "#a855f7" },
-  { code: "DRE.17", curto: "IRPJ/CSLL", nome: "IRPJ e CSLL", cor: "#ea580c" },
-];
-const COR_DEDUCOES = "#db2777";
-const COR_RESULTADO = "#16a34a";
-const COR_RECEITA = "#2563eb";
 
 const compacto = (value) => {
   const n = Number(value || 0);
@@ -71,16 +53,6 @@ function Sparkline({ valores, cor }) {
   );
 }
 
-// "Está pesando mais?": % da receita no último mês com receita contra a média dos meses anteriores do período.
-function tendencia(pctMeses) {
-  const validos = pctMeses.map((v, i) => ({ v, i })).filter((p) => p.v != null);
-  if (validos.length < 3) return null;
-  const ultimo = validos[validos.length - 1].v;
-  const anteriores = validos.slice(0, -1).map((p) => p.v);
-  const media = anteriores.reduce((t, v) => t + v, 0) / anteriores.length;
-  return { ultimo, media, delta: ultimo - media };
-}
-
 function ChipTendencia({ t }) {
   if (!t) return <span className="text-ink-300">—</span>;
   const sobe = t.delta >= 0.3;
@@ -90,22 +62,6 @@ function ChipTendencia({ t }) {
     <span title={`Último mês ${pct1(t.ultimo)} da receita; média dos anteriores ${pct1(t.media)}`} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${cls}`}>
       {sobe ? "▲" : desce ? "▼" : "•"} {Math.abs(t.delta).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} p.p.
     </span>
-  );
-}
-
-function CelulaTreemap({ x, y, width, height, name, fill, pctReceita, onAbrir, code }) {
-  if (width < 4 || height < 4) return null;
-  const cabe = width > 74 && height > 34;
-  return (
-    <g onClick={() => onAbrir(code)} style={{ cursor: "pointer" }}>
-      <rect x={x} y={y} width={width} height={height} rx={6} fill={fill} stroke="#fff" strokeWidth={2} />
-      {cabe && (
-        <>
-          <text x={x + 8} y={y + 18} fill="#fff" fontSize={11.5} fontWeight={600}>{String(name).length > Math.floor(width / 6.5) ? `${String(name).slice(0, Math.max(Math.floor(width / 6.5) - 1, 3))}…` : name}</text>
-          <text x={x + 8} y={y + 34} fill="#fff" fontSize={11} opacity={0.92}>{pct1(pctReceita)} da receita</text>
-        </>
-      )}
-    </g>
   );
 }
 
@@ -122,43 +78,7 @@ export default function AnaliseDesempenho() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [temDados, state.mappings, state.accounts, state.journal, state.periodStart, state.periodEnd, state.activeCompanyId, state.activeGroupId]);
 
-  const dados = useMemo(() => {
-    if (!ctx) return null;
-    const dre = ctx.dre || [];
-    const meses = ctx.months || [];
-    const porCodigo = new Map(dre.map((row) => [row.codigo_gerencial, row]));
-    const serie = (row) => meses.map((m) => Number(row?.monthValues?.[m] || 0));
-    const receitaRow = porCodigo.get("DRE.01");
-    const receita = Number(receitaRow?.saldo || 0);
-    const receitaMes = serie(receitaRow);
-    const valorPeriodo = (row) => {
-      const mv = serie(row);
-      return meses.length ? mv.reduce((t, v) => t + v, 0) : Number(row?.saldo || 0);
-    };
-    const pctMeses = (row) => serie(row).map((v, i) => (receitaMes[i] ? (-v / receitaMes[i]) * 100 : null));
-    const montar = (row, extra = {}) => {
-      const consumo = -valorPeriodo(row);
-      return {
-        code: row.codigo_gerencial,
-        nome: row.categoria_gerencial || row.nome || row.codigo_gerencial,
-        consumo,
-        pct: receita ? (consumo / receita) * 100 : null,
-        pctMeses: pctMeses(row),
-        tend: tendencia(pctMeses(row)),
-        row,
-        ...extra,
-      };
-    };
-    const deptos = DEPARTAMENTOS.map((d) => {
-      const row = porCodigo.get(d.code);
-      return row ? montar(row, { nome: d.nome, cor: d.cor }) : null;
-    }).filter((d) => d && Math.abs(d.consumo) >= 0.005);
-    const deducoesRow = porCodigo.get("DRE.02");
-    const deducoes = deducoesRow ? montar(deducoesRow, { nome: "Deduções da receita bruta", cor: COR_DEDUCOES }) : null;
-    const resultadoRow = porCodigo.get("DRE.18");
-    const resultado = resultadoRow ? valorPeriodo(resultadoRow) : 0;
-    return { dre, meses, porCodigo, receita, receitaMes, deptos, deducoes, resultado, montar, valorPeriodo, pctMeses };
-  }, [ctx]);
+  const dados = useMemo(() => montarAnalise(ctx), [ctx]);
 
   // Nível mais analítico: o item (linha do plano) em foco, com as contas ligadas a ele e o valor de cada uma no período; clicar abre o razão.
   const contasDoFoco = useMemo(() => {
@@ -186,7 +106,6 @@ export default function AnaliseDesempenho() {
 
   const { dre, meses, porCodigo, receita, deptos, deducoes, resultado, montar } = dados;
   const periodoTxt = meses.length ? `${monthLabel(meses[0])} a ${monthLabel(meses[meses.length - 1])}` : "período";
-  const corDoDepto = (code) => DEPARTAMENTOS.find((d) => code === d.code || code.startsWith(`${d.code}.`))?.cor || (code.startsWith("DRE.02") ? COR_DEDUCOES : "#64748b");
   const nomeDe = (code) => DEPARTAMENTOS.find((d) => d.code === code)?.nome || (code === "DRE.02" ? "Deduções da receita bruta" : porCodigo.get(code)?.categoria_gerencial || code);
 
   // --- navegação em zoom ---
@@ -201,28 +120,7 @@ export default function AnaliseDesempenho() {
 
   // --- visão 1: departamentos ---
   const ordenados = [...deptos].sort((a, b) => b.consumo - a.consumo);
-  const passos = [];
-  let corrente = 100;
-  const deducoesPct = deducoes?.pct || 0;
-  if (deducoes && Math.abs(deducoes.consumo) >= 0.005) {
-    corrente -= deducoesPct;
-    passos.push({ nome: "Deduções", completo: "Deduções da receita bruta", code: "DRE.02", base: corrente, valor: deducoesPct, cor: COR_DEDUCOES, pct: deducoesPct, consumo: deducoes.consumo });
-  }
-  ordenados.forEach((d) => {
-    const p = d.pct || 0;
-    if (p >= 0) {
-      corrente -= p;
-      passos.push({ nome: d.curto || d.nome, completo: d.nome, code: d.code, base: Math.max(corrente, 0), valor: p, cor: d.cor, pct: p, consumo: d.consumo });
-    } else {
-      passos.push({ nome: d.curto || d.nome, completo: d.nome, code: d.code, base: Math.max(corrente, 0), valor: -p, cor: "#10b981", pct: p, consumo: d.consumo, ganho: true });
-      corrente -= p;
-    }
-  });
-  const dadosCascata = [
-    { nome: "Receita bruta", code: null, base: 0, valor: 100, cor: COR_RECEITA, pct: 100, consumo: receita },
-    ...passos,
-    { nome: "Resultado", code: null, base: 0, valor: Math.max((resultado / receita) * 100, 0), cor: COR_RESULTADO, pct: (resultado / receita) * 100, consumo: resultado },
-  ];
+  const dadosCascata = cascataDeDepartamentos(dados);
 
   // --- visão 2: grupos (dentro dos departamentos) ---
   const codigosBase = foco ? [foco] : [...(deducoes ? ["DRE.02"] : []), ...deptos.map((d) => d.code)];
@@ -235,22 +133,11 @@ export default function AnaliseDesempenho() {
     .sort((a, b) => b.consumo - a.consumo);
   const gruposPositivos = grupos.filter((g) => g.consumo > 0.005);
   const totalGrupos = gruposPositivos.reduce((t, g) => t + g.consumo, 0);
-  const dadosTreemap = gruposPositivos.map((g) => ({ name: g.nome, size: g.consumo, fill: g.cor, pctReceita: g.pct, code: g.code }));
+  const destaques = gruposPositivos.slice(0, 8);
+  const restantes = gruposPositivos.slice(8);
 
   // --- visão 3: contas (os itens, com gargalos) ---
-  const raizes = foco ? [foco] : ["DRE.02", ...deptos.map((d) => d.code)];
-  const folhas = dre
-    .filter((row) => !row.hasSyntheticChildren && raizes.some((r) => row.codigo_gerencial === r || row.codigo_gerencial.startsWith(`${r}.`)) && Math.abs(dados.valorPeriodo(row)) >= 0.005)
-    .map((row) => montar(row, { cor: corDoDepto(row.codigo_gerencial), grupoNome: porCodigo.get(row.codigo_gerencial.split(".").slice(0, -1).join("."))?.categoria_gerencial || "" }))
-    .filter((f) => f.consumo > 0.005)
-    .sort((a, b) => b.consumo - a.consumo);
-  const totalFolhas = folhas.reduce((t, f) => t + f.consumo, 0);
-  let acumulado = 0;
-  const pareto = folhas.slice(0, 20).map((f) => {
-    acumulado += f.consumo;
-    return { ...f, acum: totalFolhas ? (acumulado / totalFolhas) * 100 : 0 };
-  });
-  const corte80 = pareto.findIndex((f) => f.acum >= 80);
+  const { folhas, lista: pareto, corte80 } = itensPareto(dados, { foco });
   const mapaCalor = folhas.slice(0, 12);
   const alertas = folhas
     .filter((f) => f.tend && f.tend.delta >= 0.3 && f.tend.ultimo > f.tend.media * 1.15)
@@ -260,10 +147,7 @@ export default function AnaliseDesempenho() {
   const leafFoco = focoRow && !focoRow.hasSyntheticChildren ? montar(focoRow, { cor: corDoDepto(foco) }) : null; // item (nível mais analítico) em foco
 
   // --- deduções da receita bruta (bloco à parte) ---
-  const deducoesFolhas = dre
-    .filter((row) => !row.hasSyntheticChildren && row.codigo_gerencial.startsWith("DRE.02.") && Math.abs(dados.valorPeriodo(row)) >= 0.005)
-    .map((row) => montar(row, { cor: COR_DEDUCOES, grupoNome: porCodigo.get(row.codigo_gerencial.split(".").slice(0, -1).join("."))?.categoria_gerencial || "" }))
-    .sort((a, b) => b.consumo - a.consumo);
+  const deducoesFolhas = folhasDeDeducoes(dados);
 
   const Segmento = ({ id, icone: Icone, nome }) => (
     <button
@@ -372,13 +256,25 @@ export default function AnaliseDesempenho() {
       {/* VISÃO 2: GRUPOS */}
       {visao === "grupos" && (
         <>
-          <Card titulo={foco ? `Dentro de ${nomeDe(foco)}` : "Todos os grupos"} nota="o tamanho é quanto pesa na receita bruta · clique para abrir">
-            {dadosTreemap.length ? (
-              <div className="h-[340px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <Treemap data={dadosTreemap} dataKey="size" isAnimationActive={false} content={<CelulaTreemap onAbrir={abrir} />} />
-                </ResponsiveContainer>
-              </div>
+          <Card titulo={foco ? `Dentro de ${nomeDe(foco)}` : "Os grupos que mais pesam"} nota="% da receita bruta · clique num cartão para abrir">
+            {destaques.length ? (
+              <>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {destaques.map((g) => (
+                    <button key={g.code} type="button" onClick={() => abrir(g.code)} className="flex flex-col gap-2 rounded-xl border border-line bg-surface-card p-3.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md" style={{ borderLeft: `4px solid ${g.cor}` }}>
+                      <span className="line-clamp-2 min-h-[34px] text-[12.5px] font-semibold leading-snug text-ink-800" title={g.nome}>{g.nome}</span>
+                      <span className="flex items-baseline gap-2">
+                        <span className="text-[26px] font-bold leading-none tabular-nums text-ink-900">{pct1(g.pct)}</span>
+                        <span className="text-[11.5px] text-ink-400">da receita</span>
+                      </span>
+                      <span className="text-[12.5px] tabular-nums text-ink-600">{money(g.consumo)}</span>
+                      <span className="h-1.5 overflow-hidden rounded-full bg-surface-muted"><span className="block h-full rounded-full" style={{ width: `${(g.consumo / (destaques[0]?.consumo || 1)) * 100}%`, background: g.cor }} /></span>
+                      <span className="flex items-center justify-between gap-2"><Sparkline valores={g.pctMeses} cor={g.cor} /><ChipTendencia t={g.tend} /></span>
+                    </button>
+                  ))}
+                </div>
+                {restantes.length > 0 && <p className="mt-3 text-[12px] text-ink-400">+ {restantes.length} {restantes.length === 1 ? "grupo menor" : "grupos menores"}, somando {pct1(restantes.reduce((t, g) => t + (g.pct || 0), 0))} da receita (na lista abaixo).</p>}
+              </>
             ) : <p className="py-10 text-center text-[13px] text-ink-400">Nada para detalhar aqui no período.</p>}
           </Card>
           <Card titulo="Grupos em ordem de peso" nota={`% da receita bruta · % ${foco ? `de ${nomeDe(foco)}` : "do total listado"} · tendência`}>
