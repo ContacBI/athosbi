@@ -89,3 +89,10 @@ export function somarCargas(lista) {
     ano_total: fecharPeriodo(validas.reduce((acc, d) => somarObj(acc, d.ano_total), {})),
   };
 }
+
+// Soma vários períodos (ex.: os meses escolhidos no painel) num só: faturamento e impostos somados, carga = impostos ÷ faturamento.
+export function somarPeriodos(lista) {
+  const validos = (lista || []).filter(Boolean);
+  if (!validos.length) return null;
+  return fecharPeriodo(validos.reduce((acc, periodo) => somarObj(acc, periodo), {}));
+}

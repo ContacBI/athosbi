@@ -28,6 +28,7 @@ import { WIDGET_CATALOG, formatWidgetValue } from "../../lib/dashboardWidgets.js
 import { isSingleLineFormula, describeIndicatorFormula } from "../../lib/indicatorFormula.js";
 import { useIsMobile } from "../../lib/useIsMobile.js";
 import { directChildren } from "../../lib/reportTree.js";
+import { AnaliseCascataWidget, AnaliseDeducoesWidget, AnaliseParetoWidget, AnaliseRankingWidget, CargaComposicaoWidget, CargaMesWidget, CargaResumoWidget } from "./AnaliseWidgets.jsx";
 import { buildDfcDirect, buildDfcIndirect } from "../../data/calculations.js";
 import { money } from "../../lib/format.js";
 import { columnLabel, columnValue, reportColumns, isZeroNoMovement } from "../../lib/reportColumns.js";
@@ -911,6 +912,13 @@ function ChartWidgetCard({ definition, ctx }) {
   if (definition.chart === "ponte_caixa") {
     return <CashBridgeWidget ctx={ctx} />;
   }
+  if (definition.chart === "analise_cascata") return <AnaliseCascataWidget ctx={ctx} />;
+  if (definition.chart === "analise_ranking") return <AnaliseRankingWidget ctx={ctx} />;
+  if (definition.chart === "analise_pareto") return <AnaliseParetoWidget ctx={ctx} />;
+  if (definition.chart === "analise_deducoes") return <AnaliseDeducoesWidget ctx={ctx} />;
+  if (definition.chart === "carga_resumo") return <CargaResumoWidget ctx={ctx} />;
+  if (definition.chart === "carga_mes") return <CargaMesWidget ctx={ctx} />;
+  if (definition.chart === "carga_composicao") return <CargaComposicaoWidget ctx={ctx} />;
   if (definition.chart === "orcado_realizado") {
     return <BudgetChart ctx={ctx} />;
   }
