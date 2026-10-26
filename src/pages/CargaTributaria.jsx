@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, LabelList, Line, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowDown, ArrowUp, Pencil, Percent, SlidersHorizontal } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Pencil, Percent, SlidersHorizontal } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { saveCargaContabil, saveCargaLayout, saveCargaManual } from "../lib/companies.js";
 import { aplicarContabil, aplicarManual, fetchCargaTributaria, pctCarga, somarCargas } from "../lib/cargaTributaria.js";
@@ -148,6 +148,8 @@ export default function CargaTributaria() {
   const [editando, setEditando] = useState(false);
   const [rascunho, setRascunho] = useState(null); // { ordem: [ids de todos os blocos], ligados: Set }
   const [salvando, setSalvando] = useState(false);
+  const [empresasAbertas, setEmpresasAbertas] = useState(() => new Set()); // empresas do grupo com os tributos abertos na tabela "Por empresa"
+  const alternarEmpresa = (id) => setEmpresasAbertas((atual) => { const novo = new Set(atual); if (novo.has(id)) novo.delete(id); else novo.add(id); return novo; });
 
   // Grupo: cada empresa com os seus valores informados à mão e a sua opção do contábil, e depois a soma de todas.
   const dadosDaEmpresa = (membro, ano) => {
@@ -481,21 +483,54 @@ export default function CargaTributaria() {
       if (!linhas.length) return null;
       const maxImp = Math.max(...linhas.map((x) => x.p.impTotal || 0), 1);
       return (
-        <Bloco key="por-empresa" titulo="Por empresa do grupo" nota={`${titulo} · carga de cada uma e do grupo`} className="overflow-x-auto">
+        <Bloco key="por-empresa" titulo="Por empresa do grupo" nota={`${titulo} · clique numa empresa para ver os tributos dela`} className="overflow-x-auto">
           <table className="w-full border-collapse text-[13px]">
             <thead>
               <tr className={CABECALHO}><th className="px-3 py-2 text-left font-semibold">Empresa</th><th className={TH}>Faturamento</th><th className={TH}>Impostos próprios</th><th className={TH}>Carga</th><th className={TH}>% dos impostos do grupo</th></tr>
             </thead>
             <tbody>
-              {linhas.map(({ membro, p }) => (
-                <tr key={membro.id} className="border-b border-line">
-                  <td className="px-3 py-2 text-left">{membro.name}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{money(p.fat.total)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{money(p.impTotal)}</td>
-                  <td className="px-3 py-2 text-right font-semibold tabular-nums">{pctCarga(p.carga)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{periodo.impTotal ? pctCarga(p.impTotal / periodo.impTotal) : "—"}<span className="ml-2 inline-block h-2 rounded bg-accent-500 align-middle" style={{ width: `${Math.round(((p.impTotal || 0) / maxImp) * 60)}px` }} /></td>
-                </tr>
-              ))}
+              {linhas.map(({ membro, p }) => {
+                const aberta = empresasAbertas.has(membro.id);
+                const impostos = grupos.map((g) => ({ g, v: p.imp?.[g.id] || 0 })).filter((x) => x.v > 0).sort((x, y) => y.v - x.v);
+                return (
+                  <Fragment key={membro.id}>
+                    <tr className="cursor-pointer border-b border-line hover:bg-surface-muted/60" onClick={() => alternarEmpresa(membro.id)}>
+                      <td className="px-3 py-2 text-left"><span className="mr-1.5 inline-block align-middle text-ink-400">{aberta ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>{membro.name}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{money(p.fat.total)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{money(p.impTotal)}</td>
+                      <td className="px-3 py-2 text-right font-semibold tabular-nums">{pctCarga(p.carga)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{periodo.impTotal ? pctCarga(p.impTotal / periodo.impTotal) : "—"}<span className="ml-2 inline-block h-2 rounded bg-accent-500 align-middle" style={{ width: `${Math.round(((p.impTotal || 0) / maxImp) * 60)}px` }} /></td>
+                    </tr>
+                    {aberta && (
+                      <tr className="border-b border-line bg-surface-muted/40">
+                        <td colSpan={5} className="px-3 pb-3 pt-1">
+                          {impostos.length ? (
+                            <table className="w-full border-collapse text-[12.5px]">
+                              <thead><tr className={CABECALHO}><th className="px-3 py-1.5 text-left font-semibold">Imposto — {membro.name}</th><th className={TH}>Valor</th><th className={TH}>% do faturamento</th><th className={TH}>% dos impostos da empresa</th></tr></thead>
+                              <tbody>
+                                {impostos.map(({ g, v }) => (
+                                  <tr key={g.id} className="border-b border-line/60">
+                                    <td className="px-3 py-1.5 text-left"><span className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: COR[g.id] || "#64748b" }} />{g.nome}</td>
+                                    <td className="px-3 py-1.5 text-right tabular-nums">{money(v)}</td>
+                                    <td className="px-3 py-1.5 text-right tabular-nums">{fracao(v, p.fat.total)}</td>
+                                    <td className="px-3 py-1.5 text-right tabular-nums">{pctCarga(p.impTotal ? v / p.impTotal : 0)}</td>
+                                  </tr>
+                                ))}
+                                <tr className="font-semibold"><td className="px-3 py-1.5 text-left">Total de impostos próprios</td><td className="px-3 py-1.5 text-right tabular-nums">{money(p.impTotal)}</td><td className="px-3 py-1.5 text-right tabular-nums">{fracao(p.impTotal, p.fat.total)}</td><td className="px-3 py-1.5 text-right">100,00%</td></tr>
+                              </tbody>
+                            </table>
+                          ) : <p className="px-3 py-2 text-[12.5px] text-ink-400">Sem imposto próprio apurado neste período para esta empresa.</p>}
+                          {(p.retTotal > 0 || p.folhaTotal > 0) && (
+                            <p className="mt-1.5 px-3 text-[12px] text-ink-500">
+                              Fora da carga própria:{p.retTotal > 0 ? ` retidos na fonte ${money(p.retTotal)}` : ""}{p.retTotal > 0 && p.folhaTotal > 0 ? " ·" : ""}{p.folhaTotal > 0 ? ` encargos da folha ${money(p.folhaTotal)}` : ""}.
+                            </p>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
               <tr className="bg-surface-muted font-bold">
                 <td className="px-3 py-2 text-left">Grupo</td>
                 <td className="px-3 py-2 text-right tabular-nums">{money(periodo.fat.total)}</td>
