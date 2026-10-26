@@ -240,6 +240,7 @@ export default function LedgerModal({ row, onClose }) {
             <thead className="sticky top-0 bg-surface-card text-ink-400 shadow-[0_1px_0_var(--color-line)]">
               <tr>
                 <th className="px-6 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Data</th>
+                {showCompany && <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Empresa</th>}
                 <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide">Histórico</th>
                 <th className="px-4 py-2.5 text-right text-[11px] font-medium uppercase tracking-wide">Débito</th>
                 <th className="px-6 py-2.5 text-right text-[11px] font-medium uppercase tracking-wide">Crédito</th>
@@ -253,13 +254,14 @@ export default function LedgerModal({ row, onClose }) {
                   <Fragment key={`${entry.linha_origem}-${index}`}>
                     {newCompany && (
                       <tr key={`company-${entry.companyName}-${index}`} className="sticky top-9 z-[1]">
-                        <td colSpan={4} className="border-y border-line bg-surface-muted px-6 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
+                        <td colSpan={showCompany ? 5 : 4} className="border-y border-line bg-surface-muted px-6 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
                           {entry.companyName || "Empresa não identificada"}
                         </td>
                       </tr>
                     )}
                     <tr className={`transition-colors hover:bg-accent-50/40 ${index % 2 ? "bg-surface-muted/70" : "bg-surface-card"}`}>
                       <td className="whitespace-nowrap px-6 py-2 align-top text-ink-600">{formatDate(entry.data)}</td>
+                      {showCompany && <td className="max-w-[180px] truncate px-4 py-2 align-top text-[12px] text-ink-600" title={entry.companyName || ""}>{entry.companyName || "—"}</td>}
                       <td className="max-w-0 px-4 py-2 align-top text-ink-900">
                         <p className="truncate" title={entry.historico}>{entry.historico}</p>
                         <p className="mt-0.5 truncate text-[11px] text-ink-400" title={counterpartText || undefined}>

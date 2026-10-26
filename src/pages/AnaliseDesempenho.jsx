@@ -71,6 +71,8 @@ export default function AnaliseDesempenho() {
   const [visao, setVisao] = useState("dept"); // "dept" | "grupos" | "contas"
   const [foco, setFoco] = useState(null); // código do DRE em foco (null = todos os departamentos)
   const [ledgerRow, setLedgerRow] = useState(null); // conta aberta no razão (mesmo modal dos demonstrativos)
+  const ehGrupo = Boolean(state.activeGroupId);
+  const [consolidado, setConsolidado] = useState(true); // só no grupo: contas das empresas juntas numa só (true) ou uma por empresa (false)
 
   const ctx = useMemo(() => {
     if (!temDados) return null;
@@ -85,17 +87,37 @@ export default function AnaliseDesempenho() {
     if (!dados || !foco) return [];
     const row = dados.porCodigo.get(foco);
     if (!row || row.hasSyntheticChildren) return [];
-    return (row.contas || [])
+    const normaliza = (v) => String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    const contas = (row.contas || [])
       .map((conta) => {
         const entradas = entriesForAccount(conta.classificacao);
         const debito = entradas.reduce((t, e) => t + Number(e.debito || 0), 0);
         const credito = entradas.reduce((t, e) => t + Number(e.credito || 0), 0);
-        return { classificacao: conta.classificacao, nome: conta.nome_conta || conta.classificacao, consumo: debito - credito, qtd: entradas.length };
+        // no grupo, a classificação vem com o id da empresa na frente ("emp_123::9.4.20.500.1")
+        const [empresaId, ...resto] = String(conta.classificacao).includes("::") ? String(conta.classificacao).split("::") : [null, conta.classificacao];
+        const empresaNome = empresaId ? state.companies.find((c) => c.id === empresaId)?.name || "Empresa" : "";
+        return { classificacao: conta.classificacao, classBase: resto.join("::"), empresaNome, nome: conta.nome_conta || conta.classificacao, consumo: debito - credito, qtd: entradas.length };
       })
-      .filter((c) => c.qtd > 0 || Math.abs(c.consumo) >= 0.005)
-      .sort((a, b) => b.consumo - a.consumo);
+      .filter((c) => c.qtd > 0 || Math.abs(c.consumo) >= 0.005);
+    if (ehGrupo && consolidado) {
+      // mesma conta (mesmo nome) nas empresas do grupo vira uma só; o razão dela traz os lançamentos de todas, com a empresa de cada um
+      const porNome = new Map();
+      contas.forEach((c) => {
+        const chave = normaliza(c.nome);
+        const atual = porNome.get(chave);
+        if (!atual) porNome.set(chave, { ...c, classificacao: [c.classificacao], empresas: c.empresaNome ? [c.empresaNome] : [] });
+        else {
+          atual.classificacao.push(c.classificacao);
+          atual.consumo += c.consumo;
+          atual.qtd += c.qtd;
+          if (c.empresaNome && !atual.empresas.includes(c.empresaNome)) atual.empresas.push(c.empresaNome);
+        }
+      });
+      return [...porNome.values()].sort((a, b) => b.consumo - a.consumo);
+    }
+    return contas.map((c) => ({ ...c, empresas: c.empresaNome ? [c.empresaNome] : [] })).sort((a, b) => b.consumo - a.consumo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dados, foco, state.journal, state.periodStart, state.periodEnd]);
+  }, [dados, foco, state.journal, state.periodStart, state.periodEnd, ehGrupo, consolidado, state.companies]);
 
   if (!temDados) {
     return <p className="rounded-xl bg-surface-card p-6 text-[13px] text-ink-500 shadow-sm">Importe o balancete e o diário (menu Dados) para ver a análise de desempenho.</p>;
@@ -194,6 +216,13 @@ export default function AnaliseDesempenho() {
             <Segmento id="grupos" icone={Layers} nome="Grupos" />
             <Segmento id="contas" icone={ListOrdered} nome="Contas" />
           </div>
+          {ehGrupo && (
+            <div className="inline-flex items-center rounded-xl bg-surface-muted p-1 text-[12.5px]" title="Contas das empresas do grupo: uma por empresa ou juntas numa só">
+              {[[false, "Por empresa"], [true, "Consolidado"]].map(([valor, rotulo]) => (
+                <button key={String(valor)} type="button" onClick={() => setConsolidado(valor)} className={`rounded-lg px-3 py-1.5 font-medium transition-colors ${consolidado === valor ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-800"}`}>{rotulo}</button>
+              ))}
+            </div>
+          )}
           <nav className="flex flex-wrap items-center gap-1 text-[12.5px] text-ink-500" aria-label="Onde você está">
             <button type="button" onClick={() => { setFoco(null); setVisao("dept"); }} className="rounded px-1.5 py-0.5 hover:bg-surface-muted hover:text-ink-800">Receita bruta</button>
             {trilha.map((code) => (
@@ -299,9 +328,9 @@ export default function AnaliseDesempenho() {
         <Card titulo={`Contas dentro de ${nomeDe(foco)}`} nota={`${contasDoFoco.length} ${contasDoFoco.length === 1 ? "conta" : "contas"} · clique numa conta para abrir o razão (lançamentos)`}>
           <div className="flex flex-col">
             {contasDoFoco.map((c) => (
-              <button key={c.classificacao} type="button" onClick={() => setLedgerRow({ kind: "analytic", classificacao: c.classificacao, nome_conta: c.nome, categoria_gerencial: nomeDe(foco), demonstrativo: "DRE", codigo_gerencial: foco })} className="grid grid-cols-[minmax(160px,1.6fr)_120px_2fr_110px_64px_80px] items-center gap-3 border-b border-line py-2 text-left text-[13px] last:border-0 hover:bg-surface-muted/60">
+              <button key={Array.isArray(c.classificacao) ? c.classificacao.join("|") : c.classificacao} type="button" onClick={() => setLedgerRow({ kind: "analytic", classificacao: c.classificacao, nome_conta: c.nome, categoria_gerencial: nomeDe(foco), demonstrativo: "DRE", codigo_gerencial: foco })} className="grid grid-cols-[minmax(160px,1.6fr)_190px_2fr_110px_64px_80px] items-center gap-3 border-b border-line py-2 text-left text-[13px] last:border-0 hover:bg-surface-muted/60">
                 <span className="truncate" title={c.nome}>{c.nome}</span>
-                <span className="text-[11.5px] tabular-nums text-ink-400">{c.classificacao}</span>
+                <span className="truncate text-[11.5px] text-ink-400" title={c.empresas.join(", ")}>{ehGrupo ? (consolidado ? `${c.empresas.length} ${c.empresas.length === 1 ? "empresa" : "empresas"}` : c.empresaNome) : c.classBase}</span>
                 <span className="h-2 overflow-hidden rounded-full bg-surface-muted"><span className="block h-full rounded-full" style={{ width: `${(Math.max(c.consumo, 0) / (contasDoFoco[0]?.consumo || 1)) * 100}%`, background: corDoDepto(foco) }} /></span>
                 <span className="text-right tabular-nums text-ink-800">{money(c.consumo)}</span>
                 <span className="text-right font-semibold tabular-nums text-ink-900">{pct2(receita ? (c.consumo / receita) * 100 : null)}</span>
