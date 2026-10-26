@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ChevronRight, Gauge, Layers, LayoutGrid, ListOrdered, TriangleAlert } from "lucide-react";
+import { ArrowLeft, ChevronRight, Gauge, Layers, LayoutGrid, ListOrdered, TriangleAlert } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { monthLabel, takeDashboardContext } from "../lib/dashboardData.js";
 import { directChildren } from "../lib/reportTree.js";
@@ -68,11 +69,34 @@ function ChipTendencia({ t }) {
 export default function AnaliseDesempenho() {
   const state = useAppState();
   const temDados = state.accounts.length > 0 || state.journal.length > 0;
-  const [visao, setVisao] = useState("dept"); // "dept" | "grupos" | "contas"
-  const [foco, setFoco] = useState(null); // código do DRE em foco (null = todos os departamentos)
+  // Visão e foco ficam na URL (?v=grupos&f=DRE.04): o botão Voltar do navegador volta um nível e dá pra mandar o link.
+  const [params, setParams] = useSearchParams();
+  const visao = ["dept", "grupos", "contas"].includes(params.get("v")) ? params.get("v") : "dept"; // "dept" | "grupos" | "contas"
+  const foco = params.get("f") || null; // código do DRE em foco (null = todos os departamentos)
+  const ir = (novaVisao, novoFoco) => {
+    const novos = new URLSearchParams();
+    if (novaVisao !== "dept" || novoFoco) novos.set("v", novaVisao);
+    if (novoFoco) novos.set("f", novoFoco);
+    setParams(novos);
+  };
+  const [hover, setHover] = useState(null); // código destacado (passar o mouse no ranking realça a barra da cascata e vice-versa)
+  const voltarRef = useRef(null);
+  const modalAbertoRef = useRef(false);
   const [ledgerRow, setLedgerRow] = useState(null); // conta aberta no razão (mesmo modal dos demonstrativos)
   const ehGrupo = Boolean(state.activeGroupId);
   const [consolidado, setConsolidado] = useState(true); // só no grupo: contas das empresas juntas numa só (true) ou uma por empresa (false)
+
+  useEffect(() => {
+    const aoTeclar = (event) => {
+      if (event.key === "Escape" && !modalAbertoRef.current) voltarRef.current?.();
+    };
+    window.addEventListener("keydown", aoTeclar);
+    return () => window.removeEventListener("keydown", aoTeclar);
+  }, []);
+  useEffect(() => {
+    document.querySelector("main")?.scrollTo?.({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [visao, foco]);
 
   const ctx = useMemo(() => {
     if (!temDados) return null;
@@ -133,9 +157,18 @@ export default function AnaliseDesempenho() {
   // --- navegação em zoom ---
   const temFilhos = (code) => directChildren(dre, code).some((row) => Math.abs(dados.valorPeriodo(row)) >= 0.005);
   function abrir(code) {
-    setFoco(code);
-    setVisao(temFilhos(code) ? "grupos" : "contas");
+    setHover(null);
+    ir(temFilhos(code) ? "grupos" : "contas", code);
   }
+  // Sobe um nível (Esc ou botão Voltar): do item pro grupo, do grupo pro departamento, do departamento pro início.
+  function voltar() {
+    if (!foco) return;
+    const pai = foco.split(".").slice(0, -1).join(".");
+    if (!pai || pai === "DRE" || !porCodigo.has(pai)) ir("dept", null);
+    else ir(temFilhos(pai) ? "grupos" : "contas", pai);
+  }
+  voltarRef.current = voltar;
+  modalAbertoRef.current = Boolean(ledgerRow);
   const trilha = foco
     ? foco.split(".").map((_, i, partes) => partes.slice(0, i + 1).join(".")).filter((code) => code !== "DRE" && porCodigo.has(code))
     : [];
@@ -174,7 +207,7 @@ export default function AnaliseDesempenho() {
   const Segmento = ({ id, icone: Icone, nome }) => (
     <button
       type="button"
-      onClick={() => { setVisao(id); if (id === "dept") setFoco(null); }}
+      onClick={() => ir(id, id === "dept" ? null : foco)}
       className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-medium transition-colors ${visao === id ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-800"}`}
     >
       <Icone size={14} strokeWidth={1.9} />
@@ -185,9 +218,9 @@ export default function AnaliseDesempenho() {
   const lista = (itens, { mostrarTend = true } = {}) => (
     <div className="flex flex-col">
       {itens.map((g) => (
-        <button key={g.code} type="button" onClick={() => abrir(g.code)} className="grid grid-cols-[minmax(130px,1.2fr)_2fr_110px_64px_200px] items-center gap-3 border-b border-line py-2 text-left text-[13px] last:border-0 hover:bg-surface-muted/60">
-          <span className="truncate"><span className="mr-2 inline-block h-2.5 w-2.5 rounded-[3px] align-middle" style={{ background: g.cor }} />{g.nome}</span>
-          <span className="h-2 overflow-hidden rounded-full bg-surface-muted"><span className="block h-full rounded-full" style={{ width: `${Math.min(Math.max(g.pct || 0, 0) * (100 / Math.max(...itens.map((x) => x.pct || 0), 1)), 100)}%`, background: g.cor }} /></span>
+        <button key={g.code} type="button" onClick={() => abrir(g.code)} onMouseEnter={() => setHover(g.code)} onMouseLeave={() => setHover(null)} className={`group grid grid-cols-[minmax(130px,1.2fr)_2fr_110px_64px_200px] items-center gap-3 border-b border-line py-2 text-left text-[13px] transition-opacity last:border-0 hover:bg-surface-muted/60 ${hover && hover !== g.code ? "opacity-45" : ""}`}>
+          <span className="truncate group-hover:underline"><span className="mr-2 inline-block h-2.5 w-2.5 rounded-[3px] align-middle" style={{ background: g.cor }} />{g.nome}</span>
+          <span className="h-2 overflow-hidden rounded-full bg-surface-muted"><span className="block h-full rounded-full transition-all" style={{ width: `${Math.min(Math.max(g.pct || 0, 0) * (100 / Math.max(...itens.map((x) => x.pct || 0), 1)), 100)}%`, background: g.cor }} /></span>
           <span className="text-right tabular-nums text-ink-800">{money(g.consumo)}</span>
           <span className="text-right font-semibold tabular-nums text-ink-900">{pct1(g.pct)}</span>
           <span className="flex items-center justify-end gap-2">{mostrarTend && <><Sparkline valores={g.pctMeses} cor={g.cor} /><ChipTendencia t={g.tend} /></>}</span>
@@ -223,8 +256,13 @@ export default function AnaliseDesempenho() {
               ))}
             </div>
           )}
+          {foco && (
+            <button type="button" onClick={voltar} title="Voltar um nível (Esc)" className="flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-[12.5px] font-medium text-ink-600 transition-colors hover:bg-surface-muted hover:text-ink-900">
+              <ArrowLeft size={13} /> Voltar
+            </button>
+          )}
           <nav className="flex flex-wrap items-center gap-1 text-[12.5px] text-ink-500" aria-label="Onde você está">
-            <button type="button" onClick={() => { setFoco(null); setVisao("dept"); }} className="rounded px-1.5 py-0.5 hover:bg-surface-muted hover:text-ink-800">Receita bruta</button>
+            <button type="button" onClick={() => ir("dept", null)} className="rounded px-1.5 py-0.5 hover:bg-surface-muted hover:text-ink-800">Receita bruta</button>
             {trilha.map((code) => (
               <span key={code} className="flex items-center gap-1">
                 <ChevronRight size={12} className="text-ink-300" />
@@ -235,6 +273,8 @@ export default function AnaliseDesempenho() {
         </div>
       </section>
 
+      <style>{`@keyframes adEntra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } } .ad-entra { animation: adEntra .24s ease-out both; } @media (prefers-reduced-motion: reduce) { .ad-entra { animation: none; } }`}</style>
+      <div key={`${visao}:${foco || ""}`} className="ad-entra flex flex-col gap-4">
       {/* VISÃO 1: DEPARTAMENTOS */}
       {visao === "dept" && (
         <>
@@ -247,8 +287,8 @@ export default function AnaliseDesempenho() {
                   <YAxis tick={{ fontSize: 11.5 }} tickFormatter={(v) => `${v}%`} axisLine={false} tickLine={false} />
                   <Tooltip cursor={false} formatter={(value, name, item) => (name === "base" ? null : [`${pct1(item.payload.pct)} · ${money(item.payload.consumo)}`, item.payload.completo || item.payload.nome])} />
                   <Bar dataKey="base" stackId="c" fill="transparent" isAnimationActive={false} />
-                  <Bar dataKey="valor" stackId="c" radius={[5, 5, 0, 0]} isAnimationActive={false} onClick={(d) => d?.code && abrir(d.code)} style={{ cursor: "pointer" }}>
-                    {dadosCascata.map((p, i) => <Cell key={i} fill={p.cor} />)}
+                  <Bar dataKey="valor" stackId="c" radius={[5, 5, 0, 0]} isAnimationActive={false} onClick={(d) => d?.code && abrir(d.code)} onMouseEnter={(d) => setHover(d?.code || null)} onMouseLeave={() => setHover(null)} style={{ cursor: "pointer" }}>
+                    {dadosCascata.map((p, i) => <Cell key={i} fill={p.cor} fillOpacity={hover && p.code !== hover ? 0.28 : 1} />)}
                     <LabelList dataKey="pct" position="top" formatter={(v) => pct1(v)} style={{ fontSize: 11, fontWeight: 600, fill: "#334155" }} />
                   </Bar>
                 </BarChart>
@@ -290,7 +330,7 @@ export default function AnaliseDesempenho() {
               <>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   {destaques.map((g) => (
-                    <button key={g.code} type="button" onClick={() => abrir(g.code)} className="flex flex-col gap-2 rounded-xl border border-line bg-surface-card p-3.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md" style={{ borderLeft: `4px solid ${g.cor}` }}>
+                    <button key={g.code} type="button" onClick={() => abrir(g.code)} onMouseEnter={() => setHover(g.code)} onMouseLeave={() => setHover(null)} className={`flex flex-col gap-2 rounded-xl border border-line bg-surface-card p-3.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${hover && hover !== g.code ? "opacity-50" : ""}`} style={{ borderLeft: `4px solid ${g.cor}` }}>
                       <span className="line-clamp-2 min-h-[34px] text-[12.5px] font-semibold leading-snug text-ink-800" title={g.nome}>{g.nome}</span>
                       <span className="flex items-baseline gap-2">
                         <span className="text-[26px] font-bold leading-none tabular-nums text-ink-900">{pct1(g.pct)}</span>
@@ -428,6 +468,7 @@ export default function AnaliseDesempenho() {
 
         </>
       )}
+      </div>
       {ledgerRow && <LedgerModal row={ledgerRow} onClose={() => setLedgerRow(null)} />}
     </div>
   );
