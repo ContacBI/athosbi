@@ -54,7 +54,9 @@ export default function LedgerModal({ row, onClose }) {
   // Cor e sinal seguem o que o demonstrativo mostra: conta de RESULTADO (receita positiva, despesa negativa), PASSIVO e PL têm o crédito como
   // lado "positivo" (verde) e o débito como negativo (vermelho); ATIVO é o contrário. Sem natureza conhecida (ou DFC), fica como sempre foi (débito verde).
   const codigoConta = Array.isArray(row.classificacao) ? row.classificacao[0] : row.classificacao;
-  const natureza = row.demonstrativo === "DFC" ? null : accountNature(codigoConta, state.natureRules);
+  // No grupo a classificação vem com o id da empresa na frente ("emp_123::9.4.20.200.1"); a natureza (resultado, passivo…) vem do código da conta em si.
+  const codigoSemEmpresa = String(codigoConta ?? "").includes("::") ? String(codigoConta).split("::").pop() : codigoConta;
+  const natureza = row.demonstrativo === "DFC" ? null : accountNature(codigoSemEmpresa, state.natureRules) || (row.demonstrativo === "DRE" ? "resultado" : null);
   const creditoPositivo = natureza === "resultado" || natureza === "passivo" || natureza === "pl";
   const corDebito = creditoPositivo ? "text-danger-600" : "text-success-600";
   const corCredito = creditoPositivo ? "text-success-600" : "text-danger-600";
