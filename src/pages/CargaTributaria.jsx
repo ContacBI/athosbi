@@ -639,8 +639,14 @@ export default function CargaTributaria() {
     avisos: () => {
       const itens = [];
       if (naoClass.length) itens.push(["warn", `Impostos fora do catálogo (não entraram em nenhuma soma — confira): ${naoClass.map(([nome, valor]) => `${nome} ${moneyFull(valor)}`).join(" · ")}`]);
-      if (total.fat.outrasSaidas > 0) itens.push(["warn", `Saídas que não contam como faturamento (devolução, remessa, transferência…): ${moneyFull(total.fat.outrasSaidas)} no ano.`]);
-      if ((total.reforma?.ibs || 0) + (total.reforma?.cbs || 0) > 0) itens.push(["info", `Reforma tributária (valores de teste de ${ano}): IBS ${moneyFull(total.reforma.ibs)} · CBS ${moneyFull(total.reforma.cbs)} — não entram na carga.`]);
+      // No grupo, cada aviso traz de qual empresa vem o valor (no ano).
+      const porEmpresaAno = (texto) => {
+        if (!grupo) return "";
+        const partes = membros.map((membro) => { const d = dadosDaEmpresa(membro, ano); const t = d ? texto(d.ano_total) : ""; return t ? `${membro.name}: ${t}` : ""; }).filter(Boolean);
+        return partes.length ? ` Por empresa — ${partes.join(" · ")}.` : "";
+      };
+      if (total.fat.outrasSaidas > 0) itens.push(["warn", `Saídas que não contam como faturamento (devolução, remessa, transferência…): ${moneyFull(total.fat.outrasSaidas)} no ano.${porEmpresaAno((t) => (t.fat?.outrasSaidas > 0 ? moneyFull(t.fat.outrasSaidas) : ""))}`]);
+      if ((total.reforma?.ibs || 0) + (total.reforma?.cbs || 0) > 0) itens.push(["info", `Reforma tributária (valores de teste de ${ano}): IBS ${moneyFull(total.reforma.ibs)} · CBS ${moneyFull(total.reforma.cbs)} — não entram na carga.${porEmpresaAno((t) => ((t.reforma?.ibs || 0) + (t.reforma?.cbs || 0) > 0 ? `IBS ${moneyFull(t.reforma.ibs)} e CBS ${moneyFull(t.reforma.cbs)}` : ""))}`]);
       const tc = dadosBrutos?.ano_total;  // já com os valores informados à mão
       const soContabil = !grupo && tc?.contabilTotal > 0 ? grupos.filter((g) => tc.contabil?.[g.id] > 0) : [];
       if (!itens.length && !soContabil.length) return null;
