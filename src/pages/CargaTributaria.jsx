@@ -396,7 +396,7 @@ export default function CargaTributaria() {
 
   const { grupos, gruposRet, gruposFolha, total, periodo, colunas, evolucao, acumulada, fatMes, cargaMes, tri, pizza, cargaCorrente, maiorMes, menorMes, nMeses, calor, ret, folha, retTotal, folhaTotal } = c;
   const maior = [...grupos].sort((a, b) => (periodo.imp[b.id] || 0) - (periodo.imp[a.id] || 0))[0];
-  const naoClass = Object.entries(total.naoClassificados || {});
+  const naoClass = Object.entries(periodo.naoClassificados || {}).filter(([, valor]) => Math.abs(valor) >= 0.005);
   const temVendas = total.fat.vendas > 0;
   const tAnt = anterior?.dados?.ano_total;
   const fatP = periodo.fat.total;
@@ -639,23 +639,26 @@ export default function CargaTributaria() {
     avisos: () => {
       const itens = [];
       if (naoClass.length) itens.push(["warn", `Impostos fora do catálogo (não entraram em nenhuma soma — confira): ${naoClass.map(([nome, valor]) => `${nome} ${moneyFull(valor)}`).join(" · ")}`]);
-      // No grupo, cada aviso traz de qual empresa vem o valor (no ano).
-      const porEmpresaAno = (texto) => {
+      // Os avisos valem só pro período escolhido (mês, trimestre ou ano), não pro ano todo. No grupo, cada um traz de qual empresa vem o valor.
+      const doPeriodo = (d) => (sel === "ano" ? d.ano_total : typeof sel === "string" ? d.trimestres[Number(sel.slice(1)) - 1] : d.meses[sel]);
+      const quando = sel === "ano" ? "no ano" : typeof sel === "string" ? `no ${sel.slice(1)}º trimestre` : `em ${MES_LONGO[sel].toLowerCase()}`;
+      const porEmpresaPeriodo = (texto) => {
         if (!grupo) return "";
-        const partes = membros.map((membro) => { const d = dadosDaEmpresa(membro, ano); const t = d ? texto(d.ano_total) : ""; return t ? `${membro.name}: ${t}` : ""; }).filter(Boolean);
+        const partes = membros.map((membro) => { const d = dadosDaEmpresa(membro, ano); const t = d ? texto(doPeriodo(d)) : ""; return t ? `${membro.name}: ${t}` : ""; }).filter(Boolean);
         return partes.length ? ` Por empresa — ${partes.join(" · ")}.` : "";
       };
-      if (total.fat.outrasSaidas > 0) itens.push(["warn", `Saídas que não contam como faturamento (devolução, remessa, transferência…): ${moneyFull(total.fat.outrasSaidas)} no ano.${porEmpresaAno((t) => (t.fat?.outrasSaidas > 0 ? moneyFull(t.fat.outrasSaidas) : ""))}`]);
-      if ((total.reforma?.ibs || 0) + (total.reforma?.cbs || 0) > 0) itens.push(["info", `Reforma tributária (valores de teste de ${ano}): IBS ${moneyFull(total.reforma.ibs)} · CBS ${moneyFull(total.reforma.cbs)} — não entram na carga.${porEmpresaAno((t) => ((t.reforma?.ibs || 0) + (t.reforma?.cbs || 0) > 0 ? `IBS ${moneyFull(t.reforma.ibs)} e CBS ${moneyFull(t.reforma.cbs)}` : ""))}`]);
-      const tc = dadosBrutos?.ano_total;  // já com os valores informados à mão
-      const soContabil = !grupo && tc?.contabilTotal > 0 ? grupos.filter((g) => tc.contabil?.[g.id] > 0) : [];
+      const outrasSaidas = periodo.fat?.outrasSaidas || 0;
+      if (outrasSaidas >= 0.005) itens.push(["warn", `Saídas que não contam como faturamento (devolução, remessa, transferência…): ${moneyFull(outrasSaidas)} ${quando}.${porEmpresaPeriodo((t) => (t.fat?.outrasSaidas >= 0.005 ? moneyFull(t.fat.outrasSaidas) : ""))}`]);
+      if ((periodo.reforma?.ibs || 0) + (periodo.reforma?.cbs || 0) >= 0.005) itens.push(["info", `Reforma tributária (valores de teste de ${ano}): IBS ${moneyFull(periodo.reforma.ibs)} · CBS ${moneyFull(periodo.reforma.cbs)} ${quando} — não entram na carga.${porEmpresaPeriodo((t) => ((t.reforma?.ibs || 0) + (t.reforma?.cbs || 0) >= 0.005 ? `IBS ${moneyFull(t.reforma.ibs)} e CBS ${moneyFull(t.reforma.cbs)}` : ""))}`]);
+      const tc = dadosBrutos ? doPeriodo(dadosBrutos) : null; // já com os valores informados à mão
+      const soContabil = !grupo && tc?.contabilTotal >= 0.005 ? grupos.filter((g) => (tc.contabil?.[g.id] || 0) >= 0.005) : [];
       if (!itens.length && !soContabil.length) return null;
       return (
         <div key="avisos" className="flex flex-col gap-2">
           {soContabil.length > 0 && (
             <div className="flex flex-wrap items-center gap-3 rounded-lg border-l-[3px] border-warning-500 bg-warning-50 px-3 py-2 text-[12.5px] text-warning-700">
               <span className="min-w-0 flex-1">
-                Há imposto provisionado no contábil sem apuração no fiscal: {soContabil.map((g) => `${nomeCurto(g.nome)} ${moneyFull(tc.contabil[g.id])}`).join(" · ")}.{" "}
+                Há imposto provisionado no contábil sem apuração no fiscal ({titulo}): {soContabil.map((g) => `${nomeCurto(g.nome)} ${moneyFull(tc.contabil[g.id])}`).join(" · ")}.{" "}
                 {usarContabil ? "Estes valores ESTÃO somados na carga." : "Estes valores NÃO estão somados na carga."}
               </span>
               {podeEditar && (
