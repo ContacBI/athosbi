@@ -259,26 +259,77 @@ async function writeCompanyJournalNow(companyId, journal, onProgress) {
     report(1);
     return;
   }
-  // Precisa saber qual espaço o manifesto atual usa pra gravar no OUTRO —
-  // se não der pra ler, não arrisca sobrescrever as partes em uso.
-  const current = await readPersistent(baseKey);
-  const slot = isChunkedManifest(current) && current.slot === "a" ? "b" : "a";
-  const parts = [];
-  for (let i = 0; i < list.length; i += JOURNAL_CHUNK_SIZE) parts.push(list.slice(i, i + JOURNAL_CHUNK_SIZE));
-  // +1 unidade pro manifesto — ele só grava depois de TODAS as partes (ver
-  // comentário abaixo), então sem contar essa última escrita a barra pularia
-  // de "quase lá" pra "100%" antes dela realmente acontecer.
-  const totalUnits = parts.length + 1;
+  // Partes endereçadas pelo CONTEÚDO (chave = hash do trecho): uma parte que já existe no banco não sobe de novo, e como uma chave nova
+  // nunca sobrescreve uma antiga, o manifesto antigo continua valendo até o novo ser gravado (mesma garantia dos espaços a/b, sem regravar tudo).
+  // Os trechos seguem os MESES do razão (cada mês na sua parte) — assim aplicar/atualizar um mês só muda as partes daquele mês, em vez de
+  // deslocar todas as partes seguintes como acontecia cortando de 5 em 5 mil (pedido do Izaias, 26/10/2026: aplicar a Domínio demorava demais).
+  const parts = splitJournalParts(list);
+  const keys = [];
+  const novas = new Map();
+  for (const part of parts) {
+    const key = `${baseKey}.h${await hashPart(part)}`;
+    keys.push(key);
+    if (!novas.has(key)) novas.set(key, part);
+  }
+  const existentes = new Set(await listJournalKeys(baseKey));
+  const enviar = [...novas.entries()].filter(([key]) => !existentes.has(key));
+  // +1 unidade pro manifesto — ele só grava depois de TODAS as partes, senão a barra pularia de "quase lá" pra "100%" antes da última escrita.
+  const totalUnits = enviar.length + 1;
   report(0);
-  // Uma parte de cada vez (ver JOURNAL_CHUNK_SIZE). As partes primeiro, o
-  // manifesto por último — se cair no meio, uma leitura ainda vê o
-  // manifesto ANTIGO apontando pro espaço antigo, intacto.
-  for (let index = 0; index < parts.length; index += 1) {
-    await writePersistent(journalPartKey(baseKey, slot, index), parts[index]);
+  // Uma parte de cada vez (ver JOURNAL_CHUNK_SIZE). As partes primeiro, o manifesto por último.
+  for (let index = 0; index < enviar.length; index += 1) {
+    await writePersistent(enviar[index][0], enviar[index][1]);
     report((index + 1) / totalUnits);
   }
-  await writePersistent(baseKey, { __chunked: true, parts: parts.length, slot });
+  await writePersistent(baseKey, { __chunked: true, parts: keys.length, keys });
   report(1);
+  // Depois do manifesto novo: apaga o que ele não usa mais (partes de versões antigas e dos espaços a/b). Só limpeza — se falhar, sobra lixo, não dado perdido.
+  const usadas = new Set(keys);
+  const sobras = [...existentes].filter((key) => !usadas.has(key));
+  for (let i = 0; i < sobras.length; i += 40) {
+    const { error } = await supabase.from("app_storage").delete().in("key", sobras.slice(i, i + 40));
+    if (error) {
+      console.error("Falha ao limpar partes antigas do razão:", error);
+      break;
+    }
+  }
+}
+
+// Quebra o razão em partes: uma por mês (sequências seguidas do mesmo mês), nunca passando de JOURNAL_CHUNK_SIZE. Razão fora de ordem (meses
+// pulando de um lado pro outro) viraria partes demais — nesse caso volta ao corte simples por quantidade.
+function splitJournalParts(list) {
+  const parts = [];
+  let current = [];
+  let currentMonth = null;
+  for (const entry of list) {
+    const month = String(entry?.data || "").slice(0, 7);
+    if (current.length && (month !== currentMonth || current.length >= JOURNAL_CHUNK_SIZE)) {
+      parts.push(current);
+      current = [];
+    }
+    currentMonth = month;
+    current.push(entry);
+  }
+  if (current.length) parts.push(current);
+  if (parts.length > 120) {
+    const simples = [];
+    for (let i = 0; i < list.length; i += JOURNAL_CHUNK_SIZE) simples.push(list.slice(i, i + JOURNAL_CHUNK_SIZE));
+    return simples;
+  }
+  return parts;
+}
+
+async function hashPart(part) {
+  const bytes = new TextEncoder().encode(JSON.stringify(part));
+  const digest = await crypto.subtle.digest("SHA-1", bytes);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+// Chaves (só a coluna `key`, sem baixar o razão) das partes que existem hoje no banco pra essa empresa — o "_" do LIKE é curinga, então confere o prefixo exato aqui.
+async function listJournalKeys(baseKey) {
+  const { data, error } = await supabase.from("app_storage").select("key").like("key", `${baseKey}.%`);
+  if (error) throw new PersistenceReadError(`Não consegui listar as partes do razão "${baseKey}": ${error.message}`, { cause: error });
+  return (data || []).map((row) => row.key).filter((key) => key.startsWith(`${baseKey}.`));
 }
 
 // `onProgress(fraction)` (0..1) — mesma ideia de writeCompanyJournal. Um
@@ -299,13 +350,14 @@ export async function readCompanyJournal(companyId, { onProgress } = {}) {
     // mas MUITO mais robusto quando a rede está capenga — e cada pedaço já
     // tem seu próprio retry via readPersistent.
     // Em lotes de 3 (abrir empresa grande demorava por baixar uma parte de cada vez); a ordem das partes é mantida.
+    const chaveDaParte = (index) => (Array.isArray(value.keys) ? value.keys[index] : journalPartKey(baseKey, value.slot, index));
     const pieces = new Array(value.parts);
     let feitas = 0;
-    for (let inicio = 0; inicio < value.parts; inicio += 3) {
+    for (let inicio = 0; inicio < value.parts; inicio += 4) {
       const lote = [];
-      for (let index = inicio; index < Math.min(inicio + 3, value.parts); index += 1) {
+      for (let index = inicio; index < Math.min(inicio + 4, value.parts); index += 1) {
         lote.push(
-          readPersistent(journalPartKey(baseKey, value.slot, index)).then((piece) => {
+          readPersistent(chaveDaParte(index)).then((piece) => {
             // Parte que o manifesto promete mas não existe = razão incompleto.
             // Devolver só o que sobrou faria ele parecer "carregado" — e o
             // próximo save gravaria essa versão menor por cima do razão inteiro.
