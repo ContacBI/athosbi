@@ -28,27 +28,11 @@ import { setPrefersFullPanel } from "../lib/installApp.js";
 // os controles de edição quando falso).
 const EDIT_ONLY_PREFIXES = ["/empresa/relatorios", "/empresa/de-para", "/empresa/vinculo-dfc", "/empresa/conferencia"];
 
-const MODULOS_ABERTO_KEY = "athosbi.menuModulos";
-
 export default function CompanyLayout() {
   const state = useAppState();
-  // Menu lateral de módulos (B.I Contábil, Orçamento, Carga tributária): abre e fecha pelo botão do topo e lembra a escolha neste navegador.
-  const [modulosAberto, setModulosAberto] = useState(() => {
-    try {
-      return localStorage.getItem(MODULOS_ABERTO_KEY) === "1";
-    } catch {
-      return false;
-    }
-  });
-  const alternarModulos = () =>
-    setModulosAberto((atual) => {
-      try {
-        localStorage.setItem(MODULOS_ABERTO_KEY, atual ? "0" : "1");
-      } catch {
-        /* sem armazenamento: só não lembra */
-      }
-      return !atual;
-    });
+  // Menu lateral de módulos (B.I Contábil, Orçamento, Carga tributária): sempre começa fechado; a pessoa abre pelo botão do topo se precisar.
+  const [modulosAberto, setModulosAberto] = useState(false);
+  const alternarModulos = () => setModulosAberto((atual) => !atual);
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
