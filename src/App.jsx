@@ -42,6 +42,7 @@ const Apresentacoes = lazy(() => import("./pages/Apresentacoes.jsx"));
 const Carteira = lazy(() => import("./pages/Carteira.jsx"));
 const Orcamento = lazy(() => import("./pages/Orcamento.jsx"));
 const CargaTributaria = lazy(() => import("./pages/CargaTributaria.jsx"));
+const AnaliseDesempenho = lazy(() => import("./pages/AnaliseDesempenho.jsx"));
 const CompaniesAdmin = lazy(() => import("./pages/parametros/CompaniesAdmin.jsx"));
 const GruposAdmin = lazy(() => import("./pages/parametros/GruposAdmin.jsx"));
 const DeParaAdmin = lazy(() => import("./pages/parametros/DeParaAdmin.jsx"));
@@ -223,6 +224,7 @@ function AuthedApp() {
           <Route path="apresentacoes" element={<Apresentacoes />} />
           <Route path="orcamento" element={<Orcamento />} />
           <Route path="carga-tributaria" element={<CargaTributaria />} />
+          <Route path="analise-desempenho" element={<AnaliseDesempenho />} />
           <Route path="apresentacoes/:deckId" element={<Apresentacoes />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

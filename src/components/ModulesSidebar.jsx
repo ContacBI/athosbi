@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { LayoutGrid, Percent, Target, X } from "lucide-react";
+import { Gauge, LayoutGrid, Percent, Target, X } from "lucide-react";
 
 // Módulos da empresa aberta (menu lateral): o B.I Contábil (resumo, demonstrativos, indicadores, gráficos) e os módulos complementares.
 // Pra acrescentar um módulo novo é só uma linha aqui + a rota em App.jsx.
@@ -11,7 +11,7 @@ const MODULOS = [
     icone: LayoutGrid,
     to: "/empresa",
     // tudo que não é um dos módulos complementares abaixo é o B.I
-    ativo: (path) => !path.startsWith("/empresa/orcamento") && !path.startsWith("/empresa/carga-tributaria"),
+    ativo: (path) => !path.startsWith("/empresa/orcamento") && !path.startsWith("/empresa/carga-tributaria") && !path.startsWith("/empresa/analise-desempenho"),
   },
   {
     id: "orcamento",
@@ -29,6 +29,15 @@ const MODULOS = [
     icone: Percent,
     to: "/empresa/carga-tributaria",
     ativo: (path) => path.startsWith("/empresa/carga-tributaria"),
+  },
+  {
+    id: "analise-desempenho",
+    nome: "Análise de desempenho",
+    descricao: "O que mais pesa no faturamento",
+    icone: Gauge,
+    to: "/empresa/analise-desempenho",
+    ativo: (path) => path.startsWith("/empresa/analise-desempenho"),
+    precisaDeDados: true,
   },
 ];
 
