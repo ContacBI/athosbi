@@ -1105,6 +1105,15 @@ export function addPresentationToCompanies(makeCopy, targetIds) {
   return applied;
 }
 
+// Fechamento (ver lib/fechamento.js): até que mês o cliente vê os números
+// desta empresa. `mes` "AAAA-MM", ou "" pra voltar ao padrão (mês anterior
+// ao atual).
+export function definirFechamento(companyId, mes) {
+  const companies = state.companies.map((company) => (company.id === companyId ? { ...company, fechadoAte: mes || "", updatedAt: new Date().toISOString() } : company));
+  setData({ companies });
+  return writeStoredCompanies(companies);
+}
+
 // Resumo do celular copiado pra outras empresas (Personalizar › Resumo do
 // celular › "Usar em outras empresas"): `paraCada(atual)` devolve a config
 // de cada destino (o recado de cada uma pode ficar). A empresa ativa não

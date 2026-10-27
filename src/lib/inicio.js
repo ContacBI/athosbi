@@ -37,12 +37,14 @@ function ultimoDia(mes) {
   return `${mes}-${String(new Date(ano, m, 0).getDate()).padStart(2, "0")}`;
 }
 
-export function numerosDaEmpresa(company) {
+// `ate` ("AAAA-MM"): o mês fechado — os números param nele mesmo que já
+// existam lançamentos depois (ver lib/fechamento.js).
+export function numerosDaEmpresa(company, { ate = "" } = {}) {
   if (!company?.journalLoaded || !(company.journal || []).length) return null;
   let ultimoMes = "";
   company.journal.forEach((entry) => {
     const mes = String(entry.data || "").slice(0, 7);
-    if (/^\d{4}-\d{2}$/.test(mes) && mes > ultimoMes) ultimoMes = mes;
+    if (/^\d{4}-\d{2}$/.test(mes) && mes > ultimoMes && (!ate || mes <= ate)) ultimoMes = mes;
   });
   if (!ultimoMes) return null;
   const ano = ultimoMes.slice(0, 4);

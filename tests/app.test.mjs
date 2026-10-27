@@ -574,6 +574,32 @@ rec.lembrarRecente({ tipo: "grupo", id: "g" });
 rec.lembrarRecente({ tipo: "empresa", id: "a" });
 check("Abertas por último: a mais recente primeiro, sem repetir", rec.recentes().map((item) => `${item.tipo}:${item.id}`).join() === "empresa:a,grupo:g", rec.recentes());
 
+// ── Fechamento: o cliente só vê até o mês fechado (lib/fechamento.js) ──
+section("Fechamento");
+const fch = await src("lib/fechamento.js");
+const { dataMonths: mesesComDados } = await src("lib/assistant/context.js");
+const hojeTeste = new Date(2026, 9, 27); // 27/10/2026
+check("Sem fechamento marcado = mês anterior ao atual (o mês corrente nunca aparece)", fch.mesFechadoDa({}, hojeTeste) === "2026-09" && fch.mesFechadoDa({ fechadoAte: "2026-08" }, hojeTeste) === "2026-08", null);
+check(
+  "Período cortado no mês fechado",
+  JSON.stringify(fch.limitarPeriodo({ start: "2026-01-01", end: "2026-10-31" }, "2026-09")) === JSON.stringify({ start: "2026-01-01", end: "2026-09-30" }) &&
+    JSON.stringify(fch.limitarPeriodo({ start: "2026-10-01", end: "2026-10-31" }, "2026-09")) === JSON.stringify({ start: "2026-09-01", end: "2026-09-30" }) &&
+    JSON.stringify(fch.limitarPeriodo({ start: "2026-01-01", end: "2026-03-31" }, "2026-09")) === JSON.stringify({ start: "2026-01-01", end: "2026-03-31" }),
+  null
+);
+setCompanyState();
+Object.assign(state, { isAdmin: false, isColaborador: false, companies: [{ ...company, fechadoAte: "2026-02" }] });
+const mesesCliente = mesesComDados();
+Object.assign(state, { isAdmin: true });
+const mesesEquipe = mesesComDados();
+check("Cliente não vê os meses depois do fechamento; a equipe vê todos", mesesCliente.join() === "2026-01,2026-02" && mesesEquipe.includes("2026-03"), { mesesCliente, mesesEquipe });
+check("Equipe não tem limite", fch.limiteDoCliente({ isAdmin: true }) === null && fch.limiteDoCliente({ isColaborador: true }) === null, null);
+const grupoFch = { isAdmin: false, activeGroupId: "g", groups: [{ id: "g", companyIds: ["a", "b"] }], companies: [{ id: "a", fechadoAte: "2026-09" }, { id: "b", fechadoAte: "2026-07" }] };
+check("Grupo: vale o fechamento mais atrasado das empresas", fch.limiteDoCliente(grupoFch, hojeTeste) === "2026-07", null);
+const numsFechados = inicio.numerosDaEmpresa({ ...company, journal, journalLoaded: true }, { ate: "2026-02" });
+check("Cartão do Início para no mês fechado (fev)", numsFechados.mes === "2026-02" && numsFechados.lucroAno < expected.lucro && numsFechados.receitaAno < expected.receitaLiquida, numsFechados);
+setCompanyState();
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
