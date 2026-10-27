@@ -15,6 +15,8 @@ import { exportDemonstrativoPdf, exportDemonstrativoExcel, exportMultiSheetExcel
 import { periodLabelPt } from "../lib/format.js";
 import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
 import PeriodPicker from "./PeriodPicker.jsx";
+import FechamentoMenu from "./FechamentoMenu.jsx";
+import { limiteDoCliente, ultimoDiaDoMes } from "../lib/fechamento.js";
 import ThemeToggle from "./ThemeToggle.jsx";
 
 // Chama a função pura certa (buildFullDfcExport/buildFullReportExport) pra
@@ -457,6 +459,8 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
     appState.isAdmin ||
     (company && (company.responsaveis || []).includes(appState.userEmail)) ||
     (group && isResponsavelForGroup(appState, group.id));
+  // Cliente: o período não passa do mês fechado (ver lib/fechamento.js).
+  const limiteCliente = limiteDoCliente(appState);
   // Personalizar is its own self-contained editor with its own tab strip —
   // the normal site nav underneath would just be noise there.
   const isPersonalizar = location.pathname.startsWith("/empresa/personalizar");
@@ -542,11 +546,13 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
 
         <div className="flex flex-wrap items-center justify-end gap-2">
           {hasData && !isCarga && <PendingMappingsBadge company={company} />}
+          {hasData && !isCarga && company && canEdit && <FechamentoMenu company={company} />}
           {hasData && !isCarga && (
             <PeriodPicker
               label="Período"
               start={appState.periodStart}
               end={appState.periodEnd}
+              max={limiteCliente ? ultimoDiaDoMes(limiteCliente) : ""}
               onChange={(start, end) => setData({ periodStart: start, periodEnd: end })}
             />
           )}

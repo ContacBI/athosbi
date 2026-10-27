@@ -39,7 +39,9 @@ const PRESETS = [
 // Compact popover date-range control — replaces bare <input type=date> pairs
 // sitting loose in toolbars. Shows the chosen range as a single pill; the
 // popover carries quick presets plus the two raw pickers for custom ranges.
-export default function PeriodPicker({ label = "Período", start, end, onChange, accent = "accent" }) {
+// `max` (AAAA-MM-DD): o último dia que dá pra escolher — pro cliente, o fim
+// do mês fechado (ver lib/fechamento.js). Nada passa dele, nem os atalhos.
+export default function PeriodPicker({ label = "Período", start, end, onChange, accent = "accent", max = "" }) {
   const [open, setOpen] = useState(false);
   // Typing a date is a multi-step edit (day, then month, then year) — firing
   // onChange on every keystroke used to trigger a full report recompute each
@@ -67,8 +69,15 @@ export default function PeriodPicker({ label = "Período", start, end, onChange,
 
   const dirty = draftStart !== (start || "") || draftEnd !== (end || "");
 
+  // Corta no `max`: o fim para nele e, se o começo também passou, vira o
+  // primeiro dia do mês do `max`.
+  function limitado(s, e) {
+    if (!max || !e || e <= max) return [s, e];
+    return [s && s <= max ? s : `${max.slice(0, 7)}-01`, max];
+  }
+
   function apply() {
-    onChange(draftStart, draftEnd);
+    onChange(...limitado(draftStart, draftEnd));
     setOpen(false);
   }
 
@@ -102,7 +111,7 @@ export default function PeriodPicker({ label = "Período", start, end, onChange,
                 type="button"
                 onClick={() => {
                   const [s, e] = preset.range();
-                  onChange(s, e);
+                  onChange(...limitado(s, e));
                 }}
                 className="rounded-full bg-surface-muted px-2.5 py-1 text-[11px] text-ink-600 transition-colors hover:bg-accent-50 hover:text-accent-600"
               >
@@ -116,6 +125,7 @@ export default function PeriodPicker({ label = "Período", start, end, onChange,
               <input
                 type="date"
                 value={draftStart}
+                max={max || undefined}
                 onChange={(event) => setDraftStart(event.target.value)}
                 className="mt-1 block w-full rounded-md border border-line-strong px-2 py-1.5 text-[12px] outline-none focus:border-accent-500"
               />
@@ -125,11 +135,13 @@ export default function PeriodPicker({ label = "Período", start, end, onChange,
               <input
                 type="date"
                 value={draftEnd}
+                max={max || undefined}
                 onChange={(event) => setDraftEnd(event.target.value)}
                 className="mt-1 block w-full rounded-md border border-line-strong px-2 py-1.5 text-[12px] outline-none focus:border-accent-500"
               />
             </label>
           </div>
+          {max && <p className="mt-2 text-[11px] text-ink-400">Dados fechados até {formatDate(max)}.</p>}
           <button
             type="button"
             onClick={apply}

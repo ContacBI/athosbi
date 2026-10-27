@@ -1,26 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Building2, ChevronRight, Clock, LayoutGrid, LogOut, MessageSquare, Network, Presentation, Scale, Search, Settings, Activity } from "lucide-react";
+import { Activity, ArrowRight, ChevronRight, Clock, LayoutGrid, Lock, LogOut, MessageSquare, Network, Presentation, Scale, Search, Settings } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
 import { useAppState } from "../data/useStore.js";
 import { temBi as temModuloBi, temReforma as temModuloReforma } from "../lib/modulos.js";
 import { groupCompanies } from "../lib/groups.js";
 import { ensureCompanyJournalLoaded } from "../lib/companies.js";
 import { numerosDaEmpresa, primeiroNome, resumoCarteira, saudacao } from "../lib/inicio.js";
+import { mesFechadoDa } from "../lib/fechamento.js";
 import { recentes } from "../lib/recentes.js";
 import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
 import { compactValue } from "../lib/presentations.js";
 import { configResumo } from "../lib/resumoCelular.js";
 import ThemeToggle from "../components/ThemeToggle.jsx";
 import AthosMark from "../components/AthosMark.jsx";
+import Avatar from "../components/Avatar.jsx";
 import WorkspaceLoading from "../components/WorkspaceLoading.jsx";
 
 // Início: a primeira tela depois do login, diferente pra cada um.
-//  - Cliente: a(s) empresa(s) dele em cartões, já com o resultado do último
-//    mês e do ano, o recado do escritório e atalho pra última apresentação.
-//    Com poucas empresas, o razão já vem carregando aqui — abrir fica rápido.
-//  - Equipe: busca pra abrir qualquer empresa, as abertas por último, a
-//    situação da carteira numa linha e os atalhos do dia a dia.
+//  - Cliente: a(s) empresa(s) dele em cartões, com o resultado do mês
+//    fechado e do ano, o recado do escritório e atalho pra última
+//    apresentação. Tudo só até o mês fechado
+//    (lib/fechamento.js). Com poucas empresas, o razão já vem carregando
+//    aqui — abrir fica rápido.
+//  - Equipe: busca pra abrir qualquer empresa, as abertas por último,
+//    atalhos e — só pra quem tem acesso total (admin) — a situação da
+//    carteira.
 
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 const nomeDoMes = (mes) => MESES[Number(String(mes).slice(5, 7)) - 1] || "";
@@ -28,8 +33,8 @@ const mesCurto = (mes) => (mes ? `${nomeDoMes(mes).slice(0, 3)}/${String(mes).sl
 const norm = (value) => String(value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 // Cliente com até tantas empresas: os números de cada uma são calculados
-// aqui (precisa do razão). Mais que isso, o cartão mostra só até quando vão
-// os dados — não vale baixar o razão de todas só pra tela inicial.
+// aqui (precisa do razão). Mais que isso, o cartão mostra só o fechamento —
+// não vale baixar o razão de todas só pra tela inicial.
 const MAX_COM_NUMEROS = 4;
 
 function quando(iso) {
@@ -40,6 +45,11 @@ function quando(iso) {
   if (dias < 30) return `há ${dias} dias`;
   const meses = Math.round(dias / 30);
   return meses <= 1 ? "há 1 mês" : `há ${meses} meses`;
+}
+
+function hojePorExtenso() {
+  const texto = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
 function Topo({ staff, onConfig }) {
@@ -64,70 +74,78 @@ function Topo({ staff, onConfig }) {
   );
 }
 
-function Valor({ rotulo, valor, destaque = false }) {
-  const negativo = valor < -0.5;
+function Titulo({ icone: Icone, children }) {
   return (
-    <div className="min-w-0">
-      <p className="text-[11.5px] text-ink-400">{rotulo}</p>
-      <p className={`truncate font-semibold tabular-nums ${destaque ? "text-[22px] leading-tight" : "text-[15px]"} ${negativo ? "text-danger-600" : "text-ink-900"}`}>{compactValue(valor, "money")}</p>
-    </div>
+    <h2 className="mb-3 flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.08em] text-ink-400">
+      {Icone && <Icone size={13} />}
+      {children}
+    </h2>
   );
 }
 
 // Cartão de uma empresa (cliente).
 function CartaoEmpresa({ company, numeros, calculando, grande, onAbrir, onApresentacao }) {
-  const recado = configResumo(company.resumoCelular).recado.trim();
-  const ocultos = configResumo(company.resumoCelular).ocultos;
+  const config = configResumo(company.resumoCelular);
+  const recado = config.recado.trim();
   const ultimaApresentacao = [...(company.presentations || [])].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))[0] || null;
-  const ate = numeros?.mes || String(company.lastBalanceteMeta?.fim || "").slice(0, 7);
+  const fechado = numeros?.mes || mesFechadoDa(company);
+  const prejuizo = numeros && numeros.lucroMes < -0.5;
   return (
-    <article className={`inicio-empresa flex flex-col rounded-2xl bg-surface-card shadow-sm ring-1 ring-line ${grande ? "p-6" : "p-5"}`}>
-      <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-600">
-          <Building2 size={19} />
-        </span>
+    <article className="inicio-empresa group/cartao flex flex-col overflow-hidden rounded-2xl bg-surface-card shadow-sm ring-1 ring-line transition-shadow hover:shadow-md">
+      <div className={`flex items-start gap-3 ${grande ? "px-6 pt-6" : "px-5 pt-5"}`}>
+        <Avatar name={company.name} size={grande ? 44 : 40} className="rounded-xl" />
         <div className="min-w-0 flex-1">
-          <h3 className={`truncate font-semibold text-ink-900 ${grande ? "text-[18px]" : "text-[15px]"}`}>{company.name}</h3>
-          <p className="truncate text-[12px] text-ink-400">
-            {company.cnpj || ""}
-            {company.cnpj && ate ? " · " : ""}
-            {ate ? `dados até ${mesCurto(ate)}` : ""}
-          </p>
+          <h3 className={`truncate font-semibold tracking-tight text-ink-900 ${grande ? "text-[18px]" : "text-[15px]"}`}>{company.name}</h3>
+          <p className="truncate text-[12px] text-ink-400">{company.cnpj || " "}</p>
         </div>
+        <span className="inicio-fechado flex shrink-0 items-center gap-1 rounded-full bg-surface-muted px-2.5 py-1 text-[11px] font-medium text-ink-500" title="Os números vão até o último mês fechado pelo escritório">
+          <Lock size={11} /> <span className="hidden sm:inline">Fechado até</span> {mesCurto(fechado)}
+        </span>
       </div>
 
-      {calculando ? (
-        <div className="mt-5 grid grid-cols-2 gap-4" aria-label="Calculando os números">
-          {[0, 1].map((item) => (
-            <div key={item} className="flex flex-col gap-2">
-              <span className="h-3 w-20 animate-pulse rounded bg-surface-muted" />
-              <span className="h-6 w-28 animate-pulse rounded bg-surface-muted" />
+      <div className={grande ? "px-6" : "px-5"}>
+        {calculando ? (
+          <div className="mt-5 flex flex-col gap-3" aria-label="Calculando os números">
+            <span className="h-3 w-24 animate-pulse rounded bg-surface-muted" />
+            <span className="h-8 w-40 animate-pulse rounded bg-surface-muted" />
+            <span className="h-12 w-full animate-pulse rounded bg-surface-muted" />
+          </div>
+        ) : numeros ? (
+          <>
+            <div className={`mt-5 grid gap-x-2 gap-y-4 sm:gap-x-4 ${grande ? "grid-cols-3 sm:grid-cols-[1.4fr_1fr_1fr_1fr]" : "grid-cols-3"}`}>
+              <div className={`min-w-0 ${grande ? "col-span-3 sm:col-span-1" : "col-span-3"}`}>
+                <p className="text-[12px] text-ink-400">
+                  {prejuizo ? "Prejuízo" : "Lucro"} de {nomeDoMes(numeros.mes)}
+                </p>
+                <p className={`truncate text-[28px] font-semibold leading-tight tracking-tight tabular-nums ${prejuizo ? "text-danger-600" : "text-ink-900"}`}>{compactValue(numeros.lucroMes, "money")}</p>
+              </div>
+              {[
+                { rotulo: "Receita do mês", valor: numeros.receitaMes },
+                { rotulo: `${numeros.lucroAno < -0.5 ? "Prejuízo" : "Lucro"} no ano`, valor: numeros.lucroAno },
+                { rotulo: "Receita no ano", valor: numeros.receitaAno },
+              ].map((item, index) => (
+                <div key={item.rotulo} className={`min-w-0 ${index > 0 ? "border-l border-line pl-2 sm:pl-3" : grande ? "sm:border-l sm:border-line sm:pl-3" : ""}`}>
+                  <p className="truncate text-[11px] text-ink-400 sm:text-[11.5px]">{item.rotulo}</p>
+                  <p className={`truncate text-[13px] font-semibold tabular-nums sm:text-[15px] ${item.valor < -0.5 ? "text-danger-600" : "text-ink-900"}`}>{compactValue(item.valor, "money")}</p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : (
-        numeros && (
-          <div className={`mt-5 grid grid-cols-2 gap-x-4 gap-y-3 ${grande ? "sm:grid-cols-4" : ""}`}>
-            <Valor rotulo={`${numeros.lucroMes < -0.5 ? "Prejuízo" : "Lucro"} de ${nomeDoMes(numeros.mes)}`} valor={numeros.lucroMes} destaque />
-            <Valor rotulo={`Receita de ${nomeDoMes(numeros.mes)}`} valor={numeros.receitaMes} destaque />
-            <Valor rotulo={`${numeros.lucroAno < -0.5 ? "Prejuízo" : "Lucro"} no ano (até ${mesCurto(numeros.mes)})`} valor={numeros.lucroAno} destaque={grande} />
-            <Valor rotulo={`Receita no ano (até ${mesCurto(numeros.mes)})`} valor={numeros.receitaAno} destaque={grande} />
-          </div>
-        )
-      )}
+          </>
+        ) : null}
 
-      {recado && !ocultos.includes("recado") && (
-        <div className="mt-4 flex gap-2.5 rounded-xl bg-accent-50 p-3 ring-1 ring-accent-200">
-          <MessageSquare size={16} className="mt-0.5 shrink-0 text-accent-600" />
-          <div className="min-w-0">
-            <p className="text-[10.5px] font-semibold uppercase tracking-wide text-accent-700">Recado do escritório</p>
-            <p className="mt-0.5 whitespace-pre-line text-[13px] leading-snug text-ink-800">{recado}</p>
+        {recado && !config.ocultos.includes("recado") && (
+          <div className="mt-4 flex gap-2.5 rounded-xl bg-accent-50 p-3 ring-1 ring-accent-200">
+            <MessageSquare size={16} className="mt-0.5 shrink-0 text-accent-600" />
+            <div className="min-w-0">
+              <p className="text-[10.5px] font-semibold uppercase tracking-wide text-accent-700">Recado do escritório</p>
+              <p className="mt-0.5 whitespace-pre-line text-[13px] leading-snug text-ink-800">{recado}</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      <div className="mt-auto flex flex-wrap items-center gap-2 pt-5">
-        <button type="button" onClick={onAbrir} className="inicio-abrir flex items-center gap-1.5 rounded-full bg-accent-500 px-4 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600">
+      <div className={`mt-auto flex flex-wrap items-center gap-2 ${grande ? "px-6 pb-6 pt-5" : "px-5 pb-5 pt-5"}`}>
+        <button type="button" onClick={onAbrir} className="inicio-abrir flex items-center gap-1.5 rounded-full bg-accent-500 px-4 py-2 text-[13px] font-medium text-white shadow-sm shadow-accent-600/20 transition-all hover:-translate-y-0.5 hover:bg-accent-600">
           Abrir <ArrowRight size={15} />
         </button>
         {ultimaApresentacao && (
@@ -141,17 +159,71 @@ function CartaoEmpresa({ company, numeros, calculando, grande, onAbrir, onAprese
   );
 }
 
-function Atalho({ icone: Icone, titulo, texto, onClick }) {
+const TONS = {
+  laranja: "bg-accent-50 text-accent-600",
+  azul: "bg-navy-700/10 text-navy-700",
+  cinza: "bg-surface-muted text-ink-500",
+};
+
+function Atalho({ icone: Icone, titulo, texto, tom = "cinza", onClick }) {
   return (
     <button type="button" onClick={onClick} className="group flex items-center gap-3 rounded-xl bg-surface-card p-3.5 text-left shadow-sm ring-1 ring-line transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-ink-500 group-hover:text-accent-600">
-        <Icone size={17} />
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${TONS[tom]}`}>
+        <Icone size={18} />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-[13.5px] font-medium text-ink-900">{titulo}</span>
         {texto && <span className="block truncate text-[11.5px] text-ink-400">{texto}</span>}
       </span>
-      <ChevronRight size={16} className="shrink-0 text-ink-300" />
+      <ChevronRight size={16} className="shrink-0 text-ink-300 transition-transform group-hover:translate-x-0.5" />
+    </button>
+  );
+}
+
+// Situação da carteira (admin): a proporção em uma barra (crítica / em
+// atenção / em dia — cor de status sempre com o número e o nome ao lado) e
+// as pendências mais comuns.
+function Carteira({ resumo, total, onAbrir }) {
+  const partes = [
+    { id: "critico", rotulo: resumo?.critico === 1 ? "crítica" : "críticas", valor: resumo?.critico || 0, cor: "bg-danger-500" },
+    { id: "atencao", rotulo: "em atenção", valor: resumo?.atencao || 0, cor: "bg-warning-500" },
+    { id: "ok", rotulo: "em dia", valor: resumo?.ok || 0, cor: "bg-success-500" },
+  ];
+  return (
+    <button type="button" onClick={onAbrir} className="inicio-carteira group w-full rounded-2xl bg-surface-card p-5 text-left shadow-sm ring-1 ring-line transition-all hover:shadow-md">
+      {!resumo ? (
+        <span className="text-[13px] text-ink-400">{total ? "Calculando a situação das empresas…" : "Nenhuma empresa cadastrada ainda."}</span>
+      ) : (
+        <>
+          <div className="flex h-2.5 w-full gap-[2px] overflow-hidden rounded-full" role="img" aria-label={partes.map((parte) => `${parte.valor} ${parte.rotulo}`).join(", ")}>
+            {partes
+              .filter((parte) => parte.valor > 0)
+              .map((parte) => (
+                <span key={parte.id} className={`${parte.cor} first:rounded-l-full last:rounded-r-full`} style={{ flexGrow: parte.valor }} title={`${parte.valor} ${parte.rotulo}`} />
+              ))}
+          </div>
+          <div className="mt-4 flex flex-wrap items-end gap-x-7 gap-y-3">
+            {partes.map((parte) => (
+              <span key={parte.id} className="flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${parte.cor}`} />
+                <span className="text-[24px] font-semibold leading-none tabular-nums text-ink-900">{parte.valor}</span>
+                <span className="text-[13px] text-ink-500">{parte.rotulo}</span>
+              </span>
+            ))}
+            <span className="flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-ink-500 sm:ml-2 sm:border-l sm:border-line sm:pl-6">
+              <span>
+                <strong className="font-semibold text-ink-800">{resumo.atrasadas}</strong> com dados atrasados
+              </span>
+              <span>
+                <strong className="font-semibold text-ink-800">{resumo.depara}</strong> com De/Para pendente
+              </span>
+            </span>
+            <span className="ml-auto flex items-center gap-1 text-[12.5px] font-medium text-accent-600">
+              Ver a carteira <ChevronRight size={15} className="transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </div>
+        </>
+      )}
     </button>
   );
 }
@@ -178,7 +250,7 @@ export default function Landing() {
   // ── Cliente: números de cada empresa (razão carregando aqui mesmo) ──
   const [numeros, setNumeros] = useState({}); // id → números | null (sem dados)
   const calcularNumeros = !staff && temBi && state.companies.length <= MAX_COM_NUMEROS;
-  const idsEmpresas = state.companies.map((company) => company.id).join("|");
+  const chaveEmpresas = state.companies.map((company) => `${company.id}:${mesFechadoDa(company)}`).join("|");
   useEffect(() => {
     if (!calcularNumeros) return undefined;
     let vivo = true;
@@ -188,7 +260,7 @@ export default function Landing() {
           const carregado = company.journalLoaded ? company : await ensureCompanyJournalLoaded(company);
           if (!vivo) return;
           const pronto = carregado && !carregado.journalLoadFailed ? { ...company, ...carregado, journalLoaded: true } : null;
-          const valor = pronto ? numerosDaEmpresa(pronto) : null;
+          const valor = pronto ? numerosDaEmpresa(pronto, { ate: mesFechadoDa(company) }) : null;
           setNumeros((atual) => ({ ...atual, [company.id]: valor }));
         } catch (error) {
           console.warn("Início: sem números de", company.name, error?.message || error);
@@ -202,9 +274,9 @@ export default function Landing() {
       vivo = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [calcularNumeros, idsEmpresas]);
+  }, [calcularNumeros, chaveEmpresas]);
 
-  // ── Equipe: busca, abertas por último e a carteira ──
+  // ── Equipe: busca, abertas por último e (admin) a carteira ──
   const [busca, setBusca] = useState("");
   const buscaRef = useRef(null);
   const resultados = useMemo(() => {
@@ -229,7 +301,7 @@ export default function Landing() {
 
   const [carteira, setCarteira] = useState(null);
   useEffect(() => {
-    if (!staff || !state.companies.length) return undefined;
+    if (!state.isAdmin || !state.companies.length) return undefined;
     // Depois da primeira pintura: com muitas empresas são alguns instantes.
     const timer = setTimeout(() => {
       try {
@@ -239,7 +311,7 @@ export default function Landing() {
       }
     }, 60);
     return () => clearTimeout(timer);
-  }, [staff, state.companies]);
+  }, [state.isAdmin, state.companies]);
 
   // "/" vai pra busca (mesmo atalho da lista de empresas).
   useEffect(() => {
@@ -256,27 +328,36 @@ export default function Landing() {
   }, [staff]);
 
   const abrir = (item, destino) => (item.tipo === "grupo" ? abrirGrupo(item.id, destino) : abrirEmpresa(item.id, destino));
+  const totalCliente = state.companies.length + gruposCliente.length;
 
   const hero = (
     <div className="relative z-10 bg-navy-950 text-white">
-      <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(640px circle at 18% 0%, rgba(47,111,237,0.30), transparent 60%), radial-gradient(420px circle at 90% 120%, rgba(232,105,31,0.16), transparent 60%)" }} />
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0" style={{ background: "radial-gradient(700px circle at 15% -10%, rgba(47,111,237,0.34), transparent 60%), radial-gradient(520px circle at 95% 130%, rgba(232,105,31,0.20), transparent 60%)" }} />
+        <div
+          className="absolute inset-0 opacity-[0.06]"
+          style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "44px 44px", maskImage: "linear-gradient(to bottom, black, transparent)" }}
+        />
+        <AthosMark size={200} className="absolute bottom-6 right-[7%] hidden opacity-[0.045] lg:block" />
+      </div>
       <div className="relative">
         <Topo staff={staff} onConfig={() => navigate("/parametros")} />
-        <div className="mx-auto max-w-5xl px-5 pb-9 pt-4 sm:px-8 sm:pb-11 sm:pt-6">
-          <h1 className="inicio-ola text-[28px] font-semibold leading-tight tracking-tight sm:text-[34px]">{ola}</h1>
-          <p className="mt-1.5 text-[14px] text-white/60">
+        <div className="mx-auto max-w-5xl px-5 pb-10 pt-3 sm:px-8 sm:pb-12 sm:pt-5">
+          <p className="text-[12.5px] font-medium text-white/50">{hojePorExtenso()}</p>
+          <h1 className="inicio-ola mt-1 text-[30px] font-semibold leading-tight tracking-tight sm:text-[38px]">{ola}</h1>
+          <p className="mt-1.5 text-[14.5px] text-white/60">
             {staff
               ? `${state.companies.length} ${state.companies.length === 1 ? "empresa" : "empresas"} na carteira${state.groups.length ? ` · ${state.groups.length} ${state.groups.length === 1 ? "grupo" : "grupos"}` : ""}`
               : temBi
-                ? "Os números da sua empresa, atualizados pelo escritório."
+                ? `Os números ${totalCliente > 1 ? "das suas empresas" : "da sua empresa"}, fechados pelo escritório.`
                 : temReforma
                   ? "Simule o impacto da Reforma Tributária na sua empresa, produto a produto."
                   : ""}
           </p>
 
           {staff && (
-            <div className="relative mt-6 max-w-xl">
-              <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/45" />
+            <div className="relative mt-7 max-w-2xl">
+              <Search size={18} className="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-white/55" />
               <input
                 ref={buscaRef}
                 value={busca}
@@ -285,23 +366,23 @@ export default function Landing() {
                   if (event.key === "Enter" && resultados[0]) abrir(resultados[0]);
                   if (event.key === "Escape") setBusca("");
                 }}
-                placeholder="Abrir empresa ou grupo — digite o nome, código ou CNPJ"
-                className="inicio-busca h-12 w-full rounded-xl border border-white/15 bg-white/10 pl-11 pr-12 text-[14px] text-white outline-none placeholder:text-white/45 focus:border-white/35 focus:bg-white/15"
+                placeholder="Abrir empresa ou grupo — nome, código ou CNPJ"
+                className="inicio-busca h-[52px] w-full rounded-2xl border border-white/15 bg-white/[0.08] pl-12 pr-12 text-[15px] text-white shadow-[0_8px_30px_-12px_rgba(0,0,0,0.5)] outline-none backdrop-blur placeholder:text-white/45 focus:border-white/35 focus:bg-white/[0.12]"
               />
-              <kbd className="pointer-events-none absolute right-3.5 top-1/2 hidden -translate-y-1/2 rounded border border-white/20 px-1.5 text-[11px] text-white/45 sm:block">/</kbd>
+              <kbd className="pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 rounded-md border border-white/20 px-1.5 py-0.5 text-[11px] text-white/50 sm:block">/</kbd>
               {busca.trim() && (
-                <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden rounded-xl bg-surface-card text-ink-900 shadow-2xl ring-1 ring-line">
+                <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-xl bg-surface-card text-ink-900 shadow-2xl ring-1 ring-line">
                   {resultados.length === 0 ? (
                     <p className="px-4 py-3 text-[13px] text-ink-400">Nada encontrado para "{busca.trim()}".</p>
                   ) : (
                     resultados.map((item, index) => (
                       <button key={`${item.tipo}:${item.id}`} type="button" onClick={() => abrir(item)} className={`inicio-resultado flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-surface-muted ${index === 0 ? "bg-surface-muted/60" : ""}`}>
-                        {item.tipo === "grupo" ? <Network size={16} className="shrink-0 text-ink-400" /> : <Building2 size={16} className="shrink-0 text-ink-400" />}
+                        <Avatar name={item.nome} size={30} className="rounded-lg" />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[13.5px] font-medium">{item.nome}</span>
                           {item.detalhe && <span className="block truncate text-[11.5px] text-ink-400">{item.detalhe}</span>}
                         </span>
-                        {index === 0 && <span className="shrink-0 text-[11px] text-ink-400">Enter</span>}
+                        {index === 0 && <span className="shrink-0 rounded border border-line px-1.5 text-[10.5px] text-ink-400">Enter</span>}
                       </button>
                     ))
                   )}
@@ -319,99 +400,77 @@ export default function Landing() {
       {pending && <WorkspaceLoading name={pending.name} isGroup={pending.isGroup} phase={pending.phase} progress={state.journalLoadProgress} onCancel={cancelar} />}
       {hero}
 
-      <main className="mx-auto flex max-w-5xl flex-col gap-8 px-5 pt-7 sm:px-8">
+      <main className="mx-auto flex max-w-5xl flex-col gap-9 px-5 pt-8 sm:px-8">
         {staff ? (
           <>
             {abertas.length > 0 && (
               <section>
-                <h2 className="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-ink-400">
-                  <Clock size={13} /> Abertas por último
-                </h2>
+                <Titulo icone={Clock}>Abertas por último</Titulo>
                 <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                   {abertas.map((item) => (
                     <button key={`${item.tipo}:${item.id}`} type="button" onClick={() => abrir(item)} className="inicio-recente group flex items-center gap-3 rounded-xl bg-surface-card p-3.5 text-left shadow-sm ring-1 ring-line transition-all hover:-translate-y-0.5 hover:shadow-md">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-50 text-accent-600">{item.tipo === "grupo" ? <Network size={17} /> : <Building2 size={17} />}</span>
+                      <Avatar name={item.nome} size={38} className="rounded-xl" />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[13.5px] font-medium text-ink-900">{item.nome}</span>
-                        <span className="block text-[11.5px] text-ink-400">
-                          {item.tipo === "grupo" ? "Grupo · " : ""}
+                        <span className="flex items-center gap-1 text-[11.5px] text-ink-400">
+                          {item.tipo === "grupo" && (
+                            <>
+                              <Network size={11} /> Grupo ·{" "}
+                            </>
+                          )}
                           {quando(item.at)}
                         </span>
                       </span>
-                      <ArrowRight size={15} className="shrink-0 text-ink-300 group-hover:text-accent-600" />
+                      <ArrowRight size={15} className="shrink-0 text-ink-300 transition-transform group-hover:translate-x-0.5 group-hover:text-accent-600" />
                     </button>
                   ))}
                 </div>
               </section>
             )}
 
-            <section>
-              <h2 className="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-ink-400">
-                <Activity size={13} /> Situação da carteira
-              </h2>
-              <button type="button" onClick={() => navigate("/carteira")} className="inicio-carteira group flex w-full flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl bg-surface-card p-5 text-left shadow-sm ring-1 ring-line transition-all hover:shadow-md">
-                {!carteira ? (
-                  <span className="text-[13px] text-ink-400">{state.companies.length ? "Calculando a situação das empresas…" : "Nenhuma empresa cadastrada ainda."}</span>
-                ) : (
-                  [
-                    { valor: carteira.critico, rotulo: carteira.critico === 1 ? "crítica" : "críticas", cor: "bg-danger-500" },
-                    { valor: carteira.atencao, rotulo: "em atenção", cor: "bg-warning-500" },
-                    { valor: carteira.ok, rotulo: "em dia", cor: "bg-success-500" },
-                    { valor: carteira.atrasadas, rotulo: carteira.atrasadas === 1 ? "com dados atrasados" : "com dados atrasados", cor: "bg-ink-300" },
-                    { valor: carteira.depara, rotulo: "com De/Para pendente", cor: "bg-ink-300" },
-                  ].map((item) => (
-                    <span key={item.rotulo} className="flex items-center gap-2">
-                      <span className={`h-2.5 w-2.5 rounded-full ${item.cor}`} />
-                      <span className="text-[20px] font-semibold tabular-nums text-ink-900">{item.valor}</span>
-                      <span className="text-[13px] text-ink-500">{item.rotulo}</span>
-                    </span>
-                  ))
-                )}
-                <span className="ml-auto flex items-center gap-1 text-[12.5px] font-medium text-accent-600">
-                  Ver a carteira <ChevronRight size={15} />
-                </span>
-              </button>
-            </section>
+            {state.isAdmin && (
+              <section>
+                <Titulo icone={Activity}>Situação da carteira</Titulo>
+                <Carteira resumo={carteira} total={state.companies.length} onAbrir={() => navigate("/carteira")} />
+              </section>
+            )}
 
             <section>
-              <h2 className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-ink-400">Atalhos</h2>
+              <Titulo>Atalhos</Titulo>
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-                <Atalho icone={LayoutGrid} titulo="Todas as empresas" texto="Lista completa e grupos" onClick={() => navigate("/empresas")} />
-                <Atalho icone={Activity} titulo="Carteira" texto="Saúde dos dados" onClick={() => navigate("/carteira")} />
-                {temReforma && <Atalho icone={Scale} titulo="Reforma Tributária" texto="Simulações" onClick={() => navigate("/reforma")} />}
-                <Atalho icone={Settings} titulo="Parâmetros" texto="Cadastros e acessos" onClick={() => navigate("/parametros")} />
+                <Atalho icone={LayoutGrid} tom="laranja" titulo="Empresas" texto="Todas, com grupos e filtros" onClick={() => navigate("/empresas")} />
+                <Atalho icone={Activity} tom="azul" titulo="Carteira" texto="Saúde dos dados" onClick={() => navigate("/carteira")} />
+                {temReforma && <Atalho icone={Scale} tom="azul" titulo="Reforma Tributária" texto="Simulações" onClick={() => navigate("/reforma")} />}
+                <Atalho icone={Settings} tom="cinza" titulo="Parâmetros" texto="Cadastros e acessos" onClick={() => navigate("/parametros")} />
               </div>
             </section>
           </>
         ) : (
           <>
-            {temBi && (state.companies.length > 0 || gruposCliente.length > 0) && (
-              <section>
-                <h2 className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-ink-400">{state.companies.length + gruposCliente.length === 1 ? "Sua empresa" : "Suas empresas"}</h2>
-                <div className={`grid grid-cols-1 gap-4 ${state.companies.length + gruposCliente.length > 1 ? "md:grid-cols-2" : ""}`}>
-                  {gruposCliente.map((group) => (
-                    <article key={group.id} className="inicio-grupo flex flex-col rounded-2xl bg-surface-card p-5 shadow-sm ring-1 ring-line">
-                      <div className="flex items-start gap-3">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-600">
-                          <Network size={19} />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <h3 className="truncate text-[15px] font-semibold text-ink-900">{group.name}</h3>
-                          <p className="text-[12px] text-ink-400">Consolidado de {(group.companyIds || []).length} empresas</p>
-                        </div>
-                      </div>
-                      <div className="mt-auto pt-5">
-                        <button type="button" onClick={() => abrirGrupo(group.id)} className="flex items-center gap-1.5 rounded-full bg-accent-500 px-4 py-2 text-[13px] font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-600">
-                          Abrir o consolidado <ArrowRight size={15} />
-                        </button>
-                      </div>
-                    </article>
-                  ))}
+            {temBi && totalCliente > 0 && (
+              <section className="flex flex-col gap-4">
+                <Titulo>{totalCliente === 1 ? "Sua empresa" : "Suas empresas"}</Titulo>
+                {gruposCliente.map((group) => (
+                  <button key={group.id} type="button" onClick={() => abrirGrupo(group.id)} className="inicio-grupo group -mt-1 flex items-center gap-4 rounded-2xl bg-navy-900 p-4 text-left text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:px-5">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10">
+                      <Network size={20} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[15px] font-semibold">{group.name}</span>
+                      <span className="block truncate text-[12px] text-white/55">Consolidado de {(group.companyIds || []).length} empresas · {groupCompanies(group).map((company) => company.name).join(", ")}</span>
+                    </span>
+                    <span className="hidden shrink-0 items-center gap-1.5 rounded-full bg-accent-500 px-4 py-2 text-[13px] font-medium sm:flex">
+                      Abrir o consolidado <ArrowRight size={15} />
+                    </span>
+                    <ArrowRight size={18} className="shrink-0 sm:hidden" />
+                  </button>
+                ))}
+                <div className={`grid grid-cols-1 gap-4 ${state.companies.length > 1 ? "md:grid-cols-2" : ""}`}>
                   {state.companies.map((company) => (
                     <CartaoEmpresa
                       key={company.id}
                       company={company}
-                      grande={state.companies.length + gruposCliente.length === 1}
+                      grande={state.companies.length === 1}
                       numeros={numeros[company.id]}
                       calculando={calcularNumeros && !(company.id in numeros)}
                       onAbrir={() => abrirEmpresa(company.id)}
@@ -424,7 +483,7 @@ export default function Landing() {
 
             {temReforma && (
               <section>
-                <Atalho icone={Scale} titulo="Reforma Tributária" texto="Simule o impacto da reforma na sua empresa, produto a produto" onClick={() => navigate("/reforma")} />
+                <Atalho icone={Scale} tom="azul" titulo="Reforma Tributária" texto="Simule o impacto da reforma na sua empresa, produto a produto" onClick={() => navigate("/reforma")} />
               </section>
             )}
 

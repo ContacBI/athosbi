@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Smartphone } from "lucide-react";
 import CompanyTopBar from "./CompanyTopBar.jsx";
 import ModulesSidebar from "./ModulesSidebar.jsx";
 import WorkspaceLoading from "./WorkspaceLoading.jsx";
-import { useAppState } from "../data/useStore.js";
+import { useAppState, setData } from "../data/useStore.js";
 import { isResponsavelForGroup } from "../lib/colaboradores.js";
 import { moduloDaRota, modulosLiberados } from "../lib/modulos.js";
+import { limiteDoCliente, limitarPeriodo } from "../lib/fechamento.js";
 import { PageActionsProvider } from "../lib/pageActions.jsx";
 import { densityColumnGap } from "../lib/density.js";
 import { useIsMobile } from "../lib/useIsMobile.js";
@@ -38,6 +39,16 @@ export default function CompanyLayout() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const company = state.companies.find((item) => item.id === state.activeCompanyId) || null;
+
+  // Cliente nunca fica num período depois do mês fechado (ver
+  // lib/fechamento.js) — nem o que veio salvo da empresa, nem o de um
+  // atalho: o fim volta pro último dia do mês fechado.
+  const limite = limiteDoCliente(state);
+  useEffect(() => {
+    if (!limite) return;
+    const cortado = limitarPeriodo({ start: state.periodStart, end: state.periodEnd }, limite);
+    if (cortado.start !== state.periodStart || cortado.end !== state.periodEnd) setData({ periodStart: cortado.start, periodEnd: cortado.end });
+  }, [limite, state.periodStart, state.periodEnd]);
 
   if (!company && !state.activeGroupId) {
     return <Navigate to="/empresas" replace />;

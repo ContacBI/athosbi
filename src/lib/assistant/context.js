@@ -3,6 +3,7 @@
 // que o leitor de pedidos reconhece pelo nome e o período de comparação.
 
 import { state } from "../../data/useStore.js";
+import { limiteDoCliente } from "../fechamento.js";
 import { sharedDashboardContext } from "../dashboardData.js";
 
 // Calcula como se a tela estivesse no período pedido e volta ao que era —
@@ -47,7 +48,9 @@ export function dataMonths() {
       }
     }
   });
-  return [...months].sort();
+  // Cliente só enxerga até o mês fechado (ver lib/fechamento.js).
+  const limite = limiteDoCliente(state);
+  return [...months].filter((month) => !limite || month <= limite).sort();
 }
 
 // O que dá pra citar pelo nome no pedido: as linhas do plano gerencial com
