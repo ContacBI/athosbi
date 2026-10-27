@@ -56,6 +56,37 @@ export async function revokeAccess(id) {
   if (error) throw error;
 }
 
+// Ficha de quem é cada e-mail liberado (acesso_pessoas): nome, telefone e
+// observação. As concessões continuam em access_grants — aqui é só o
+// cadastro, pra tela mostrar "Yasmin Santos" em vez de só o e-mail.
+// Map e-mail → ficha.
+export async function listAccessPeople() {
+  const { data, error } = await supabase.from("acesso_pessoas").select("email, nome, telefone, observacao, updated_at");
+  if (error) throw error;
+  return new Map((data || []).map((row) => [row.email, row]));
+}
+
+export async function saveAccessPerson({ email, nome = "", telefone = "", observacao = "" }) {
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  if (!cleanEmail) return;
+  const by = await currentUserEmail();
+  const { error } = await supabase.from("acesso_pessoas").upsert({
+    email: cleanEmail,
+    nome: String(nome || "").trim().slice(0, 120),
+    telefone: String(telefone || "").trim().slice(0, 40),
+    observacao: String(observacao || "").trim().slice(0, 300),
+    updated_at: new Date().toISOString(),
+    updated_by: by || null,
+  });
+  if (error) throw error;
+}
+
+// Some com a ficha (só o admin consegue — ver a RLS de acesso_pessoas).
+export async function deleteAccessPerson(email) {
+  const { error } = await supabase.from("acesso_pessoas").delete().eq("email", String(email || "").trim().toLowerCase());
+  if (error) throw error;
+}
+
 // Dispara o e-mail de convite (ver supabase/functions/invite-user) — a
 // pessoa recebe um link, clica, cai logada em /definir-senha e escolhe a
 // senha ali. Não falha se o e-mail já tiver conta (alreadyExists: true);
