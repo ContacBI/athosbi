@@ -4,6 +4,10 @@
 
 import { state } from "../data/store.js";
 import { buildReport } from "../data/calculations.js";
+import { sharedDashboardContext } from "./dashboardData.js";
+import { analyze } from "./assistant/analysis.js";
+import { shortPeriod } from "./assistant/context.js";
+import { budgetFor } from "./budget.js";
 import { remapJournal } from "./companies.js";
 import { effectivePlano } from "./planosPadrao.js";
 import { companyHealth } from "./carteira.js";
@@ -30,7 +34,37 @@ export function primeiroNome(nome) {
 // withCompanyScope em lib/carteira.js), restaurado no finally: nenhum
 // componente chega a ver o estado trocado.
 
-const SCOPED_KEYS = ["activeCompanyId", "activeGroupId", "accounts", "mappings", "journal", "plano", "periodStart", "periodEnd", "natureRules", "dfcOverrides", "hideNonOperatingResults", "excludedNonOperatingCodes"];
+const SCOPED_KEYS = ["activeCompanyId", "activeGroupId", "accounts", "mappings", "journal", "plano", "periodStart", "periodEnd", "natureRules", "dfcOverrides", "hideNonOperatingResults", "excludedNonOperatingCodes", "orcamentos"];
+
+function mesAntes(mes) {
+  const [ano, m] = mes.split("-").map(Number);
+  const data = new Date(ano, m - 2, 1);
+  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}`;
+}
+
+// Roda `fn` com o estado global trocado pros dados de uma empresa (razão
+// já carregado), restaurado no finally.
+function comEmpresa(company, fn) {
+  const snapshot = Object.fromEntries(SCOPED_KEYS.map((key) => [key, state[key]]));
+  try {
+    Object.assign(state, {
+      activeCompanyId: company.id,
+      activeGroupId: "",
+      accounts: company.accounts || [],
+      mappings: company.mappings || [],
+      journal: remapJournal(company.journal || [], company.mappings || []),
+      plano: effectivePlano(company.planoPadraoId),
+      natureRules: company.natureRules || null,
+      dfcOverrides: company.dfcOverrides || [],
+      hideNonOperatingResults: Boolean(company.hideNonOperatingResults),
+      excludedNonOperatingCodes: company.excludedNonOperatingCodes || [],
+      orcamentos: company.orcamentos || [],
+    });
+    return fn();
+  } finally {
+    Object.assign(state, snapshot);
+  }
+}
 
 function ultimoDia(mes) {
   const [ano, m] = mes.split("-").map(Number);
@@ -48,34 +82,56 @@ export function numerosDaEmpresa(company, { ate = "" } = {}) {
   });
   if (!ultimoMes) return null;
   const ano = ultimoMes.slice(0, 4);
-  const snapshot = Object.fromEntries(SCOPED_KEYS.map((key) => [key, state[key]]));
   try {
-    Object.assign(state, {
-      activeCompanyId: company.id,
-      activeGroupId: "",
-      accounts: company.accounts || [],
-      mappings: company.mappings || [],
-      journal: remapJournal(company.journal || [], company.mappings || []),
-      plano: effectivePlano(company.planoPadraoId),
-      periodStart: `${ano}-01-01`,
-      periodEnd: ultimoDia(ultimoMes),
-      natureRules: company.natureRules || null,
-      dfcOverrides: company.dfcOverrides || [],
-      hideNonOperatingResults: Boolean(company.hideNonOperatingResults),
-      excludedNonOperatingCodes: company.excludedNonOperatingCodes || [],
+    return comEmpresa(company, () => {
+      state.periodStart = `${ano}-01-01`;
+      state.periodEnd = ultimoDia(ultimoMes);
+      const dre = buildReport("DRE");
+      const linha = (code) => dre.find((row) => row.codigo_gerencial === code);
+      const doMes = (row) => Number(row?.monthValues?.[ultimoMes] || 0);
+      const doAno = (row) => Object.entries(row?.monthValues || {}).reduce((soma, [mes, valor]) => (mes.startsWith(ano) && mes <= ultimoMes ? soma + Number(valor || 0) : soma), 0);
+      const receita = linha("DRE.03");
+      const lucro = linha("DRE.18") || linha("DRE.13");
+      return { mes: ultimoMes, receitaMes: doMes(receita), lucroMes: doMes(lucro), ano, receitaAno: doAno(receita), lucroAno: doAno(lucro) };
     });
-    const dre = buildReport("DRE");
-    const linha = (code) => dre.find((row) => row.codigo_gerencial === code);
-    const doMes = (row) => Number(row?.monthValues?.[ultimoMes] || 0);
-    const doAno = (row) => Object.entries(row?.monthValues || {}).reduce((soma, [mes, valor]) => (mes.startsWith(ano) && mes <= ultimoMes ? soma + Number(valor || 0) : soma), 0);
-    const receita = linha("DRE.03");
-    const lucro = linha("DRE.18") || linha("DRE.13");
-    return { mes: ultimoMes, receitaMes: doMes(receita), lucroMes: doMes(lucro), ano, receitaAno: doAno(receita), lucroAno: doAno(lucro) };
   } catch (error) {
     console.error(`Início: não consegui calcular ${company.name}`, error);
     return null;
-  } finally {
-    Object.assign(state, snapshot);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// O resumo do celular no cartão do Início (cliente): os números do ano
+// (numerosDaEmpresa) mais a análise do mês fechado contra o mês anterior —
+// a mesma do resumo no celular (Celular.jsx), com os mesmos alertas,
+// quadrinhos, "do lucro ao caixa" e orçamento. Precisa do razão carregado.
+export function resumoDaEmpresa(company, { ate = "" } = {}) {
+  const numeros = numerosDaEmpresa(company, { ate });
+  if (!numeros) return null;
+  try {
+    return comEmpresa(company, () => {
+      const mes = numeros.mes;
+      const period = { start: `${mes}-01`, end: ultimoDia(mes) };
+      const comPeriodo = (inicio, fim) => {
+        state.periodStart = inicio;
+        state.periodEnd = fim;
+        return sharedDashboardContext();
+      };
+      const ctx = comPeriodo(period.start, period.end);
+      const anterior = mesAntes(mes);
+      const temAnterior = (company.journal || []).some((entry) => String(entry.data || "").startsWith(anterior));
+      const prevPeriod = temAnterior ? { start: `${anterior}-01`, end: ultimoDia(anterior) } : null;
+      const prevCtx = prevPeriod ? comPeriodo(prevPeriod.start, prevPeriod.end) : null;
+      state.periodStart = period.start;
+      state.periodEnd = period.end;
+      const label = shortPeriod(period.start, period.end);
+      const prevLabel = prevPeriod ? shortPeriod(prevPeriod.start, prevPeriod.end) : "";
+      const analysis = analyze(ctx, { period, label, prevCtx, prevPeriod: prevPeriod || {}, prevLabel });
+      return { ...numeros, analysis, budget: budgetFor(ctx), prevLabel };
+    });
+  } catch (error) {
+    console.error(`Início: não consegui montar o resumo de ${company.name}`, error);
+    return { ...numeros, analysis: null, budget: null, prevLabel: "" };
   }
 }
 
