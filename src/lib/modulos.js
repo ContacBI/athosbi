@@ -19,6 +19,24 @@ export async function isReformaEscritorio() {
   return Boolean(data);
 }
 
+// Módulos complementares da empresa aberta (menu lateral, além do B.I
+// Contábil). A equipe (admin/colaborador) vê todos; o cliente só os que
+// foram liberados na ficha dele em Parâmetros › Acessos (acesso_pessoas.
+// modulos). Sem nenhum, o cliente fica só no B.I. e o menu nem aparece.
+export const MODULOS_COMPLEMENTARES = [
+  { id: "orcamento", nome: "Orçamento", rota: "/empresa/orcamento" },
+  { id: "carga-tributaria", nome: "Carga tributária", rota: "/empresa/carga-tributaria" },
+  { id: "analise-desempenho", nome: "Análise de desempenho", rota: "/empresa/analise-desempenho" },
+];
+
+export function modulosLiberados(state) {
+  if (state.isAdmin || state.isColaborador) return MODULOS_COMPLEMENTARES.map((modulo) => modulo.id);
+  return MODULOS_COMPLEMENTARES.map((modulo) => modulo.id).filter((id) => (state.modulosCliente || []).includes(id));
+}
+
+// O módulo complementar de uma rota (null = B.I. ou outra tela).
+export const moduloDaRota = (path) => MODULOS_COMPLEMENTARES.find((modulo) => String(path || "").startsWith(modulo.rota))?.id || null;
+
 // Cliente sem nenhuma empresa liberada no B.I. lê 0 empresas (RLS).
 export const temBi = (state) => Boolean(state.isAdmin || state.isColaborador || state.companies.length > 0);
 

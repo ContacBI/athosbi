@@ -1054,3 +1054,44 @@ select cron.schedule(
      );
   $job$
 );
+
+-- ============================================================================
+-- Ficha das pessoas liberadas em Parâmetros > Acessos (out/2026): nome,
+-- telefone e observação de cada e-mail. As concessões continuam em
+-- access_grants; aqui é só o cadastro (ver src/lib/access.js).
+-- ============================================================================
+create table if not exists public.acesso_pessoas (
+  email text primary key check (email = lower(email)),
+  nome text not null default '',
+  telefone text not null default '',
+  observacao text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  updated_by text
+);
+-- Módulos além do B.I. que a pessoa (cliente) vê no menu lateral da
+-- empresa. Vazio = só o B.I., sem menu. Equipe vê todos, independente disto.
+alter table public.acesso_pessoas add column if not exists modulos text[] not null default '{}';
+alter table public.acesso_pessoas drop constraint if exists acesso_pessoas_modulos_validos;
+alter table public.acesso_pessoas add constraint acesso_pessoas_modulos_validos
+  check (modulos <@ array['orcamento', 'carga-tributaria', 'analise-desempenho']::text[]);
+alter table public.acesso_pessoas enable row level security;
+
+-- Equipe (admin/colaborador) vê todas as fichas; a pessoa vê a própria.
+drop policy if exists "acesso_pessoas_select" on public.acesso_pessoas;
+create policy "acesso_pessoas_select" on public.acesso_pessoas for select to authenticated
+  using (is_portal_admin() or is_colaborador() or email = lower(coalesce(auth.jwt()->>'email', '')));
+
+-- Quem libera acesso (admin ou colaborador) cadastra e edita a ficha.
+drop policy if exists "acesso_pessoas_insert" on public.acesso_pessoas;
+create policy "acesso_pessoas_insert" on public.acesso_pessoas for insert to authenticated
+  with check (is_portal_admin() or is_colaborador());
+drop policy if exists "acesso_pessoas_update" on public.acesso_pessoas;
+create policy "acesso_pessoas_update" on public.acesso_pessoas for update to authenticated
+  using (is_portal_admin() or is_colaborador())
+  with check (is_portal_admin() or is_colaborador());
+
+-- Apagar a ficha, só o dono (admin).
+drop policy if exists "acesso_pessoas_delete" on public.acesso_pessoas;
+create policy "acesso_pessoas_delete" on public.acesso_pessoas for delete to authenticated
+  using (is_portal_admin());

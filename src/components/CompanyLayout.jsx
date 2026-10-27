@@ -6,6 +6,7 @@ import ModulesSidebar from "./ModulesSidebar.jsx";
 import WorkspaceLoading from "./WorkspaceLoading.jsx";
 import { useAppState } from "../data/useStore.js";
 import { isResponsavelForGroup } from "../lib/colaboradores.js";
+import { moduloDaRota, modulosLiberados } from "../lib/modulos.js";
 import { PageActionsProvider } from "../lib/pageActions.jsx";
 import { densityColumnGap } from "../lib/density.js";
 import { useIsMobile } from "../lib/useIsMobile.js";
@@ -60,6 +61,18 @@ export default function CompanyLayout() {
     return <Navigate to="/empresa" replace />;
   }
 
+  // Módulos complementares (Orçamento, Carga tributária, Análise de
+  // desempenho): o cliente só vê os liberados na ficha dele em Parâmetros ›
+  // Acessos. Sem nenhum, o menu lateral nem aparece e o link direto volta
+  // pro B.I. Enquanto a ficha ainda não chegou (null), não expulsa ninguém.
+  const liberados = modulosLiberados(state);
+  const moduloAqui = moduloDaRota(location.pathname);
+  const fichaPendente = !state.isAdmin && !state.isColaborador && state.modulosCliente === null;
+  if (moduloAqui && !fichaPendente && !liberados.includes(moduloAqui)) {
+    return <Navigate to="/empresa" replace />;
+  }
+  const temMenu = liberados.length > 0;
+
   // Resumo no celular: tela própria, sem a barra do topo nem margens.
   if (location.pathname === "/empresa/celular") {
     return (
@@ -72,7 +85,7 @@ export default function CompanyLayout() {
   return (
     <PageActionsProvider>
       <div className="min-h-screen bg-surface-page">
-        <CompanyTopBar company={company} modulesOpen={modulosAberto} onToggleModules={alternarModulos} />
+        <CompanyTopBar company={company} modulesOpen={modulosAberto && temMenu} onToggleModules={temMenu ? alternarModulos : undefined} />
         {isMobile && (
           <button
             type="button"
@@ -89,9 +102,10 @@ export default function CompanyLayout() {
             que use gap-x-[var(--col-gap,...)] — distância entre as colunas
             de mês, ajustável em ReportSettingsMenu (ver lib/density.js). */}
         <div className="flex">
-          {modulosAberto && (
+          {modulosAberto && temMenu && (
             <ModulesSidebar
               overlay={isMobile}
+              liberados={liberados}
               isGroup={Boolean(state.activeGroupId)}
               hasData={state.accounts.length > 0 || state.journal.length > 0}
               onClose={alternarModulos}

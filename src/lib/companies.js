@@ -958,10 +958,18 @@ export function persistActiveCompany(options = {}) {
 }
 
 function persistActiveCompanyInner({ allowEmptyJournal = false, onProgress } = {}) {
+  // Quem só pode VER (cliente, ou colaborador numa empresa que não é dele)
+  // também muda período, abas e filtros — mas isso vale só na tela dele, não
+  // é gravado. Antes o app tentava gravar mesmo assim (ex.: ao trocar de uma
+  // empresa pro grupo), o banco recusava e aparecia "Sua última alteração NÃO
+  // foi salva" pro cliente, sem ele ter alterado nada de verdade.
   if (state.activeGroupId) {
+    if (!canWriteGroups()) return Promise.resolve();
     return persistActiveGroupWorkspace();
   }
   if (!state.activeCompanyId) return Promise.resolve();
+  const ativa = state.companies.find((company) => company.id === state.activeCompanyId);
+  if (ativa && !canWriteCompany(ativa)) return Promise.resolve();
   const companies = state.companies.map((company) => {
     if (company.id !== state.activeCompanyId) return company;
     const { dashboardWidgets, ...rest } = company;

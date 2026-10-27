@@ -462,6 +462,34 @@ check("Campos faltando, null, número/texto misturados, objeto, unicode", ordena
 check("Parte vazia e formato antigo (array) passam direto", decodificarParte(codificarParte([])).length === 0 && decodificarParte(estranhos) === estranhos, null);
 check("Parte inválida → null (vira 'razão incompleto', nunca razão menor)", decodificarParte({ foo: 1 }) === null && decodificarParte(null) === null && decodificarParte({ ...codificarParte(estranhos), linhas: [[99]] }) === null, null);
 
+// ── Cliente (só leitura) não vê "alteração não salva" ──
+// Cliente troca período/abas e muda de tela — nada disso é gravado, e não é erro.
+section("Cliente só leitura");
+const { persistActiveCompany } = await src("lib/companies.js");
+setCompanyState();
+Object.assign(state, { isAdmin: false, isColaborador: false, userEmail: "cliente@exemplo.com", saveError: null, periodStart: "2026-02-01" });
+let rejeitou = false;
+await persistActiveCompany().catch(() => {
+  rejeitou = true;
+});
+check("Empresa: cliente mexe no período e troca de tela → nada de erro", !rejeitou && state.saveError === null, state.saveError);
+Object.assign(state, { activeGroupId: "grp_x", groups: [{ id: "grp_x", name: "Grupo X", companyIds: [COMPANY_ID] }], saveError: null });
+rejeitou = false;
+await persistActiveCompany().catch(() => {
+  rejeitou = true;
+});
+check("Grupo: idem", !rejeitou && state.saveError === null, state.saveError);
+Object.assign(state, { isAdmin: true, saveError: null });
+setCompanyState();
+
+// ── Módulos que o cliente vê (Parâmetros › Acessos) ──
+section("Módulos por pessoa");
+const { modulosLiberados, moduloDaRota } = await src("lib/modulos.js");
+check("Equipe vê todos os módulos", modulosLiberados({ isAdmin: true }).length === 3 && modulosLiberados({ isColaborador: true }).length === 3, null);
+check("Cliente sem ficha (ou ainda carregando) → só o B.I., sem menu", modulosLiberados({ modulosCliente: null }).length === 0 && modulosLiberados({ modulosCliente: [] }).length === 0, null);
+check("Cliente vê só o que foi liberado (e ignora lixo)", JSON.stringify(modulosLiberados({ modulosCliente: ["carga-tributaria", "xyz"] })) === JSON.stringify(["carga-tributaria"]), modulosLiberados({ modulosCliente: ["carga-tributaria", "xyz"] }));
+check("Rota → módulo (B.I. e outras telas = nenhum)", moduloDaRota("/empresa/orcamento") === "orcamento" && moduloDaRota("/empresa/analise-desempenho/x") === "analise-desempenho" && moduloDaRota("/empresa") === null && moduloDaRota("/empresa/dre") === null, null);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);

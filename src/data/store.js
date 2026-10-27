@@ -57,6 +57,10 @@ export const state = {
   // cadastro próprio, não são as empresas do B.I.).
   isReformaEscritorio: false,
   reformaEmpresas: [],
+  // Módulos complementares liberados pra ESTE cliente (ficha em Parâmetros
+  // › Acessos, ver lib/modulos.js). null = ainda carregando. Equipe vê
+  // todos, independente disto.
+  modulosCliente: null,
   mappings: [],
   // Vínculo DFC por empresa — overrides de qual destino (DFC.OP.CLIENTES
   // etc.) uma conta gerencial usa nesta empresa, por cima do vínculo global
