@@ -142,6 +142,9 @@ export const state = {
   // Orçamento x Realizado (ver lib/budget.js e pages/Orcamento.jsx) —
   // versões por ano, no registro da empresa/grupo como as apresentações.
   orcamentos: [],
+  // Como o resumo no celular aparece pra esta empresa/grupo (ver
+  // lib/resumoCelular.js) — null = o padrão.
+  resumoCelular: null,
   // Biblioteca do escritório (ver lib/officeLibrary.js): pedidos salvos do
   // assistente e slides prontos — valem pra todas as empresas, não ficam
   // no registro de nenhuma.
