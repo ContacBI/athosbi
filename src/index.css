@@ -289,11 +289,47 @@ body * {
   border-radius: 999px;
 }
 
+/* Carregando (components/Carregando.jsx): os seis quadrados da Athos se
+   montam em degrau, de baixo pra cima, e somem juntos — em loop. A barra
+   embaixo corre de um lado pro outro quando não dá pra medir o progresso. */
+.athos-degrau {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: athos-degrau 1.8s cubic-bezier(0.3, 0.7, 0.2, 1) infinite both;
+}
+@keyframes athos-degrau {
+  0% { opacity: 0.12; transform: translateY(6px) scale(0.7); }
+  18%, 62% { opacity: 1; transform: none; }
+  82%, 100% { opacity: 0.12; transform: translateY(0) scale(0.85); }
+}
+.athos-barra {
+  animation: athos-barra 1.3s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+}
+@keyframes athos-barra {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(260%); }
+}
+.athos-brilho-barra {
+  background-image: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.45), transparent);
+  background-size: 200% 100%;
+  animation: athos-brilho-barra 1.6s linear infinite;
+}
+@keyframes athos-brilho-barra {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-entrar,
   .animate-surgir,
-  .animate-brilho {
+  .animate-brilho,
+  .athos-degrau,
+  .athos-brilho-barra {
     animation: none;
+  }
+  .athos-barra {
+    animation: none;
+    transform: translateX(60%);
   }
 }
 

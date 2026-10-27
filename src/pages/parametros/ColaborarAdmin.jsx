@@ -6,6 +6,7 @@ import { listAdmins, addAdmin, removeAdmin, listColaboradores, addColaborador, r
 import { inviteUser } from "../../lib/access.js";
 import { definirEscritorioReforma, listarEscritorioReforma } from "../../lib/reforma/api.js";
 import PageHeader from "../../components/PageHeader.jsx";
+import Carregando from "../../components/Carregando.jsx";
 
 // Admin-only mesmo pra colaborador Restrito — essa é uma das 3 telas
 // (Sistema, Colaborar, B.I.) que só o Total vê, ver ParametrosLayout.jsx.
@@ -239,7 +240,7 @@ export default function ColaborarAdmin() {
       )}
       {reformaErro && <p className="mb-3 text-[12px] text-danger-600">{reformaErro}</p>}
       {loading ? (
-        <p className="text-[13px] text-ink-400">Carregando…</p>
+        <Carregando compacto />
       ) : (
         <div className="flex flex-col gap-4">
           <PeopleSection

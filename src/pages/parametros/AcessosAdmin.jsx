@@ -5,6 +5,7 @@ import { listAccessGrants, grantAccess, revokeAccess, inviteUser } from "../../l
 import { hasAnyResponsibility } from "../../lib/colaboradores.js";
 import PageHeader from "../../components/PageHeader.jsx";
 import AccessModal from "../../components/AccessModal.jsx";
+import Carregando from "../../components/Carregando.jsx";
 
 // Quem loga aqui e não está em portal_admins (ver supabase/schema.sql) só
 // enxerga, em modo leitura, as empresas/grupos liberados abaixo — direto ou
@@ -128,7 +129,7 @@ export default function AcessosAdmin() {
       {notice && <p className="mt-3 text-[12.5px] text-accent-600">{notice}</p>}
 
       <div className="mt-3 flex flex-col gap-3">
-        {loading && <p className="text-[13px] text-ink-400">Carregando…</p>}
+        {loading && <Carregando compacto />}
         {!loading && byEmail.length === 0 && (
           <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-card px-6 py-12 text-center shadow-sm">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
