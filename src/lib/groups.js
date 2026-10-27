@@ -244,6 +244,11 @@ export async function selectGroup(id, { skipPersist = false } = {}) {
     journalLoading: !ready,
     journalLoadProgress: ready ? null : 0,
     journalLoadFailed: ready && members.some((company) => company.journalLoadFailed),
+    // Configurações que são de UMA empresa não podem sobrar da última que
+    // estava aberta: no grupo, o Vínculo DFC e a natureza das contas saem de
+    // cada membro (ver groupDfcOverrides em calculations.js e LedgerModal).
+    dfcOverrides: [],
+    natureRules: null,
     periodStart: group.periodStart || "",
     periodEnd: group.periodEnd || "",
     hideNonOperatingResults: Boolean(group.hideNonOperatingResults),

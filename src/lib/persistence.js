@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient.js";
+import { guardarParte, lerPartes, podarEmpresa } from "./journalCache.js";
 
 // One "gaveta" per logical chunk of app data, same key names the IndexedDB
 // version used — kept identical so nothing downstream (companies.js,
@@ -343,36 +344,52 @@ export async function readCompanyJournal(companyId, { onProgress } = {}) {
   report(0);
   const value = await readPersistent(baseKey);
   if (isChunkedManifest(value)) {
-    // Uma de cada vez, não Promise.all — pedir 5 pedaços de ~7MB TODOS ao
-    // mesmo tempo é o que mais sobrecarrega uma conexão já instável (é
-    // exatamente esse padrão que fazia razões grandes darem "não carregou"
-    // com internet ruim). Sequencial é um pouco mais lento no caso feliz,
-    // mas MUITO mais robusto quando a rede está capenga — e cada pedaço já
-    // tem seu próprio retry via readPersistent.
-    // Em lotes de 3 (abrir empresa grande demorava por baixar uma parte de cada vez); a ordem das partes é mantida.
+    // Nunca todas as partes de uma vez — pedir 5 pedaços de ~7MB AO MESMO
+    // TEMPO é o que mais sobrecarrega uma conexão já instável (era isso que
+    // fazia razões grandes darem "não carregou" com internet ruim). Até 4
+    // downloads juntos, numa fila contínua: terminou um, começa o próximo
+    // (antes eram lotes de 4, e o lote inteiro esperava o pedaço mais lento).
+    // Cada pedaço já tem seu próprio retry via readPersistent.
     const chaveDaParte = (index) => (Array.isArray(value.keys) ? value.keys[index] : journalPartKey(baseKey, value.slot, index));
+    const chaves = Array.from({ length: value.parts }, (_, index) => chaveDaParte(index));
     const pieces = new Array(value.parts);
-    let feitas = 0;
-    for (let inicio = 0; inicio < value.parts; inicio += 4) {
-      const lote = [];
-      for (let index = inicio; index < Math.min(inicio + 4, value.parts); index += 1) {
-        lote.push(
-          readPersistent(chaveDaParte(index)).then((piece) => {
-            // Parte que o manifesto promete mas não existe = razão incompleto.
-            // Devolver só o que sobrou faria ele parecer "carregado" — e o
-            // próximo save gravaria essa versão menor por cima do razão inteiro.
-            // Como erro de leitura, vira journalLoadFailed (trava de escrita).
-            if (!Array.isArray(piece)) {
-              throw new PersistenceReadError(`Razão de "${companyId}" incompleto: falta a parte ${index + 1} de ${value.parts}.`);
-            }
-            pieces[index] = piece;
-            feitas += 1;
-            report(feitas / value.parts);
-          })
-        );
+    // Partes já baixadas antes neste navegador não vêm de novo do banco (ver
+    // journalCache.js — parte endereçada por conteúdo nunca muda).
+    const guardadas = await lerPartes(chaves);
+    const faltam = [];
+    chaves.forEach((chave, index) => {
+      if (guardadas.has(chave)) pieces[index] = guardadas.get(chave);
+      else faltam.push(index);
+    });
+    let feitas = value.parts - faltam.length;
+    if (feitas) report(feitas / value.parts);
+    let proxima = 0;
+    let falhou = false;
+    const baixar = async () => {
+      while (!falhou && proxima < faltam.length) {
+        const index = faltam[proxima];
+        proxima += 1;
+        const piece = await readPersistent(chaves[index]).catch((error) => {
+          falhou = true;
+          throw error;
+        });
+        // Parte que o manifesto promete mas não existe = razão incompleto.
+        // Devolver só o que sobrou faria ele parecer "carregado" — e o
+        // próximo save gravaria essa versão menor por cima do razão inteiro.
+        // Como erro de leitura, vira journalLoadFailed (trava de escrita).
+        if (!Array.isArray(piece)) {
+          falhou = true;
+          throw new PersistenceReadError(`Razão de "${companyId}" incompleto: falta a parte ${index + 1} de ${value.parts}.`);
+        }
+        guardarParte(companyId, chaves[index], piece);
+        pieces[index] = piece;
+        feitas += 1;
+        report(feitas / value.parts);
       }
-      await Promise.all(lote);
-    }
+    };
+    await Promise.all(Array.from({ length: Math.min(4, faltam.length) }, baixar));
+    // Some do navegador o que o manifesto de agora não usa mais.
+    podarEmpresa(companyId, chaves);
     return pieces.flat();
   }
   report(1);

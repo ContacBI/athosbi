@@ -377,6 +377,70 @@ check("Card de liquidez: fora da meta ≥ 1,2x", cardLiq?.label === "meta ≥ 1,
 check("Card de prazo: dentro da meta ≤ 45 dias", cardPmr?.label === "meta ≤ 45 dias" && cardPmr.ok === true, cardPmr);
 check("Sem meta própria (só o padrão), o card não muda", cardGoal("ratio_margem_liquida", 2, metasEmpresa) === null && cardGoal("ratio_roe", 5, metasEmpresa) === null, null);
 
+// ── Grupo = soma das empresas ──
+// Duas cópias da empresa-exemplo num grupo; a segunda tem um Vínculo DFC
+// próprio. Cada linha da DFC do grupo tem que ser a soma do que cada empresa
+// mostra aberta sozinha (antes o grupo ignorava o vínculo da empresa).
+section("Grupo = soma das empresas");
+const { buildDfcDirect, buildReportTree: arvore, codigoDeExibicao } = await src("data/calculations.js");
+setCompanyState();
+const primeiraConta = buildDfcDirect().find((item) => item.codigo_gerencial === "DFC.OP.CLIENTES")?.contas?.[0];
+const vinculo = { codigo_gerencial: primeiraConta?.codigo, destino: "DFC.OP.OUTROS" };
+const empresaB = { ...company, id: "emp_teste_b", name: "Empresa B", dfcOverrides: [vinculo] };
+const dfcPorLinha = (rows) => new Map(rows.map((item) => [item.codigo_gerencial, Number(item.saldo || 0)]));
+const dfcA = dfcPorLinha(buildDfcDirect());
+setCompanyState();
+Object.assign(state, { companies: [company, empresaB], activeCompanyId: empresaB.id, dfcOverrides: empresaB.dfcOverrides });
+const dfcB = dfcPorLinha(buildDfcDirect());
+const ns = (empresa, codigo) => `${empresa.id}::${codigo}`;
+const membro = (empresa) => ({
+  accounts: empresa.accounts.map((conta) => ({ ...conta, classificacao: ns(empresa, conta.classificacao), companyId: empresa.id, companyName: empresa.name })),
+  mappings: empresa.mappings.map((m) => ({ ...m, classificacao: ns(empresa, m.classificacao) })),
+  journal: journal.map((entry) => ({ ...entry, classificacao: ns(empresa, entry.classificacao), companyId: empresa.id, companyName: empresa.name })),
+});
+const [mA, mB] = [membro(company), membro(empresaB)];
+Object.assign(state, {
+  groups: [{ id: "grp_teste", name: "Grupo teste", companyIds: [company.id, empresaB.id] }],
+  activeGroupId: "grp_teste",
+  activeCompanyId: "",
+  accounts: [...mA.accounts, ...mB.accounts],
+  mappings: [...mA.mappings, ...mB.mappings],
+  journal: [...mA.journal, ...mB.journal],
+  // Sobra de uma empresa aberta antes — o grupo não pode usar.
+  dfcOverrides: [{ codigo_gerencial: primeiraConta?.codigo, destino: "DFC.FIN.CAPITAL" }],
+});
+const dfcGrupo = buildDfcDirect();
+const divergentes = dfcGrupo
+  .filter((item) => !near(item.saldo, (dfcA.get(item.codigo_gerencial) || 0) + (dfcB.get(item.codigo_gerencial) || 0)))
+  .map((item) => ({ linha: item.codigo_gerencial, grupo: item.saldo, soma: (dfcA.get(item.codigo_gerencial) || 0) + (dfcB.get(item.codigo_gerencial) || 0) }));
+check("O vínculo DFC da empresa B muda a DFC dela (teste válido)", Boolean(primeiraConta) && !near(dfcA.get("DFC.OP.OUTROS"), dfcB.get("DFC.OP.OUTROS")), { a: dfcA.get("DFC.OP.OUTROS"), b: dfcB.get("DFC.OP.OUTROS") });
+check("DFC do grupo = soma das DFCs de cada empresa, linha a linha", divergentes.length === 0, divergentes.slice(0, 3));
+const bpGrupo = arvore("BP");
+check("Balanço do grupo = 2× o da empresa (ativo)", near(value(bpGrupo, "01"), 2 * expected.ativo), value(bpGrupo, "01"));
+check("Código na tela sem o id da empresa", codigoDeExibicao([ns(company, "1.1.20.400.1"), ns(empresaB, "1.1.20.400.1")]) === "1.1.20.400.1" && codigoDeExibicao("1.1.10") === "1.1.10", codigoDeExibicao([ns(company, "1.1.20.400.1")]));
+// A empresa B tem um balancete guardado do ano do período (balancetesAno,
+// aqui com os saldos em dobro): aberta sozinha ela usa ele — o grupo também.
+const ano = PERIOD.start.slice(0, 4);
+const dobro = (conta) => ({ ...conta, saldo_anterior: 2 * conta.saldo_anterior, debito: 2 * conta.debito, credito: 2 * conta.credito, saldo_atual: 2 * conta.saldo_atual });
+const empresaBAno = { ...empresaB, balancetesAno: { [ano]: { accounts: company.accounts.map(dobro), meta: company.lastBalanceteMeta } } };
+const gruposTeste = state.groups;
+setCompanyState();
+Object.assign(state, { companies: [company, empresaBAno], activeCompanyId: empresaBAno.id });
+const ativoB = value(arvore("BP"), "01");
+Object.assign(state, {
+  companies: [company, empresaBAno],
+  groups: gruposTeste,
+  activeGroupId: "grp_teste",
+  activeCompanyId: "",
+  accounts: [...mA.accounts, ...mB.accounts],
+  mappings: [...mA.mappings, ...mB.mappings],
+  journal: [...mA.journal, ...mB.journal],
+});
+const ativoGrupo = value(arvore("BP"), "01");
+check("Balancete do ano: a empresa B usa o dela (ativo em dobro)", near(ativoB, 2 * expected.ativo), ativoB);
+check("…e o grupo também: ativo do grupo = A + B", near(ativoGrupo, expected.ativo + ativoB), { grupo: ativoGrupo, soma: expected.ativo + ativoB });
+setCompanyState();
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
