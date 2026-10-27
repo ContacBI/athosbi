@@ -1103,6 +1103,24 @@ export function addPresentationToCompanies(makeCopy, targetIds) {
   return applied;
 }
 
+// Resumo do celular copiado pra outras empresas (Personalizar › Resumo do
+// celular › "Usar em outras empresas"): `paraCada(atual)` devolve a config
+// de cada destino (o recado de cada uma pode ficar). A empresa ativa não
+// entra — a dela já é a que está na tela.
+export function applyResumoCelularToCompanies(paraCada, targetIds) {
+  const targetSet = new Set(targetIds);
+  targetSet.delete(state.activeGroupId ? "" : state.activeCompanyId);
+  if (!targetSet.size) return Promise.resolve(0);
+  let applied = 0;
+  const companies = state.companies.map((company) => {
+    if (!targetSet.has(company.id)) return company;
+    applied += 1;
+    return { ...company, resumoCelular: paraCada(company.resumoCelular || null), updatedAt: new Date().toISOString() };
+  });
+  setData({ companies });
+  return writeStoredCompanies(companies).then(() => applied);
+}
+
 export function replicateDashboardTabs(sourceId, targetIds) {
   const source = state.companies.find((company) => company.id === sourceId);
   if (!source) return 0;

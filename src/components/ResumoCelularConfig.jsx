@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Eye, EyeOff, RotateCcw, X } from "lucide-react";
-import { ALERTAS, BLOCOS, NUMEROS, PADRAO, POSITIVOS, analisesDoPeriodo, configResumo } from "../lib/resumoCelular.js";
+import { Building2, ChevronDown, ChevronUp, Copy, Eye, EyeOff, Network, RotateCcw, Search, X } from "lucide-react";
+import { useAppState } from "../data/useStore.js";
+import { ALERTAS, BLOCOS, NUMEROS, PADRAO, POSITIVOS, analisesDoPeriodo, configParaReplicar, configResumo } from "../lib/resumoCelular.js";
+import { applyResumoCelularToCompanies } from "../lib/companies.js";
+import { applyResumoCelularToGroups } from "../lib/groups.js";
+import { companiesResponsavel, groupsResponsavel } from "../lib/colaboradores.js";
 
 // Configuração do resumo no celular (o que o cliente vê): blocos e ordem,
 // recado, números e — o principal — quais análises aparecem, marcando uma
@@ -50,6 +54,125 @@ function LinhaAnalise({ item, positivo, onToggle }) {
   );
 }
 
+// "Usar em outras empresas": copia esta configuração (análises marcadas,
+// limites, números, blocos) pras empresas/grupos escolhidos — só os que a
+// pessoa pode editar (admin: todos; colaborador: onde é responsável). O
+// recado é de cada empresa: só vai junto se pedir.
+function ReplicarResumo({ config, onClose, onFeito }) {
+  const appState = useAppState();
+  const [marcados, setMarcados] = useState(new Set());
+  const [busca, setBusca] = useState("");
+  const [levarRecado, setLevarRecado] = useState(false);
+  const [aplicando, setAplicando] = useState(false);
+  const [erro, setErro] = useState("");
+  const ativoId = appState.activeGroupId || appState.activeCompanyId;
+  const empresas = (appState.isAdmin ? appState.companies : companiesResponsavel(appState)).filter((item) => item.id !== ativoId);
+  const grupos = (appState.isAdmin ? appState.groups : groupsResponsavel(appState)).filter((item) => item.id !== ativoId);
+  const termo = busca.trim().toLowerCase();
+  const filtra = (lista) => (termo ? lista.filter((item) => String(item.name || "").toLowerCase().includes(termo)) : lista);
+  const secoes = [
+    { tipo: "grupo", titulo: "Grupos", icone: Network, itens: filtra(grupos) },
+    { tipo: "empresa", titulo: "Empresas", icone: Building2, itens: filtra(empresas) },
+  ].filter((secao) => secao.itens.length > 0);
+  const chave = (tipo, id) => `${tipo}:${id}`;
+  const visiveis = secoes.flatMap((secao) => secao.itens.map((item) => chave(secao.tipo, item.id)));
+  const todosMarcados = visiveis.length > 0 && visiveis.every((item) => marcados.has(item));
+
+  function alternarItem(item) {
+    setMarcados((atual) => {
+      const next = new Set(atual);
+      if (next.has(item)) next.delete(item);
+      else next.add(item);
+      return next;
+    });
+  }
+  function alternarTodos() {
+    setMarcados((atual) => {
+      const next = new Set(atual);
+      visiveis.forEach((item) => (todosMarcados ? next.delete(item) : next.add(item)));
+      return next;
+    });
+  }
+
+  async function aplicar() {
+    if (!marcados.size) return;
+    if (!confirm(`Substituir a configuração do resumo do celular de ${marcados.size} ${marcados.size === 1 ? "empresa/grupo" : "empresas/grupos"} por esta?${levarRecado ? " O recado também vai junto." : " O recado de cada uma fica como está."}`)) return;
+    setAplicando(true);
+    setErro("");
+    const ids = (tipo) => [...marcados].filter((item) => item.startsWith(`${tipo}:`)).map((item) => item.slice(tipo.length + 1));
+    const paraCada = (atual) => configParaReplicar(config, atual, { levarRecado });
+    try {
+      const [nEmpresas, nGrupos] = await Promise.all([applyResumoCelularToCompanies(paraCada, ids("empresa")), applyResumoCelularToGroups(paraCada, ids("grupo"))]);
+      onFeito(nEmpresas + nGrupos);
+    } catch (err) {
+      setErro(`Não consegui gravar agora: ${String(err?.message || err).slice(0, 160)}`);
+      setAplicando(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-navy-950/50 px-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl bg-surface-card shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-start justify-between border-b border-line px-5 py-4">
+          <div>
+            <h2 className="text-[16px] font-semibold text-ink-900">Usar em outras empresas</h2>
+            <p className="mt-0.5 text-[12.5px] text-ink-400">As mesmas análises, limites, números e blocos.</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fechar" className="rounded-md p-1 text-ink-400 hover:bg-surface-muted hover:text-ink-900">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="flex items-center gap-2 px-5 pt-3">
+          <label className="relative flex flex-1 items-center">
+            <Search size={14} className="pointer-events-none absolute left-2.5 text-ink-300" />
+            <input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar" className="replicar-resumo-busca h-9 w-full rounded-md border border-line bg-surface-card pl-8 pr-3 text-[13px] outline-none focus:border-accent-400" />
+          </label>
+          {visiveis.length > 0 && (
+            <button type="button" onClick={alternarTodos} className="replicar-resumo-todos shrink-0 rounded-md px-2 py-1.5 text-[12px] font-medium text-accent-600 hover:bg-accent-50">
+              {todosMarcados ? "Desmarcar todas" : "Marcar todas"}
+            </button>
+          )}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
+          {secoes.length === 0 && <p className="py-6 text-center text-[13px] text-ink-400">{termo ? `Nada encontrado para "${busca}".` : "Nenhuma outra empresa que você possa editar."}</p>}
+          {secoes.map(({ tipo, titulo, icone: Icone, itens }) => (
+            <div key={tipo} className="mb-3">
+              <p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-400">
+                <Icone size={12} /> {titulo}
+              </p>
+              {itens.map((item) => (
+                <label key={item.id} className="flex cursor-pointer items-center gap-2.5 rounded-md px-1.5 py-1.5 text-[13px] text-ink-800 hover:bg-surface-muted">
+                  <input type="checkbox" checked={marcados.has(chave(tipo, item.id))} onChange={() => alternarItem(chave(tipo, item.id))} className="replicar-resumo-item accent-[var(--color-accent-500)]" />
+                  <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                  {item.resumoCelular && <span className="shrink-0 rounded-full bg-surface-muted px-1.5 text-[10.5px] text-ink-400">já configurada</span>}
+                </label>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="border-t border-line px-5 py-3">
+          <label className="flex items-start gap-2 text-[12.5px] text-ink-700">
+            <input type="checkbox" checked={levarRecado} onChange={(event) => setLevarRecado(event.target.checked)} disabled={!config.recado.trim()} className="replicar-resumo-recado mt-0.5 accent-[var(--color-accent-500)]" />
+            <span>
+              Levar o recado também
+              <span className="block text-[11.5px] text-ink-400">{config.recado.trim() ? `“${config.recado.trim().slice(0, 60)}${config.recado.trim().length > 60 ? "…" : ""}”` : "Esta empresa não tem recado."}</span>
+            </span>
+          </label>
+          {erro && <p className="mt-2 text-[12px] text-danger-600">{erro}</p>}
+          <div className="mt-3 flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="rounded-md border border-line-strong px-3.5 py-2 text-[13px] text-ink-600 hover:bg-surface-muted">
+              Cancelar
+            </button>
+            <button type="button" onClick={aplicar} disabled={!marcados.size || aplicando} className="replicar-resumo-aplicar rounded-md bg-accent-500 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-50">
+              {aplicando ? "Aplicando…" : marcados.size ? `Aplicar em ${marcados.size}` : "Aplicar"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ResumoCelularConfig({ config, onChange, onClose, verComoCliente, onVerComoCliente, salvo, nome, analysis, embutido = false }) {
   const muda = (patch) => onChange(configResumo({ ...config, ...patch }));
   const periodo = useMemo(() => analisesDoPeriodo(analysis, config), [analysis, config]);
@@ -63,6 +186,8 @@ export default function ResumoCelularConfig({ config, onChange, onClose, verComo
     muda({ ordem });
   }
   const tecnicos = ALERTAS.filter((alerta) => alerta.tecnico);
+  const [replicando, setReplicando] = useState(false);
+  const [aviso, setAviso] = useState("");
   const ocultos = config.alertasOcultos.length + config.positivosOcultos.length;
 
   return (
@@ -91,6 +216,10 @@ export default function ResumoCelularConfig({ config, onChange, onClose, verComo
             {verComoCliente ? <Eye size={14} /> : <EyeOff size={14} />}
             {verComoCliente ? "Mostrando como o cliente vê" : "Mostrando a visão da equipe — ver como o cliente"}
           </button>
+          <button type="button" onClick={() => setReplicando(true)} className="resumo-replicar mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-line-strong px-3 py-2 text-[12.5px] font-medium text-ink-700 hover:bg-surface-muted">
+            <Copy size={14} /> Usar esta configuração em outras empresas
+          </button>
+          {aviso && <p className="mt-2 text-center text-[12px] text-success-600">{aviso}</p>}
         </div>
 
         <Secao titulo="Análises que aparecem" ajuda="As análises que o sistema fez para o período escolhido. Desmarque o que o cliente não deve ver — vale também para os próximos meses.">
@@ -231,6 +360,16 @@ export default function ResumoCelularConfig({ config, onChange, onClose, verComo
           </button>
         </div>
       </div>
+      {replicando && (
+        <ReplicarResumo
+          config={config}
+          onClose={() => setReplicando(false)}
+          onFeito={(n) => {
+            setReplicando(false);
+            setAviso(`Configuração aplicada em ${n} ${n === 1 ? "empresa/grupo" : "empresas/grupos"}.`);
+          }}
+        />
+      )}
     </aside>
   );
 }

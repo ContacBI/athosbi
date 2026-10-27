@@ -197,6 +197,14 @@ export function analisesDoPeriodo(analysis, config) {
   return { alertas, positivos };
 }
 
+// A config que vai pra outra empresa ao replicar: a mesma, mas com o recado
+// dela mesma (o atual daquela empresa) — a não ser que peçam pra levar o
+// recado também.
+export function configParaReplicar(origem, atualDoDestino, { levarRecado = false } = {}) {
+  const recado = levarRecado ? configResumo(origem).recado : configResumo(atualDoDestino).recado;
+  return paraGravar({ ...configResumo(origem), recado });
+}
+
 // Pra gravar: só o que difere do padrão (null = tudo no padrão).
 export function paraGravar(config) {
   const c = configResumo(config);
