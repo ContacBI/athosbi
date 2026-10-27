@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Activity, AlertTriangle, ArrowRight, CheckCircle2, ChevronRight, Clock, LayoutGrid, Lock, LogOut, MessageSquare, Network, Presentation, Scale, Search, Settings, Target, Wallet } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, CheckCircle2, ChevronRight, Clock, HelpCircle, LayoutGrid, Lock, LogOut, MessageSquare, Network, Presentation, Scale, Search, Settings, Target, Wallet } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
 import { useAppState } from "../data/useStore.js";
 import { temBi as temModuloBi, temReforma as temModuloReforma } from "../lib/modulos.js";
@@ -15,6 +15,8 @@ import { alertasDoResumo, blocosVisiveis, configResumo, tilesDoResumo } from "..
 import { fmtPct } from "../lib/assistant/analysis.js";
 import { bridgeSentence } from "../lib/cashBridge.js";
 import DeltaPill from "../components/DeltaPill.jsx";
+import ExplicaItem from "../components/ExplicaItem.jsx";
+import { GLOSSARIO, explicacaoDoAssunto } from "../lib/glossario.js";
 import ThemeToggle from "../components/ThemeToggle.jsx";
 import AthosMark from "../components/AthosMark.jsx";
 import Avatar from "../components/Avatar.jsx";
@@ -88,10 +90,10 @@ function Titulo({ icone: Icone, children }) {
 
 function TituloBloco({ icone: Icone, children }) {
   return (
-    <p className="mb-2 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-400">
+    <span className="mb-2 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-400">
       {Icone && <Icone size={12} />}
       {children}
-    </p>
+    </span>
   );
 }
 
@@ -99,7 +101,11 @@ function TituloBloco({ icone: Icone, children }) {
 // ordem e com os blocos configurados em Personalizar › Resumo do celular
 // (lib/resumoCelular.js) — só sem o gráfico mês a mês. Tudo do mês fechado,
 // comparado com o mês anterior.
-function CartaoEmpresa({ company, resumo, calculando, grande, onAbrir, onApresentacao }) {
+// Clique num número/alerta = abre a explicação (ExplicaItem). Estilo comum
+// dos itens clicáveis do cartão.
+const CLICAVEL = "rounded-xl text-left transition-colors hover:bg-accent-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 cursor-pointer";
+
+function CartaoEmpresa({ company, resumo, calculando, grande, onAbrir, onApresentacao, onExplicar }) {
   const config = configResumo(company.resumoCelular);
   const visiveis = blocosVisiveis(config);
   // Só as liberadas pro cliente (ver apresentacoesVisiveis).
@@ -124,25 +130,31 @@ function CartaoEmpresa({ company, resumo, calculando, grande, onAbrir, onApresen
     resultado: () =>
       resumo && (
         <div>
-          <p className="text-[12px] text-ink-400">
-            {resumo.lucroMes < -0.5 ? "Prejuízo" : "Lucro"} de {nomeDoMes(resumo.mes)}
-          </p>
-          <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-            <p className={`text-[28px] font-semibold leading-tight tracking-tight tabular-nums ${resumo.lucroMes < -0.5 ? "text-danger-600" : "text-ink-900"}`}>{compactValue(resumo.lucroMes, "money")}</p>
-            <DeltaPill metric={cmp?.lucro} />
-          </div>
-          <p className="mt-0.5 text-[11.5px] text-ink-400">
-            {facts?.receitaLiquida > 0.5 ? `Margem de ${fmtPct(facts.margemLiquida)} da receita` : ""}
-            {facts?.receitaLiquida > 0.5 && resumo.prevLabel ? " · " : ""}
-            {resumo.prevLabel ? `vs. ${resumo.prevLabel}` : ""}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-[12.5px] text-ink-500">
-            <span>
+          <button
+            type="button"
+            onClick={() => onExplicar({ rotulo: `${resumo.lucroMes < -0.5 ? "Prejuízo" : "Lucro"} de ${nomeDoMes(resumo.mes)}`, valor: compactValue(resumo.lucroMes, "money"), metric: cmp?.lucro, sub: facts?.receitaLiquida > 0.5 ? `Margem de ${fmtPct(facts.margemLiquida)} da receita` : "", explicacao: GLOSSARIO.lucro })}
+            className={`inicio-explicar -mx-2 block w-[calc(100%+1rem)] px-2 py-1 ${CLICAVEL}`}
+          >
+            <span className="block text-[12px] text-ink-400">
+              {resumo.lucroMes < -0.5 ? "Prejuízo" : "Lucro"} de {nomeDoMes(resumo.mes)}
+            </span>
+            <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+              <span className={`text-[28px] font-semibold leading-tight tracking-tight tabular-nums ${resumo.lucroMes < -0.5 ? "text-danger-600" : "text-ink-900"}`}>{compactValue(resumo.lucroMes, "money")}</span>
+              <DeltaPill metric={cmp?.lucro} />
+            </span>
+            <span className="mt-0.5 block text-[11.5px] text-ink-400">
+              {facts?.receitaLiquida > 0.5 ? `Margem de ${fmtPct(facts.margemLiquida)} da receita` : ""}
+              {facts?.receitaLiquida > 0.5 && resumo.prevLabel ? " · " : ""}
+              {resumo.prevLabel ? `vs. ${resumo.prevLabel}` : ""}
+            </span>
+          </button>
+          <div className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-[12.5px] text-ink-500">
+            <button type="button" onClick={() => onExplicar({ rotulo: `${resumo.lucroAno < -0.5 ? "Prejuízo" : "Lucro"} no ano`, valor: compactValue(resumo.lucroAno, "money"), sub: `Janeiro a ${nomeDoMes(resumo.mes)}`, explicacao: GLOSSARIO.lucroAno })} className={`px-2 py-1 ${CLICAVEL}`}>
               {resumo.lucroAno < -0.5 ? "Prejuízo" : "Lucro"} no ano <strong className={`font-semibold tabular-nums ${resumo.lucroAno < -0.5 ? "text-danger-600" : "text-ink-800"}`}>{compactValue(resumo.lucroAno, "money")}</strong>
-            </span>
-            <span>
+            </button>
+            <button type="button" onClick={() => onExplicar({ rotulo: "Receita no ano", valor: compactValue(resumo.receitaAno, "money"), sub: `Janeiro a ${nomeDoMes(resumo.mes)}`, explicacao: GLOSSARIO.receitaAno })} className={`px-2 py-1 ${CLICAVEL}`}>
               Receita no ano <strong className="font-semibold tabular-nums text-ink-800">{compactValue(resumo.receitaAno, "money")}</strong>
-            </span>
+            </button>
           </div>
         </div>
       ),
@@ -152,14 +164,22 @@ function CartaoEmpresa({ company, resumo, calculando, grande, onAbrir, onApresen
       return (
         <div className={`grid gap-2 ${grande ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2"}`}>
           {lista.map((tile) => (
-            <div key={tile.id} className="min-w-0 rounded-xl bg-surface-muted/60 p-3">
-              <p className="truncate text-[11px] text-ink-400">{tile.label}</p>
-              <p className="truncate text-[15px] font-semibold tabular-nums text-ink-900">{tile.value}</p>
-              <div className="mt-0.5 flex min-h-[18px] flex-wrap items-center gap-1">
+            <button
+              key={tile.id}
+              type="button"
+              onClick={() => onExplicar({ rotulo: tile.label, valor: tile.value, metric: tile.metric, sub: tile.sub, explicacao: GLOSSARIO[tile.id] })}
+              className="inicio-explicar group/tile min-w-0 rounded-xl bg-surface-muted/60 p-3 text-left ring-accent-300 transition-all hover:bg-surface-card hover:shadow-sm hover:ring-1 focus-visible:outline-none focus-visible:ring-2"
+            >
+              <span className="flex items-center justify-between gap-1">
+                <span className="truncate text-[11px] text-ink-400">{tile.label}</span>
+                <HelpCircle size={12} className="shrink-0 text-ink-300 opacity-0 transition-opacity group-hover/tile:opacity-100" />
+              </span>
+              <span className="block truncate text-[15px] font-semibold tabular-nums text-ink-900">{tile.value}</span>
+              <span className="mt-0.5 flex min-h-[18px] flex-wrap items-center gap-1">
                 <DeltaPill metric={tile.metric} />
                 {tile.sub && <span className="truncate text-[10.5px] text-ink-400">{tile.sub}</span>}
-              </div>
-            </div>
+              </span>
+            </button>
           ))}
         </div>
       );
@@ -168,57 +188,57 @@ function CartaoEmpresa({ company, resumo, calculando, grande, onAbrir, onApresen
       resumo?.analysis && (
         <div>
           <TituloBloco icone={alertas.length ? AlertTriangle : CheckCircle2}>{alertas.length ? "Pede atenção" : "Tudo em ordem"}</TituloBloco>
-          <div className="flex flex-col gap-2.5">
+          <div className="flex flex-col gap-1.5">
             {alertas.map((alerta) => (
-              <div key={alerta.id} className="flex gap-2.5">
+              <button key={alerta.id} type="button" onClick={() => onExplicar({ rotulo: alerta.title, texto: alerta.text, acao: alerta.action, severity: alerta.severity, explicacao: explicacaoDoAssunto(alerta.topic) })} className={`inicio-explicar -mx-2 flex gap-2.5 px-2 py-1 ${CLICAVEL}`}>
                 <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${alerta.severity >= 3 ? "bg-danger-500" : alerta.severity === 2 ? "bg-warning-500" : "bg-ink-300"}`} />
-                <div className="min-w-0">
-                  <p className="text-[13px] font-semibold text-ink-900">{alerta.title}</p>
-                  <p className="text-[12.5px] leading-snug text-ink-500">{alerta.text}</p>
-                </div>
-              </div>
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-semibold text-ink-900">{alerta.title}</span>
+                  <span className="block text-[12.5px] leading-snug text-ink-500">{alerta.text}</span>
+                </span>
+              </button>
             ))}
             {!alertas.length && !positivos.length && <p className="text-[12.5px] text-ink-500">Nenhum alerta neste mês.</p>}
             {positivos.map((item) => (
-              <div key={item.id} className="flex gap-2.5">
+              <button key={item.id} type="button" onClick={() => onExplicar({ rotulo: item.title, texto: item.text, positivo: true, explicacao: explicacaoDoAssunto(item.topic) })} className={`inicio-explicar -mx-2 flex gap-2.5 px-2 py-1 ${CLICAVEL}`}>
                 <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-success-500" />
-                <div className="min-w-0">
-                  <p className="text-[13px] font-semibold text-ink-900">{item.title}</p>
-                  <p className="text-[12.5px] leading-snug text-ink-500">{item.text}</p>
-                </div>
-              </div>
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-semibold text-ink-900">{item.title}</span>
+                  <span className="block text-[12.5px] leading-snug text-ink-500">{item.text}</span>
+                </span>
+              </button>
             ))}
           </div>
         </div>
       ),
     caixa: () =>
       facts?.bridge && (
-        <div>
+        <button type="button" onClick={() => onExplicar({ rotulo: "Do lucro ao caixa", texto: bridgeSentence(facts.bridge), explicacao: GLOSSARIO.ponteCaixa })} className={`inicio-explicar -mx-2 block w-[calc(100%+1rem)] px-2 py-1 ${CLICAVEL}`}>
           <TituloBloco icone={Wallet}>Do lucro ao caixa</TituloBloco>
-          <p className="text-[13px] leading-snug text-ink-700">{bridgeSentence(facts.bridge)}</p>
-        </div>
+          <span className="block text-[13px] leading-snug text-ink-700">{bridgeSentence(facts.bridge)}</span>
+        </button>
       ),
     orcamento: () => {
       const budget = resumo?.budget;
       if (!budget) return null;
       return (
-        <div>
+        <button type="button" onClick={() => onExplicar({ rotulo: `Orçamento ${budget.ano}`, texto: `Receita: ${compactValue(budget.receita.realizado, "money")} de ${compactValue(budget.receita.orcado, "money")} orçados. Resultado: ${compactValue(budget.resultado.realizado, "money")} de ${compactValue(budget.resultado.orcado, "money")} orçados.`, explicacao: GLOSSARIO.orcamento })} className={`inicio-explicar -mx-2 block w-[calc(100%+1rem)] px-2 py-1 ${CLICAVEL}`}>
           <TituloBloco icone={Target}>Orçamento {budget.ano}</TituloBloco>
-          <div className="grid grid-cols-2 gap-3 text-[12.5px]">
+          <span className="grid grid-cols-2 gap-3 text-[12.5px]">
             {[
               { rotulo: "Receita", item: budget.receita },
               { rotulo: "Resultado", item: budget.resultado },
             ].map(({ rotulo, item }) => (
-              <div key={rotulo}>
-                <p className="text-ink-400">{rotulo}</p>
-                <p className="text-[15px] font-semibold tabular-nums text-ink-900">{compactValue(item.realizado, "money")}</p>
-                <p className={item.tone === "bom" ? "text-success-600" : item.tone === "ruim" ? "text-danger-700" : item.tone === "atencao" ? "text-warning-700" : "text-ink-500"}>
+              <span key={rotulo} className="block">
+                <span className="block text-ink-400">{rotulo}</span>
+                <span className="block text-[15px] font-semibold tabular-nums text-ink-900">{compactValue(item.realizado, "money")}</span>
+                <span className={`block ${item.tone === "bom" ? "text-success-600" : item.tone === "ruim" ? "text-danger-700" : item.tone === "atencao" ? "text-warning-700" : "text-ink-500"}`}>
                   de {compactValue(item.orcado, "money")} orçados{item.reach != null && item.orcado > 0 && item.reach >= 0 && item.reach <= 300 ? ` · ${Math.round(item.reach)}%` : ""}
-                </p>
-              </div>
+                </span>
+              </span>
             ))}
-          </div>
-        </div>
+          </span>
+        </button>
       );
     },
   };
@@ -255,7 +275,8 @@ function CartaoEmpresa({ company, resumo, calculando, grande, onAbrir, onApresen
         ))}
       </div>
 
-      <div className={`mt-auto flex flex-wrap items-center gap-2 pb-5 pt-5 ${px} ${grande ? "pb-6" : ""}`}>
+      {conteudo.length > 0 && resumo && <p className={`mt-4 text-[11px] text-ink-400 ${px}`}>Toque num número ou alerta para entender o que ele quer dizer.</p>}
+      <div className={`mt-auto flex flex-wrap items-center gap-2 pb-5 pt-4 ${px} ${grande ? "pb-6" : ""}`}>
         <button type="button" onClick={onAbrir} className="inicio-abrir flex items-center gap-1.5 rounded-full bg-accent-500 px-4 py-2 text-[13px] font-medium text-white shadow-sm shadow-accent-600/20 transition-all hover:-translate-y-0.5 hover:bg-accent-600">
           Abrir <ArrowRight size={15} />
         </button>
@@ -360,6 +381,9 @@ export default function Landing() {
 
   // ── Cliente: números de cada empresa (razão carregando aqui mesmo) ──
   const [numeros, setNumeros] = useState({}); // id → números | null (sem dados)
+  // A explicação aberta por cima (clique num número/alerta do cartão).
+  const [explicando, setExplicando] = useState(null); // { item, company, resumo }
+  const fecharExplicacao = useCallback(() => setExplicando(null), []);
   const calcularNumeros = !staff && temBi && state.companies.length <= MAX_COM_NUMEROS;
   const chaveEmpresas = state.companies.map((company) => `${company.id}:${mesFechadoDa(company)}`).join("|");
   useEffect(() => {
@@ -509,6 +533,20 @@ export default function Landing() {
   return (
     <div className="inicio min-h-screen bg-surface-page pb-16">
       {pending && <WorkspaceLoading name={pending.name} isGroup={pending.isGroup} phase={pending.phase} progress={state.journalLoadProgress} onCancel={cancelar} />}
+      {explicando && (
+        <ExplicaItem
+          item={explicando.item}
+          empresa={explicando.company.name}
+          periodo={explicando.resumo?.mes ? `${nomeDoMes(explicando.resumo.mes)}/${explicando.resumo.mes.slice(2, 4)}` : ""}
+          prevLabel={explicando.resumo?.prevLabel || ""}
+          onClose={fecharExplicacao}
+          onAbrirEmpresa={() => {
+            const id = explicando.company.id;
+            setExplicando(null);
+            abrirEmpresa(id);
+          }}
+        />
+      )}
       {hero}
 
       <main className="mx-auto flex max-w-5xl flex-col gap-9 px-5 pt-8 sm:px-8">
@@ -586,6 +624,7 @@ export default function Landing() {
                       calculando={calcularNumeros && !(company.id in numeros)}
                       onAbrir={() => abrirEmpresa(company.id)}
                       onApresentacao={(deckId) => abrirEmpresa(company.id, `/empresa/apresentacoes/${deckId}?apresentar=1`)}
+                      onExplicar={(item) => setExplicando({ item, company, resumo: numeros[company.id] })}
                     />
                   ))}
                 </div>
