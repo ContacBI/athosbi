@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient.js";
 import { guardarParte, lerPartes, podarEmpresa } from "./journalCache.js";
+import { codificarParte, decodificarParte } from "./razaoCompacto.js";
 
 // One "gaveta" per logical chunk of app data, same key names the IndexedDB
 // version used — kept identical so nothing downstream (companies.js,
@@ -241,16 +242,20 @@ const journalWriteChains = new Map();
 // de verdade em vez de só um "carregando" indefinido — importante justamente
 // pros razões grandes o suficiente pra cair no caminho em pedaços abaixo, que
 // são também os que mais demoram e mais sofrem com a conexão instável.
-export function writeCompanyJournal(companyId, journal, { onProgress } = {}) {
+export function writeCompanyJournal(companyId, journal, { onProgress, seManifestoFor } = {}) {
   const previous = journalWriteChains.get(companyId) || Promise.resolve();
-  const next = previous.catch(() => undefined).then(() => writeCompanyJournalNow(companyId, journal, onProgress));
+  const next = previous.catch(() => undefined).then(() => writeCompanyJournalNow(companyId, journal, onProgress, seManifestoFor));
   journalWriteChains.set(companyId, next);
   return next.finally(() => {
     if (journalWriteChains.get(companyId) === next) journalWriteChains.delete(companyId);
   });
 }
 
-async function writeCompanyJournalNow(companyId, journal, onProgress) {
+// `seManifestoFor` (só a compactação em segundo plano usa): o manifesto como
+// estava quando o razão foi lido. Se outra gravação trocou o manifesto no
+// meio do caminho, desiste antes de gravar o novo — nunca troca um razão mais
+// novo pela cópia que ela leu antes. Devolve false quando desistiu.
+async function writeCompanyJournalNow(companyId, journal, onProgress, seManifestoFor) {
   const list = Array.isArray(journal) ? journal : [];
   const baseKey = companyJournalKey(companyId);
   const report = typeof onProgress === "function" ? onProgress : () => {};
@@ -268,7 +273,9 @@ async function writeCompanyJournalNow(companyId, journal, onProgress) {
   const keys = [];
   const novas = new Map();
   for (const part of parts) {
-    const key = `${baseKey}.h${await hashPart(part)}`;
+    // "c" = parte no formato compacto (ver razaoCompacto.js). As antigas, "h", eram o JSON de cada lançamento — chave diferente pra
+    // nenhuma parte antiga ser reaproveitada como se já estivesse compacta; elas saem na limpeza depois do manifesto novo.
+    const key = `${baseKey}.c${await hashPart(part)}`;
     keys.push(key);
     if (!novas.has(key)) novas.set(key, part);
   }
@@ -279,9 +286,10 @@ async function writeCompanyJournalNow(companyId, journal, onProgress) {
   report(0);
   // Uma parte de cada vez (ver JOURNAL_CHUNK_SIZE). As partes primeiro, o manifesto por último.
   for (let index = 0; index < enviar.length; index += 1) {
-    await writePersistent(enviar[index][0], enviar[index][1]);
+    await writePersistent(enviar[index][0], codificarParte(enviar[index][1]));
     report((index + 1) / totalUnits);
   }
+  if (seManifestoFor !== undefined && JSON.stringify(await readPersistent(baseKey)) !== seManifestoFor) return false;
   await writePersistent(baseKey, { __chunked: true, parts: keys.length, keys });
   report(1);
   // Depois do manifesto novo: apaga o que ele não usa mais (partes de versões antigas e dos espaços a/b). Só limpeza — se falhar, sobra lixo, não dado perdido.
@@ -338,7 +346,10 @@ async function listJournalKeys(baseKey) {
 // ler de volta (visto na prática: ~30s pra reler os mesmos ~31 mil
 // lançamentos que levaram ~32s pra gravar) — sem isso, a tela que chamou
 // não tem como distinguir "ainda carregando" de "razão realmente vazio".
-export async function readCompanyJournal(companyId, { onProgress } = {}) {
+// `lembrarFormatoAntigo`: guarda o manifesto e o razão lido quando ainda tem
+// parte no formato antigo, pra compactarRazao regravar depois (só quem abre a
+// empresa na tela pede isso — ver loadCompanyJournal em companies.js).
+export async function readCompanyJournal(companyId, { onProgress, lembrarFormatoAntigo = false } = {}) {
   const baseKey = companyJournalKey(companyId);
   const report = typeof onProgress === "function" ? onProgress : () => {};
   report(0);
@@ -358,7 +369,8 @@ export async function readCompanyJournal(companyId, { onProgress } = {}) {
     const guardadas = await lerPartes(chaves);
     const faltam = [];
     chaves.forEach((chave, index) => {
-      if (guardadas.has(chave)) pieces[index] = guardadas.get(chave);
+      const guardada = guardadas.has(chave) ? decodificarParte(guardadas.get(chave)) : null;
+      if (guardada) pieces[index] = guardada;
       else faltam.push(index);
     });
     let feitas = value.parts - faltam.length;
@@ -369,10 +381,11 @@ export async function readCompanyJournal(companyId, { onProgress } = {}) {
       while (!falhou && proxima < faltam.length) {
         const index = faltam[proxima];
         proxima += 1;
-        const piece = await readPersistent(chaves[index]).catch((error) => {
+        const valor = await readPersistent(chaves[index]).catch((error) => {
           falhou = true;
           throw error;
         });
+        const piece = decodificarParte(valor);
         // Parte que o manifesto promete mas não existe = razão incompleto.
         // Devolver só o que sobrou faria ele parecer "carregado" — e o
         // próximo save gravaria essa versão menor por cima do razão inteiro.
@@ -381,7 +394,7 @@ export async function readCompanyJournal(companyId, { onProgress } = {}) {
           falhou = true;
           throw new PersistenceReadError(`Razão de "${companyId}" incompleto: falta a parte ${index + 1} de ${value.parts}.`);
         }
-        guardarParte(companyId, chaves[index], piece);
+        guardarParte(companyId, chaves[index], valor);
         pieces[index] = piece;
         feitas += 1;
         report(feitas / value.parts);
@@ -390,11 +403,37 @@ export async function readCompanyJournal(companyId, { onProgress } = {}) {
     await Promise.all(Array.from({ length: Math.min(4, faltam.length) }, baixar));
     // Some do navegador o que o manifesto de agora não usa mais.
     podarEmpresa(companyId, chaves);
-    return pieces.flat();
+    const journal = pieces.flat();
+    razoesNoFormatoAntigo.delete(companyId);
+    if (lembrarFormatoAntigo && chaves.some((chave) => !PARTE_COMPACTA.test(chave))) razoesNoFormatoAntigo.set(companyId, { manifesto: JSON.stringify(value), journal });
+    return journal;
   }
   report(1);
   return Array.isArray(value) ? value : [];
 }
+
+// Razões lidos que ainda têm parte no formato antigo (JSON por lançamento) —
+// o manifesto como foi lido e o razão que veio dele. compactarRazao regrava
+// esse mesmo razão no formato compacto (ver companies.js, que chama depois
+// de abrir, só pra quem pode gravar).
+const PARTE_COMPACTA = /\.c[0-9a-f]{40}$/;
+const razoesNoFormatoAntigo = new Map();
+
+export const razaoNoFormatoAntigo = (companyId) => razoesNoFormatoAntigo.has(companyId);
+
+// Regrava no formato compacto o razão que acabou de ser lido — o MESMO
+// conteúdo, partes novas e o manifesto trocado no fim. Desiste se o manifesto
+// mudou desde a leitura (outra aba/pessoa gravou nesse meio-tempo). Partes
+// que já subiram numa tentativa interrompida são aproveitadas na próxima.
+export async function compactarRazao(companyId) {
+  const lido = razoesNoFormatoAntigo.get(companyId);
+  razoesNoFormatoAntigo.delete(companyId);
+  // Razão pequeno é gravado numa linha só (não usa partes) — fica como está.
+  if (!lido || lido.journal.length <= JOURNAL_CHUNK_SIZE) return false;
+  return writeCompanyJournal(companyId, lido.journal, { seManifestoFor: lido.manifesto });
+}
+
+export const esquecerFormatoAntigo = (companyId) => razoesNoFormatoAntigo.delete(companyId);
 
 export async function readStoredArray(key) {
   const stored = await readPersistent(key);

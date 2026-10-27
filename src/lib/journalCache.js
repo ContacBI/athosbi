@@ -1,7 +1,7 @@
 // Cópia local (IndexedDB do navegador) das partes do razão já baixadas.
 //
 // As partes de um razão grande são endereçadas pelo CONTEÚDO: a chave é
-// `${baseKey}.h<sha1 do trecho>` (ver writeCompanyJournalNow em
+// `${baseKey}.c<sha1 do trecho>` (ou .h, no formato antigo — ver writeCompanyJournalNow em
 // persistence.js). Uma parte gravada nunca muda — conteúdo novo vira chave
 // nova — então a cópia local nunca fica desatualizada: quem diz quais partes
 // valem é o manifesto, que continua vindo SEMPRE do banco. Abrir de novo a
@@ -18,7 +18,7 @@ const VERSION = 1;
 
 // Só parte endereçada por conteúdo — as do formato antigo (.partN, .a.partN)
 // são regravadas no mesmo lugar e não podem ser guardadas.
-const CHAVE_IMUTAVEL = /\.h[0-9a-f]{40}$/;
+const CHAVE_IMUTAVEL = /\.[hc][0-9a-f]{40}$/;
 export const parteGuardavel = (chave) => CHAVE_IMUTAVEL.test(String(chave || ""));
 
 let dbPromise = null;
@@ -59,7 +59,8 @@ function terminar(transaction) {
   });
 }
 
-// Map chave → linhas, só das que existem na cópia local.
+// Map chave → parte como veio do banco (array de lançamentos ou o formato
+// compacto — quem lê decodifica), só das que existem na cópia local.
 export async function lerPartes(chaves) {
   const encontradas = new Map();
   const guardaveis = (chaves || []).filter(parteGuardavel);
@@ -72,7 +73,7 @@ export async function lerPartes(chaves) {
     guardaveis.forEach((chave) => {
       const request = store.get(chave);
       request.onsuccess = () => {
-        if (Array.isArray(request.result?.linhas)) encontradas.set(chave, request.result.linhas);
+        if (request.result?.valor !== undefined) encontradas.set(chave, request.result.valor);
       };
     });
     if (!(await terminar(transaction))) return new Map();
@@ -82,15 +83,15 @@ export async function lerPartes(chaves) {
   return encontradas;
 }
 
-// Síncrono de propósito: o put copia as linhas NA HORA, exatamente como
-// vieram do banco, antes de qualquer outra parte do app mexer nelas. Só
-// grava com o banco local já aberto (lerPartes abre antes dos downloads).
-export function guardarParte(empresa, chave, linhas) {
-  if (!dbAberto || !parteGuardavel(chave) || !Array.isArray(linhas)) return;
+// Síncrono de propósito: o put copia a parte NA HORA, exatamente como veio
+// do banco, antes de qualquer outra parte do app mexer nela. Só grava com o
+// banco local já aberto (lerPartes abre antes dos downloads).
+export function guardarParte(empresa, chave, valor) {
+  if (!dbAberto || !parteGuardavel(chave) || valor === undefined || valor === null) return;
   try {
     const transaction = dbAberto.transaction(STORE, "readwrite");
     transaction.onerror = () => {};
-    transaction.objectStore(STORE).put({ chave, empresa, linhas });
+    transaction.objectStore(STORE).put({ chave, empresa, valor });
   } catch {
     /* cota cheia ou navegador sem IndexedDB — fica sem cópia */
   }

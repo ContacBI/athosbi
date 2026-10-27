@@ -12,6 +12,9 @@ import {
   companyKey,
   readCompanyJournal,
   writeCompanyJournal,
+  compactarRazao,
+  esquecerFormatoAntigo,
+  razaoNoFormatoAntigo,
   deleteCompanyJournal,
   COMPANY_KEY_PREFIX,
   rememberActiveWorkspace,
@@ -571,11 +574,41 @@ export function ensureCompanyJournalLoaded(company, { onProgress } = {}) {
   return inflight.promise;
 }
 
+// Razão ainda no formato antigo (JSON por lançamento, ~6x maior) é regravado
+// compacto em segundo plano — um de cada vez, depois que a tela já abriu (ver
+// compactarRazao em persistence.js). Só admin: é quem pode apagar as partes
+// antigas depois. O conteúdo é o mesmo que acabou de ser lido.
+const filaCompactacao = [];
+let compactando = false;
+
+function agendarCompactacao(companyId) {
+  if (filaCompactacao.includes(companyId)) return;
+  filaCompactacao.push(companyId);
+  if (!compactando) setTimeout(rodarCompactacao, 20000);
+}
+
+async function rodarCompactacao() {
+  if (compactando) return;
+  compactando = true;
+  try {
+    while (filaCompactacao.length) {
+      const companyId = filaCompactacao.shift();
+      try {
+        await compactarRazao(companyId);
+      } catch (error) {
+        console.warn("Não consegui compactar o razão (fica no formato antigo, tenta de novo na próxima abertura):", error?.message || error);
+      }
+    }
+  } finally {
+    compactando = false;
+  }
+}
+
 async function loadCompanyJournal(company, onProgress) {
   let journal;
   let journalLoadFailed = false;
   try {
-    journal = await readCompanyJournal(company.id, { onProgress });
+    journal = await readCompanyJournal(company.id, { onProgress, lembrarFormatoAntigo: true });
   } catch (error) {
     console.error(`Empresa "${company.name}" (${company.id}): não consegui ler o razão do Supabase.`, error);
     journalLoadFailed = true;
@@ -595,6 +628,10 @@ async function loadCompanyJournal(company, onProgress) {
   // exibição vazar pro banco de dados).
   if (!journalLoadFailed) lastWrittenJournals.set(company.id, journal);
   lastWrittenRecords.set(company.id, updated);
+  if (razaoNoFormatoAntigo(company.id)) {
+    if (state.isAdmin && !journalLoadFailed) agendarCompactacao(company.id);
+    else esquecerFormatoAntigo(company.id);
+  }
   setData({ companies: state.companies.map((item) => (item.id === company.id ? updated : item)) });
   return updated;
 }
