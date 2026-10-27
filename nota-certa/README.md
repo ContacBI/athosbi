@@ -16,6 +16,7 @@ ganhar repositório próprio.
 | `dados/cfop-mais-usados.json` | 70 CFOPs mais usados com tipo de operação e orientação inicial de IBS/CBS |
 | `scripts/gerar-estudo.cjs` | Gera o Word a partir dos dados |
 | `scripts/gerar-planilha.py` | Gera a planilha a partir dos dados |
+| `central/pedido-produtos-vendidos.md` | Modelo do pedido à Central (só leitura na Domínio) para listar os produtos vendidos e os compradores de um cliente piloto |
 | `scripts/gerar-ncms-clientes.py` | Gera a lista de NCMs/NBS vendidos por cliente (resumo fiscal da Domínio) com o enquadramento na LC 214. A entrada e a planilha gerada têm dados reais e **ficam fora do GitHub** |
 
 ## O que já sabemos
