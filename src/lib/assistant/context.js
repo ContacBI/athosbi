@@ -129,3 +129,15 @@ export function comparisonPeriod(period, mode) {
   const end = ymd(ey, em, lastDay(ey, em));
   return { start, end, label: shortPeriod(start, end) };
 }
+
+// Variação do Comparativo (Demonstrativos): sempre do período mais antigo
+// pro mais recente. Com os atalhos o B é o anterior (A − B); se o B
+// escolhido vier depois do A, a conta vira B − A — receita que cresceu fica
+// positiva (verde) nos dois casos. O % é sobre o período mais antigo.
+export function variacaoDoComparativo(a, b, { inicioA = "", inicioB = "" } = {}) {
+  const bDepois = Boolean(inicioA && inicioB && inicioB > inicioA);
+  const recente = bDepois ? b : a;
+  const antigo = bDepois ? a : b;
+  const diff = recente - antigo;
+  return { diff, diffPct: Math.abs(antigo) > 0.005 ? (diff / Math.abs(antigo)) * 100 : null, bDepois };
+}

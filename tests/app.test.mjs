@@ -651,6 +651,14 @@ check(
   null
 );
 
+// ── Comparativo dos Demonstrativos: variação do mais antigo pro mais recente ──
+section("Comparativo");
+const { variacaoDoComparativo } = await src("lib/assistant/context.js");
+const bAnterior = variacaoDoComparativo(2166971.1, 2037469.39, { inicioA: "2026-07-01", inicioB: "2026-04-01" });
+const bDepois = variacaoDoComparativo(2037469.39, 2166971.1, { inicioA: "2026-04-01", inicioB: "2026-07-01" });
+check("Receita que cresceu fica positiva com o B antes ou depois do A", Math.abs(bAnterior.diff - 129501.71) < 0.01 && Math.abs(bDepois.diff - 129501.71) < 0.01 && Math.abs(bDepois.diffPct - bAnterior.diffPct) < 1e-9 && bDepois.diffPct > 6.3 && bDepois.diffPct < 6.4, { bAnterior, bDepois });
+check("Despesa que cresceu (mais negativa) fica negativa com o B depois do A", variacaoDoComparativo(-114801.48, -121862.29, { inicioA: "2026-04-01", inicioB: "2026-07-01" }).diff < 0, null);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);

@@ -27,7 +27,7 @@ import Sparkline from "../components/Sparkline.jsx";
 import MiniBar from "../components/MiniBar.jsx";
 import ReportSettingsMenu from "../components/ReportSettingsMenu.jsx";
 import PeriodPicker from "../components/PeriodPicker.jsx";
-import { comparisonPeriod, dataMonths } from "../lib/assistant/context.js";
+import { comparisonPeriod, dataMonths, variacaoDoComparativo } from "../lib/assistant/context.js";
 import { detectAnomalies } from "../lib/anomalias.js";
 import { allComments, commentsFor, exactComments, monthNamePt } from "../lib/comentarios.js";
 import ComentariosPanel from "../components/ComentariosPanel.jsx";
@@ -475,12 +475,12 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
     const a = compareARow ? rowValue(compareARow, tab) : rowValue(row, tab);
     const compareRow = compareMap?.get(rowKey(row));
     const b = compareRow ? rowValue(compareRow, tab) : 0;
-    const diff = a - b;
-    const diffPct = Math.abs(b) > 0.005 ? (diff / Math.abs(b)) * 100 : null;
+    const { diff, diffPct } = variacaoDoComparativo(a, b, { inicioA: effectiveAStart, inicioB: compareStart });
     const avA = compareBase?.a ? (Math.abs(a) / compareBase.a) * 100 : null;
     const avB = compareBase?.b ? (Math.abs(b) / compareBase.b) * 100 : null;
     return { a, b, diff, diffPct, avA, avB };
   }
+  const sentidoDaVariacao = compareStart > effectiveAStart ? "Do Período A (mais antigo) para o Período B (mais recente)" : "Do Período B (mais antigo) para o Período A (mais recente)";
   // Período B sem nenhum valor (ex.: o ano anterior não foi importado):
   // avisa em vez de mostrar "variações" que são só o Período A inteiro.
   const compareBEmpty = !!compareRows && compareRows.every((row) => Math.abs(rowValue(row, tab)) < 0.005);
@@ -957,8 +957,12 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                     {compareAV && <span className="text-right">{tab === "DRE" ? "% rec." : "% ativo"}</span>}
                     <span className="text-right">Período B</span>
                     {compareAV && <span className="text-right">{tab === "DRE" ? "% rec." : "% ativo"}</span>}
-                    <span className="text-right">Variação</span>
-                    <span className="text-right">Var. %</span>
+                    <span className="text-right" title={sentidoDaVariacao}>
+                      Variação
+                    </span>
+                    <span className="text-right" title={sentidoDaVariacao}>
+                      Var. %
+                    </span>
                   </>
                 )}
                 {mode === "vertical" && !baseValueByMonth && (
