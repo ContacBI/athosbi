@@ -1,3 +1,6 @@
+import { compactValue } from "./presentations.js";
+import { fmtPct } from "./assistant/analysis.js";
+
 // Resumo no celular configurável por empresa/grupo (Celular.jsx): quais
 // blocos aparecem e em que ordem, quais números vão nos quadrinhos, quantos
 // alertas, quais tipos de alerta ficam de fora e um recado do escritório.
@@ -28,6 +31,23 @@ export const NUMEROS = [
   { id: "custos", nome: "Custos", metrica: "custos" },
   { id: "receitaBruta", nome: "Receita bruta", metrica: "receitaBruta" },
 ];
+
+// Os quadrinhos possíveis com os valores do período (facts/cmp de
+// analyze()): { id: { id, label, value, sub, metric } }. Vazio sem facts.
+export function tilesDoResumo(facts, cmp) {
+  if (!facts) return {};
+  const daReceita = (valor) => (facts.receitaLiquida > 0.5 ? `${fmtPct(valor)} da receita` : "");
+  return {
+    receita: { id: "receita", label: "Receita líquida", value: compactValue(facts.receitaLiquida, "money"), metric: cmp?.receita },
+    despesas: { id: "despesas", label: "Despesas operacionais", value: compactValue(Math.abs(facts.despesasOp), "money"), metric: cmp?.despesas },
+    ebitda: { id: "ebitda", label: "EBITDA", value: compactValue(facts.ebitda, "money"), sub: daReceita(facts.margemEbitda), metric: cmp?.ebitda },
+    caixa: { id: "caixa", label: "Caixa no fim", value: compactValue(facts.caixa.end, "money"), metric: cmp?.caixa },
+    lucroBruto: { id: "lucroBruto", label: "Lucro bruto", value: compactValue(facts.lucroBruto, "money"), sub: daReceita(facts.margemBruta), metric: cmp?.lucroBruto },
+    margem: { id: "margem", label: "Margem líquida", value: fmtPct(facts.margemLiquida), metric: cmp?.margemLiquida },
+    custos: { id: "custos", label: "Custos", value: compactValue(Math.abs(facts.custos), "money"), metric: cmp?.custos },
+    receitaBruta: { id: "receitaBruta", label: "Receita bruta", value: compactValue(facts.receitaBruta, "money"), metric: cmp?.receitaBruta },
+  };
+}
 
 // Os tipos de alerta de analyze() (lib/assistant/analysis.js). `tecnico`:
 // coisa de conferência contábil, que não faz sentido pro cliente.

@@ -597,6 +597,15 @@ check("Equipe não tem limite", fch.limiteDoCliente({ isAdmin: true }) === null 
 const grupoFch = { isAdmin: false, activeGroupId: "g", groups: [{ id: "g", companyIds: ["a", "b"] }], companies: [{ id: "a", fechadoAte: "2026-09" }, { id: "b", fechadoAte: "2026-07" }] };
 check("Grupo: vale o fechamento mais atrasado das empresas", fch.limiteDoCliente(grupoFch, hojeTeste) === "2026-07", null);
 const numsFechados = inicio.numerosDaEmpresa({ ...company, journal, journalLoaded: true }, { ate: "2026-02" });
+setCompanyState();
+const antesResumo = { id: state.activeCompanyId, journal: state.journal, periodStart: state.periodStart, orcamentos: state.orcamentos };
+const resumoInicio = inicio.resumoDaEmpresa({ ...company, journal, journalLoaded: true }, { ate: "2026-03" });
+check(
+  "Início do cliente: resumo do celular do mês fechado (análise, comparação com o mês anterior)",
+  resumoInicio && resumoInicio.mes === "2026-03" && resumoInicio.analysis?.facts && resumoInicio.analysis.comparison?.lucro && resumoInicio.prevLabel !== "" && Math.abs(resumoInicio.lucroAno - expected.lucro) < 0.01,
+  resumoInicio && { mes: resumoInicio.mes, prevLabel: resumoInicio.prevLabel }
+);
+check("Montar o resumo não mexe na empresa aberta", state.activeCompanyId === antesResumo.id && state.journal === antesResumo.journal && state.periodStart === antesResumo.periodStart && state.orcamentos === antesResumo.orcamentos, null);
 check("Cartão do Início para no mês fechado (fev)", numsFechados.mes === "2026-02" && numsFechados.lucroAno < expected.lucro && numsFechados.receitaAno < expected.receitaLiquida, numsFechados);
 setCompanyState();
 

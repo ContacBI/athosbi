@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Activity, ArrowRight, ChevronRight, Clock, LayoutGrid, Lock, LogOut, MessageSquare, Network, Presentation, Scale, Search, Settings } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, CheckCircle2, ChevronRight, Clock, LayoutGrid, Lock, LogOut, MessageSquare, Network, Presentation, Scale, Search, Settings, Target, Wallet } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
 import { useAppState } from "../data/useStore.js";
 import { temBi as temModuloBi, temReforma as temModuloReforma } from "../lib/modulos.js";
 import { groupCompanies } from "../lib/groups.js";
 import { ensureCompanyJournalLoaded } from "../lib/companies.js";
-import { numerosDaEmpresa, primeiroNome, resumoCarteira, saudacao } from "../lib/inicio.js";
+import { primeiroNome, resumoCarteira, resumoDaEmpresa, saudacao } from "../lib/inicio.js";
 import { mesFechadoDa } from "../lib/fechamento.js";
 import { recentes } from "../lib/recentes.js";
 import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
 import { compactValue } from "../lib/presentations.js";
-import { configResumo } from "../lib/resumoCelular.js";
+import { alertasDoResumo, blocosVisiveis, configResumo, tilesDoResumo } from "../lib/resumoCelular.js";
+import { fmtPct } from "../lib/assistant/analysis.js";
+import { bridgeSentence } from "../lib/cashBridge.js";
+import DeltaPill from "../components/DeltaPill.jsx";
 import ThemeToggle from "../components/ThemeToggle.jsx";
 import AthosMark from "../components/AthosMark.jsx";
 import Avatar from "../components/Avatar.jsx";
@@ -83,69 +86,176 @@ function Titulo({ icone: Icone, children }) {
   );
 }
 
-// Cartão de uma empresa (cliente).
-function CartaoEmpresa({ company, numeros, calculando, grande, onAbrir, onApresentacao }) {
-  const config = configResumo(company.resumoCelular);
-  const recado = config.recado.trim();
-  // Só as liberadas pro cliente (ver apresentacoesVisiveis).
-  const ultimaApresentacao = [...(company.presentations || []).filter((deck) => deck.liberada === true)].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))[0] || null;
-  const fechado = numeros?.mes || mesFechadoDa(company);
-  const prejuizo = numeros && numeros.lucroMes < -0.5;
+function TituloBloco({ icone: Icone, children }) {
   return (
-    <article className="inicio-empresa group/cartao flex flex-col overflow-hidden rounded-2xl bg-surface-card shadow-sm ring-1 ring-line transition-shadow hover:shadow-md">
-      <div className={`flex items-start gap-3 ${grande ? "px-6 pt-6" : "px-5 pt-5"}`}>
+    <p className="mb-2 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-400">
+      {Icone && <Icone size={12} />}
+      {children}
+    </p>
+  );
+}
+
+// Cartão de uma empresa (cliente): o resumo do celular da empresa, na
+// ordem e com os blocos configurados em Personalizar › Resumo do celular
+// (lib/resumoCelular.js) — só sem o gráfico mês a mês. Tudo do mês fechado,
+// comparado com o mês anterior.
+function CartaoEmpresa({ company, resumo, calculando, grande, onAbrir, onApresentacao }) {
+  const config = configResumo(company.resumoCelular);
+  const visiveis = blocosVisiveis(config);
+  // Só as liberadas pro cliente (ver apresentacoesVisiveis).
+  const ultimaApresentacao = visiveis.includes("apresentacao") ? [...(company.presentations || []).filter((deck) => deck.liberada === true)].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))[0] || null : null;
+  const fechado = resumo?.mes || mesFechadoDa(company);
+  const facts = resumo?.analysis?.facts || null;
+  const cmp = resumo?.analysis?.comparison || null;
+  const { alertas, positivos } = alertasDoResumo(resumo?.analysis, config, { equipe: false });
+  const tiles = tilesDoResumo(facts, cmp);
+  const px = grande ? "px-6" : "px-5";
+
+  const blocos = {
+    recado: () => (
+      <div className="flex gap-2.5 rounded-xl bg-accent-50 p-3 ring-1 ring-accent-200">
+        <MessageSquare size={16} className="mt-0.5 shrink-0 text-accent-600" />
+        <div className="min-w-0">
+          <p className="text-[10.5px] font-semibold uppercase tracking-wide text-accent-700">Recado do escritório</p>
+          <p className="mt-0.5 whitespace-pre-line text-[13px] leading-snug text-ink-800">{config.recado.trim()}</p>
+        </div>
+      </div>
+    ),
+    resultado: () =>
+      resumo && (
+        <div>
+          <p className="text-[12px] text-ink-400">
+            {resumo.lucroMes < -0.5 ? "Prejuízo" : "Lucro"} de {nomeDoMes(resumo.mes)}
+          </p>
+          <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+            <p className={`text-[28px] font-semibold leading-tight tracking-tight tabular-nums ${resumo.lucroMes < -0.5 ? "text-danger-600" : "text-ink-900"}`}>{compactValue(resumo.lucroMes, "money")}</p>
+            <DeltaPill metric={cmp?.lucro} />
+          </div>
+          <p className="mt-0.5 text-[11.5px] text-ink-400">
+            {facts?.receitaLiquida > 0.5 ? `Margem de ${fmtPct(facts.margemLiquida)} da receita` : ""}
+            {facts?.receitaLiquida > 0.5 && resumo.prevLabel ? " · " : ""}
+            {resumo.prevLabel ? `vs. ${resumo.prevLabel}` : ""}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-[12.5px] text-ink-500">
+            <span>
+              {resumo.lucroAno < -0.5 ? "Prejuízo" : "Lucro"} no ano <strong className={`font-semibold tabular-nums ${resumo.lucroAno < -0.5 ? "text-danger-600" : "text-ink-800"}`}>{compactValue(resumo.lucroAno, "money")}</strong>
+            </span>
+            <span>
+              Receita no ano <strong className="font-semibold tabular-nums text-ink-800">{compactValue(resumo.receitaAno, "money")}</strong>
+            </span>
+          </div>
+        </div>
+      ),
+    numeros: () => {
+      const lista = config.numeros.map((id) => tiles[id]).filter(Boolean);
+      if (!lista.length) return null;
+      return (
+        <div className={`grid gap-2 ${grande ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2"}`}>
+          {lista.map((tile) => (
+            <div key={tile.id} className="min-w-0 rounded-xl bg-surface-muted/60 p-3">
+              <p className="truncate text-[11px] text-ink-400">{tile.label}</p>
+              <p className="truncate text-[15px] font-semibold tabular-nums text-ink-900">{tile.value}</p>
+              <div className="mt-0.5 flex min-h-[18px] flex-wrap items-center gap-1">
+                <DeltaPill metric={tile.metric} />
+                {tile.sub && <span className="truncate text-[10.5px] text-ink-400">{tile.sub}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    },
+    atencao: () =>
+      resumo?.analysis && (
+        <div>
+          <TituloBloco icone={alertas.length ? AlertTriangle : CheckCircle2}>{alertas.length ? "Pede atenção" : "Tudo em ordem"}</TituloBloco>
+          <div className="flex flex-col gap-2.5">
+            {alertas.map((alerta) => (
+              <div key={alerta.id} className="flex gap-2.5">
+                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${alerta.severity >= 3 ? "bg-danger-500" : alerta.severity === 2 ? "bg-warning-500" : "bg-ink-300"}`} />
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-ink-900">{alerta.title}</p>
+                  <p className="text-[12.5px] leading-snug text-ink-500">{alerta.text}</p>
+                </div>
+              </div>
+            ))}
+            {!alertas.length && !positivos.length && <p className="text-[12.5px] text-ink-500">Nenhum alerta neste mês.</p>}
+            {positivos.map((item) => (
+              <div key={item.id} className="flex gap-2.5">
+                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-success-500" />
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-ink-900">{item.title}</p>
+                  <p className="text-[12.5px] leading-snug text-ink-500">{item.text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ),
+    caixa: () =>
+      facts?.bridge && (
+        <div>
+          <TituloBloco icone={Wallet}>Do lucro ao caixa</TituloBloco>
+          <p className="text-[13px] leading-snug text-ink-700">{bridgeSentence(facts.bridge)}</p>
+        </div>
+      ),
+    orcamento: () => {
+      const budget = resumo?.budget;
+      if (!budget) return null;
+      return (
+        <div>
+          <TituloBloco icone={Target}>Orçamento {budget.ano}</TituloBloco>
+          <div className="grid grid-cols-2 gap-3 text-[12.5px]">
+            {[
+              { rotulo: "Receita", item: budget.receita },
+              { rotulo: "Resultado", item: budget.resultado },
+            ].map(({ rotulo, item }) => (
+              <div key={rotulo}>
+                <p className="text-ink-400">{rotulo}</p>
+                <p className="text-[15px] font-semibold tabular-nums text-ink-900">{compactValue(item.realizado, "money")}</p>
+                <p className={item.tone === "bom" ? "text-success-600" : item.tone === "ruim" ? "text-danger-700" : item.tone === "atencao" ? "text-warning-700" : "text-ink-500"}>
+                  de {compactValue(item.orcado, "money")} orçados{item.reach != null && item.orcado > 0 && item.reach >= 0 && item.reach <= 300 ? ` · ${Math.round(item.reach)}%` : ""}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    },
+  };
+
+  // No Início ficam de fora o gráfico mês a mês e a última apresentação
+  // (essa vira o botão do rodapé).
+  const conteudo = calculando ? [] : visiveis.filter((id) => id !== "tendencia" && id !== "apresentacao").map((id) => [id, blocos[id]?.()]).filter(([, bloco]) => bloco);
+
+  return (
+    <article className="inicio-empresa flex flex-col overflow-hidden rounded-2xl bg-surface-card shadow-sm ring-1 ring-line transition-shadow hover:shadow-md">
+      <div className={`flex items-start gap-3 pt-5 ${px} ${grande ? "pt-6" : ""}`}>
         <Avatar name={company.name} size={grande ? 44 : 40} className="rounded-xl" />
         <div className="min-w-0 flex-1">
           <h3 className={`truncate font-semibold tracking-tight text-ink-900 ${grande ? "text-[18px]" : "text-[15px]"}`}>{company.name}</h3>
-          <p className="truncate text-[12px] text-ink-400">{company.cnpj || " "}</p>
+          <p className="truncate text-[12px] text-ink-400">{company.cnpj || "\u00a0"}</p>
         </div>
         <span className="inicio-fechado flex shrink-0 items-center gap-1 rounded-full bg-surface-muted px-2.5 py-1 text-[11px] font-medium text-ink-500" title="Os números vão até o último mês fechado pelo escritório">
           <Lock size={11} /> <span className="hidden sm:inline">Fechado até</span> {mesCurto(fechado)}
         </span>
       </div>
 
-      <div className={grande ? "px-6" : "px-5"}>
-        {calculando ? (
+      <div className={`flex flex-col ${px}`}>
+        {calculando && (
           <div className="mt-5 flex flex-col gap-3" aria-label="Calculando os números">
             <span className="h-3 w-24 animate-pulse rounded bg-surface-muted" />
             <span className="h-8 w-40 animate-pulse rounded bg-surface-muted" />
-            <span className="h-12 w-full animate-pulse rounded bg-surface-muted" />
-          </div>
-        ) : numeros ? (
-          <>
-            <div className={`mt-5 grid gap-x-2 gap-y-4 sm:gap-x-4 ${grande ? "grid-cols-3 sm:grid-cols-[1.4fr_1fr_1fr_1fr]" : "grid-cols-3"}`}>
-              <div className={`min-w-0 ${grande ? "col-span-3 sm:col-span-1" : "col-span-3"}`}>
-                <p className="text-[12px] text-ink-400">
-                  {prejuizo ? "Prejuízo" : "Lucro"} de {nomeDoMes(numeros.mes)}
-                </p>
-                <p className={`truncate text-[28px] font-semibold leading-tight tracking-tight tabular-nums ${prejuizo ? "text-danger-600" : "text-ink-900"}`}>{compactValue(numeros.lucroMes, "money")}</p>
-              </div>
-              {[
-                { rotulo: "Receita do mês", valor: numeros.receitaMes },
-                { rotulo: `${numeros.lucroAno < -0.5 ? "Prejuízo" : "Lucro"} no ano`, valor: numeros.lucroAno },
-                { rotulo: "Receita no ano", valor: numeros.receitaAno },
-              ].map((item, index) => (
-                <div key={item.rotulo} className={`min-w-0 ${index > 0 ? "border-l border-line pl-2 sm:pl-3" : grande ? "sm:border-l sm:border-line sm:pl-3" : ""}`}>
-                  <p className="truncate text-[11px] text-ink-400 sm:text-[11.5px]">{item.rotulo}</p>
-                  <p className={`truncate text-[13px] font-semibold tabular-nums sm:text-[15px] ${item.valor < -0.5 ? "text-danger-600" : "text-ink-900"}`}>{compactValue(item.valor, "money")}</p>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : null}
-
-        {recado && !config.ocultos.includes("recado") && (
-          <div className="mt-4 flex gap-2.5 rounded-xl bg-accent-50 p-3 ring-1 ring-accent-200">
-            <MessageSquare size={16} className="mt-0.5 shrink-0 text-accent-600" />
-            <div className="min-w-0">
-              <p className="text-[10.5px] font-semibold uppercase tracking-wide text-accent-700">Recado do escritório</p>
-              <p className="mt-0.5 whitespace-pre-line text-[13px] leading-snug text-ink-800">{recado}</p>
-            </div>
+            <span className="h-16 w-full animate-pulse rounded bg-surface-muted" />
           </div>
         )}
+        {conteudo.map(([id, bloco], index) => (
+          <div key={id} className={`inicio-bloco-${id} ${index === 0 ? "mt-5" : id === "atencao" || id === "caixa" || id === "orcamento" ? "mt-4 border-t border-line pt-4" : "mt-4"}`}>
+            {bloco}
+          </div>
+        ))}
       </div>
 
-      <div className={`mt-auto flex flex-wrap items-center gap-2 ${grande ? "px-6 pb-6 pt-5" : "px-5 pb-5 pt-5"}`}>
+      <div className={`mt-auto flex flex-wrap items-center gap-2 pb-5 pt-5 ${px} ${grande ? "pb-6" : ""}`}>
         <button type="button" onClick={onAbrir} className="inicio-abrir flex items-center gap-1.5 rounded-full bg-accent-500 px-4 py-2 text-[13px] font-medium text-white shadow-sm shadow-accent-600/20 transition-all hover:-translate-y-0.5 hover:bg-accent-600">
           Abrir <ArrowRight size={15} />
         </button>
@@ -261,7 +371,7 @@ export default function Landing() {
           const carregado = company.journalLoaded ? company : await ensureCompanyJournalLoaded(company);
           if (!vivo) return;
           const pronto = carregado && !carregado.journalLoadFailed ? { ...company, ...carregado, journalLoaded: true } : null;
-          const valor = pronto ? numerosDaEmpresa(pronto, { ate: mesFechadoDa(company) }) : null;
+          const valor = pronto ? resumoDaEmpresa(pronto, { ate: mesFechadoDa(company) }) : null;
           setNumeros((atual) => ({ ...atual, [company.id]: valor }));
         } catch (error) {
           console.warn("Início: sem números de", company.name, error?.message || error);
@@ -472,7 +582,7 @@ export default function Landing() {
                       key={company.id}
                       company={company}
                       grande={state.companies.length === 1}
-                      numeros={numeros[company.id]}
+                      resumo={numeros[company.id]}
                       calculando={calcularNumeros && !(company.id in numeros)}
                       onAbrir={() => abrirEmpresa(company.id)}
                       onApresentacao={(deckId) => abrirEmpresa(company.id, `/empresa/apresentacoes/${deckId}?apresentar=1`)}

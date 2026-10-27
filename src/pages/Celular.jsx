@@ -3,8 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Bar, Cell, ComposedChart, ResponsiveContainer, XAxis } from "recharts";
 import {
   AlertTriangle,
-  ArrowDownRight,
-  ArrowUpRight,
   Building2,
   CheckCircle2,
   ChevronRight,
@@ -21,7 +19,7 @@ import {
 } from "lucide-react";
 import { useAppState, setData } from "../data/useStore.js";
 import { sharedDashboardContext } from "../lib/dashboardData.js";
-import { analyze, fmtDelta, fmtPct, monthName } from "../lib/assistant/analysis.js";
+import { analyze, fmtPct, monthName } from "../lib/assistant/analysis.js";
 import { comparisonPeriod, contextForPeriod, dataMonths, shortPeriod } from "../lib/assistant/context.js";
 import { bridgeSentence } from "../lib/cashBridge.js";
 import { budgetFor } from "../lib/budget.js";
@@ -29,8 +27,9 @@ import { apresentacoesVisiveis, compactValue } from "../lib/presentations.js";
 import { money } from "../lib/format.js";
 import { setPrefersFullPanel, useInstallApp } from "../lib/installApp.js";
 import { isResponsavelForGroup } from "../lib/colaboradores.js";
-import { alertasDoResumo, blocosVisiveis } from "../lib/resumoCelular.js";
+import { alertasDoResumo, blocosVisiveis, tilesDoResumo } from "../lib/resumoCelular.js";
 import DrillModal from "../components/dashboard/DrillModal.jsx";
+import DeltaPill from "../components/DeltaPill.jsx";
 import ResumoCelularConfig from "../components/ResumoCelularConfig.jsx";
 import { useGravarResumo } from "../lib/useGravarResumo.js";
 
@@ -107,24 +106,6 @@ function comparisonFor(period, months) {
   return { ...prev, kind };
 }
 
-function Delta({ metric, invert = false, dark = false }) {
-  if (!metric || metric.delta == null || !Number.isFinite(metric.delta)) return null;
-  const text = fmtDelta(metric);
-  if (!text) return null;
-  const flat = Math.abs(metric.delta) < 0.05;
-  const good = invert ? !metric.better : metric.better;
-  const Icon = metric.delta >= 0 ? ArrowUpRight : ArrowDownRight;
-  return (
-    <span
-      className={`inline-flex items-center gap-0.5 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold ${
-        dark ? `bg-white/15 ${flat ? "text-white/70" : good ? "text-[#7fe3bd]" : "text-[#ffb3a9]"}` : flat ? "bg-surface-muted text-ink-500" : good ? "bg-success-50 text-success-600" : "bg-danger-50 text-danger-700"
-      }`}
-    >
-      {!flat && <Icon size={11} strokeWidth={2.4} />}
-      {text}
-    </span>
-  );
-}
 
 function KpiTile({ label, value, sub, metric, onOpen, className = "" }) {
   return (
@@ -132,7 +113,7 @@ function KpiTile({ label, value, sub, metric, onOpen, className = "" }) {
       <span className="text-[11.5px] font-medium text-ink-400">{label}</span>
       <span className="truncate text-[19px] font-semibold tabular-nums leading-tight text-ink-900">{value}</span>
       <span className="flex min-h-[18px] flex-wrap items-center gap-1">
-        <Delta metric={metric} />
+        <DeltaPill metric={metric} />
         {sub && <span className="truncate text-[10.5px] text-ink-400">{sub}</span>}
       </span>
     </button>
@@ -311,18 +292,9 @@ export default function Celular({ previa = false, comoCliente = false, onAnalysi
 
   const { alertas: alerts, positivos: positives } = alertasDoResumo(analysis, config, { equipe });
   // Os quadrinhos possíveis (quais e em que ordem: config.numeros).
-  const kpi = facts
-    ? {
-        receita: { id: "receita", label: "Receita líquida", value: compactValue(facts.receitaLiquida, "money"), metric: cmp?.receita, formula: F.receita },
-        despesas: { id: "despesas", label: "Despesas operacionais", value: compactValue(Math.abs(facts.despesasOp), "money"), metric: cmp?.despesas, formula: F.despesas },
-        ebitda: { id: "ebitda", label: "EBITDA", value: compactValue(facts.ebitda, "money"), sub: facts.receitaLiquida > 0.5 ? `${fmtPct(facts.margemEbitda)} da receita` : "", metric: cmp?.ebitda, formula: F.ebitda },
-        caixa: { id: "caixa", label: "Caixa no fim", value: compactValue(facts.caixa.end, "money"), metric: cmp?.caixa, formula: F.caixa },
-        lucroBruto: { id: "lucroBruto", label: "Lucro bruto", value: compactValue(facts.lucroBruto, "money"), sub: facts.receitaLiquida > 0.5 ? `${fmtPct(facts.margemBruta)} da receita` : "", metric: cmp?.lucroBruto, formula: F.lucroBruto },
-        margem: { id: "margem", label: "Margem líquida", value: fmtPct(facts.margemLiquida), metric: cmp?.margemLiquida, formula: F.margem },
-        custos: { id: "custos", label: "Custos", value: compactValue(Math.abs(facts.custos), "money"), metric: cmp?.custos, formula: F.custos },
-        receitaBruta: { id: "receitaBruta", label: "Receita bruta", value: compactValue(facts.receitaBruta, "money"), metric: cmp?.receitaBruta, formula: F.receitaBruta },
-      }
-    : {};
+  // Os quadrinhos (lib/resumoCelular.js), cada um com a fórmula pra abrir
+  // a composição (DrillModal).
+  const kpi = Object.fromEntries(Object.entries(tilesDoResumo(facts, cmp)).map(([id, tile]) => [id, { ...tile, formula: F[id] }]));
   const prevLabel = extra?.prev ? (extra.prev.kind === "yoy" ? "vs. mesmo período do ano passado" : `vs. ${shortPeriod(extra.prev.start, extra.prev.end)}`) : "";
 
   return (
@@ -422,7 +394,7 @@ export default function Celular({ previa = false, comoCliente = false, onAnalysi
                   <span className={`text-[32px] font-semibold leading-tight tabular-nums ${facts.lucro < -0.5 ? "text-[#ffb3a9]" : "text-white"}`}>{money(facts.lucro)}</span>
                   <span className="flex flex-wrap items-center gap-2 text-[12.5px] text-white/70">
                     {facts.receitaLiquida > 0.5 && <span>Margem de {fmtPct(facts.margemLiquida)} da receita</span>}
-                    <Delta metric={cmp?.lucro} dark />
+                    <DeltaPill metric={cmp?.lucro} dark />
                   </span>
                   {prevLabel && <span className="text-[10.5px] text-white/40">{prevLabel}</span>}
                 </button>
