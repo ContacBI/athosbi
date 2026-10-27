@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Copy, MoveHorizontal, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, Copy, MoveHorizontal, Plus, Smartphone, Sparkles, Trash2, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { createTab, updateTab, deleteTab, createSubTab, updateSubTab, deleteSubTab } from "../lib/dashboardTabs.js";
 import { replicateDashboardTabs } from "../lib/companies.js";
@@ -12,6 +12,7 @@ import { DEFAULT_SPACING } from "../components/dashboard/gridLayout.js";
 import Avatar from "../components/Avatar.jsx";
 import CanvasEditor from "../components/dashboard/CanvasEditor.jsx";
 import CatalogPicker from "../components/dashboard/CatalogPicker.jsx";
+import ResumoCelularModal from "../components/ResumoCelularModal.jsx";
 import Demonstrativos from "./Demonstrativos.jsx";
 import Dfc from "./Dfc.jsx";
 
@@ -226,6 +227,8 @@ export default function PersonalizarHub() {
   const [activeSubId, setActiveSubId] = useState(location.state?.subId || null);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [replicateOpen, setReplicateOpen] = useState(false);
+  // Personalizar › Resumo do celular (o que o cliente vê no celular).
+  const [resumoAberto, setResumoAberto] = useState(false);
   const [flash, setFlash] = useState("");
   // "Replicar relatórios" works the same way in company mode and group
   // mode — just pointed at a different pair of arrays/replicate function.
@@ -370,18 +373,31 @@ export default function PersonalizarHub() {
             </h1>
           </div>
         </div>
-        {replicateSource && (
+        {(replicateSource || canEdit) && (
           <div className="flex items-center gap-2">
             {flash && <span className="text-[12px] text-ink-400">{flash}</span>}
-            <button
-              type="button"
-              onClick={() => setReplicateOpen(true)}
-              title={`Copiar este workspace inteiro pra ${isGroupMode ? "outros grupos ou empresas" : "outras empresas"}`}
-              className="flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-[12px] font-medium text-ink-700 transition-colors hover:bg-surface-muted"
-            >
-              <Copy size={14} strokeWidth={1.8} />
-              Replicar relatórios
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setResumoAberto(true)}
+                title="Escolher o que o cliente vê no resumo do celular"
+                className="personalizar-celular flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-[12px] font-medium text-ink-700 transition-colors hover:bg-surface-muted"
+              >
+                <Smartphone size={14} strokeWidth={1.8} />
+                Resumo do celular
+              </button>
+            )}
+            {replicateSource && (
+              <button
+                type="button"
+                onClick={() => setReplicateOpen(true)}
+                title={`Copiar este workspace inteiro pra ${isGroupMode ? "outros grupos ou empresas" : "outras empresas"}`}
+                className="flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-[12px] font-medium text-ink-700 transition-colors hover:bg-surface-muted"
+              >
+                <Copy size={14} strokeWidth={1.8} />
+                Replicar relatórios
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -532,6 +548,8 @@ export default function PersonalizarHub() {
           )}
         </>
       )}
+
+      {resumoAberto && <ResumoCelularModal onClose={() => setResumoAberto(false)} />}
 
       {catalogOpen && editTarget && (
         <CatalogPicker ctx={ctx} selectedIds={selectedIds} onToggle={toggleWidget} onClose={() => setCatalogOpen(false)} />

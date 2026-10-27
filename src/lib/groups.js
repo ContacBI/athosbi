@@ -157,7 +157,7 @@ export function deleteGroup(id) {
   setData({ groups });
   if (state.activeGroupId === id) {
     localStorage.removeItem(ACTIVE_GROUP_KEY);
-    setData({ activeGroupId: "", accounts: [], journal: [], mappings: [], dashboardTabs: [], presentations: [], orcamentos: [] });
+    setData({ activeGroupId: "", accounts: [], journal: [], mappings: [], dashboardTabs: [], presentations: [], orcamentos: [], resumoCelular: null });
   }
 }
 
@@ -256,6 +256,7 @@ export async function selectGroup(id, { skipPersist = false } = {}) {
     dashboardTabs: group.dashboardTabs || [],
     presentations: group.presentations || [],
     orcamentos: group.orcamentos || [],
+    resumoCelular: group.resumoCelular || null,
     selectedLine: null,
     selectedAccount: null,
     expandedLines: new Set(),

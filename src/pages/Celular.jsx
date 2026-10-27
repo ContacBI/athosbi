@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Bar, Cell, ComposedChart, ResponsiveContainer, XAxis } from "recharts";
 import {
   AlertTriangle,
@@ -10,8 +10,10 @@ import {
   ChevronRight,
   Download,
   LayoutGrid,
+  MessageSquare,
   MoreVertical,
   Presentation,
+  Settings2,
   Share,
   Target,
   Wallet,
@@ -26,12 +28,18 @@ import { budgetFor } from "../lib/budget.js";
 import { compactValue } from "../lib/presentations.js";
 import { money } from "../lib/format.js";
 import { setPrefersFullPanel, useInstallApp } from "../lib/installApp.js";
+import { isResponsavelForGroup } from "../lib/colaboradores.js";
+import { alertasDoResumo, blocosVisiveis } from "../lib/resumoCelular.js";
 import DrillModal from "../components/dashboard/DrillModal.jsx";
+import ResumoCelularConfig from "../components/ResumoCelularConfig.jsx";
+import { useGravarResumo } from "../lib/useGravarResumo.js";
 
 // Resumo no celular: os números principais do período, o que pede
 // atenção, o caixa e a última apresentação — em uma coluna, sem rolar pro
 // lado. Cada número abre a composição até o lançamento (DrillModal). O app
-// pode ser instalado na tela inicial (manifest + public/sw.js).
+// pode ser instalado na tela inicial (manifest + public/sw.js). O que
+// aparece (blocos, ordem, números, alertas, recado) é configurável por
+// empresa/grupo pela equipe — ver lib/resumoCelular.js.
 
 const F = {
   lucro: { kind: "sum", format: "money", numerator: [{ code: "DRE.18", sign: 1 }] },
@@ -40,6 +48,9 @@ const F = {
   ebitda: { kind: "sum", format: "money", numerator: [{ code: "DEX.08", sign: 1 }, { code: "DEX.09", sign: 1 }] },
   caixa: { kind: "sum", format: "money", numerator: [{ code: "01.01.01", sign: 1 }] },
   margem: { kind: "ratio", format: "percent", numerator: [{ code: "DRE.18", sign: 1 }], denominator: [{ code: "DRE.03", sign: 1 }] },
+  lucroBruto: { kind: "sum", format: "money", numerator: [{ code: "DRE.05", sign: 1 }] },
+  custos: { kind: "sum", format: "money", numerator: [{ code: "DRE.04", sign: 1 }] },
+  receitaBruta: { kind: "sum", format: "money", numerator: [{ code: "DRE.01", sign: 1 }] },
 };
 
 function lastDay(year, month) {
@@ -181,15 +192,39 @@ function InstallSheet({ ios, onClose }) {
   );
 }
 
-export default function Celular() {
+// `previa`: dentro da moldura de celular de Personalizar › Resumo do
+// celular (ResumoCelularModal) — sem menu, sem engrenagem, sem abrir
+// composição; `comoCliente` esconde o que só a equipe vê; `onAnalysis`
+// devolve as análises do período pro painel de configuração ao lado.
+export default function Celular({ previa = false, comoCliente = false, onAnalysis } = {}) {
   const appState = useAppState();
   const navigate = useNavigate();
   const { installed, canPrompt, ios, install } = useInstallApp();
   const [menuOpen, setMenuOpen] = useState(false);
   const [installHelp, setInstallHelp] = useState(false);
   const [drill, setDrill] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const company = appState.companies.find((item) => item.id === appState.activeCompanyId) || null;
   const group = appState.activeGroupId ? appState.groups.find((item) => item.id === appState.activeGroupId) : null;
+
+  // Configuração do resumo: quem pode editar esta empresa/grupo (admin ou
+  // responsável) abre o painel; a equipe vê os alertas de conferência que o
+  // cliente não vê — a não ser em "Ver como o cliente vê".
+  const canConfigure = Boolean(
+    appState.isAdmin || (company && !group && (company.responsaveis || []).includes(appState.userEmail)) || (group && isResponsavelForGroup(appState, group.id))
+  );
+  const configurando = !previa && canConfigure && searchParams.get("configurar") === "1";
+  const [verComoCliente, setVerComoCliente] = useState(false);
+  const { config, mudar: mudarConfig, salvo } = useGravarResumo();
+  const equipe = (appState.isAdmin || appState.isColaborador) && !verComoCliente && !(previa && comoCliente);
+
+  function abrirConfig(aberto) {
+    const next = new URLSearchParams(searchParams);
+    if (aberto) next.set("configurar", "1");
+    else next.delete("configurar");
+    setSearchParams(next, { replace: true });
+    if (!aberto) setVerComoCliente(false);
+  }
   const name = group?.name || company?.name || "";
   const hasData = appState.accounts.length > 0 || appState.journal.length > 0;
 
@@ -249,14 +284,21 @@ export default function Celular() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx, extra]);
   const budget = useMemo(() => (ctx ? budgetFor(ctx) : null), [ctx]);
+  useEffect(() => {
+    if (onAnalysis) onAnalysis(analysis);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analysis]);
 
   const facts = analysis?.facts;
   const cmp = analysis?.comparison;
   const decks = [...(appState.presentations || [])].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
   const lastDeck = decks[0] || null;
-  const open = (title, formula) => setDrill({ label: title, formula });
+  const open = (title, formula) => {
+    if (!previa) setDrill({ label: title, formula });
+  };
 
   function openFullPanel() {
+    if (previa) return;
     setPrefersFullPanel(true);
     navigate("/empresa");
   }
@@ -267,12 +309,24 @@ export default function Celular() {
     if (result === "manual") setInstallHelp(true);
   }
 
-  const alerts = (analysis?.alerts || []).slice().sort((a, b) => b.severity - a.severity).slice(0, 3);
-  const positives = (analysis?.positives || []).slice(0, 2);
+  const { alertas: alerts, positivos: positives } = alertasDoResumo(analysis, config, { equipe });
+  // Os quadrinhos possíveis (quais e em que ordem: config.numeros).
+  const kpi = facts
+    ? {
+        receita: { id: "receita", label: "Receita líquida", value: compactValue(facts.receitaLiquida, "money"), metric: cmp?.receita, formula: F.receita },
+        despesas: { id: "despesas", label: "Despesas operacionais", value: compactValue(Math.abs(facts.despesasOp), "money"), metric: cmp?.despesas, formula: F.despesas },
+        ebitda: { id: "ebitda", label: "EBITDA", value: compactValue(facts.ebitda, "money"), sub: facts.receitaLiquida > 0.5 ? `${fmtPct(facts.margemEbitda)} da receita` : "", metric: cmp?.ebitda, formula: F.ebitda },
+        caixa: { id: "caixa", label: "Caixa no fim", value: compactValue(facts.caixa.end, "money"), metric: cmp?.caixa, formula: F.caixa },
+        lucroBruto: { id: "lucroBruto", label: "Lucro bruto", value: compactValue(facts.lucroBruto, "money"), sub: facts.receitaLiquida > 0.5 ? `${fmtPct(facts.margemBruta)} da receita` : "", metric: cmp?.lucroBruto, formula: F.lucroBruto },
+        margem: { id: "margem", label: "Margem líquida", value: fmtPct(facts.margemLiquida), metric: cmp?.margemLiquida, formula: F.margem },
+        custos: { id: "custos", label: "Custos", value: compactValue(Math.abs(facts.custos), "money"), metric: cmp?.custos, formula: F.custos },
+        receitaBruta: { id: "receitaBruta", label: "Receita bruta", value: compactValue(facts.receitaBruta, "money"), metric: cmp?.receitaBruta, formula: F.receitaBruta },
+      }
+    : {};
   const prevLabel = extra?.prev ? (extra.prev.kind === "yoy" ? "vs. mesmo período do ano passado" : `vs. ${shortPeriod(extra.prev.start, extra.prev.end)}`) : "";
 
   return (
-    <div className="celular min-h-screen bg-surface-page pb-10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+    <div className={`celular bg-surface-page pb-10 ${previa ? "min-h-full" : "min-h-screen"} ${configurando ? "sm:pr-[400px]" : ""}`} style={previa ? undefined : { paddingTop: "env(safe-area-inset-top)" }}>
       <header className="sticky top-0 z-30 bg-navy-950 px-4 pb-3 pt-3 text-white shadow-md">
         <div className="flex items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-500 text-[15px] font-bold">A</span>
@@ -280,8 +334,13 @@ export default function Celular() {
             <p className="truncate text-[14.5px] font-semibold leading-tight">{name || "AthosBI"}</p>
             <p className="truncate text-[11px] text-white/50">{group ? "Grupo de empresas" : company?.cnpj || "Resumo no celular"}</p>
           </div>
+          {canConfigure && !configurando && !previa && (
+            <button type="button" onClick={() => abrirConfig(true)} aria-label="Configurar o resumo" title="Configurar o que aparece para o cliente" className="celular-configurar flex h-9 w-9 items-center justify-center rounded-lg text-white/80 hover:bg-white/10">
+              <Settings2 size={18} />
+            </button>
+          )}
           <div className="relative">
-            <button type="button" onClick={() => setMenuOpen((value) => !value)} aria-label="Menu" className="flex h-9 w-9 items-center justify-center rounded-lg text-white/80 hover:bg-white/10">
+            <button type="button" onClick={() => !previa && setMenuOpen((value) => !value)} aria-label="Menu" className="flex h-9 w-9 items-center justify-center rounded-lg text-white/80 hover:bg-white/10">
               <MoreVertical size={18} />
             </button>
             {menuOpen && (
@@ -294,6 +353,18 @@ export default function Celular() {
                   <button type="button" onClick={() => navigate("/empresas")} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-[13.5px] hover:bg-surface-muted">
                     <Building2 size={16} className="text-ink-400" /> Trocar de empresa
                   </button>
+                  {canConfigure && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        abrirConfig(true);
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-[13.5px] hover:bg-surface-muted"
+                    >
+                      <Settings2 size={16} className="text-ink-400" /> Configurar o resumo
+                    </button>
+                  )}
                   {!installed && (
                     <button type="button" onClick={handleInstall} className="celular-instalar flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-[13.5px] hover:bg-surface-muted">
                       <Download size={16} className="text-ink-400" /> Instalar no celular
@@ -328,122 +399,143 @@ export default function Celular() {
       {!hasData || !facts ? (
         <p className="px-6 py-16 text-center text-[14px] text-ink-400">{hasData ? "Calculando…" : "Ainda não há dados importados para esta empresa."}</p>
       ) : (
-        <main className="mx-auto flex max-w-xl flex-col gap-3 px-3 pt-3">
-          {/* Resultado */}
-          <button type="button" onClick={() => open(facts.lucro < 0 ? "Prejuízo do período" : "Lucro do período", F.lucro)} className="celular-hero flex flex-col gap-1 rounded-3xl bg-navy-900 p-5 text-left text-white shadow-md active:scale-[0.99]">
-            <span className="text-[12px] font-medium uppercase tracking-wide text-white/60">{facts.lucro < -0.5 ? "Prejuízo" : "Lucro"} · {label}</span>
-            <span className={`text-[32px] font-semibold leading-tight tabular-nums ${facts.lucro < -0.5 ? "text-[#ffb3a9]" : "text-white"}`}>{money(facts.lucro)}</span>
-            <span className="flex flex-wrap items-center gap-2 text-[12.5px] text-white/70">
-              {facts.receitaLiquida > 0.5 && <span>Margem de {fmtPct(facts.margemLiquida)} da receita</span>}
-              <Delta metric={cmp?.lucro} dark />
-            </span>
-            {prevLabel && <span className="text-[10.5px] text-white/40">{prevLabel}</span>}
-          </button>
-
-          {/* Números principais */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <KpiTile label="Receita líquida" value={compactValue(facts.receitaLiquida, "money")} metric={cmp?.receita} onOpen={() => open("Receita líquida", F.receita)} />
-            <KpiTile label="Despesas operacionais" value={compactValue(Math.abs(facts.despesasOp), "money")} metric={cmp?.despesas} onOpen={() => open("Despesas operacionais", F.despesas)} />
-            <KpiTile label="EBITDA" value={compactValue(facts.ebitda, "money")} sub={facts.receitaLiquida > 0.5 ? `${fmtPct(facts.margemEbitda)} da receita` : ""} metric={cmp?.ebitda} onOpen={() => open("EBITDA", F.ebitda)} />
-            <KpiTile label="Caixa no fim" value={compactValue(facts.caixa.end, "money")} metric={cmp?.caixa} onOpen={() => open("Caixa e equivalentes", F.caixa)} />
-          </div>
-
-          {/* Resultado mês a mês */}
-          {extra?.trend?.length > 1 && (
-            <Card title="Resultado mês a mês">
-              <div className="h-[120px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={extra.trend} margin={{ top: 6, right: 0, left: 0, bottom: 0 }}>
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={false} tickLine={false} />
-                    <Bar dataKey="lucro" radius={[5, 5, 5, 5]} maxBarSize={34} isAnimationActive={false}>
-                      {extra.trend.map((item) => (
-                        <Cell key={item.month} fill={item.lucro < 0 ? "var(--color-danger-500)" : item.current ? "var(--color-accent-500)" : "var(--color-navy-700)"} fillOpacity={item.current ? 1 : 0.55} />
-                      ))}
-                    </Bar>
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="mt-1 flex justify-between text-[10.5px] tabular-nums text-ink-400">
-                {extra.trend.map((item) => (
-                  <span key={item.month} className={`w-full text-center ${item.lucro < 0 ? "text-danger-600" : ""}`}>
-                    {compactValue(item.lucro, "money").replace("R$ ", "")}
+<main className="mx-auto flex max-w-xl flex-col gap-3 px-3 pt-3">
+          {verComoCliente && (
+            <p className="rounded-full bg-accent-50 px-3 py-1.5 text-center text-[12px] font-medium text-accent-700">Você está vendo o resumo como o cliente vê.</p>
+          )}
+          {blocosVisiveis(config).map((id) => {
+            let bloco = null;
+            if (id === "recado") {
+              bloco = (
+                <section className="celular-recado flex gap-3 rounded-2xl bg-accent-50 p-4 ring-1 ring-accent-200">
+                  <MessageSquare size={18} className="mt-0.5 shrink-0 text-accent-600" />
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-accent-700">Recado do escritório</p>
+                    <p className="mt-1 whitespace-pre-line text-[13.5px] leading-snug text-ink-800">{config.recado}</p>
+                  </div>
+                </section>
+              );
+            } else if (id === "resultado") {
+              bloco = (
+                <button type="button" onClick={() => open(facts.lucro < 0 ? "Prejuízo do período" : "Lucro do período", F.lucro)} className="celular-hero flex flex-col gap-1 rounded-3xl bg-navy-900 p-5 text-left text-white shadow-md active:scale-[0.99]">
+                  <span className="text-[12px] font-medium uppercase tracking-wide text-white/60">{facts.lucro < -0.5 ? "Prejuízo" : "Lucro"} · {label}</span>
+                  <span className={`text-[32px] font-semibold leading-tight tabular-nums ${facts.lucro < -0.5 ? "text-[#ffb3a9]" : "text-white"}`}>{money(facts.lucro)}</span>
+                  <span className="flex flex-wrap items-center gap-2 text-[12.5px] text-white/70">
+                    {facts.receitaLiquida > 0.5 && <span>Margem de {fmtPct(facts.margemLiquida)} da receita</span>}
+                    <Delta metric={cmp?.lucro} dark />
                   </span>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {/* O que pede atenção */}
-          <Card title={alerts.length ? "Pede atenção" : "Tudo em ordem"} icon={alerts.length ? AlertTriangle : CheckCircle2}>
-            <div className="flex flex-col gap-2.5">
-              {alerts.map((alert) => (
-                <div key={alert.id} className="celular-alerta flex gap-2.5">
-                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${alert.severity >= 3 ? "bg-danger-500" : alert.severity === 2 ? "bg-warning-500" : "bg-ink-300"}`} />
-                  <div className="min-w-0">
-                    <p className="text-[13.5px] font-semibold text-ink-900">{alert.title}</p>
-                    <p className="text-[12.5px] leading-snug text-ink-500">{alert.text}</p>
-                  </div>
+                  {prevLabel && <span className="text-[10.5px] text-white/40">{prevLabel}</span>}
+                </button>
+              );
+            } else if (id === "numeros") {
+              const tiles = config.numeros.map((numero) => kpi[numero]).filter(Boolean);
+              bloco = tiles.length > 0 && (
+                <div className="grid grid-cols-2 gap-2.5">
+                  {tiles.map((tile, index) => (
+                    <KpiTile key={tile.id} label={tile.label} value={tile.value} sub={tile.sub} metric={tile.metric} onOpen={() => open(tile.label, tile.formula)} className={tiles.length % 2 === 1 && index === tiles.length - 1 ? "col-span-2" : ""} />
+                  ))}
                 </div>
-              ))}
-              {!alerts.length && <p className="text-[13px] text-ink-500">Nenhum alerta neste período.</p>}
-              {positives.map((item) => (
-                <div key={item.id} className="flex gap-2.5">
-                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-success-500" />
-                  <div className="min-w-0">
-                    <p className="text-[13.5px] font-semibold text-ink-900">{item.title}</p>
-                    <p className="text-[12.5px] leading-snug text-ink-500">{item.text}</p>
+              );
+            } else if (id === "tendencia") {
+              bloco = extra?.trend?.length > 1 && (
+                <Card title="Resultado mês a mês">
+                  <div className="h-[120px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={extra.trend} margin={{ top: 6, right: 0, left: 0, bottom: 0 }}>
+                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--color-ink-400)" }} axisLine={false} tickLine={false} />
+                        <Bar dataKey="lucro" radius={[5, 5, 5, 5]} maxBarSize={34} isAnimationActive={false}>
+                          {extra.trend.map((item) => (
+                            <Cell key={item.month} fill={item.lucro < 0 ? "var(--color-danger-500)" : item.current ? "var(--color-accent-500)" : "var(--color-navy-700)"} fillOpacity={item.current ? 1 : 0.55} />
+                          ))}
+                        </Bar>
+                      </ComposedChart>
+                    </ResponsiveContainer>
                   </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Caixa */}
-          {facts.bridge && (
-            <Card title="Do lucro ao caixa" icon={Wallet}>
-              <p className="text-[13.5px] leading-snug text-ink-700">{bridgeSentence(facts.bridge)}</p>
-            </Card>
-          )}
-
-          {/* Orçamento */}
-          {budget && (
-            <Card title={`Orçamento ${budget.ano}`} icon={Target}>
-              <div className="grid grid-cols-2 gap-3 text-[12.5px]">
-                {[
-                  { label: "Receita", item: budget.receita },
-                  { label: "Resultado", item: budget.resultado },
-                ].map(({ label: itemLabel, item }) => (
-                  <div key={itemLabel}>
-                    <p className="text-ink-400">{itemLabel}</p>
-                    <p className="text-[15px] font-semibold tabular-nums text-ink-900">{compactValue(item.realizado, "money")}</p>
-                    <p className={item.tone === "bom" ? "text-success-600" : item.tone === "ruim" ? "text-danger-700" : item.tone === "atencao" ? "text-warning-700" : "text-ink-500"}>
-                      de {compactValue(item.orcado, "money")} orçados{item.reach != null && item.orcado > 0 && item.reach >= 0 && item.reach <= 300 ? ` · ${Math.round(item.reach)}%` : ""}
-                    </p>
+                  <div className="mt-1 flex justify-between text-[10.5px] tabular-nums text-ink-400">
+                    {extra.trend.map((item) => (
+                      <span key={item.month} className={`w-full text-center ${item.lucro < 0 ? "text-danger-600" : ""}`}>
+                        {compactValue(item.lucro, "money").replace("R$ ", "")}
+                      </span>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {/* Última apresentação */}
-          {lastDeck && (
-            <button type="button" onClick={() => navigate(`/empresa/apresentacoes/${lastDeck.id}?apresentar=1&voltar=celular`)} className="celular-deck flex items-center gap-3 rounded-2xl bg-surface-card p-4 text-left shadow-sm ring-1 ring-line">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-600">
-                <Presentation size={19} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[11px] font-medium uppercase tracking-wide text-ink-400">Última apresentação</span>
-                <span className="block truncate text-[14px] font-semibold text-ink-900">{lastDeck.name}</span>
-              </span>
-              <ChevronRight size={18} className="text-ink-300" />
-            </button>
-          )}
+                </Card>
+              );
+            } else if (id === "atencao") {
+              bloco = (
+                <Card title={alerts.length ? "Pede atenção" : "Tudo em ordem"} icon={alerts.length ? AlertTriangle : CheckCircle2}>
+                  <div className="flex flex-col gap-2.5">
+                    {alerts.map((alert) => (
+                      <div key={alert.id} className="celular-alerta flex gap-2.5">
+                        <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${alert.severity >= 3 ? "bg-danger-500" : alert.severity === 2 ? "bg-warning-500" : "bg-ink-300"}`} />
+                        <div className="min-w-0">
+                          <p className="text-[13.5px] font-semibold text-ink-900">
+                            {alert.title}
+                            {alert.soEquipe && <span className="ml-1.5 rounded-full bg-surface-muted px-1.5 py-0.5 align-[1px] text-[10px] font-medium text-ink-400">só a equipe vê</span>}
+                          </p>
+                          <p className="text-[12.5px] leading-snug text-ink-500">{alert.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {!alerts.length && !positives.length && <p className="text-[13px] text-ink-500">Nenhum alerta neste período.</p>}
+                    {positives.map((item) => (
+                      <div key={item.id} className="flex gap-2.5">
+                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-success-500" />
+                        <div className="min-w-0">
+                          <p className="text-[13.5px] font-semibold text-ink-900">{item.title}</p>
+                          <p className="text-[12.5px] leading-snug text-ink-500">{item.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              );
+            } else if (id === "caixa") {
+              bloco = facts.bridge && (
+                <Card title="Do lucro ao caixa" icon={Wallet}>
+                  <p className="text-[13.5px] leading-snug text-ink-700">{bridgeSentence(facts.bridge)}</p>
+                </Card>
+              );
+            } else if (id === "orcamento") {
+              bloco = budget && (
+                <Card title={`Orçamento ${budget.ano}`} icon={Target}>
+                  <div className="grid grid-cols-2 gap-3 text-[12.5px]">
+                    {[
+                      { label: "Receita", item: budget.receita },
+                      { label: "Resultado", item: budget.resultado },
+                    ].map(({ label: itemLabel, item }) => (
+                      <div key={itemLabel}>
+                        <p className="text-ink-400">{itemLabel}</p>
+                        <p className="text-[15px] font-semibold tabular-nums text-ink-900">{compactValue(item.realizado, "money")}</p>
+                        <p className={item.tone === "bom" ? "text-success-600" : item.tone === "ruim" ? "text-danger-700" : item.tone === "atencao" ? "text-warning-700" : "text-ink-500"}>
+                          de {compactValue(item.orcado, "money")} orçados{item.reach != null && item.orcado > 0 && item.reach >= 0 && item.reach <= 300 ? ` · ${Math.round(item.reach)}%` : ""}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              );
+            } else if (id === "apresentacao") {
+              bloco = lastDeck && (
+                <button type="button" onClick={() => navigate(`/empresa/apresentacoes/${lastDeck.id}?apresentar=1&voltar=celular`)} className="celular-deck flex items-center gap-3 rounded-2xl bg-surface-card p-4 text-left shadow-sm ring-1 ring-line">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-600">
+                    <Presentation size={19} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[11px] font-medium uppercase tracking-wide text-ink-400">Última apresentação</span>
+                    <span className="block truncate text-[14px] font-semibold text-ink-900">{lastDeck.name}</span>
+                  </span>
+                  <ChevronRight size={18} className="text-ink-300" />
+                </button>
+              );
+            }
+            return bloco ? <Fragment key={id}>{bloco}</Fragment> : null;
+          })}
 
           <div className="mt-1 flex flex-col gap-2">
             <button type="button" onClick={openFullPanel} className="flex items-center justify-center gap-2 rounded-xl bg-surface-card py-3 text-[13.5px] font-medium text-ink-700 shadow-sm ring-1 ring-line">
               <LayoutGrid size={16} /> Abrir o painel completo
             </button>
-            {!installed && (
+            {!installed && !previa && (
               <button type="button" onClick={handleInstall} className="celular-instalar-rodape flex items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-medium text-accent-600">
                 <Download size={15} /> {canPrompt ? "Instalar o AthosBI no celular" : "Como instalar no celular"}
               </button>
@@ -455,6 +547,9 @@ export default function Celular() {
 
       {installHelp && <InstallSheet ios={ios} onClose={() => setInstallHelp(false)} />}
       {drill && ctx && <DrillModal target={drill} ctx={ctx} onClose={() => setDrill(null)} />}
+      {configurando && (
+        <ResumoCelularConfig config={config} onChange={mudarConfig} onClose={() => abrirConfig(false)} verComoCliente={verComoCliente} onVerComoCliente={setVerComoCliente} salvo={salvo} nome={name} analysis={analysis} />
+      )}
     </div>
   );
 }

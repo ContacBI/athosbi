@@ -790,6 +790,7 @@ export function createCompany({
     dashboardTabs: [],
     presentations: [],
     orcamentos: [],
+    resumoCelular: null,
   });
   refreshEffectivePlano();
   return company;
@@ -907,6 +908,7 @@ export async function selectCompany(id, { skipPersist = false } = {}) {
     dashboardTabs: migrateDashboardTabs(company),
     presentations: company.presentations || [],
     orcamentos: company.orcamentos || [],
+    resumoCelular: company.resumoCelular || null,
     natureRules: company.natureRules || DEFAULT_NATURE_RULES,
     selectedLine: null,
     selectedAccount: null,
@@ -994,6 +996,7 @@ function persistActiveCompanyInner({ allowEmptyJournal = false, onProgress } = {
       dashboardTabs: state.dashboardTabs || [],
       presentations: state.presentations || [],
       orcamentos: state.orcamentos || [],
+      resumoCelular: state.resumoCelular || null,
     };
   });
   setData({ companies });
@@ -1017,6 +1020,7 @@ function persistActiveGroupWorkspace() {
       dashboardTabs: state.dashboardTabs || [],
       presentations: state.presentations || [],
       orcamentos: state.orcamentos || [],
+      resumoCelular: state.resumoCelular || null,
     };
   });
   setData({ groups });

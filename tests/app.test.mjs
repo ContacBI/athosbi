@@ -490,6 +490,54 @@ check("Cliente sem ficha (ou ainda carregando) → só o B.I., sem menu", modulo
 check("Cliente vê só o que foi liberado (e ignora lixo)", JSON.stringify(modulosLiberados({ modulosCliente: ["carga-tributaria", "xyz"] })) === JSON.stringify(["carga-tributaria"]), modulosLiberados({ modulosCliente: ["carga-tributaria", "xyz"] }));
 check("Rota → módulo (B.I. e outras telas = nenhum)", moduloDaRota("/empresa/orcamento") === "orcamento" && moduloDaRota("/empresa/analise-desempenho/x") === "analise-desempenho" && moduloDaRota("/empresa") === null && moduloDaRota("/empresa/dre") === null, null);
 
+// ── Resumo no celular configurável (lib/resumoCelular.js) ──
+section("Resumo do celular configurável");
+const rc = await src("lib/resumoCelular.js");
+const resumoPadrao = rc.configResumo(null);
+check("Sem configuração = o resumo de sempre (e grava null)", JSON.stringify(resumoPadrao) === JSON.stringify(rc.PADRAO) && rc.paraGravar(resumoPadrao) === null, resumoPadrao);
+const reordenado = rc.configResumo({ ordem: ["apresentacao", "resultado", "xyz"], numeros: ["margem", "nada", "receita"], maxAlertas: 99 });
+check(
+  "Ordem salva vale, bloco que faltava volta, lixo sai",
+  reordenado.ordem.length === rc.BLOCOS.length && reordenado.ordem.indexOf("apresentacao") < reordenado.ordem.indexOf("resultado") && !reordenado.ordem.includes("xyz") && JSON.stringify(reordenado.numeros) === JSON.stringify(["margem", "receita"]) && reordenado.maxAlertas === 6,
+  reordenado
+);
+check("Recado só aparece com texto; bloco escondido some", !rc.blocosVisiveis(resumoPadrao).includes("recado") && rc.blocosVisiveis(rc.configResumo({ recado: "Reunião dia 10", ocultos: ["caixa"] })).join() === rc.PADRAO.ordem.filter((id) => id !== "caixa").join(), null);
+const analiseFake = {
+  alerts: [
+    { id: "sem_depara", severity: 2 },
+    { id: "prejuizo", severity: 3 },
+    { id: "cmp_lucro", severity: 2 },
+    { id: "caixa_caiu", severity: 2 },
+    { id: "receita_concentrada", severity: 1 },
+  ],
+  positives: [{ id: "caixa_subiu" }, { id: "liquidez" }, { id: "roe" }],
+};
+const doCliente = rc.alertasDoResumo(analiseFake, resumoPadrao, { equipe: false });
+const daEquipe = rc.alertasDoResumo(analiseFake, resumoPadrao, { equipe: true });
+check("Cliente não vê alerta de conferência (De/Para); equipe vê, marcado", !doCliente.alertas.some((a) => a.id === "sem_depara") && daEquipe.alertas.some((a) => a.id === "sem_depara" && a.soEquipe), { doCliente, daEquipe });
+check("Mais grave primeiro, no máximo 3, 2 positivos", doCliente.alertas.length === 3 && doCliente.alertas[0].id === "prejuizo" && doCliente.positivos.length === 2, doCliente);
+const escondendo = rc.alertasDoResumo(analiseFake, rc.configResumo({ alertasOcultos: ["comparativo", "prejuizo"], positivos: false, maxAlertas: 5 }), { equipe: false });
+check("Tipos escondidos (cmp_* = comparativo) e sem positivos", escondendo.alertas.map((a) => a.id).join() === "caixa_caiu,receita_concentrada" && escondendo.positivos.length === 0, escondendo);
+const idsDosAlertas = [...fs.readFileSync(path.join(ROOT, "src/lib/assistant/analysis.js"), "utf8").matchAll(/add\("([a-z_]+)", "[A-Za-z]+", \d/g)].map((m) => m[1]);
+const semTipo = idsDosAlertas.filter((id) => !rc.ALERTAS.some((item) => item.id === rc.tipoDoAlerta(id)));
+const lista = rc.analisesDoPeriodo(analiseFake, rc.configResumo({ alertasOcultos: ["caixa_caiu"] }));
+check(
+  "Painel lista TODAS as análises do período, com o motivo de cada uma que não aparece",
+  lista.alertas.length === 5 && lista.alertas.find((a) => a.id === "caixa_caiu").marcado === false && lista.alertas.find((a) => a.id === "sem_depara").motivo === "só a equipe vê" && lista.positivos.find((p) => p.id === "roe").motivo.startsWith("não cabe") && lista.positivos.filter((p) => p.aparece).length === 2,
+  lista
+);
+const idsPositivos = [...fs.readFileSync(path.join(ROOT, "src/lib/assistant/analysis.js"), "utf8").matchAll(/add\("([a-z_]+)", "[A-Za-z]+", [`"]/g)].map((m) => m[1]);
+const positivoSemTipo = idsPositivos.filter((id) => !rc.POSITIVOS.some((item) => item.id === rc.tipoDoPositivo(id)));
+check("Todo ponto positivo do assistente tem um tipo escolhível", idsPositivos.length > 15 && positivoSemTipo.length === 0, positivoSemTipo);
+check("Todo alerta do assistente tem um tipo escolhível na configuração", idsDosAlertas.length > 20 && semTipo.length === 0, semTipo);
+setCompanyState();
+Object.assign(state, { isAdmin: true, resumoCelular: rc.paraGravar(rc.configResumo({ recado: "Oi", numeros: ["caixa"] })) });
+await persistActiveCompany().catch(() => null);
+const gravada = state.companies.find((item) => item.id === COMPANY_ID);
+check("A configuração vai junto com a empresa ao gravar", gravada?.resumoCelular?.recado === "Oi" && JSON.stringify(gravada.resumoCelular.numeros) === '["caixa"]', gravada?.resumoCelular);
+Object.assign(state, { resumoCelular: null });
+setCompanyState();
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
