@@ -25,7 +25,7 @@ import { analyze, fmtDelta, fmtPct, monthName } from "../lib/assistant/analysis.
 import { comparisonPeriod, contextForPeriod, dataMonths, shortPeriod } from "../lib/assistant/context.js";
 import { bridgeSentence } from "../lib/cashBridge.js";
 import { budgetFor } from "../lib/budget.js";
-import { compactValue } from "../lib/presentations.js";
+import { apresentacoesVisiveis, compactValue } from "../lib/presentations.js";
 import { money } from "../lib/format.js";
 import { setPrefersFullPanel, useInstallApp } from "../lib/installApp.js";
 import { isResponsavelForGroup } from "../lib/colaboradores.js";
@@ -291,7 +291,7 @@ export default function Celular({ previa = false, comoCliente = false, onAnalysi
 
   const facts = analysis?.facts;
   const cmp = analysis?.comparison;
-  const decks = [...(appState.presentations || [])].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+  const decks = [...apresentacoesVisiveis(appState.presentations, previa && comoCliente ? {} : appState)].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
   const lastDeck = decks[0] || null;
   const open = (title, formula) => {
     if (!previa) setDrill({ label: title, formula });

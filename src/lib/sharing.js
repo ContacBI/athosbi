@@ -1,6 +1,7 @@
 import { state } from "../data/useStore.js";
 import { supabase } from "./supabaseClient.js";
 import { activeWorkspaceName } from "./groups.js";
+import { enderecoDoPortal } from "./enderecos.js";
 
 export { deviceLabel, openShared } from "./sharingPublic.js";
 
@@ -21,7 +22,7 @@ export function newShareToken(length = 24) {
 }
 
 export function shareUrl(token) {
-  return `${window.location.origin}/p/${token}`;
+  return `${enderecoDoPortal()}/p/${token}`;
 }
 
 export function activeWorkspace() {

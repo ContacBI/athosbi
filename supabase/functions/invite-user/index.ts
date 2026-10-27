@@ -18,12 +18,12 @@
 //   1. Abra o projeto em supabase.com > Edge Functions > Create a new function
 //   2. Nome: invite-user
 //   3. Cole o conteúdo deste arquivo inteiro e clique em Deploy
-//   4. Em Edge Functions > invite-user > Secrets, adicione SITE_URL com a
-//      URL de produção do portal (ex.: https://athosbi.vercel.app) — é pra
-//      onde o link do e-mail de convite manda a pessoa.
-//   5. Em Authentication > URL Configuration > Redirect URLs, adicione
-//      "<SITE_URL>/definir-senha" (e a mesma coisa com localhost:5173 se
-//      quiser testar convite em desenvolvimento).
+//   4. O link do convite vai pro endereço oficial do portal
+//      (PORTAL_URL abaixo). O segredo SITE_URL só serve pra apontar pra
+//      outro lugar em teste — e nunca pro endereço antigo do Vercel.
+//   5. Em Authentication > URL Configuration: Site URL = PORTAL_URL e, em
+//      Redirect URLs, "<PORTAL_URL>/**" (e localhost:5173 se quiser testar
+//      convite em desenvolvimento).
 //
 // Quem pode chamar: admin (portal_admins), colaborador Restrito
 // (colaboradores) OU quem é do escritório da Reforma Tributária
@@ -42,7 +42,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-const SITE_URL = Deno.env.get("SITE_URL") || "";
+// Endereço oficial do portal. O antigo (athosbi.vercel.app) foi aposentado:
+// mesmo que o segredo SITE_URL ainda aponte pra ele, o convite vai pro novo.
+const PORTAL_URL = "https://bi.athosconsultoriaempresarial.com";
+const SITE_URL_SEGREDO = (Deno.env.get("SITE_URL") || "").replace(/\/+$/, "");
+const SITE_URL = SITE_URL_SEGREDO && !/vercel\.app/i.test(SITE_URL_SEGREDO) ? SITE_URL_SEGREDO : PORTAL_URL;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",

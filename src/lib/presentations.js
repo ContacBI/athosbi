@@ -1163,6 +1163,19 @@ export function upsertPresentation(presentation) {
   return savePresentations(exists ? list.map((item) => (item.id === presentation.id ? stamped : item)) : [...list, stamped]);
 }
 
+// Liberada pro cliente (deck.liberada): o cliente só enxerga as
+// apresentações que o escritório liberou — na lista, no Início e no resumo
+// do celular. A equipe vê todas. Nova, duplicada ou copiada de outra
+// empresa começa só da equipe.
+export function apresentacoesVisiveis(decks, appState) {
+  const lista = decks || [];
+  return appState.isAdmin || appState.isColaborador ? lista : lista.filter((deck) => deck.liberada === true);
+}
+
+export function liberarApresentacao(id, liberada) {
+  return savePresentations((state.presentations || []).map((item) => (item.id === id ? { ...item, liberada: Boolean(liberada) } : item)));
+}
+
 export function deletePresentation(id) {
   return savePresentations((state.presentations || []).filter((item) => item.id !== id));
 }
@@ -1175,6 +1188,7 @@ export function duplicatePresentation(id) {
     ...structuredClone(source),
     id: newId("pr"),
     name: `${source.name} (cópia)`,
+    liberada: false,
     createdAt: now,
     updatedAt: now,
     slides: source.slides.map(cloneSlide),
@@ -1196,6 +1210,7 @@ export function deckCopyForOtherWorkspace(source) {
     createdBy: state.userEmail || "",
     period: null,
     copiedFrom: activeWorkspaceName() || "",
+    liberada: false,
     slides: source.slides.map(cloneSlide),
   };
 }

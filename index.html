@@ -14,6 +14,17 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>AthosBI</title>
     <script>
+      // O endereço antigo (athosbi.vercel.app) foi aposentado: quem cair lá
+      // (favorito, link de e-mail antigo) vai pro endereço oficial, com o
+      // mesmo caminho — um link de convite/senha continua funcionando. O
+      // vercel.json já redireciona no servidor; isto é a garantia no navegador.
+      (function () {
+        if (location.hostname === "athosbi.vercel.app") {
+          location.replace("https://bi.athosconsultoriaempresarial.com" + location.pathname + location.search + location.hash);
+        }
+      })();
+    </script>
+    <script>
       // Aplica o tema salvo antes de qualquer coisa pintar na tela — sem
       // isso, a página sempre nasceria clara por uma fração de segundo e
       // "piscaria" pro escuro assim que o React montasse.

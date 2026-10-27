@@ -2,6 +2,7 @@ import { useState } from "react";
 import { LogIn } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
 import AthosMark from "../components/AthosMark.jsx";
+import { enderecoDoPortal } from "../lib/enderecos.js";
 
 // Same visual language as Landing.jsx (navy background, accent badge) — this
 // is the very first thing anyone sees now that the portal is online with
@@ -40,7 +41,7 @@ export default function Login() {
     setNotice("");
     setLoading(true);
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-      redirectTo: `${window.location.origin}/definir-senha`,
+      redirectTo: `${enderecoDoPortal()}/definir-senha`,
     });
     setLoading(false);
     if (resetError) setError(resetError.message);
