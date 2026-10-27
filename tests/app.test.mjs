@@ -538,6 +538,21 @@ check("A configuração vai junto com a empresa ao gravar", gravada?.resumoCelul
 Object.assign(state, { resumoCelular: null });
 setCompanyState();
 
+// Replicar a configuração pra outras empresas: tudo vai, menos o recado
+// (a não ser que peçam); a empresa ativa não é tocada.
+const origem = rc.configResumo({ recado: "Recado da origem", alertasOcultos: ["prejuizo"], numeros: ["caixa", "margem"], maxAlertas: 5 });
+const semRecado = rc.configParaReplicar(origem, { recado: "Recado do destino" });
+const comRecado = rc.configParaReplicar(origem, { recado: "Recado do destino" }, { levarRecado: true });
+check("Replicar leva análises/números e mantém o recado do destino (ou leva, se pedir)", semRecado.recado === "Recado do destino" && JSON.stringify(semRecado.alertasOcultos) === '["prejuizo"]' && semRecado.maxAlertas === 5 && comRecado.recado === "Recado da origem", { semRecado, comRecado });
+const { applyResumoCelularToCompanies } = await src("lib/companies.js");
+setCompanyState();
+const outra = { ...company, id: "cmp_outra", name: "OUTRA", journalLoaded: false, resumoCelular: { recado: "Só dela" } };
+Object.assign(state, { isAdmin: true, companies: [company, outra] });
+const aplicadas = await applyResumoCelularToCompanies((atual) => rc.configParaReplicar(origem, atual), [COMPANY_ID, "cmp_outra"]).catch((error) => error);
+const outraDepois = state.companies.find((item) => item.id === "cmp_outra");
+check("Aplica só nas outras (a ativa fica de fora) e grava", aplicadas === 1 && outraDepois.resumoCelular.recado === "Só dela" && outraDepois.resumoCelular.maxAlertas === 5 && !state.companies.find((item) => item.id === COMPANY_ID).resumoCelular, { aplicadas, outraDepois: outraDepois.resumoCelular });
+setCompanyState();
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);

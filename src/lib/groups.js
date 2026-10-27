@@ -126,6 +126,21 @@ export function replicateGroupDashboardTabs(sourceId, targetIds) {
   return applied;
 }
 
+// Mesma ideia de applyResumoCelularToCompanies (lib/companies.js), pros grupos.
+export function applyResumoCelularToGroups(paraCada, targetIds) {
+  const targetSet = new Set(targetIds);
+  targetSet.delete(state.activeGroupId);
+  if (!targetSet.size) return Promise.resolve(0);
+  let applied = 0;
+  const groups = state.groups.map((group) => {
+    if (!targetSet.has(group.id)) return group;
+    applied += 1;
+    return { ...group, resumoCelular: paraCada(group.resumoCelular || null), updatedAt: new Date().toISOString() };
+  });
+  setData({ groups });
+  return writeStoredGroups(groups).then(() => applied);
+}
+
 // Mesma ideia de addPresentationToCompanies (lib/companies.js), pros grupos.
 export function addPresentationToGroups(makeCopy, targetIds) {
   const targetSet = new Set(targetIds);
