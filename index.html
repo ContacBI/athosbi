@@ -26,7 +26,32 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Enquanto o app baixa: a marca da Athos se montando (mesma animação de
+         components/Carregando.jsx). O React troca isso pela tela de verdade. -->
+    <style>
+      .splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; background: #f4f6f9; color: #5b6670; font: 13px/1.4 system-ui, sans-serif; letter-spacing: 0.02em; }
+      :root[data-theme="dark"] .splash { background: #16181c; color: #9aa0a8; }
+      .splash rect { transform-box: fill-box; transform-origin: center; animation: splash-degrau 1.8s cubic-bezier(0.3, 0.7, 0.2, 1) infinite both; }
+      .splash .trilho { width: 160px; height: 4px; border-radius: 4px; overflow: hidden; background: rgb(127 127 127 / 0.15); }
+      .splash .barra { width: 40%; height: 100%; border-radius: 4px; background: #e8691f; animation: splash-barra 1.3s cubic-bezier(0.45, 0, 0.25, 1) infinite; }
+      @keyframes splash-degrau { 0% { opacity: 0.12; transform: translateY(6px) scale(0.7); } 18%, 62% { opacity: 1; transform: none; } 82%, 100% { opacity: 0.12; transform: scale(0.85); } }
+      @keyframes splash-barra { from { transform: translateX(-110%); } to { transform: translateX(260%); } }
+      @media (prefers-reduced-motion: reduce) { .splash rect, .splash .barra { animation: none; } }
+    </style>
+    <div id="root">
+      <div class="splash" role="status">
+        <svg viewBox="5 4 51 51" width="64" height="64" aria-hidden="true">
+          <rect x="7" y="39" width="15" height="15" rx="3" fill="#7e341a" style="animation-delay: 0s" />
+          <rect x="24" y="39" width="15" height="15" rx="3" fill="#92391a" style="animation-delay: 0.11s" />
+          <rect x="40" y="39" width="15" height="15" rx="3" fill="#a9401a" style="animation-delay: 0.22s" />
+          <rect x="24" y="22" width="15" height="15" rx="3" fill="#be451a" style="animation-delay: 0.33s" />
+          <rect x="40" y="22" width="15" height="15" rx="3" fill="#d34b1c" style="animation-delay: 0.44s" />
+          <rect x="40" y="6" width="15" height="15" rx="3" fill="#e75220" style="animation-delay: 0.55s" />
+        </svg>
+        <span>Carregando portal…</span>
+        <div class="trilho"><div class="barra"></div></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

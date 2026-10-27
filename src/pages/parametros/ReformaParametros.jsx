@@ -7,6 +7,7 @@ import { PARAMETROS_PADRAO, aliquotasDoAno } from "../../lib/reforma/parametros.
 import PageHeader from "../../components/PageHeader.jsx";
 import { Cartao, NumeroInput, botaoPrimario, botaoSecundario } from "../../components/reforma/ui.jsx";
 import { porcento } from "../../lib/reforma/formato.js";
+import Carregando from "../../components/Carregando.jsx";
 
 const CAMPOS = [
   { campo: "cbs", rotulo: "CBS — alíquota de referência", ajuda: "Federal. Estimativa até o Senado fixar." },
@@ -86,7 +87,7 @@ export default function ReformaParametros() {
     <div>
       <PageHeader eyebrow="Reforma Tributária" title="Parâmetros da simulação" icon={Scale} />
       {!params ? (
-        <p className="text-[13px] text-ink-400">Carregando…</p>
+        <Carregando compacto />
       ) : (
         <div className="flex flex-col gap-4">
           <Cartao

@@ -6,6 +6,7 @@ import { saveCargaContabil, saveCargaLayout, saveCargaManual } from "../lib/comp
 import { aplicarContabil, aplicarManual, fetchCargaTributaria, pctCarga, somarCargas } from "../lib/cargaTributaria.js";
 import { groupCompanies } from "../lib/groups.js";
 import { money } from "../lib/format.js";
+import Carregando from "../components/Carregando.jsx";
 
 const MES_CURTO = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const MES_LONGO = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -384,7 +385,7 @@ export default function CargaTributaria() {
     return <p className="rounded-xl bg-surface-card p-6 text-[13px] text-ink-500 shadow-sm">A carga tributária é por empresa — abra uma empresa para ver.</p>;
   }
   if (error && !rows) return <p className="rounded-xl bg-danger-50 p-4 text-[13px] text-danger-600">{error}</p>;
-  if (rows === null) return <p className="p-6 text-[13px] text-ink-400">Carregando…</p>;
+  if (rows === null) return <Carregando compacto className="p-6" />;
   if (!rows.length || !dados || !c) {
     return (
       <div className="rounded-xl bg-surface-card p-6 shadow-sm">

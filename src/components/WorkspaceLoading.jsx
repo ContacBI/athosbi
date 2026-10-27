@@ -1,4 +1,4 @@
-import { Building2, Network } from "lucide-react";
+import { MarcaAnimada } from "./Carregando.jsx";
 
 // Tela cheia de "abrindo empresa/grupo" — fica no lugar do painel enquanto
 // o razão baixa e os relatórios são calculados. Sem ela, um grupo grande
@@ -10,15 +10,12 @@ import { Building2, Network } from "lucide-react";
 // `progress` (0..1, ou null quando não dá pra medir) só vale na fase
 // "loading"; em "calculating" a barra fica cheia e pulsando.
 export default function WorkspaceLoading({ name, isGroup, phase = "loading", progress = null, onCancel }) {
-  const Icon = isGroup ? Network : Building2;
   const calculating = phase === "calculating" || (progress !== null && progress >= 1);
   const percent = progress === null ? null : Math.round(Math.min(1, Math.max(0, progress)) * 100);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface-page px-6" role="status" aria-live="polite">
       <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
-        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-500 text-white shadow-sm">
-          <Icon size={24} strokeWidth={1.8} />
-        </span>
+        <MarcaAnimada size={60} />
         <div className="flex flex-col gap-1">
           <p className="text-[12px] font-medium uppercase tracking-wide text-accent-600">
             {isGroup ? "Abrindo grupo" : "Abrindo empresa"}
@@ -28,12 +25,11 @@ export default function WorkspaceLoading({ name, isGroup, phase = "loading", pro
         <div className="w-full">
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
             <div
-              className={`h-full rounded-full bg-accent-500 transition-[width] duration-300 ${calculating ? "animate-pulse" : ""}`}
+              className={`athos-brilho-barra h-full rounded-full bg-accent-500 transition-[width] duration-300 ${calculating ? "animate-pulse" : ""}`}
               style={{ width: calculating ? "100%" : `${Math.max(4, percent ?? 4)}%` }}
             />
           </div>
           <p className="mt-2.5 flex items-center justify-center gap-2 text-[12.5px] text-ink-500">
-            <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-[1.5px] border-accent-100 border-t-accent-500" />
             {calculating
               ? "Calculando os relatórios…"
               : `Carregando os lançamentos${percent !== null ? ` — ${percent}%` : "…"}`}

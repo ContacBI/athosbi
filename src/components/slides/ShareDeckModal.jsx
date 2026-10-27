@@ -8,6 +8,7 @@ import { createShare, expiryFromChoice, listShares, refreshShare, revokeShare, s
 import { visibleSlides } from "./PresentMode.jsx";
 import SlideView from "./SlideView.jsx";
 import { Modal } from "./pickers.jsx";
+import Carregando from "../Carregando.jsx";
 
 // "Compartilhar por link": cria (ou atualiza) uma foto dos slides em
 // imagens e um link que abre sem login, com validade e senha opcional.
@@ -211,7 +212,7 @@ export default function ShareDeckModal({ deck, env, onClose }) {
         <section>
           <p className="mb-2 text-[13px] font-semibold text-ink-900">Links desta apresentação</p>
           {shares === null ? (
-            <p className="text-[12.5px] text-ink-400">Carregando…</p>
+            <Carregando compacto />
           ) : !shares.length ? (
             <p className="text-[12.5px] text-ink-400">Nenhum link criado ainda.</p>
           ) : (

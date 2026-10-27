@@ -22,6 +22,7 @@ import { isReformaEscritorio } from "./lib/modulos.js";
 import { listarEmpresas as listarEmpresasReforma } from "./lib/reforma/api.js";
 import { setData } from "./data/useStore.js";
 import { limparCopiaLocal } from "./lib/journalCache.js";
+import Carregando from "./components/Carregando.jsx";
 
 // Carregadas sob demanda (React.lazy) em vez de no pacote inicial — são as
 // telas que só entram depois que a pessoa já navegou pra dentro de uma
@@ -63,11 +64,7 @@ const ReformaPainel = lazy(() => import("./pages/reforma/ReformaPainel.jsx"));
 const ReformaEmpresa = lazy(() => import("./pages/reforma/ReformaEmpresa.jsx"));
 
 function RouteFallback() {
-  return (
-    <div className="flex h-[60vh] items-center justify-center text-[13px] text-ink-400">
-      Carregando…
-    </div>
-  );
+  return <Carregando />;
 }
 
 function AuthedApp() {
@@ -158,11 +155,7 @@ function AuthedApp() {
   }, [session]);
 
   if (session === undefined) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-surface-page text-[13px] text-ink-400">
-        Carregando portal…
-      </div>
-    );
+    return <Carregando tela texto="Carregando portal…" />;
   }
 
   if (session === null) {
@@ -170,11 +163,7 @@ function AuthedApp() {
   }
 
   if (!ready) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-surface-page text-[13px] text-ink-400">
-        Carregando portal…
-      </div>
-    );
+    return <Carregando tela texto="Carregando portal…" />;
   }
 
   if (bootError) {
@@ -254,7 +243,7 @@ export default function App() {
   const shared = window.location.pathname.match(/^\/p\/([A-Za-z0-9]{20,64})\/?$/);
   if (shared) {
     return (
-      <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[#081d33] text-[13px] text-white/60">Abrindo a apresentação…</div>}>
+      <Suspense fallback={<Carregando escuro texto="Abrindo a apresentação…" />}>
         <SharedPresentation token={shared[1]} />
       </Suspense>
     );

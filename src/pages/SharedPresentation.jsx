@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Download, Expand, LayoutGrid, Loader2, Lock, Minimize } from "lucide-react";
 import { openShared } from "../lib/sharingPublic.js";
+import { BarraCorrendo, MarcaAnimada } from "../components/Carregando.jsx";
 
 // Página pública do link compartilhado (/p/<código>): sem login, só os
 // slides (imagens) — setas, teclado, deslizar no celular, tela cheia,
@@ -118,8 +119,9 @@ export default function SharedPresentation({ token }) {
   if (!result) {
     return (
       <Shell>
-        <Loader2 size={30} className="animate-spin text-[#e8691f]" />
-        <p className="mt-3 text-[14px] text-white/70">Abrindo a apresentação…</p>
+        <MarcaAnimada size={64} />
+        <p className="mt-5 text-[14px] text-white/70">Abrindo a apresentação…</p>
+        <BarraCorrendo escuro className="mt-3" />
       </Shell>
     );
   }
