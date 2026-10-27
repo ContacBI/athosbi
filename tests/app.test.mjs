@@ -659,6 +659,73 @@ const bDepois = variacaoDoComparativo(2037469.39, 2166971.1, { inicioA: "2026-04
 check("Receita que cresceu fica positiva com o B antes ou depois do A", Math.abs(bAnterior.diff - 129501.71) < 0.01 && Math.abs(bDepois.diff - 129501.71) < 0.01 && Math.abs(bDepois.diffPct - bAnterior.diffPct) < 1e-9 && bDepois.diffPct > 6.3 && bDepois.diffPct < 6.4, { bAnterior, bDepois });
 check("Despesa que cresceu (mais negativa) fica negativa com o B depois do A", variacaoDoComparativo(-114801.48, -121862.29, { inicioA: "2026-04-01", inicioB: "2026-07-01" }).diff < 0, null);
 
+// ── Apresentações: período próprio de cada bloco com dados ──
+section("Período por bloco nas apresentações");
+const pdb = await src("lib/periodoDoBloco.js");
+const json = (valor) => JSON.stringify(valor);
+const tri = { start: "2026-07-01", end: "2026-09-30" };
+check("Bloco sem período próprio usa o filtro da apresentação", json(pdb.periodoDoBloco(null, tri)) === json(tri) && json(pdb.periodoDoBloco({ tipo: "filtro" }, tri)) === json(tri), null);
+check(
+  "Último mês, no ano, últimos N meses e fixo (relativos ao fim do filtro)",
+  json(pdb.periodoDoBloco({ tipo: "ultimoMes" }, tri)) === json({ start: "2026-09-01", end: "2026-09-30" }) &&
+    json(pdb.periodoDoBloco({ tipo: "ano" }, tri)) === json({ start: "2026-01-01", end: "2026-09-30" }) &&
+    json(pdb.periodoDoBloco({ tipo: "ultimos", meses: 6 }, tri)) === json({ start: "2026-04-01", end: "2026-09-30" }) &&
+    json(pdb.periodoDoBloco({ tipo: "ultimos", meses: 12 }, tri)) === json({ start: "2025-10-01", end: "2026-09-30" }) &&
+    json(pdb.periodoDoBloco({ tipo: "fixo", inicio: "2026-02", fim: "2026-01" }, tri)) === json({ start: "2026-01-01", end: "2026-02-28" }),
+  null
+);
+const cmpTri = pdb.comparacaoDoBloco("anterior", tri);
+const cmpSem = pdb.comparacaoDoBloco("anterior", { start: "2026-04-01", end: "2026-09-30" });
+const cmpAno = pdb.comparacaoDoBloco("ano", tri);
+const cmpMes = pdb.comparacaoDoBloco("mes", tri);
+check(
+  "Variação compara com o mesmo tamanho: trimestre × trimestre anterior, semestre × semestre anterior, ano anterior, último mês",
+  json(cmpTri.base) === json({ start: "2026-04-01", end: "2026-06-30" }) && cmpTri.rotulo === "vs abr-jun/26" &&
+    json(cmpSem.base) === json({ start: "2025-10-01", end: "2026-03-31" }) &&
+    json(cmpAno.base) === json({ start: "2025-07-01", end: "2025-09-30" }) &&
+    cmpMes.atual.start === "2026-09-01" && cmpMes.base.start === "2026-08-01" && cmpMes.base.end === "2026-08-31",
+  { cmpTri, cmpSem, cmpAno, cmpMes }
+);
+const subiu = pdb.variacaoDoNumero(110, 100, "money");
+const caiuPp = pdb.variacaoDoNumero(18, 20, "percent");
+check("Variação em % e em p.p.; sem base, sem setinha", subiu.up && subiu.text === "10%" && !caiuPp.up && caiuPp.text === "2 p.p." && pdb.variacaoDoNumero(5, 0, "money") === null, { subiu, caiuPp });
+setCompanyState();
+Object.assign(state, { isAdmin: true });
+const { contextForPeriod: ctxDoPeriodo } = await src("lib/assistant/context.js");
+const { widgetDefinition: widgetDef } = await src("lib/presentations.js");
+const envTri = { ctx: ctxDoPeriodo(PERIOD.start, PERIOD.end), info: { start: PERIOD.start, end: PERIOD.end } };
+const envMarco = pdb.envDoBloco({ kind: "kpi", periodo: { tipo: "ultimoMes" } }, envTri);
+const receitaDe = (env) => widgetDef("dre_receita_liquida").value(env.ctx).value;
+const receitaMarco = inicio.serieDoItem({ ...company, journal, journalLoaded: true }, "receita", { inicio: "2026-01", fim: "2026-03" })[2]?.valor;
+check(
+  "Número com período próprio: só março, sem mexer no filtro",
+  envMarco.info.start === "2026-03-01" && Math.abs(receitaDe(envMarco) - receitaMarco) < 0.01 && Math.abs(receitaDe(envTri) - expected.receitaLiquida) < 0.01 && state.periodStart === PERIOD.start && pdb.envDoBloco({ kind: "text", periodo: { tipo: "ultimoMes" } }, envTri) === envTri,
+  { marco: receitaDe(envMarco), receitaMarco }
+);
+const ctxJan = ctxDoPeriodo("2026-01-01", "2026-01-31");
+const ctxFev = ctxDoPeriodo("2026-02-01", "2026-02-28");
+const defReceita = widgetDef("dre_receita_liquida");
+const partesReceita = pdb.partesDaComparacao(defReceita, ctxFev, ctxJan);
+const totalReceita = defReceita.value(ctxFev).value - defReceita.value(ctxJan).value;
+const serieTri = pdb.serieDoNumero(defReceita, envTri.ctx);
+check(
+  "Comparação: o que mais mudou na receita líquida (receita bruta e deduções) fecha com a diferença; mês a mês do número",
+  partesReceita.length === 2 && Math.abs(partesReceita.reduce((soma, parte) => soma + parte.diff, 0) - totalReceita) < 0.01 && serieTri.length === 3 && serieTri[0].mes === "2026-01" && pdb.serieDoNumero(defReceita, ctxJan).length === 1,
+  { partesReceita, totalReceita }
+);
+const mesesEvo = ["2025-11", "2025-12", "2026-01", "2026-02", "2026-03"];
+check(
+  "Evolução: últimos N meses até o fim do período, sem passar do primeiro mês com dado; acumulado soma os meses",
+  json(pdb.periodoDaEvolucao(mesesEvo, "2026-03-31", 3)) === json({ start: "2026-01-01", end: "2026-03-31" }) &&
+    json(pdb.periodoDaEvolucao(mesesEvo, "2026-03-31", 12)) === json({ start: "2025-11-01", end: "2026-03-31" }) &&
+    json(pdb.periodoDaEvolucao(mesesEvo, "2026-03-31", 0)) === json({ start: "2025-11-01", end: "2026-03-31" }) &&
+    pdb.acumular([{ valor: 10 }, { valor: -3 }, { valor: 5 }]).map((ponto) => ponto.valor).join() === "10,7,12" &&
+    pdb.numeroDeSaldo(widgetDef("dre_receita_liquida")) === false,
+  null
+);
+check("Mesmo período em vários blocos calcula uma vez", pdb.envDoBloco({ kind: "widget", periodo: { tipo: "ultimoMes" } }, envTri).ctx === envMarco.ctx, null);
+setCompanyState();
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
