@@ -2,6 +2,7 @@ import { state, setData } from "../data/useStore.js";
 import { ACTIVE_GROUP_KEY, GROUPS_KEY, writePersistent, rememberActiveWorkspace } from "./persistence.js";
 import { persistActiveCompany, replicateTabsToCompanies, ensureCompanyJournalLoaded, remapJournal, canWriteGroups } from "./companies.js";
 import { refreshEffectivePlano } from "./planosPadrao.js";
+import { lembrarRecente } from "./recentes.js";
 
 function writeStoredGroups(groups) {
   // Ver canWriteGroups (lib/companies.js) — o banco recusaria mesmo.
@@ -241,6 +242,7 @@ export async function selectGroup(id, { skipPersist = false } = {}) {
   const group = state.groups.find((item) => item.id === id);
   if (!group) return;
   rememberActiveWorkspace({ groupId: id });
+  lembrarRecente({ tipo: "grupo", id });
   const members = groupCompanies(group);
   const ready = members.every((company) => company.journalLoaded);
   // Tudo que não depende de baixar nada (configurações do grupo, contas e

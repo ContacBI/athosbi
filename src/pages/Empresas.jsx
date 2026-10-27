@@ -2,9 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Activity, ArrowLeft, Building2, ChevronRight, Layers, Network, Search, Settings, SlashSquare, TriangleAlert } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
-import { selectCompany } from "../lib/companies.js";
-import { selectGroup, groupCompanies } from "../lib/groups.js";
-import { prewarmDashboardContext } from "../lib/dashboardData.js";
+import { groupCompanies } from "../lib/groups.js";
+import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
 import Avatar from "../components/Avatar.jsx";
 import WorkspaceLoading from "../components/WorkspaceLoading.jsx";
 
@@ -163,65 +162,10 @@ export default function Empresas() {
     return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
-  // A espera acontece AQUI, antes de abrir o painel: uma tela de
-  // carregamento (WorkspaceLoading) mostra "Carregando os lançamentos — X%"
-  // enquanto baixa e "Calculando os relatórios…" enquanto o painel é
-  // montado (prewarmDashboardContext — num grupo grande são alguns segundos
-  // de navegador ocupado, que dentro do painel apareciam como tela em
-  // branco). Só navega com tudo pronto.
-  // selectCompany/selectGroup já marcam o ativo de forma síncrona, então a
-  // checagem do id ativo garante que nunca abre a empresa/grupo ANTERIOR;
-  // e clicar em outro card no meio do caminho troca o alvo (o anterior
-  // desiste de navegar ao terminar).
-  const [pending, setPending] = useState(null); // { id, name, isGroup, phase: "loading" | "calculating" }
-  const pendingRef = useRef(null);
-
-  async function handleOpen(id, select, isActive, label) {
-    if (pendingRef.current === id) return;
-    pendingRef.current = id;
-    setPending({ id, ...label, phase: "loading" });
-    const stillWanted = () => pendingRef.current === id && isActive();
-    try {
-      await select(id);
-      if (!stillWanted()) return;
-      if (!state.journalLoadFailed && (state.dashboardTabs || []).length > 0) {
-        setPending({ id, ...label, phase: "calculating" });
-        // Deixa o navegador pintar o "calculando…" antes do cálculo pesado.
-        await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
-        if (!stillWanted()) return;
-        prewarmDashboardContext();
-      }
-      if (stillWanted()) navigate("/empresa");
-    } catch (error) {
-      console.error("Falha ao abrir:", error);
-      // Mesmo com erro no pré-cálculo, abre — o painel calcula sozinho e a
-      // barra do topo avisa se o razão não carregou.
-      if (stillWanted()) navigate("/empresa");
-    } finally {
-      if (pendingRef.current === id) {
-        pendingRef.current = null;
-        setPending(null);
-      }
-    }
-  }
-
-  function handleAccess(id) {
-    const company = state.companies.find((item) => item.id === id);
-    handleOpen(id, selectCompany, () => state.activeCompanyId === id && !state.activeGroupId, { name: company?.name || "Empresa", isGroup: false });
-  }
-
-  function handleAccessGroup(id) {
-    const group = state.groups.find((item) => item.id === id);
-    handleOpen(id, selectGroup, () => state.activeGroupId === id, { name: group?.name || "Grupo", isGroup: true });
-  }
-
-  // "Voltar pra lista" no meio do carregamento: desiste de navegar quando
-  // terminar (a empresa/grupo continua selecionado e carregando em segundo
-  // plano — abrir de novo depois reaproveita o que já chegou).
-  function cancelOpen() {
-    pendingRef.current = null;
-    setPending(null);
-  }
+  // Abrir esperando o razão (tela de carregamento) — ver useAbrirWorkspace.
+  const { pending, abrirEmpresa, abrirGrupo, cancelar: cancelOpen } = useAbrirWorkspace();
+  const handleAccess = (id) => abrirEmpresa(id);
+  const handleAccessGroup = (id) => abrirGrupo(id);
 
   // A lista de grupos é lida por todo mundo; um grupo liberado pra um
   // cliente traz TODAS as empresas dele (allowed_company_ids, ver
