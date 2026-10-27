@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   AlignCenter,
   AlignEndHorizontal,
@@ -48,6 +49,8 @@ import { ColorField, Field, FontSelect, NumberInput, Row, Section, Segmented, Se
 import { Decoration, SHAPES, brandSrc, slideBackground } from "./SlideView.jsx";
 import { DemoInspector } from "./DemoInspector.jsx";
 import { DEMO_TITLES } from "../../lib/slideDemo.js";
+import { COMPARACOES, PERIODOS_DO_BLOCO, blocoComDados, comparacaoDoBloco, periodoDoBloco } from "../../lib/periodoDoBloco.js";
+import { dataMonths, shortPeriod } from "../../lib/assistant/context.js";
 
 const KIND_LABEL = {
   text: "Texto",
@@ -413,7 +416,105 @@ function ImageContentSection({ block, set, onUploadImage, brandLogos, canSaveLog
   );
 }
 
-export function BlockInspector({ block, deck, ctx, set, setStyle, actions, openPicker, onUploadImage, brandLogos, canSaveLogo, onSaveLogo }) {
+const rotuloMesCurto = (mes) => shortPeriod(`${mes}-01`, `${mes}-28`);
+
+// "Período dos dados" dos blocos com números (lib/periodoDoBloco.js): o
+// filtro da apresentação por padrão, ou último mês / no ano / últimos N
+// meses / fixo. Cada opção mostra o período que dá com o filtro atual.
+function PeriodoSection({ block, set, info }) {
+  const periodo = block.periodo || { tipo: "filtro" };
+  const filtro = { start: info?.start || "", end: info?.end || "" };
+  const meses = useMemo(() => dataMonths(), []);
+  const curto = (opcoes) => {
+    const { start, end } = periodoDoBloco(opcoes, filtro);
+    return start && end ? shortPeriod(start, end) : "";
+  };
+  function escolher(tipo) {
+    if (tipo === periodo.tipo) return;
+    const proximo =
+      tipo === "filtro"
+        ? null
+        : tipo === "ultimos"
+          ? { tipo, meses: periodo.meses || 3 }
+          : tipo === "fixo"
+            ? { tipo, inicio: periodo.inicio || filtro.start.slice(0, 7) || meses[0] || "", fim: periodo.fim || filtro.end.slice(0, 7) || meses[meses.length - 1] || "" }
+            : { tipo };
+    // Período diferente do filtro: o cartão passa a dizer qual é.
+    set({ periodo: proximo, ...(block.kind === "kpi" && block.showPeriod == null && proximo ? { showPeriod: true } : {}) });
+  }
+  const mesesDoSeletor = meses.length ? meses : [periodo.inicio, periodo.fim].filter(Boolean);
+  return (
+    <Section title="Período dos dados">
+      <div className="periodo-opcoes flex flex-col gap-1" role="radiogroup" aria-label="Período dos dados">
+        {PERIODOS_DO_BLOCO.map((opcao) => {
+          const ativo = (periodo.tipo || "filtro") === opcao.id;
+          const exemplo = opcao.id === "fixo" ? "" : curto(opcao.id === "ultimos" ? { tipo: "ultimos", meses: periodo.meses || 3 } : { tipo: opcao.id });
+          return (
+            <button
+              key={opcao.id}
+              type="button"
+              role="radio"
+              aria-checked={ativo}
+              onClick={() => escolher(opcao.id)}
+              className={`periodo-${opcao.id} flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors ${ativo ? "bg-accent-50 ring-1 ring-accent-300" : "hover:bg-surface-muted"}`}
+            >
+              <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border ${ativo ? "border-accent-500" : "border-line-strong"}`}>{ativo && <span className="h-1.5 w-1.5 rounded-full bg-accent-500" />}</span>
+              <span className={`flex-1 text-[12.5px] ${ativo ? "font-medium text-ink-900" : "text-ink-700"}`}>{opcao.rotulo}</span>
+              {exemplo && <span className="text-[11px] tabular-nums text-ink-400">{exemplo}</span>}
+            </button>
+          );
+        })}
+      </div>
+      {periodo.tipo === "ultimos" && (
+        <Field label="Quantos meses (até o fim do filtro)">
+          <Segmented
+            value={String(periodo.meses || 3)}
+            onChange={(value) => set({ periodo: { ...periodo, meses: Number(value) } })}
+            options={[
+              { value: "2", label: "2" },
+              { value: "3", label: "3" },
+              { value: "6", label: "6" },
+              { value: "12", label: "12" },
+            ]}
+          />
+        </Field>
+      )}
+      {periodo.tipo === "fixo" && (
+        <Row>
+          <Field label="De">
+            <Select value={periodo.inicio} onChange={(value) => set({ periodo: { ...periodo, inicio: value, fim: periodo.fim < value ? value : periodo.fim } })} options={mesesDoSeletor.map((mes) => ({ value: mes, label: rotuloMesCurto(mes) }))} />
+          </Field>
+          <Field label="Até">
+            <Select value={periodo.fim} onChange={(value) => set({ periodo: { ...periodo, fim: value } })} options={mesesDoSeletor.filter((mes) => mes >= periodo.inicio).map((mes) => ({ value: mes, label: rotuloMesCurto(mes) }))} />
+          </Field>
+        </Row>
+      )}
+      <p className="-mt-1 text-[11px] leading-snug text-ink-400">{periodo.tipo === "fixo" ? "Não muda quando o filtro da apresentação mudar." : "Acompanha o filtro da apresentação (“Dados de …” no topo)."}</p>
+      {block.kind === "kpi" && <Toggle label="Mostrar o período no cartão" checked={Boolean(block.showPeriod)} onChange={(value) => set({ showPeriod: value })} />}
+    </Section>
+  );
+}
+
+// A variação (▲/▼) do Número: com o que comparar, com o período que dá.
+function ComparacaoField({ block, set, info }) {
+  const periodo = periodoDoBloco(block.periodo, { start: info?.start || "", end: info?.end || "" });
+  return (
+    <Field label="Comparar com">
+      <Select
+        value={block.comparar || "anterior"}
+        onChange={(value) => set({ comparar: value })}
+        options={COMPARACOES.map((opcao) => {
+          const comparacao = comparacaoDoBloco(opcao.id, periodo);
+          const detalhe = !comparacao ? "" : opcao.id === "mes" ? `${shortPeriod(comparacao.atual.start, comparacao.atual.end)} × ${shortPeriod(comparacao.base.start, comparacao.base.end)}` : shortPeriod(comparacao.base.start, comparacao.base.end);
+          return { value: opcao.id, label: detalhe ? `${opcao.rotulo} (${detalhe})` : opcao.rotulo };
+        })}
+      />
+      <span className="text-[11px] leading-snug text-ink-400">Sempre um período do mesmo tamanho: 3 meses contra 3, 6 contra 6.</span>
+    </Field>
+  );
+}
+
+export function BlockInspector({ block, deck, ctx, info, set, setStyle, actions, openPicker, onUploadImage, brandLogos, canSaveLogo, onSaveLogo }) {
   const theme = deck.theme;
   const definition = block.widgetId ? widgetDefinition(block.widgetId) : null;
   const isTableWidget = definition?.type === "table" || definition?.type === "list";
@@ -424,6 +525,7 @@ export function BlockInspector({ block, deck, ctx, set, setStyle, actions, openP
         <p className="truncate text-[14px] font-medium text-ink-900">{blockName(block)}</p>
       </div>
       <BlockActions block={block} actions={actions} set={set} />
+      {blocoComDados(block) && <PeriodoSection block={block} set={set} info={info} />}
 
       {block.kind === "text" && (
         <>
@@ -459,7 +561,8 @@ export function BlockInspector({ block, deck, ctx, set, setStyle, actions, openP
               />
             </Field>
             <Toggle label="Minigráfico mês a mês" checked={Boolean(block.trend)} onChange={(value) => set({ trend: value })} />
-            <Toggle label="Variação do último mês (▲/▼)" checked={Boolean(block.delta)} onChange={(value) => set({ delta: value })} />
+            <Toggle label="Variação (▲/▼)" checked={Boolean(block.delta)} onChange={(value) => set({ delta: value })} />
+            {block.delta && <ComparacaoField block={block} set={set} info={info} />}
             <Field label="Alinhamento">
               <Segmented value={block.align} onChange={(value) => set({ align: value })} options={ALIGN_OPTIONS.slice(0, 3)} />
             </Field>

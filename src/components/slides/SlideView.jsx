@@ -16,11 +16,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { BarChart3, ImageIcon, Maximize2, Table2 } from "lucide-react";
+import { BarChart3, GitCompareArrows, ImageIcon, Maximize2, Table2 } from "lucide-react";
 import { WidgetBody, WidgetFillContext } from "../dashboard/WidgetGrid.jsx";
 import { formatWidgetValue } from "../../lib/dashboardWidgets.js";
 import { describeIndicatorFormula, isSingleLineFormula } from "../../lib/indicatorFormula.js";
-import { SLIDE_H, SLIDE_W, compactValue, fillTokens, fontStack, isDark, kpiSeries, mix, patternCss, resolveColor, rgba, shadowCss, widgetDefinition } from "../../lib/presentations.js";
+import { SLIDE_H, SLIDE_W, compactValue, fillTokens, fontStack, friendlyPeriod, isDark, kpiSeries, mix, patternCss, resolveColor, rgba, shadowCss, widgetDefinition } from "../../lib/presentations.js";
+import { comparacaoDoBloco, contextoDoPeriodo, envDoBloco, variacaoDoNumero } from "../../lib/periodoDoBloco.js";
 import { BUILTIN_LOGOS, brandLogoFor } from "../../lib/brand.js";
 import { SLIDE_ICONS } from "./slideIcons.js";
 import { DemoContent } from "./DemoBlock.jsx";
@@ -428,21 +429,24 @@ function Sparkline({ values, color, width, height }) {
   );
 }
 
-// Variação do último mês contra o anterior: em pontos percentuais pra
-// margens (%), em % pro resto.
-function monthDelta(series, format) {
-  const values = series.filter((value) => value != null && Number.isFinite(value));
-  if (values.length < 2) return null;
-  const last = values[values.length - 1];
-  const prev = values[values.length - 2];
-  if (format === "percent") {
-    const diff = last - prev;
-    return { up: diff >= 0, text: `${Math.abs(diff).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} p.p.` };
-  }
-  if (!prev) return null;
-  const pct = ((last - prev) / Math.abs(prev)) * 100;
-  if (!Number.isFinite(pct)) return null;
-  return { up: pct >= 0, text: `${Math.abs(pct).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` };
+// Variação (▲/▼) do Número: o valor no período do bloco contra um período
+// do mesmo tamanho — o anterior (padrão), o do ano passado ou só o último
+// mês contra o mês antes (ver lib/periodoDoBloco.js).
+function deltaDoKpi(block, definition, env, format) {
+  const periodo = { start: env.info?.start || "", end: env.info?.end || "" };
+  const comparacao = comparacaoDoBloco(block.comparar || "anterior", periodo);
+  if (!comparacao) return null;
+  const raiz = env.raiz || env.ctx;
+  const valorEm = (alvo) => {
+    const ctx = alvo.start === periodo.start && alvo.end === periodo.end ? env.ctx : contextoDoPeriodo(raiz, alvo);
+    try {
+      return ctx ? Number(definition.value(ctx).value) : null;
+    } catch {
+      return null;
+    }
+  };
+  const variacao = variacaoDoNumero(valorEm(comparacao.atual), valorEm(comparacao.base), format);
+  return variacao && { ...variacao, rotulo: comparacao.rotulo };
 }
 
 function KpiContent({ block, theme, env }) {
@@ -471,15 +475,25 @@ function KpiContent({ block, theme, env }) {
   // até caber, em vez de cortar o número.
   const valueSize = Math.min(block.valueSize, innerW / (display.length * 0.6));
   const center = block.align === "center";
-  const series = env.ctx && (block.trend || block.delta) ? kpiSeries(definition, env.ctx) : [];
-  const delta = block.delta ? monthDelta(series, format) : null;
+  const series = env.ctx && block.trend ? kpiSeries(definition, env.ctx) : [];
+  const delta = block.delta && env.ctx && value != null ? deltaDoKpi(block, definition, env, format) : null;
   const accent = resolveColor(block.iconColor, theme) || theme.colors.accent;
   const sparkH = Math.max(22, Math.min(64, innerH * 0.26));
   const showSpark = block.trend && series.filter((v) => v != null).length >= 2 && innerH > 120;
   const deltaColor = delta ? (delta.up ? theme.colors.positive : theme.colors.negative) : "";
   const labelSize = block.labelSize;
+  // Na apresentação, clicar no Número abre a comparação com o período do
+  // mesmo tamanho (ComparisonOverlay).
+  const comparar = env.mode === "present" && env.onCompare && env.ctx;
   return (
-    <div style={{ display: "flex", flexDirection: "column", justifyContent: showSpark ? "space-between" : "center", alignItems: center ? "center" : block.align === "right" ? "flex-end" : "flex-start", height: "100%", textAlign: block.align, fontFamily: fontStack(block.font, theme), gap: 6 }}>
+    <div
+      {...(comparar ? { "data-interactive": "", role: "button", title: "Clique para comparar", onClick: (event) => {
+        event.stopPropagation();
+        env.onCompare({ widgetId: block.widgetId, label: fillTokens(label, env.ctx, env.info), periodo: block.periodo, comparar: block.comparar || "anterior" });
+      } } : {})}
+      className={comparar ? "kpi-comparar" : undefined}
+      style={{ display: "flex", flexDirection: "column", justifyContent: showSpark ? "space-between" : "center", alignItems: center ? "center" : block.align === "right" ? "flex-end" : "flex-start", height: "100%", textAlign: block.align, fontFamily: fontStack(block.font, theme), gap: 6, cursor: comparar ? "pointer" : undefined }}
+    >
       <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", alignItems: center ? "center" : block.align === "right" ? "flex-end" : "flex-start" }}>
         {block.showIcon && Icon && center && (
           <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: 12, background: rgba(accent, 0.14), color: accent }}>
@@ -500,18 +514,28 @@ function KpiContent({ block, theme, env }) {
             )}
           </div>
         )}
+        {block.showPeriod && env.info?.start && (
+          <span className="kpi-periodo" style={{ fontFamily: fontStack("@body", theme), fontSize: Math.max(11, labelSize * 0.72), color: theme.colors.muted, lineHeight: 1.2, marginTop: -4 }}>
+            {friendlyPeriod(env.info.start, env.info.end)}
+          </span>
+        )}
         <span style={{ fontSize: valueSize, fontWeight: 700, color: valueColor, lineHeight: 1.05, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", letterSpacing: valueSize > 30 ? "-0.025em" : undefined }}>{display}</span>
         {delta && (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: fontStack("@body", theme), fontSize: Math.max(11, labelSize * 0.8, valueSize * 0.15), lineHeight: 1 }}>
             <span style={{ padding: "4px 8px", borderRadius: 999, background: rgba(deltaColor, 0.14), color: deltaColor, fontWeight: 700 }}>
               {delta.up ? "▲" : "▼"} {delta.text}
             </span>
-            <span style={{ color: theme.colors.muted }}>no último mês</span>
+            <span style={{ color: theme.colors.muted }}>{delta.rotulo}</span>
           </span>
         )}
         {caption && <span style={{ fontFamily: fontStack("@body", theme), fontSize: Math.max(11, labelSize * 0.75), color: theme.colors.muted, lineHeight: 1.3 }}>{caption}</span>}
       </div>
       {showSpark && <Sparkline values={series} color={accent} width={innerW} height={sparkH} />}
+      {comparar && (
+        <span className="kpi-comparar-dica" style={{ position: "absolute", right: 0, bottom: 0, display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 999, background: mix(accent, theme.colors.surface || theme.colors.bg, 0.82), color: accent, fontFamily: fontStack("@body", theme), fontSize: 12.5, fontWeight: 700, boxShadow: `0 4px 14px ${rgba("#000000", 0.18)}` }}>
+          <GitCompareArrows size={13} strokeWidth={2.4} /> Comparar
+        </span>
+      )}
     </div>
   );
 }
@@ -565,7 +589,7 @@ function WidgetContent({ block, theme, env, base }) {
             data-interactive=""
             onClick={(event) => {
               event.stopPropagation();
-              env.onExplore({ source: definition.table === "bp" ? "BP" : String(definition.table).startsWith("dfc_") ? "DFC" : "DRE" });
+              env.onExplore({ source: definition.table === "bp" ? "BP" : String(definition.table).startsWith("dfc_") ? "DFC" : "DRE", periodo: block.periodo });
             }}
             style={{ position: "absolute", top: 0, right: 0, display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, border: `1px solid ${rgba(theme.colors.accent, 0.45)}`, background: rgba(theme.colors.accent, 0.12), color: theme.colors.accent, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}
           >
@@ -984,15 +1008,17 @@ export function BlockView({ block, theme: theme0, env, slideBase, animIndex = 0,
   };
   let content = null;
   if (!hiddenContent) {
+    // Blocos com dados podem ter período próprio (menu lateral).
+    const envDados = envDoBloco(block, env);
     if (block.kind === "text") content = <TextContent block={block} theme={theme} env={env} />;
-    else if (block.kind === "kpi") content = <KpiContent block={block} theme={theme} env={env} />;
-    else if (block.kind === "widget") content = <WidgetContent block={block} theme={theme} env={env} base={base} />;
+    else if (block.kind === "kpi") content = <KpiContent block={block} theme={theme} env={envDados} />;
+    else if (block.kind === "widget") content = <WidgetContent block={block} theme={theme} env={envDados} base={base} />;
     else if (block.kind === "image") content = <ImageContent block={block} theme={theme} env={env} base={base} />;
     else if (block.kind === "icon") content = <IconContent block={block} theme={theme} />;
     else if (block.kind === "table") content = <TableContent block={block} theme={theme} env={env} />;
     else if (block.kind === "chart") content = <ChartContent block={block} theme={theme} env={env} base={base} />;
-    else if (block.kind === "meta") content = <MetaContent block={block} theme={theme} env={env} />;
-    else if (block.kind === "demo") content = env.mode === "thumb" && block.source === "DFC" ? <Missing label="Fluxo de caixa" theme={theme} icon={Table2} /> : <DemoContent block={block} theme={theme} env={env} />;
+    else if (block.kind === "meta") content = <MetaContent block={block} theme={theme} env={envDados} />;
+    else if (block.kind === "demo") content = env.mode === "thumb" && block.source === "DFC" ? <Missing label="Fluxo de caixa" theme={theme} icon={Table2} /> : <DemoContent block={block} theme={theme} env={envDados} />;
   }
   return (
     <div data-block-id={block.id} className={animate ? ANIM_CLASS[block.anim] : undefined} style={outer}>

@@ -5,7 +5,7 @@ import { embeddedFontCss } from "../../lib/slideFonts.js";
 import { exportSlidePng, exportSlidesPdf } from "../../lib/slidesPdf.js";
 import { slug } from "../../lib/demonstrativoExport.js";
 import SlideView from "./SlideView.jsx";
-import { ExplorerOverlay, LedgerOverlay } from "./PresentOverlays.jsx";
+import { ComparisonOverlay, ExplorerOverlay, LedgerOverlay } from "./PresentOverlays.jsx";
 
 export function visibleSlides(deck) {
   return deck.slides.filter((slide) => !slide.hidden);
@@ -47,6 +47,7 @@ export default function PresentMode({ deck, env, startIndex = 0, onClose }) {
       mode: "present",
       onOpenLedger: (request) => pushOverlay({ type: "ledger", request }),
       onExplore: (initial) => pushOverlay({ type: "explorer", initial }),
+      onCompare: (request) => pushOverlay({ type: "compare", request }),
     }),
     [env, pushOverlay]
   );
@@ -147,6 +148,8 @@ export default function PresentMode({ deck, env, startIndex = 0, onClose }) {
       {overlays.map((overlay, i) =>
         overlay.type === "ledger" ? (
           <LedgerOverlay key={overlay.id} deck={deck} request={overlay.request} z={100 + i} onClose={popOverlay} />
+        ) : overlay.type === "compare" ? (
+          <ComparisonOverlay key={overlay.id} deck={deck} env={presentEnv} request={overlay.request} z={100 + i} onClose={popOverlay} />
         ) : (
           <ExplorerOverlay key={overlay.id} deck={deck} env={presentEnv} initial={overlay.initial} z={100 + i} onClose={popOverlay} onLedger={(request) => pushOverlay({ type: "ledger", request })} />
         )

@@ -391,6 +391,21 @@ body * {
   from { opacity: 0; translate: 0 24px; scale: 0.98; }
 }
 .present-overlay { animation: present-overlay-in 220ms ease both; }
+/* Gráficos das janelas da apresentação: dica e realce nas cores do tema
+   do slide (a regra geral acima usa as cores do app). */
+.present-overlay .recharts-rectangle.recharts-tooltip-cursor { fill: var(--ov-cursor); }
+.present-overlay .recharts-default-tooltip { background-color: var(--ov-tip-bg) !important; border-color: var(--ov-tip-line) !important; color: var(--ov-text); }
+.present-overlay .recharts-tooltip-label { color: var(--ov-muted); }
+.present-overlay .recharts-tooltip-item { color: var(--ov-text) !important; }
+/* Número clicável na apresentação: a dica "Comparar" aparece ao passar o mouse. */
+.kpi-comparar .kpi-comparar-dica { opacity: 0; transform: translateY(4px); transition: opacity 160ms ease, transform 160ms ease; pointer-events: none; }
+.kpi-comparar:hover .kpi-comparar-dica { opacity: 1; transform: none; }
+/* Último ponto do gráfico de Evolução (janela de comparação) pulsando. */
+@keyframes evo-pulso {
+  from { opacity: 0.9; transform: scale(0.6); }
+  to { opacity: 0; transform: scale(1.9); }
+}
+.evo-pulso { transform-box: fill-box; transform-origin: center; animation: evo-pulso 1.8s ease-out infinite; }
 .present-overlay-panel { animation: present-panel-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 
 /* Troca de slide no modo apresentação. */

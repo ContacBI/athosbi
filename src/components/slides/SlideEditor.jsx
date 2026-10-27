@@ -1223,6 +1223,7 @@ export default function SlideEditor({ initial, ctx, info, readOnly, onExit, onPr
                   block={single}
                   deck={deck}
                   ctx={ctx}
+                  info={info}
                   set={(patch, key) => patchBlocks([single.id], (b) => ({ ...b, ...patch }), key ? `${single.id}:${key}` : null)}
                   setStyle={(patch, key) => patchBlocks([single.id], (b) => ({ ...b, style: { ...b.style, ...patch } }), key ? `${single.id}:style:${key}` : null)}
                   actions={blockActions}
