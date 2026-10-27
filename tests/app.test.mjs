@@ -441,6 +441,27 @@ check("Balancete do ano: a empresa B usa o dela (ativo em dobro)", near(ativoB, 
 check("…e o grupo também: ativo do grupo = A + B", near(ativoGrupo, expected.ativo + ativoB), { grupo: ativoGrupo, soma: expected.ativo + ativoB });
 setCompanyState();
 
+// ── Razão no formato compacto ──
+// A parte gravada no banco ficou ~6x menor; ler de volta tem que dar
+// exatamente os mesmos lançamentos que o JSON de antes daria.
+section("Razão compacto");
+const { codificarParte, decodificarParte } = await src("lib/razaoCompacto.js");
+const ordenado = (valor) => JSON.stringify(valor, (chave, v) => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b))) : v));
+const viaJson = (lista) => JSON.parse(JSON.stringify(lista));
+const compacto = codificarParte(journal);
+const devolta = decodificarParte(JSON.parse(JSON.stringify(compacto)));
+check(`Razão da empresa-exemplo volta igual (${journal.length} lançamentos)`, ordenado(devolta) === ordenado(viaJson(journal)), devolta?.[0]);
+check("…e ocupa bem menos", JSON.stringify(compacto).length < JSON.stringify(journal).length * 0.6, { compacto: JSON.stringify(compacto).length, antes: JSON.stringify(journal).length });
+const estranhos = [
+  { data: "2026-01-02", historico: "Ação ç ñ 😀", debito: 0, credito: -1.5, extra: null },
+  { data: "2026-01-02", historico: "Ação ç ñ 😀", debito: 10, credito: 0 },
+  { historico: "sem data", debito: 1e-7, credito: 3, valor: "texto", objeto: { a: [1, 2] }, indefinido: undefined },
+  { data: "2026-01-03", historico: "", debito: 2, credito: 2, valor: 5 },
+];
+check("Campos faltando, null, número/texto misturados, objeto, unicode", ordenado(decodificarParte(viaJson(codificarParte(estranhos)))) === ordenado(viaJson(estranhos)), decodificarParte(viaJson(codificarParte(estranhos))));
+check("Parte vazia e formato antigo (array) passam direto", decodificarParte(codificarParte([])).length === 0 && decodificarParte(estranhos) === estranhos, null);
+check("Parte inválida → null (vira 'razão incompleto', nunca razão menor)", decodificarParte({ foo: 1 }) === null && decodificarParte(null) === null && decodificarParte({ ...codificarParte(estranhos), linhas: [[99]] }) === null, null);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
