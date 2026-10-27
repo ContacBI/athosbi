@@ -410,37 +410,48 @@ function ReportsMenu() {
 // used to only surface inside an opt-in "Próximos passos" widget on Resumo
 // — easy to never add — so it's pinned here instead, always on screen
 // whenever there's a mapping gap, company or consolidated group alike.
-function PendingMappingsBadge({ company }) {
+//
+// Agora é uma faixa laranja no topo da tela (mesmo estilo do aviso de razão
+// que não carregou), em todas as telas da empresa, com a contagem, os
+// primeiros nomes e o atalho pro De/Para.
+function PendingMappingsBanner({ company }) {
   const appState = useAppState();
   const navigate = useNavigate();
+  const location = useLocation();
   const hasData = appState.accounts.length > 0;
   const missing = useMemo(() => (hasData ? missingMappingAccounts() : []), [hasData, appState.accounts, appState.mappings, appState.periodStart, appState.companies]);
   if (!missing.length) return null;
 
   const label = `${missing.length} conta${missing.length === 1 ? "" : "s"} sem De/Para`;
+  const exemplos = missing
+    .slice(0, 3)
+    .map((account) => `${account.classificacao} ${account.nome_conta || ""}`.trim())
+    .join(" · ");
+  const resto = missing.length > 3 ? ` e mais ${missing.length - 3}` : "";
+  const classes = "flex w-full items-center gap-2 bg-warning-500 px-5 py-1.5 text-left text-[12px] font-medium text-warning-950";
   // A group has no single chart of accounts to jump into — the fix happens
   // per company — so it's shown there as a heads-up, not a shortcut.
   if (!company) {
     return (
-      <span
-        title="Alguma empresa deste grupo tem contas sem De/Para — os valores dela ficam de fora do consolidado até isso ser corrigido."
-        className="flex h-8 items-center gap-1.5 rounded-md border border-warning-500/40 bg-warning-500/10 px-3 text-[12px] font-medium text-warning-500"
-      >
-        <TriangleAlert size={13} strokeWidth={1.8} />
-        {label}
-      </span>
+      <div className={classes}>
+        <TriangleAlert size={14} strokeWidth={2} className="shrink-0" />
+        <span>
+          <b>{label}</b> em alguma empresa deste grupo — os valores dela ficam de fora do consolidado até vincular.
+        </span>
+      </div>
     );
   }
 
+  // Já está na tela do De/Para: a faixa só continua avisando, sem link.
+  const naTela = location.pathname.startsWith("/empresa/de-para");
   return (
-    <button
-      type="button"
-      onClick={() => navigate("/empresa/de-para")}
-      title="Essas contas ficam de fora dos relatórios até serem vinculadas"
-      className="flex h-8 items-center gap-1.5 rounded-md border border-warning-500/40 bg-warning-500/10 px-3 text-[12px] font-medium text-warning-500 transition-colors hover:border-warning-500/70 hover:bg-warning-500/20"
-    >
-      <TriangleAlert size={13} strokeWidth={1.8} />
-      {label}
+    <button type="button" onClick={() => !naTela && navigate("/empresa/de-para")} disabled={naTela} title="Essas contas ficam de fora dos relatórios até serem vinculadas" className={`${classes} ${naTela ? "cursor-default" : "transition-colors hover:bg-warning-600"}`}>
+      <TriangleAlert size={14} strokeWidth={2} className="shrink-0" />
+      <span className="min-w-0 truncate">
+        <b>{label}</b> ({exemplos}
+        {resto}) — ficam fora dos relatórios até vincular.
+      </span>
+      {!naTela && <span className="ml-auto shrink-0 rounded-md bg-warning-950/15 px-2 py-0.5 underline decoration-warning-950/40">Abrir De/Para</span>}
     </button>
   );
 }
@@ -487,6 +498,7 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
           </button>
         </div>
       )}
+      {hasData && !isCarga && !isPersonalizar && <PendingMappingsBanner company={company} />}
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
         <div className="flex min-w-0 items-center gap-3">
           {onToggleModules && (
@@ -545,7 +557,6 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {hasData && !isCarga && <PendingMappingsBadge company={company} />}
           {hasData && !isCarga && company && canEdit && <FechamentoMenu company={company} />}
           {hasData && !isCarga && (
             <PeriodPicker
