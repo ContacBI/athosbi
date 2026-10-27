@@ -61,6 +61,9 @@ export const state = {
   // › Acessos, ver lib/modulos.js). null = ainda carregando. Equipe vê
   // todos, independente disto.
   modulosCliente: null,
+  // Nome de quem está logado (ficha em Acessos, ou cadastro de admin/
+  // colaborador) — a saudação do Início. Vazio = sem nome cadastrado.
+  nomeUsuario: "",
   mappings: [],
   // Vínculo DFC por empresa — overrides de qual destino (DFC.OP.CLIENTES
   // etc.) uma conta gerencial usa nesta empresa, por cima do vínculo global

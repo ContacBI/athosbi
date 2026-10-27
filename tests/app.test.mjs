@@ -553,6 +553,27 @@ const outraDepois = state.companies.find((item) => item.id === "cmp_outra");
 check("Aplica só nas outras (a ativa fica de fora) e grava", aplicadas === 1 && outraDepois.resumoCelular.recado === "Só dela" && outraDepois.resumoCelular.maxAlertas === 5 && !state.companies.find((item) => item.id === COMPANY_ID).resumoCelular, { aplicadas, outraDepois: outraDepois.resumoCelular });
 setCompanyState();
 
+// ── Início (Landing.jsx): saudação, números do cartão do cliente, recentes ──
+section("Início");
+const inicio = await src("lib/inicio.js");
+const rec = await src("lib/recentes.js");
+check("Saudação pela hora e primeiro nome", inicio.saudacao(new Date(2026, 0, 1, 9)) === "Bom dia" && inicio.saudacao(new Date(2026, 0, 1, 15)) === "Boa tarde" && inicio.saudacao(new Date(2026, 0, 1, 21)) === "Boa noite" && inicio.primeiroNome("MARIA souza") === "Maria" && inicio.primeiroNome("") === "", null);
+setCompanyState();
+const antes = { id: state.activeCompanyId, journal: state.journal, periodStart: state.periodStart };
+const nums = inicio.numerosDaEmpresa({ ...company, journal, journalLoaded: true });
+check(
+  "Cartão do cliente: lucro e receita do último mês e do ano (iguais ao B.I.)",
+  nums && nums.mes === "2026-03" && Math.abs(nums.lucroAno - expected.lucro) < 0.01 && Math.abs(nums.receitaAno - expected.receitaLiquida) < 0.01 && Math.abs(nums.lucroMes) > 0,
+  nums
+);
+check("Calcular o cartão não mexe na empresa aberta", state.activeCompanyId === antes.id && state.journal === antes.journal && state.periodStart === antes.periodStart, null);
+check("Sem razão carregado → sem números (não inventa zero)", inicio.numerosDaEmpresa({ ...company, journalLoaded: false }) === null, null);
+localStorage.removeItem("athosbi.recentes.v1");
+rec.lembrarRecente({ tipo: "empresa", id: "a" });
+rec.lembrarRecente({ tipo: "grupo", id: "g" });
+rec.lembrarRecente({ tipo: "empresa", id: "a" });
+check("Abertas por último: a mais recente primeiro, sem repetir", rec.recentes().map((item) => `${item.tipo}:${item.id}`).join() === "empresa:a,grupo:g", rec.recentes());
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);

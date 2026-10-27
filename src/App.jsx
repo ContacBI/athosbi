@@ -16,7 +16,7 @@ import { selectGroup } from "./lib/groups.js";
 import { loadRepresentantes } from "./lib/representantes.js";
 import { loadIndicatorOverrides } from "./lib/indicators.js";
 import { isPortalAdmin, currentUserEmail, minhaFicha } from "./lib/access.js";
-import { isColaborador } from "./lib/colaboradores.js";
+import { isColaborador, listAdmins, listColaboradores } from "./lib/colaboradores.js";
 import { loadPlanosPadrao, refreshEffectivePlano } from "./lib/planosPadrao.js";
 import { isReformaEscritorio } from "./lib/modulos.js";
 import { listarEmpresas as listarEmpresasReforma } from "./lib/reforma/api.js";
@@ -132,8 +132,15 @@ function AuthedApp() {
         // liberados na ficha dele — sem ficha (ou sem a tabela), só o B.I.
         if (!adminFlag && !colaboradorFlag) {
           minhaFicha()
-            .then((ficha) => setData({ modulosCliente: Array.isArray(ficha?.modulos) ? ficha.modulos : [] }))
+            .then((ficha) => setData({ modulosCliente: Array.isArray(ficha?.modulos) ? ficha.modulos : [], nomeUsuario: ficha?.nome || "" }))
             .catch(() => setData({ modulosCliente: [] }));
+        } else {
+          // Equipe: o nome vem do cadastro de admin/colaborador (Parâmetros ›
+          // Colaborar) — só pra saudação do Início.
+          Promise.all([listAdmins().catch(() => []), listColaboradores().catch(() => [])]).then(([admins, colaboradores]) => {
+            const eu = [...admins, ...colaboradores].find((pessoa) => pessoa.email === email && pessoa.nome);
+            if (eu) setData({ nomeUsuario: eu.nome });
+          });
         }
         // selectGroup marca state.activeGroupId de forma SÍNCRONA (antes de
         // qualquer await) — isso basta pro CompanyLayout não chutar de volta

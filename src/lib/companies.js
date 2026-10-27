@@ -1,4 +1,5 @@
 import { state, setData } from "../data/useStore.js";
+import { lembrarRecente } from "./recentes.js";
 import {
   COMPANIES_KEY,
   ACTIVE_COMPANY_KEY,
@@ -871,6 +872,7 @@ export async function selectCompany(id, { skipPersist = false } = {}) {
   const company = state.companies.find((item) => item.id === id);
   if (!company) return;
   rememberActiveWorkspace({ companyId: id });
+  lembrarRecente({ tipo: "empresa", id });
   // Tudo que já está disponível sem buscar nada no Supabase (registro leve
   // de loadCompanies — contas, mappings, configurações) entra já, síncrono:
   // trocar de empresa não pode esperar o razão pra sequer navegar pra tela
