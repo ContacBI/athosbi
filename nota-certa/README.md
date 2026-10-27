@@ -16,6 +16,7 @@ ganhar repositório próprio.
 | `dados/cfop-mais-usados.json` | 70 CFOPs mais usados com tipo de operação e orientação inicial de IBS/CBS |
 | `scripts/gerar-estudo.cjs` | Gera o Word a partir dos dados |
 | `scripts/gerar-planilha.py` | Gera a planilha a partir dos dados |
+| `scripts/gerar-ncms-clientes.py` | Gera a lista de NCMs/NBS vendidos por cliente (resumo fiscal da Domínio) com o enquadramento na LC 214. A entrada e a planilha gerada têm dados reais e **ficam fora do GitHub** |
 
 ## O que já sabemos
 
@@ -50,7 +51,8 @@ Depois de gerar a planilha, abra e salve no Excel (ou no LibreOffice) para calcu
 
 ## Cuidados
 
-- **Dados reais de clientes não entram nesta pasta.** Isso vale para XMLs, catálogos preenchidos e listas de NCM de clientes. Para testes, só dados fictícios ou anonimizados.
+- **Dados reais de clientes não entram nesta pasta.** Isso vale para XMLs, catálogos preenchidos e listas de NCM de clientes (inclusive a saída do `gerar-ncms-clientes.py`). Para testes, só dados fictícios ou anonimizados.
+- Para ter o resumo fiscal de um cliente novo, cadastre a empresa (nome e CNPJ) no módulo Reforma do AthosBI. Na rodada seguinte, a Central manda o resumo, sempre só lendo a Domínio.
 - Pontos marcados com **(conferir)** no estudo e na planilha vieram de fontes secundárias ou mudam com frequência. Confirme no texto oficial antes de virarem regra.
 
 ## Fonte e licença dos dados
