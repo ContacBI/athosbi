@@ -87,7 +87,8 @@ function Titulo({ icone: Icone, children }) {
 function CartaoEmpresa({ company, numeros, calculando, grande, onAbrir, onApresentacao }) {
   const config = configResumo(company.resumoCelular);
   const recado = config.recado.trim();
-  const ultimaApresentacao = [...(company.presentations || [])].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))[0] || null;
+  // Só as liberadas pro cliente (ver apresentacoesVisiveis).
+  const ultimaApresentacao = [...(company.presentations || []).filter((deck) => deck.liberada === true)].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))[0] || null;
   const fechado = numeros?.mes || mesFechadoDa(company);
   const prejuizo = numeros && numeros.lucroMes < -0.5;
   return (

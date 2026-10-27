@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Bookmark, Building2, Copy, Download, LayoutTemplate, Link2, MoreHorizontal, Pencil, Play, Plus, Presentation, Search, Sparkles, Trash2, X } from "lucide-react";
+import { Bookmark, Building2, Copy, Download, Eye, EyeOff, LayoutTemplate, Link2, MoreHorizontal, Pencil, Play, Plus, Presentation, Search, Sparkles, Trash2, X } from "lucide-react";
 import { useAppState, setData } from "../data/useStore.js";
 import { sharedDashboardContext } from "../lib/dashboardData.js";
 import { companiesResponsavel, groupsResponsavel, isResponsavelForGroup } from "../lib/colaboradores.js";
-import { DECK_TEMPLATES, THEMES, deckCopyForOtherWorkspace, deletePresentation, duplicatePresentation, fontStack, makePresentation, themeById, tokenInfo, upsertPresentation } from "../lib/presentations.js";
+import { DECK_TEMPLATES, THEMES, apresentacoesVisiveis, deckCopyForOtherWorkspace, deletePresentation, duplicatePresentation, fontStack, liberarApresentacao, makePresentation, themeById, tokenInfo, upsertPresentation } from "../lib/presentations.js";
 import { addPresentationToCompanies } from "../lib/companies.js";
 import { addPresentationToGroups } from "../lib/groups.js";
 import { loadOfficeLibrary } from "../lib/officeLibrary.js";
@@ -252,37 +252,85 @@ function CopyDeckModal({ deck, targets, onClose, onDone }) {
   );
 }
 
-function DeckMenu({ onDuplicate, onDelete, onCopyOut, onShare }) {
+// Menu "···" do cartão. O cartão não corta mais o menu (antes o
+// overflow-hidden do cartão escondia "Excluir").
+function DeckMenu({ liberada, onToggleLiberada, onDuplicate, onDelete, onCopyOut, onShare }) {
   const [open, setOpen] = useState(false);
+  const item = "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[13px] text-ink-700 hover:bg-surface-muted";
   return (
     <div className="relative">
-      <button type="button" onClick={() => setOpen((value) => !value)} className="flex h-8 w-8 items-center justify-center rounded-md text-ink-400 hover:bg-surface-muted hover:text-ink-800" title="Mais">
-        <MoreHorizontal size={16} />
+      <button type="button" onClick={() => setOpen((value) => !value)} aria-label="Mais opções" className={`deck-menu flex h-8 w-8 items-center justify-center rounded-lg text-ink-400 transition-colors hover:bg-surface-muted hover:text-ink-800 ${open ? "bg-surface-muted text-ink-800" : ""}`} title="Mais">
+        <MoreHorizontal size={17} />
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-[calc(100%+4px)] z-40 w-56 rounded-lg bg-surface-card p-1 shadow-lg ring-1 ring-line" onClick={() => setOpen(false)}>
-            <button type="button" onClick={onDuplicate} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-[13px] text-ink-700 hover:bg-surface-muted">
-              <Copy size={14} /> Duplicar
+          <div className="absolute right-0 top-[calc(100%+4px)] z-40 w-60 rounded-xl bg-surface-card p-1.5 shadow-xl ring-1 ring-line" onClick={() => setOpen(false)}>
+            <button type="button" onClick={onToggleLiberada} className={`deck-liberar ${item}`}>
+              {liberada ? <EyeOff size={15} className="text-ink-400" /> : <Eye size={15} className="text-success-600" />}
+              {liberada ? "Tirar do cliente" : "Liberar para o cliente"}
+            </button>
+            <button type="button" onClick={onDuplicate} className={item}>
+              <Copy size={15} className="text-ink-400" /> Duplicar
             </button>
             {onShare && (
-              <button type="button" onClick={onShare} className="deck-compartilhar flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] text-ink-700 hover:bg-surface-muted">
-                <Link2 size={14} /> Compartilhar por link
+              <button type="button" onClick={onShare} className={`deck-compartilhar ${item}`}>
+                <Link2 size={15} className="text-ink-400" /> Compartilhar por link
               </button>
             )}
             {onCopyOut && (
-              <button type="button" onClick={onCopyOut} className="deck-copiar-para flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] text-ink-700 hover:bg-surface-muted">
-                <Building2 size={14} /> Copiar para outras empresas
+              <button type="button" onClick={onCopyOut} className={`deck-copiar-para ${item}`}>
+                <Building2 size={15} className="text-ink-400" /> Copiar para outras empresas
               </button>
             )}
-            <button type="button" onClick={onDelete} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-[13px] text-danger-600 hover:bg-danger-50">
-              <Trash2 size={14} /> Excluir
+            <div className="my-1 h-px bg-line" />
+            <button type="button" onClick={onDelete} className="deck-excluir flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[13px] text-danger-600 hover:bg-danger-50">
+              <Trash2 size={15} /> Excluir apresentação
             </button>
           </div>
         </>
       )}
     </div>
+  );
+}
+
+// Miniatura do 1º slide na largura exata do cartão (antes era fixa em
+// 440px e sobrava uma faixa branca do lado em telas largas).
+function CapaDoCartao({ slide, deck, env, total }) {
+  const caixa = useRef(null);
+  const [largura, setLargura] = useState(440);
+  useEffect(() => {
+    if (!caixa.current || typeof ResizeObserver === "undefined") return undefined;
+    const observador = new ResizeObserver(([entrada]) => {
+      const nova = Math.round(entrada.contentRect.width);
+      if (nova > 0) setLargura(nova);
+    });
+    observador.observe(caixa.current);
+    return () => observador.disconnect();
+  }, []);
+  return (
+    <div ref={caixa} className="w-full">
+      <SlideThumb slide={slide} deck={deck} env={env} width={largura} number={1} total={total} />
+    </div>
+  );
+}
+
+// Chave liga/desliga "o cliente vê" no cartão.
+function ChaveCliente({ ligada, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={ligada}
+      onClick={onChange}
+      className={`deck-chave flex items-center gap-2 rounded-full py-1 pl-1 pr-2.5 text-[11.5px] font-medium transition-colors ${ligada ? "bg-success-50 text-success-600" : "bg-surface-muted text-ink-500 hover:text-ink-700"}`}
+      title={ligada ? "O cliente vê esta apresentação — clique para tirar" : "Só a equipe vê — clique para liberar ao cliente"}
+    >
+      <span className={`relative h-4 w-7 rounded-full transition-colors ${ligada ? "bg-success-500" : "bg-line-strong"}`}>
+        <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-all ${ligada ? "left-[14px]" : "left-0.5"}`} />
+      </span>
+      {ligada ? "Cliente vê" : "Só equipe"}
+    </button>
   );
 }
 
@@ -311,7 +359,11 @@ export default function Apresentacoes() {
   const canEdit = Boolean(
     state.isAdmin || (company && (company.responsaveis || []).includes(state.userEmail)) || (state.activeGroupId && isResponsavelForGroup(state, state.activeGroupId))
   );
-  const decks = state.presentations || [];
+  // Cliente só vê as liberadas (ver apresentacoesVisiveis); a equipe, todas.
+  const staff = Boolean(state.isAdmin || state.isColaborador);
+  const decks = apresentacoesVisiveis(state.presentations, state);
+  const [busca, setBusca] = useState("");
+  const [filtro, setFiltro] = useState("todas"); // todas | cliente | equipe
   const favorites = [...(state.assistantFavorites || [])].sort((a, b) => String(a.name).localeCompare(String(b.name), "pt-BR"));
   useEffect(() => {
     loadOfficeLibrary();
@@ -417,11 +469,21 @@ export default function Apresentacoes() {
   return (
     <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-[22px] font-semibold text-ink-900">
-            <Presentation size={22} className="text-accent-500" /> Apresentações
-          </h1>
-          <p className="mt-1 text-[13px] text-ink-500">Slides com os números {state.activeGroupId ? "do grupo" : "da empresa"} — monte do seu jeito, apresente em tela cheia e baixe em PDF.</p>
+        <div className="flex items-start gap-3.5">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent-500 text-white shadow-md shadow-accent-600/25">
+            <Presentation size={23} />
+          </span>
+          <div>
+            <h1 className="flex items-baseline gap-2.5 text-[24px] font-semibold tracking-tight text-ink-900">
+              Apresentações
+              {decks.length > 0 && <span className="text-[14px] font-medium text-ink-400">{decks.length}</span>}
+            </h1>
+            <p className="mt-0.5 text-[13px] text-ink-500">
+              {staff
+                ? `Slides com os números ${state.activeGroupId ? "do grupo" : "da empresa"} — monte, apresente em tela cheia e baixe em PDF. O cliente só vê as que você liberar.`
+                : `As apresentações que o escritório preparou ${state.activeGroupId ? "para o grupo" : "para a sua empresa"}.`}
+            </p>
+          </div>
         </div>
         {canEdit && (
           <div className="flex items-center gap-2">
@@ -475,15 +537,39 @@ export default function Apresentacoes() {
         </p>
       )}
 
+      {decks.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2.5">
+          <label className="relative flex min-w-[220px] flex-1 items-center sm:max-w-xs">
+            <Search size={15} className="pointer-events-none absolute left-3 text-ink-300" />
+            <input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar apresentação" className="deck-busca h-10 w-full rounded-xl border border-line bg-surface-card pl-9 pr-3 text-[13px] outline-none focus:border-accent-400" />
+          </label>
+          {staff && (
+            <div className="flex items-center gap-1 rounded-xl bg-surface-muted p-1">
+              {[
+                { id: "todas", rotulo: "Todas", n: decks.length },
+                { id: "cliente", rotulo: "Cliente vê", n: decks.filter((item) => item.liberada).length },
+                { id: "equipe", rotulo: "Só equipe", n: decks.filter((item) => !item.liberada).length },
+              ].map((opcao) => (
+                <button key={opcao.id} type="button" onClick={() => setFiltro(opcao.id)} className={`deck-filtro rounded-lg px-3 py-1.5 text-[12.5px] font-medium transition-colors ${filtro === opcao.id ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-800"}`}>
+                  {opcao.rotulo} <span className="text-ink-400">{opcao.n}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {decks.length === 0 ? (
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-line-strong bg-surface-card px-6 py-16 text-center">
           <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
             <Presentation size={30} strokeWidth={1.6} />
           </span>
           <div>
-            <p className="text-[16px] font-semibold text-ink-900">Nenhuma apresentação ainda</p>
+            <p className="text-[16px] font-semibold text-ink-900">{staff ? "Nenhuma apresentação ainda" : "Nenhuma apresentação por aqui ainda"}</p>
             <p className="mt-1 max-w-md text-[13px] text-ink-500">
-              Comece por um modelo pronto (reunião de resultados, resumo executivo) com a logo e as cores da Athos ou da Contac, e personalize cada detalhe.
+              {staff
+                ? "Comece por um modelo pronto (reunião de resultados, resumo executivo) com a logo e as cores da Athos ou da Contac, e personalize cada detalhe."
+                : "Quando o escritório liberar uma apresentação para você, ela aparece aqui."}
             </p>
           </div>
           {canEdit && (
@@ -493,51 +579,91 @@ export default function Apresentacoes() {
           )}
         </div>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {[...decks]
-            .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
-            .map((item) => {
-              const shown = visibleSlides(item);
-              return (
-                <div key={item.id} className="group flex flex-col overflow-hidden rounded-2xl bg-surface-card shadow-sm ring-1 ring-line transition-shadow hover:shadow-md">
-                  <button type="button" onClick={() => navigate(`/empresa/apresentacoes/${item.id}`)} className="relative block overflow-hidden bg-surface-muted">
-                    <span className="block transition-transform duration-300 group-hover:scale-[1.02]">
-                      <SlideThumb slide={item.slides[0]} deck={item} env={env} width={440} number={1} total={shown.length} />
-                    </span>
-                  </button>
-                  <div className="flex items-start justify-between gap-2 px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-[14px] font-semibold text-ink-900">{item.name}</p>
-                      <p className="text-[11.5px] text-ink-400">
-                        {item.slides.length} slide{item.slides.length === 1 ? "" : "s"} · atualizada em {formatWhen(item.updatedAt)}
-                      </p>
+        (() => {
+          const termo = busca.trim().toLowerCase();
+          const lista = [...decks]
+            .filter((item) => (filtro === "cliente" ? item.liberada : filtro === "equipe" ? !item.liberada : true))
+            .filter((item) => !termo || String(item.name || "").toLowerCase().includes(termo))
+            .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+          if (!lista.length) return <p className="py-10 text-center text-[13px] text-ink-400">Nenhuma apresentação {termo ? `com "${busca.trim()}"` : "neste filtro"}.</p>;
+          return (
+            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+              {lista.map((item) => {
+                const shown = visibleSlides(item);
+                return (
+                  <div key={item.id} className="deck-cartao group flex flex-col rounded-2xl bg-surface-card shadow-sm ring-1 ring-line transition-shadow duration-200 hover:shadow-xl">
+                    <div className="relative overflow-hidden rounded-t-2xl bg-surface-muted">
+                      <button type="button" onClick={() => navigate(`/empresa/apresentacoes/${item.id}`)} className="block w-full" aria-label={`${canEdit ? "Editar" : "Abrir"} ${item.name}`}>
+                        <span className="block transition-transform duration-500 group-hover:scale-[1.03]">
+                          <CapaDoCartao slide={item.slides[0]} deck={item} env={env} total={shown.length} />
+                        </span>
+                      </button>
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-navy-950/0 transition-colors duration-200 group-hover:bg-navy-950/35">
+                        <button
+                          type="button"
+                          onClick={() => setPresenting({ deck: item, index: 0 })}
+                          className="pointer-events-auto flex h-14 w-14 scale-90 items-center justify-center rounded-full bg-white/95 text-accent-600 opacity-0 shadow-xl transition-all duration-200 group-hover:scale-100 group-hover:opacity-100"
+                          aria-label={`Apresentar ${item.name}`}
+                          title="Apresentar"
+                        >
+                          <Play size={22} fill="currentColor" className="ml-0.5" />
+                        </button>
+                      </div>
+                      <span className="pointer-events-none absolute bottom-2.5 right-2.5 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur">
+                        {shown.length} slide{shown.length === 1 ? "" : "s"}
+                      </span>
                     </div>
-                    {canEdit && (
-                      <DeckMenu
-                        onDuplicate={() => duplicatePresentation(item.id)?.id && setError("")}
-                        onCopyOut={() => setCopying(item)}
-                        onShare={() => setSharing(item)}
-                        onDelete={() => {
-                          if (window.confirm(`Excluir a apresentação "${item.name}"? Não dá pra desfazer.`)) deletePresentation(item.id).catch((err) => setError(err.message));
-                        }}
-                      />
+
+                    <div className="flex items-start justify-between gap-2 px-4 pb-1 pt-3.5">
+                      <div className="min-w-0">
+                        <p className="truncate text-[14.5px] font-semibold tracking-tight text-ink-900" title={item.name}>
+                          {item.name}
+                        </p>
+                        <p className="mt-0.5 text-[11.5px] text-ink-400">Atualizada em {formatWhen(item.updatedAt)}</p>
+                      </div>
+                      {canEdit && (
+                        <DeckMenu
+                          liberada={Boolean(item.liberada)}
+                          onToggleLiberada={() => liberarApresentacao(item.id, !item.liberada).catch((err) => setError(err.message))}
+                          onDuplicate={() => duplicatePresentation(item.id)?.id && setError("")}
+                          onCopyOut={() => setCopying(item)}
+                          onShare={() => setSharing(item)}
+                          onDelete={() => {
+                            if (window.confirm(`Excluir a apresentação "${item.name}"? Não dá pra desfazer.`)) deletePresentation(item.id).catch((err) => setError(err.message));
+                          }}
+                        />
+                      )}
+                    </div>
+
+                    {staff && (
+                      <div className="px-4 pt-1.5">
+                        {canEdit ? (
+                          <ChaveCliente ligada={Boolean(item.liberada)} onChange={() => liberarApresentacao(item.id, !item.liberada).catch((err) => setError(err.message))} />
+                        ) : (
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-medium ${item.liberada ? "bg-success-50 text-success-600" : "bg-surface-muted text-ink-500"}`}>
+                            {item.liberada ? <Eye size={12} /> : <EyeOff size={12} />} {item.liberada ? "Cliente vê" : "Só equipe"}
+                          </span>
+                        )}
+                      </div>
                     )}
+
+                    <div className="mt-auto grid grid-cols-3 gap-1 px-2 pb-2 pt-3">
+                      <button type="button" onClick={() => navigate(`/empresa/apresentacoes/${item.id}`)} className="flex h-9 items-center justify-center gap-1.5 rounded-lg text-[12.5px] font-medium text-ink-700 hover:bg-surface-muted">
+                        <Pencil size={14} /> {canEdit ? "Editar" : "Abrir"}
+                      </button>
+                      <button type="button" onClick={() => setPresenting({ deck: item, index: 0 })} className="flex h-9 items-center justify-center gap-1.5 rounded-lg bg-accent-50 text-[12.5px] font-semibold text-accent-700 hover:bg-accent-100">
+                        <Play size={14} /> Apresentar
+                      </button>
+                      <button type="button" onClick={() => setExporting({ deck: item, only: null })} className="flex h-9 items-center justify-center gap-1.5 rounded-lg text-[12.5px] font-medium text-ink-700 hover:bg-surface-muted">
+                        <Download size={14} /> PDF
+                      </button>
+                    </div>
                   </div>
-                  <div className="mt-auto grid grid-cols-3 gap-1 border-t border-line p-2">
-                    <button type="button" onClick={() => navigate(`/empresa/apresentacoes/${item.id}`)} className="flex h-9 items-center justify-center gap-1.5 rounded-md text-[12.5px] font-medium text-ink-700 hover:bg-surface-muted">
-                      <Pencil size={14} /> {canEdit ? "Editar" : "Abrir"}
-                    </button>
-                    <button type="button" onClick={() => setPresenting({ deck: item, index: 0 })} className="flex h-9 items-center justify-center gap-1.5 rounded-md text-[12.5px] font-medium text-accent-600 hover:bg-accent-50">
-                      <Play size={14} /> Apresentar
-                    </button>
-                    <button type="button" onClick={() => setExporting({ deck: item, only: null })} className="flex h-9 items-center justify-center gap-1.5 rounded-md text-[12.5px] font-medium text-ink-700 hover:bg-surface-muted">
-                      <Download size={14} /> PDF
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-        </div>
+                );
+              })}
+            </div>
+          );
+        })()
       )}
 
       {creating && <NewDeckModal env={env} onCreate={create} onClose={() => setCreating(false)} initialFavorite={creating.favorite || null} autoCreate={Boolean(creating.auto)} />}

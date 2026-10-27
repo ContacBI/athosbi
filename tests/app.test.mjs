@@ -600,6 +600,21 @@ const numsFechados = inicio.numerosDaEmpresa({ ...company, journal, journalLoade
 check("Cartão do Início para no mês fechado (fev)", numsFechados.mes === "2026-02" && numsFechados.lucroAno < expected.lucro && numsFechados.receitaAno < expected.receitaLiquida, numsFechados);
 setCompanyState();
 
+// ── Apresentações liberadas pro cliente ──
+section("Apresentações liberadas");
+const pres = await src("lib/presentations.js");
+setCompanyState();
+Object.assign(state, { isAdmin: true, presentations: [{ id: "p1", name: "A", slides: [], liberada: true }, { id: "p2", name: "B", slides: [] }] });
+check("Cliente só vê as liberadas; equipe vê todas", pres.apresentacoesVisiveis(state.presentations, { isAdmin: false }).map((d) => d.id).join() === "p1" && pres.apresentacoesVisiveis(state.presentations, { isColaborador: true }).length === 2, null);
+await pres.liberarApresentacao("p2", true).catch(() => null);
+const liberou = state.presentations.find((d) => d.id === "p2")?.liberada === true;
+await pres.liberarApresentacao("p1", false).catch(() => null);
+check("Liberar e tirar do cliente", liberou && state.presentations.find((d) => d.id === "p1")?.liberada === false, state.presentations);
+const copia = pres.duplicatePresentation("p2");
+check("Cópia começa só da equipe", copia && copia.liberada === false && pres.deckCopyForOtherWorkspace(state.presentations[1]).liberada === false, copia);
+Object.assign(state, { presentations: [] });
+setCompanyState();
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
