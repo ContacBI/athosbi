@@ -1,16 +1,19 @@
 import { useState } from "react";
-import { X, Building2, Network } from "lucide-react";
+import { X, Building2, Network, LayoutGrid, Lock } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { companiesResponsavel, groupsResponsavel } from "../lib/colaboradores.js";
 import SelectField from "./SelectField.jsx";
+import { MODULOS_COMPLEMENTARES } from "../lib/modulos.js";
 
 // Cadastro de uma pessoa de fora (cliente) em Acessos: a ficha (nome,
 // e-mail, telefone, observação) e o que ela enxerga — empresas E grupos ao
 // mesmo tempo, já que um convite normalmente cobre "essa pessoa vê tal
 // carteira". Serve pra criar (`person` vazio) e pra editar (`person` com o
 // que já existe — o e-mail não muda, é a identidade da pessoa). onSubmit
-// recebe { email, nome, telefone, observacao, companyIds, groupIds,
-// convidar } — quem chama decide o que criar/revogar (ver AcessosAdmin.jsx).
+// recebe { email, nome, telefone, observacao, modulos, companyIds,
+// groupIds, convidar } — quem chama decide o que criar/revogar (ver
+// AcessosAdmin.jsx). `modulos`: quais módulos além do B.I. a pessoa vê
+// (Orçamento, Carga tributária…); nenhum = só o B.I., sem menu lateral.
 
 const EMAIL_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -25,6 +28,7 @@ export default function AccessModal({ person = null, onClose, onSubmit, saving }
   const [observacao, setObservacao] = useState(person?.observacao || "");
   const [companyIds, setCompanyIds] = useState(person?.companyIds || []);
   const [groupIds, setGroupIds] = useState(person?.groupIds || []);
+  const [modulos, setModulos] = useState(person?.modulos || []);
   // Pessoa nova recebe o convite; editando, só se pedir (ex.: perdeu o e-mail).
   const [convidar, setConvidar] = useState(!editando);
   const [error, setError] = useState("");
@@ -38,6 +42,9 @@ export default function AccessModal({ person = null, onClose, onSubmit, saving }
 
   function toggleCompany(id) {
     setCompanyIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : current.concat(id)));
+  }
+  function toggleModulo(id) {
+    setModulos((current) => (current.includes(id) ? current.filter((item) => item !== id) : current.concat(id)));
   }
   function toggleGroup(id) {
     setGroupIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : current.concat(id)));
@@ -55,7 +62,7 @@ export default function AccessModal({ person = null, onClose, onSubmit, saving }
       return;
     }
     setError("");
-    onSubmit({ email: cleanEmail, nome: nome.trim(), telefone: telefone.trim(), observacao: observacao.trim(), companyIds, groupIds, convidar });
+    onSubmit({ email: cleanEmail, nome: nome.trim(), telefone: telefone.trim(), observacao: observacao.trim(), modulos, companyIds, groupIds, convidar });
   }
 
   return (
@@ -143,6 +150,22 @@ export default function AccessModal({ person = null, onClose, onSubmit, saving }
             </div>
           </div>
         )}
+
+        <p className="mt-5 text-[11px] font-semibold uppercase tracking-wide text-ink-400">Módulos que a pessoa vê</p>
+        <p className="mt-0.5 text-[11.5px] text-ink-400">Sem nenhum extra marcado, ela fica só no B.I. e o menu lateral de módulos não aparece.</p>
+        <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+          <span className="flex items-center gap-2 rounded-md border border-line bg-surface-muted px-3 py-2 text-[12.5px] text-ink-500" title="O B.I. Contábil é sempre liberado">
+            <LayoutGrid size={14} strokeWidth={1.8} className="text-ink-400" />
+            B.I Contábil
+            <Lock size={11} className="ml-auto text-ink-300" />
+          </span>
+          {MODULOS_COMPLEMENTARES.map((modulo) => (
+            <label key={modulo.id} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-[12.5px] transition-colors ${modulos.includes(modulo.id) ? "border-accent-400 bg-accent-50 text-accent-700" : "border-line-strong text-ink-700 hover:bg-surface-muted"}`}>
+              <input type="checkbox" checked={modulos.includes(modulo.id)} onChange={() => toggleModulo(modulo.id)} className={`acesso-modulo-${modulo.id} accent-[var(--color-accent-500)]`} />
+              {modulo.nome}
+            </label>
+          ))}
+        </div>
 
         <label className="mt-4 flex items-start gap-2 text-[12.5px] text-ink-600">
           <input type="checkbox" checked={convidar} onChange={(event) => setConvidar(event.target.checked)} className="acesso-convidar mt-0.5 accent-[var(--color-accent-500)]" />

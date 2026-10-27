@@ -1069,6 +1069,12 @@ create table if not exists public.acesso_pessoas (
   updated_at timestamptz not null default now(),
   updated_by text
 );
+-- Módulos além do B.I. que a pessoa (cliente) vê no menu lateral da
+-- empresa. Vazio = só o B.I., sem menu. Equipe vê todos, independente disto.
+alter table public.acesso_pessoas add column if not exists modulos text[] not null default '{}';
+alter table public.acesso_pessoas drop constraint if exists acesso_pessoas_modulos_validos;
+alter table public.acesso_pessoas add constraint acesso_pessoas_modulos_validos
+  check (modulos <@ array['orcamento', 'carga-tributaria', 'analise-desempenho']::text[]);
 alter table public.acesso_pessoas enable row level security;
 
 -- Equipe (admin/colaborador) vê todas as fichas; a pessoa vê a própria.

@@ -41,10 +41,12 @@ const MODULOS = [
   },
 ];
 
-export default function ModulesSidebar({ onClose, isGroup, hasData, overlay }) {
+// `liberados`: os módulos complementares que esta pessoa pode ver (ver
+// modulosLiberados em lib/modulos.js) — o B.I Contábil está sempre.
+export default function ModulesSidebar({ onClose, isGroup, hasData, overlay, liberados = [] }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const itens = MODULOS.filter((item) => !(item.soEmpresa && isGroup) && !(item.precisaDeDados && !hasData));
+  const itens = MODULOS.filter((item) => (item.id === "bi" || liberados.includes(item.id)) && !(item.soEmpresa && isGroup) && !(item.precisaDeDados && !hasData));
 
   const painel = (
     <nav aria-label="Módulos" className={`flex w-60 shrink-0 flex-col gap-1 border-r border-line bg-surface-card p-3 ${overlay ? "h-full shadow-xl" : "min-h-[calc(100vh-64px)]"}`}>

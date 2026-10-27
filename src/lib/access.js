@@ -61,12 +61,23 @@ export async function revokeAccess(id) {
 // cadastro, pra tela mostrar "Yasmin Santos" em vez de só o e-mail.
 // Map e-mail → ficha.
 export async function listAccessPeople() {
-  const { data, error } = await supabase.from("acesso_pessoas").select("email, nome, telefone, observacao, updated_at");
+  const { data, error } = await supabase.from("acesso_pessoas").select("email, nome, telefone, observacao, modulos, updated_at");
   if (error) throw error;
   return new Map((data || []).map((row) => [row.email, row]));
 }
 
-export async function saveAccessPerson({ email, nome = "", telefone = "", observacao = "" }) {
+// A ficha de quem está logado (cliente) — só os módulos interessam aqui.
+export async function minhaFicha() {
+  const email = await currentUserEmail();
+  if (!email) return null;
+  const { data, error } = await supabase.from("acesso_pessoas").select("email, nome, modulos").eq("email", email).maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+const MODULOS_VALIDOS = ["orcamento", "carga-tributaria", "analise-desempenho"];
+
+export async function saveAccessPerson({ email, nome = "", telefone = "", observacao = "", modulos = [] }) {
   const cleanEmail = String(email || "").trim().toLowerCase();
   if (!cleanEmail) return;
   const by = await currentUserEmail();
@@ -75,6 +86,7 @@ export async function saveAccessPerson({ email, nome = "", telefone = "", observ
     nome: String(nome || "").trim().slice(0, 120),
     telefone: String(telefone || "").trim().slice(0, 40),
     observacao: String(observacao || "").trim().slice(0, 300),
+    modulos: (modulos || []).filter((id) => MODULOS_VALIDOS.includes(id)),
     updated_at: new Date().toISOString(),
     updated_by: by || null,
   });

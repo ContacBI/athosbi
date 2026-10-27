@@ -482,6 +482,14 @@ check("Grupo: idem", !rejeitou && state.saveError === null, state.saveError);
 Object.assign(state, { isAdmin: true, saveError: null });
 setCompanyState();
 
+// ── Módulos que o cliente vê (Parâmetros › Acessos) ──
+section("Módulos por pessoa");
+const { modulosLiberados, moduloDaRota } = await src("lib/modulos.js");
+check("Equipe vê todos os módulos", modulosLiberados({ isAdmin: true }).length === 3 && modulosLiberados({ isColaborador: true }).length === 3, null);
+check("Cliente sem ficha (ou ainda carregando) → só o B.I., sem menu", modulosLiberados({ modulosCliente: null }).length === 0 && modulosLiberados({ modulosCliente: [] }).length === 0, null);
+check("Cliente vê só o que foi liberado (e ignora lixo)", JSON.stringify(modulosLiberados({ modulosCliente: ["carga-tributaria", "xyz"] })) === JSON.stringify(["carga-tributaria"]), modulosLiberados({ modulosCliente: ["carga-tributaria", "xyz"] }));
+check("Rota → módulo (B.I. e outras telas = nenhum)", moduloDaRota("/empresa/orcamento") === "orcamento" && moduloDaRota("/empresa/analise-desempenho/x") === "analise-desempenho" && moduloDaRota("/empresa") === null && moduloDaRota("/empresa/dre") === null, null);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);

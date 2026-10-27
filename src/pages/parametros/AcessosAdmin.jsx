@@ -3,6 +3,7 @@ import { Mail, Pencil, Phone, Search, ShieldCheck, Trash2, UserX } from "lucide-
 import { useAppState } from "../../data/useStore.js";
 import { listAccessGrants, grantAccess, revokeAccess, inviteUser, listAccessPeople, saveAccessPerson, deleteAccessPerson } from "../../lib/access.js";
 import { hasAnyResponsibility } from "../../lib/colaboradores.js";
+import { MODULOS_COMPLEMENTARES } from "../../lib/modulos.js";
 import PageHeader from "../../components/PageHeader.jsx";
 import AccessModal from "../../components/AccessModal.jsx";
 import Avatar from "../../components/Avatar.jsx";
@@ -90,6 +91,7 @@ export default function AcessosAdmin() {
         nome: pessoa.ficha?.nome || "",
         telefone: pessoa.ficha?.telefone || "",
         observacao: pessoa.ficha?.observacao || "",
+        modulos: pessoa.ficha?.modulos || [],
         companyIds: pessoa.grants.filter((grant) => grant.scope_type === "company").map((grant) => grant.scope_id),
         groupIds: pessoa.grants.filter((grant) => grant.scope_type === "group").map((grant) => grant.scope_id),
       },
@@ -99,7 +101,7 @@ export default function AcessosAdmin() {
   // Criar ou editar: grava a ficha, cria as concessões novas, tira as que
   // foram desmarcadas (só editando) e, se pedido, manda o convite — um só,
   // mesmo com várias empresas/grupos.
-  async function handleSave({ email, nome, telefone, observacao, companyIds, groupIds, convidar }) {
+  async function handleSave({ email, nome, telefone, observacao, modulos, companyIds, groupIds, convidar }) {
     setSaving(true);
     setError("");
     setNotice("");
@@ -113,10 +115,10 @@ export default function AcessosAdmin() {
       await Promise.all(novos.map((item) => grantAccess({ email, scopeType: item.scopeType, scopeId: item.scopeId })));
       await Promise.all(tirar.map((grant) => revokeAccess(grant.id)));
       try {
-        await saveAccessPerson({ email, nome, telefone, observacao });
+        await saveAccessPerson({ email, nome, telefone, observacao, modulos });
       } catch (fichaErr) {
         console.error("Falha ao salvar a ficha da pessoa:", fichaErr);
-        avisos.push("o nome/contato não foi salvo agora (tente editar de novo)");
+        avisos.push("o nome/contato e os módulos não foram salvos agora (tente editar de novo)");
       }
       if (convidar) {
         try {
@@ -273,6 +275,9 @@ export default function AcessosAdmin() {
               )}
             </div>
             <div className="mt-2.5 flex flex-wrap gap-1.5">
+              <span className="acessos-modulos flex items-center rounded-full bg-accent-50 px-2.5 py-0.5 text-[11.5px] text-accent-700" title="Módulos que a pessoa vê (Editar pra mudar)">
+                Vê: {["B.I.", ...MODULOS_COMPLEMENTARES.filter((modulo) => (pessoa.ficha?.modulos || []).includes(modulo.id)).map((modulo) => modulo.nome)].join(" · ")}
+              </span>
               {pessoa.grants.map((grant) => (
                 <span
                   key={grant.id}

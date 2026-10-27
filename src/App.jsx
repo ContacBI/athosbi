@@ -15,7 +15,7 @@ import { loadCompanies } from "./lib/companies.js";
 import { selectGroup } from "./lib/groups.js";
 import { loadRepresentantes } from "./lib/representantes.js";
 import { loadIndicatorOverrides } from "./lib/indicators.js";
-import { isPortalAdmin, currentUserEmail } from "./lib/access.js";
+import { isPortalAdmin, currentUserEmail, minhaFicha } from "./lib/access.js";
 import { isColaborador } from "./lib/colaboradores.js";
 import { loadPlanosPadrao, refreshEffectivePlano } from "./lib/planosPadrao.js";
 import { isReformaEscritorio } from "./lib/modulos.js";
@@ -128,6 +128,13 @@ function AuthedApp() {
     ])
       .then(async ([, companiesResult, , , adminFlag, , colaboradorFlag, email, reformaFlag, reformaEmpresas]) => {
         setData({ isAdmin: adminFlag, isColaborador: colaboradorFlag, userEmail: email, isReformaEscritorio: reformaFlag, reformaEmpresas });
+        // Cliente: quais módulos complementares (Orçamento, Carga…) foram
+        // liberados na ficha dele — sem ficha (ou sem a tabela), só o B.I.
+        if (!adminFlag && !colaboradorFlag) {
+          minhaFicha()
+            .then((ficha) => setData({ modulosCliente: Array.isArray(ficha?.modulos) ? ficha.modulos : [] }))
+            .catch(() => setData({ modulosCliente: [] }));
+        }
         // selectGroup marca state.activeGroupId de forma SÍNCRONA (antes de
         // qualquer await) — isso basta pro CompanyLayout não chutar de volta
         // pra /empresas num F5 dentro de um grupo. O razão dos membros chega
