@@ -624,6 +624,16 @@ check("Cópia começa só da equipe", copia && copia.liberada === false && pres.
 Object.assign(state, { presentations: [] });
 setCompanyState();
 
+// ── Explicação ao clicar num item do Início (lib/glossario.js) ──
+section("Explicações do Início");
+const glo = await src("lib/glossario.js");
+const semExplicacao = rc.NUMEROS.map((n) => n.id).filter((id) => !glo.GLOSSARIO[id]?.oque);
+check("Todo quadrinho do resumo tem explicação", semExplicacao.length === 0, semExplicacao);
+const fonteAnalise = fs.readFileSync(path.join(ROOT, "src/lib/assistant/analysis.js"), "utf8");
+const assuntos = [...new Set([...fonteAnalise.matchAll(/add\("[a-z_]+", "([A-Za-z]+)", /g)].map((m) => m[1]))];
+const assuntosSem = assuntos.filter((topic) => topic !== "balanco" && !glo.explicacaoDoAssunto(topic));
+check("Todo assunto de alerta/positivo que o cliente vê tem explicação", assuntos.length > 10 && assuntosSem.length === 0, assuntosSem);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
