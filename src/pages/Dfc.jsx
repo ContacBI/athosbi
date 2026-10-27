@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, ChevronRight, Maximize2, Minimize2, Search, Waves } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
-import { buildDfcDirect, buildDfcIndirect, buildReportTree, dfcInstitutoStatus, reportMonths } from "../data/calculations.js";
+import { buildDfcDirect, buildDfcIndirect, buildReportTree, codigoDeExibicao, dfcInstitutoStatus, reportMonths } from "../data/calculations.js";
 import { buildCashBridge } from "../lib/cashBridge.js";
 import { CashBridgePanel } from "../components/CashBridgeView.jsx";
 import { useDfcInstitutoSync } from "../lib/useDfcInstitutoSync.js";
@@ -60,12 +60,11 @@ function buildDfcExportRows(rows, columns, expandedRows) {
     columns.forEach((column) => { cells[column] = moneyOrDash(column === "saldo" ? source.saldo : source.monthValues?.[column] || 0); });
     return cells;
   };
-  const codeLabel = (classificacao) => (Array.isArray(classificacao) ? classificacao.join(", ") : classificacao || "");
   rows.forEach((row) => {
     out.push({ codigo: row.codigo_gerencial || "", nome: row.categoria_gerencial || "", nivel: Number(row.nivel || 0), isAnalytic: false, cells: cellsFor(row) });
     if (!expandedRows.has(row.codigo_gerencial)) return;
     (row.contas || []).forEach((child) => {
-      out.push({ codigo: codeLabel(child.classificacao), nome: child.nome_conta || "", nivel: Number(row.nivel || 0) + 1, isAnalytic: true, cells: cellsFor(child) });
+      out.push({ codigo: codigoDeExibicao(child.classificacao), nome: child.nome_conta || "", nivel: Number(row.nivel || 0) + 1, isAnalytic: true, cells: cellsFor(child) });
     });
   });
   return out;
@@ -125,7 +124,7 @@ function DfcRow({ row, columns, template, isOpen, onToggle, onOpenLedger }) {
       {isOpen &&
         children.map((child) => (
           <button
-            key={child.classificacao}
+            key={Array.isArray(child.classificacao) ? child.classificacao.join("|") : child.classificacao}
             type="button"
             onClick={() => onOpenLedger(child)}
             style={{ gridTemplateColumns: template }}
@@ -133,7 +132,7 @@ function DfcRow({ row, columns, template, isOpen, onToggle, onOpenLedger }) {
           >
             <span className="truncate pl-7 text-[12px] text-ink-600">
               {child.nome_conta}
-              <span className="ml-2 text-[10px] text-ink-400">{child.classificacao} · {child.qtd_lancamentos} lançamentos</span>
+              <span className="ml-2 text-[10px] text-ink-400">{codigoDeExibicao(child.classificacao)} · {child.qtd_lancamentos} lançamentos</span>
             </span>
             {columns.map((column) => {
               const value = column === "saldo" ? child.saldo : child.monthValues?.[column] || 0;

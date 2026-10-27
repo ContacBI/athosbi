@@ -21,6 +21,7 @@ import { loadPlanosPadrao, refreshEffectivePlano } from "./lib/planosPadrao.js";
 import { isReformaEscritorio } from "./lib/modulos.js";
 import { listarEmpresas as listarEmpresasReforma } from "./lib/reforma/api.js";
 import { setData } from "./data/useStore.js";
+import { limparCopiaLocal } from "./lib/journalCache.js";
 
 // Carregadas sob demanda (React.lazy) em vez de no pacote inicial — são as
 // telas que só entram depois que a pessoa já navegou pra dentro de uma
@@ -99,6 +100,9 @@ function AuthedApp() {
         bootedForUserRef.current = null;
         setReady(false);
         setBootError("");
+        // A cópia local do razão (ver lib/journalCache.js) não fica no
+        // navegador depois que a pessoa sai.
+        limparCopiaLocal();
       }
     });
     return () => subscription.subscription.unsubscribe();

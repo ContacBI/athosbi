@@ -29,7 +29,7 @@ import { isSingleLineFormula, describeIndicatorFormula } from "../../lib/indicat
 import { useIsMobile } from "../../lib/useIsMobile.js";
 import { directChildren } from "../../lib/reportTree.js";
 import { AnaliseCascataWidget, AnaliseDeducoesWidget, AnaliseParetoWidget, AnaliseRankingWidget, CargaComposicaoWidget, CargaMesWidget, CargaResumoWidget } from "./AnaliseWidgets.jsx";
-import { buildDfcDirect, buildDfcIndirect } from "../../data/calculations.js";
+import { buildDfcDirect, buildDfcIndirect, codigoDeExibicao } from "../../data/calculations.js";
 import { money } from "../../lib/format.js";
 import { columnLabel, columnValue, reportColumns, isZeroNoMovement } from "../../lib/reportColumns.js";
 import { budgetFor } from "../../lib/budget.js";
@@ -1199,7 +1199,7 @@ function ListWidgetCard({ definition, ctx, maxRows }) {
           {ctx.missing.slice(0, 8).map((account) => (
             <div key={`${account.classificacao}|${account.codigo}`} className="flex items-center justify-between gap-3 text-[13px]">
               <span className="truncate text-ink-700">{account.nome_conta || account.classificacao}</span>
-              <span className="shrink-0 text-[11px] text-ink-400">{account.classificacao}</span>
+              <span className="shrink-0 text-[11px] text-ink-400">{codigoDeExibicao(account.classificacao)}</span>
             </div>
           ))}
           {ctx.missing.length === 0 && <p className="text-[12px] text-ink-400">Todas as contas estão mapeadas.</p>}

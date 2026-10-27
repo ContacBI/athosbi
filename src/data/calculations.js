@@ -16,7 +16,8 @@ export function filteredJournal() {
 // applyBalanceteAno em lib/companies.js; ex.: o de 2025, pedido à Central);
 // senão o principal (state.accounts). É dele que saem o saldo anterior e o
 // saldo final do Balanço, as disponibilidades do DFC e a lista de contas.
-// Grupo e B.I. consolidado usam sempre state.accounts (já montado pra eles).
+// No grupo vale a mesma regra empresa por empresa (ver groupBalanceteEmUso):
+// o consolidado tem que ser sempre a soma do que cada empresa mostra.
 //
 // Os saldos vêm já levados pro período da tela (ver balanceteNoPeriodo):
 // o balancete da Domínio cobre um intervalo (ex.: 01/01 a 30/09), e com o
@@ -30,15 +31,41 @@ export function balanceteDoPeriodo() {
 // Grupo: cada conta é de uma empresa (account.companyId, ver groups.js) e
 // anda pelo intervalo do balancete DELA.
 function balanceteEmUso() {
-  if (state.activeGroupId) {
-    const metaById = new Map(state.companies.map((company) => [company.id, company.lastBalanceteMeta || null]));
-    return { accounts: state.accounts, metaFor: (companyId) => metaById.get(companyId) || null };
-  }
+  if (state.activeGroupId) return groupBalanceteEmUso();
   const ano = String(state.periodStart || "").slice(0, 4);
   const company = state.companies.find((item) => item.id === state.activeCompanyId);
   const doAno = ano ? company?.balancetesAno?.[ano] : null;
   if (doAno?.accounts?.length) return { accounts: doAno.accounts, metaFor: () => doAno.meta || null };
   return { accounts: state.accounts, metaFor: () => company?.lastBalanceteMeta || null };
+}
+
+// Mesma escolha da empresa aberta sozinha, membro por membro: quem tem o
+// balancete guardado do ano do período (balancetesAno) entra com ele, os
+// outros com o principal (o que já está em state.accounts). Antes o grupo
+// usava sempre o principal — o Balanço de 2025 do grupo não batia com o de
+// 2025 de cada empresa. Mesma lista enquanto nada muda (balanceteNoPeriodo
+// guarda o cálculo pela identidade da lista).
+let groupBalanceteMemo = null;
+
+function groupBalanceteEmUso() {
+  const ano = String(state.periodStart || "").slice(0, 4);
+  const memo = groupBalanceteMemo;
+  if (memo && memo.accounts === state.accounts && memo.companies === state.companies && memo.groups === state.groups && memo.groupId === state.activeGroupId && memo.ano === ano) return memo.result;
+  const group = (state.groups || []).find((item) => item.id === state.activeGroupId);
+  const byId = new Map((state.companies || []).map((company) => [company.id, company]));
+  const members = (group?.companyIds || []).map((id) => byId.get(id)).filter(Boolean);
+  const doAno = new Map(members.filter((company) => ano && company.balancetesAno?.[ano]?.accounts?.length).map((company) => [company.id, company.balancetesAno[ano]]));
+  const metaById = new Map((state.companies || []).map((company) => [company.id, doAno.has(company.id) ? doAno.get(company.id).meta || null : company.lastBalanceteMeta || null]));
+  const accounts = doAno.size
+    ? members.flatMap((company) =>
+        doAno.has(company.id)
+          ? doAno.get(company.id).accounts.map((account) => ({ ...account, classificacao: `${company.id}::${account.classificacao}`, companyId: company.id, companyName: company.name }))
+          : (state.accounts || []).filter((account) => account.companyId === company.id)
+      )
+    : state.accounts;
+  const result = { accounts, metaFor: (companyId) => metaById.get(companyId) || null };
+  groupBalanceteMemo = { accounts: state.accounts, companies: state.companies, groups: state.groups, groupId: state.activeGroupId, ano, result };
+  return result;
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -645,6 +672,15 @@ function isCashEntry(entry) {
   return isCashGerencialCode(gerencialCodeForEntry(entry));
 }
 
+// O código da conta como a pessoa conhece. No grupo a classificação vem com
+// o id interno da empresa na frente ("emp_123::1.1.20.400.1") e, numa linha
+// somada entre empresas, é uma lista delas — aqui sai só o código, sem
+// repetir ("1.1.20.400.1"; códigos diferentes separados por vírgula).
+export function codigoDeExibicao(classificacao) {
+  const codigos = (Array.isArray(classificacao) ? classificacao : [classificacao]).map((codigo) => String(codigo ?? "").split("::").pop()).filter(Boolean);
+  return [...new Set(codigos)].join(", ");
+}
+
 // Mesmo teste de isCashEntry, só que a partir do código gerencial direto —
 // usado pela tela de Vínculo DFC (VinculoDfc.jsx), que não tem um
 // lançamento em mãos, só a conta. Caixa e equivalentes nunca têm destino
@@ -846,8 +882,23 @@ function prepareDfcConfig() {
     // Vínculo por empresa (tela "Vínculo DFC") — sempre checado ANTES do
     // vínculo global (CSV): é uma escolha explícita do usuário pra ESSA
     // empresa, deve vencer o padrão que vale pra todo mundo.
-    overrides: (state.dfcOverrides || []).map(normalizeDfcOverride).filter((item) => item.codigo && item.destino),
+    overrides: normalizeDfcOverrides(state.dfcOverrides),
+    // No grupo, cada lançamento usa o Vínculo DFC da empresa DELE — o mesmo
+    // que vale quando a empresa é aberta sozinha. Antes o grupo ignorava os
+    // vínculos das empresas (ex.: "Honorários advocatícios" ia pra
+    // Fornecedores na empresa e pra Clientes no grupo).
+    overridesByCompany: state.activeGroupId ? groupDfcOverrides() : null,
   };
+}
+
+function normalizeDfcOverrides(rows) {
+  return (rows || []).map(normalizeDfcOverride).filter((item) => item.codigo && item.destino);
+}
+
+function groupDfcOverrides() {
+  const group = (state.groups || []).find((item) => item.id === state.activeGroupId);
+  const ids = new Set(group?.companyIds || []);
+  return new Map((state.companies || []).filter((company) => ids.has(company.id)).map((company) => [company.id, normalizeDfcOverrides(company.dfcOverrides)]));
 }
 
 function normalizeDfcOverride(row) {
@@ -858,7 +909,8 @@ function classifyDfcEntry(cashEntry, counterpart, dfcConfig) {
   const cashValue = Number(cashEntry.debito || 0) - Number(cashEntry.credito || 0);
   const code = gerencialCodeForEntry(counterpart);
   const text = normalize(`${counterpart?.descricao_conta || ""} ${counterpart?.categoria_gerencial || ""} ${counterpart?.grupo_macro || ""} ${counterpart?.historico || cashEntry.historico || ""}`);
-  const linkTarget = dfcLinkTarget(code, cashValue, dfcConfig.links, dfcConfig.overrides);
+  const overrides = dfcConfig.overridesByCompany ? dfcConfig.overridesByCompany.get((counterpart || cashEntry)?.companyId) || [] : dfcConfig.overrides;
+  const linkTarget = dfcLinkTarget(code, cashValue, dfcConfig.links, overrides);
   if (linkTarget) return linkTarget;
   const manualTarget = dfcRuleTarget(cashEntry, counterpart, code, text, dfcConfig.rules);
   if (manualTarget) {

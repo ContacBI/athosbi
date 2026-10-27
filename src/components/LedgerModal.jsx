@@ -56,7 +56,10 @@ export default function LedgerModal({ row, onClose }) {
   const codigoConta = Array.isArray(row.classificacao) ? row.classificacao[0] : row.classificacao;
   // No grupo a classificação vem com o id da empresa na frente ("emp_123::9.4.20.200.1"); a natureza (resultado, passivo…) vem do código da conta em si.
   const codigoSemEmpresa = String(codigoConta ?? "").includes("::") ? String(codigoConta).split("::").pop() : codigoConta;
-  const natureza = row.demonstrativo === "DFC" ? null : accountNature(codigoSemEmpresa, state.natureRules) || (row.demonstrativo === "DRE" ? "resultado" : null);
+  // E as regras de natureza são as da empresa DONA da conta (no grupo, a do prefixo), as mesmas de quando ela é aberta sozinha.
+  const empresaDaConta = String(codigoConta ?? "").includes("::") ? state.companies.find((company) => company.id === String(codigoConta).split("::")[0]) : null;
+  const regrasDeNatureza = empresaDaConta ? empresaDaConta.natureRules : state.natureRules;
+  const natureza = row.demonstrativo === "DFC" ? null : accountNature(codigoSemEmpresa, regrasDeNatureza) || (row.demonstrativo === "DRE" ? "resultado" : null);
   const creditoPositivo = natureza === "resultado" || natureza === "passivo" || natureza === "pl";
   const corDebito = creditoPositivo ? "text-danger-600" : "text-success-600";
   const corCredito = creditoPositivo ? "text-success-600" : "text-danger-600";
