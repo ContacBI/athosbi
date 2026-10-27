@@ -633,6 +633,23 @@ const fonteAnalise = fs.readFileSync(path.join(ROOT, "src/lib/assistant/analysis
 const assuntos = [...new Set([...fonteAnalise.matchAll(/add\("[a-z_]+", "([A-Za-z]+)", /g)].map((m) => m[1]))];
 const assuntosSem = assuntos.filter((topic) => topic !== "balanco" && !glo.explicacaoDoAssunto(topic));
 check("Todo assunto de alerta/positivo que o cliente vê tem explicação", assuntos.length > 10 && assuntosSem.length === 0, assuntosSem);
+setCompanyState();
+const antesSerie = { id: state.activeCompanyId, journal: state.journal, periodStart: state.periodStart };
+const empresaSerie = { ...company, journal, journalLoaded: true };
+const mesesSerie = inicio.mesesComDados(empresaSerie, { ate: "2026-02" });
+check("Evolução: só os meses até o fechamento", mesesSerie.join() === "2026-01,2026-02", mesesSerie);
+const serieReceita = inicio.serieDoItem(empresaSerie, "receita", { inicio: "2026-01", fim: "2026-03" });
+const serieDespesas = inicio.serieDoItem(empresaSerie, "despesas", { inicio: "2026-01", fim: "2026-03" });
+const serieCaixa = inicio.serieDoItem(empresaSerie, "caixa", { inicio: "2026-01", fim: "2026-03" });
+check("Evolução: a receita mês a mês soma a do trimestre", serieReceita.length === 3 && Math.abs(serieReceita.reduce((soma, ponto) => soma + ponto.valor, 0) - expected.receitaLiquida) < 0.01, serieReceita);
+check("Evolução: despesas positivas e caixa do último mês igual ao balanço", serieDespesas.length === 3 && serieDespesas.every((ponto) => ponto.valor >= 0) && Math.abs(serieCaixa[2]?.valor - expected.caixa) < 0.01, { serieDespesas, serieCaixa });
+check("Montar a evolução não mexe na empresa aberta", state.activeCompanyId === antesSerie.id && state.journal === antesSerie.journal && state.periodStart === antesSerie.periodStart, null);
+const sm = await src("lib/serieMensal.js");
+check(
+  "Rótulos do gráfico de evolução",
+  sm.valorCurto(24412) === "24,4 mil" && sm.valorCurto(197400) === "197 mil" && sm.valorCurto(1250000) === "1,3 mi" && sm.valorCurto(-850) === "-850" && sm.rotuloMes("2026-09") === "set/26" && sm.variacaoEntre(100, 110).texto === "+10,0%" && sm.variacaoEntre(20, 18.5, "percent").texto === "-1,5 p.p." && sm.variacaoEntre(0, 5) === null,
+  null
+);
 
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {

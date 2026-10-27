@@ -32,6 +32,21 @@ export const NUMEROS = [
   { id: "receitaBruta", nome: "Receita bruta", metrica: "receitaBruta" },
 ];
 
+// A fórmula de cada número do resumo, nos códigos do plano gerencial (o
+// mesmo formato dos cards do B.I.): abre a composição no celular
+// (DrillModal) e dá a série mês a mês da aba "Evolução" no Início.
+export const FORMULAS = {
+  lucro: { kind: "sum", format: "money", numerator: [{ code: "DRE.18", sign: 1 }] },
+  receita: { kind: "sum", format: "money", numerator: [{ code: "DRE.03", sign: 1 }] },
+  despesas: { kind: "sum", format: "money", numerator: ["DRE.06", "DRE.07", "DRE.08", "DRE.09", "DRE.10"].map((code) => ({ code, sign: 1 })) },
+  ebitda: { kind: "sum", format: "money", numerator: [{ code: "DEX.08", sign: 1 }, { code: "DEX.09", sign: 1 }] },
+  caixa: { kind: "sum", format: "money", numerator: [{ code: "01.01.01", sign: 1 }] },
+  margem: { kind: "ratio", format: "percent", numerator: [{ code: "DRE.18", sign: 1 }], denominator: [{ code: "DRE.03", sign: 1 }] },
+  lucroBruto: { kind: "sum", format: "money", numerator: [{ code: "DRE.05", sign: 1 }] },
+  custos: { kind: "sum", format: "money", numerator: [{ code: "DRE.04", sign: 1 }] },
+  receitaBruta: { kind: "sum", format: "money", numerator: [{ code: "DRE.01", sign: 1 }] },
+};
+
 // Os quadrinhos possíveis com os valores do período (facts/cmp de
 // analyze()): { id: { id, label, value, sub, metric } }. Vazio sem facts.
 export function tilesDoResumo(facts, cmp) {

@@ -27,7 +27,7 @@ import { apresentacoesVisiveis, compactValue } from "../lib/presentations.js";
 import { money } from "../lib/format.js";
 import { setPrefersFullPanel, useInstallApp } from "../lib/installApp.js";
 import { isResponsavelForGroup } from "../lib/colaboradores.js";
-import { alertasDoResumo, blocosVisiveis, tilesDoResumo } from "../lib/resumoCelular.js";
+import { FORMULAS, alertasDoResumo, blocosVisiveis, tilesDoResumo } from "../lib/resumoCelular.js";
 import DrillModal from "../components/dashboard/DrillModal.jsx";
 import DeltaPill from "../components/DeltaPill.jsx";
 import ResumoCelularConfig from "../components/ResumoCelularConfig.jsx";
@@ -40,17 +40,8 @@ import { useGravarResumo } from "../lib/useGravarResumo.js";
 // aparece (blocos, ordem, números, alertas, recado) é configurável por
 // empresa/grupo pela equipe — ver lib/resumoCelular.js.
 
-const F = {
-  lucro: { kind: "sum", format: "money", numerator: [{ code: "DRE.18", sign: 1 }] },
-  receita: { kind: "sum", format: "money", numerator: [{ code: "DRE.03", sign: 1 }] },
-  despesas: { kind: "sum", format: "money", numerator: ["DRE.06", "DRE.07", "DRE.08", "DRE.09", "DRE.10"].map((code) => ({ code, sign: 1 })) },
-  ebitda: { kind: "sum", format: "money", numerator: [{ code: "DEX.08", sign: 1 }, { code: "DEX.09", sign: 1 }] },
-  caixa: { kind: "sum", format: "money", numerator: [{ code: "01.01.01", sign: 1 }] },
-  margem: { kind: "ratio", format: "percent", numerator: [{ code: "DRE.18", sign: 1 }], denominator: [{ code: "DRE.03", sign: 1 }] },
-  lucroBruto: { kind: "sum", format: "money", numerator: [{ code: "DRE.05", sign: 1 }] },
-  custos: { kind: "sum", format: "money", numerator: [{ code: "DRE.04", sign: 1 }] },
-  receitaBruta: { kind: "sum", format: "money", numerator: [{ code: "DRE.01", sign: 1 }] },
-};
+// As fórmulas de cada número (pra abrir a composição) — lib/resumoCelular.js.
+const F = FORMULAS;
 
 function lastDay(year, month) {
   return new Date(year, month, 0).getDate();

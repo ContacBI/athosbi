@@ -8,6 +8,8 @@ import { sharedDashboardContext } from "./dashboardData.js";
 import { analyze } from "./assistant/analysis.js";
 import { shortPeriod } from "./assistant/context.js";
 import { budgetFor } from "./budget.js";
+import { kpiSeries } from "./presentations.js";
+import { FORMULAS } from "./resumoCelular.js";
 import { remapJournal } from "./companies.js";
 import { effectivePlano } from "./planosPadrao.js";
 import { companyHealth } from "./carteira.js";
@@ -132,6 +134,46 @@ export function resumoDaEmpresa(company, { ate = "" } = {}) {
   } catch (error) {
     console.error(`Início: não consegui montar o resumo de ${company.name}`, error);
     return { ...numeros, analysis: null, budget: null, prevLabel: "" };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Aba "Evolução" da explicação (ExplicaItem): os meses com lançamento da
+// empresa até o mês fechado e a série mês a mês de um número do resumo
+// (FORMULAS) entre dois meses. Despesas e custos vêm positivos (como no
+// cartão).
+
+export function mesesComDados(company, { ate = "" } = {}) {
+  const meses = new Set();
+  (company?.journal || []).forEach((entry) => {
+    const mes = String(entry.data || "").slice(0, 7);
+    if (/^\d{4}-\d{2}$/.test(mes) && (!ate || mes <= ate)) meses.add(mes);
+  });
+  return [...meses].sort();
+}
+
+const EM_MODULO = new Set(["despesas", "custos"]);
+
+export function serieDoItem(company, serieId, { inicio, fim }) {
+  const formula = FORMULAS[serieId];
+  if (!formula || !company?.journalLoaded || !inicio || !fim || inicio > fim) return [];
+  try {
+    return comEmpresa(company, () => {
+      state.periodStart = `${inicio}-01`;
+      state.periodEnd = ultimoDia(fim);
+      const ctx = sharedDashboardContext();
+      const meses = ctx?.months || [];
+      // kpiSeries pede pelo menos 2 meses — a tela nunca pede menos.
+      const valores = kpiSeries({ formula }, ctx);
+      return meses.map((mes, index) => {
+        let valor = valores[index];
+        if (valor != null && EM_MODULO.has(serieId)) valor = Math.abs(valor);
+        return { mes, valor: valor == null || !Number.isFinite(valor) ? null : valor };
+      });
+    });
+  } catch (error) {
+    console.error(`Início: não consegui montar a evolução de ${serieId}`, error);
+    return [];
   }
 }
 

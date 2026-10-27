@@ -6,7 +6,7 @@ import { useAppState } from "../data/useStore.js";
 import { temBi as temModuloBi, temReforma as temModuloReforma } from "../lib/modulos.js";
 import { groupCompanies } from "../lib/groups.js";
 import { ensureCompanyJournalLoaded } from "../lib/companies.js";
-import { primeiroNome, resumoCarteira, resumoDaEmpresa, saudacao } from "../lib/inicio.js";
+import { mesesComDados, primeiroNome, resumoCarteira, resumoDaEmpresa, saudacao, serieDoItem } from "../lib/inicio.js";
 import { mesFechadoDa } from "../lib/fechamento.js";
 import { recentes } from "../lib/recentes.js";
 import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
@@ -88,23 +88,60 @@ function Titulo({ icone: Icone, children }) {
   );
 }
 
-function TituloBloco({ icone: Icone, children }) {
+function TituloBloco({ icone: Icone, children, tom = "text-ink-400" }) {
   return (
-    <span className="mb-2 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-400">
-      {Icone && <Icone size={12} />}
+    <span className={`mb-2.5 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.1em] ${tom}`}>
+      {Icone && <Icone size={12.5} strokeWidth={2.2} />}
       {children}
     </span>
   );
 }
 
+// O número cuja evolução faz sentido mostrar para cada assunto de alerta.
+const SERIE_DO_ASSUNTO = { resultado: "lucro", comparativo: "lucro", sazonalidade: "lucro", receita: "receita", composicaoReceita: "receita", despesas: "despesas", pareto: "despesas", margens: "margem", ebitda: "ebitda", caixa: "caixa", fluxo: "caixa" };
+const TITULO_DA_SERIE = { lucro: "Lucro mês a mês", receita: "Receita mês a mês", despesas: "Despesas operacionais mês a mês", margem: "Margem líquida mês a mês", ebitda: "EBITDA mês a mês", caixa: "Caixa no fim de cada mês" };
+const serieDoAssunto = (topic) => (SERIE_DO_ASSUNTO[topic] ? { serie: SERIE_DO_ASSUNTO[topic], tituloSerie: TITULO_DA_SERIE[SERIE_DO_ASSUNTO[topic]] } : {});
+
+// Clique num número/alerta = abre a explicação (ExplicaItem). Estilo comum
+// dos itens clicáveis do cartão.
+const CLICAVEL = "cursor-pointer rounded-xl text-left transition-colors hover:bg-surface-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400";
+
+// Uma linha de "Pede atenção": ícone na cor da gravidade (ou verde, nos
+// pontos positivos), título e o texto da análise.
+function LinhaAnalise({ titulo, texto, tom, positivo, onClick }) {
+  const Icone = positivo ? CheckCircle2 : AlertTriangle;
+  return (
+    <button type="button" onClick={onClick} className={`inicio-explicar group/linha -mx-2.5 flex items-start gap-3 px-2.5 py-2 ${CLICAVEL}`}>
+      <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${tom}`}>
+        <Icone size={14.5} strokeWidth={2.2} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[13.5px] font-semibold leading-snug text-ink-900">{titulo}</span>
+        <span className="mt-0.5 block text-[12.5px] leading-snug text-ink-500">{texto}</span>
+      </span>
+      <ChevronRight size={15} className="mt-1.5 shrink-0 text-ink-300 opacity-0 transition-opacity group-hover/linha:opacity-100" />
+    </button>
+  );
+}
+
+// Colunas dos quadrinhos pela largura do cartão (não da tela) e pela
+// quantidade: sem um quadrinho sozinho na última linha quando dá.
+function colunasDosNumeros(quantos) {
+  if (quantos <= 2) return "grid-cols-2";
+  if (quantos === 3) return "grid-cols-2 @md:grid-cols-3";
+  if (quantos === 4) return "grid-cols-2 @2xl:grid-cols-4";
+  if (quantos <= 6) return "grid-cols-2 @lg:grid-cols-3";
+  return "grid-cols-2 @lg:grid-cols-3 @3xl:grid-cols-4";
+}
+
+const NA_ESQUERDA = new Set(["recado", "resultado", "numeros", "caixa"]);
+
+const TOM_GRAVIDADE = (severity) => (severity >= 3 ? "bg-danger-50 text-danger-600" : severity === 2 ? "bg-warning-50 text-warning-700" : "bg-surface-muted text-ink-500");
+
 // Cartão de uma empresa (cliente): o resumo do celular da empresa, na
 // ordem e com os blocos configurados em Personalizar › Resumo do celular
 // (lib/resumoCelular.js) — só sem o gráfico mês a mês. Tudo do mês fechado,
-// comparado com o mês anterior.
-// Clique num número/alerta = abre a explicação (ExplicaItem). Estilo comum
-// dos itens clicáveis do cartão.
-const CLICAVEL = "rounded-xl text-left transition-colors hover:bg-accent-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 cursor-pointer";
-
+// comparado com o mês anterior. Cada número e alerta abre a explicação.
 function CartaoEmpresa({ company, resumo, calculando, grande, onAbrir, onApresentacao, onExplicar }) {
   const config = configResumo(company.resumoCelular);
   const visiveis = blocosVisiveis(config);
@@ -115,128 +152,167 @@ function CartaoEmpresa({ company, resumo, calculando, grande, onAbrir, onApresen
   const cmp = resumo?.analysis?.comparison || null;
   const { alertas, positivos } = alertasDoResumo(resumo?.analysis, config, { equipe: false });
   const tiles = tilesDoResumo(facts, cmp);
-  const px = grande ? "px-6" : "px-5";
+  const px = grande ? "px-6 sm:px-7" : "px-5 sm:px-6";
+  const ate = resumo ? `Janeiro a ${nomeDoMes(resumo.mes)}` : "";
 
   const blocos = {
     recado: () => (
-      <div className="flex gap-2.5 rounded-xl bg-accent-50 p-3 ring-1 ring-accent-200">
-        <MessageSquare size={16} className="mt-0.5 shrink-0 text-accent-600" />
+      <div className="flex gap-3 rounded-2xl bg-accent-50 p-3.5 ring-1 ring-accent-200/80">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent-500 text-white">
+          <MessageSquare size={15} />
+        </span>
         <div className="min-w-0">
-          <p className="text-[10.5px] font-semibold uppercase tracking-wide text-accent-700">Recado do escritório</p>
-          <p className="mt-0.5 whitespace-pre-line text-[13px] leading-snug text-ink-800">{config.recado.trim()}</p>
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-accent-700">Recado do escritório</p>
+          <p className="mt-0.5 whitespace-pre-line text-[13.5px] leading-snug text-ink-800">{config.recado.trim()}</p>
         </div>
       </div>
     ),
-    resultado: () =>
-      resumo && (
-        <div>
+    resultado: () => {
+      if (!resumo) return null;
+      const prejuizo = resumo.lucroMes < -0.5;
+      return (
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch">
           <button
             type="button"
-            onClick={() => onExplicar({ rotulo: `${resumo.lucroMes < -0.5 ? "Prejuízo" : "Lucro"} de ${nomeDoMes(resumo.mes)}`, valor: compactValue(resumo.lucroMes, "money"), metric: cmp?.lucro, sub: facts?.receitaLiquida > 0.5 ? `Margem de ${fmtPct(facts.margemLiquida)} da receita` : "", explicacao: GLOSSARIO.lucro })}
-            className={`inicio-explicar -mx-2 block w-[calc(100%+1rem)] px-2 py-1 ${CLICAVEL}`}
+            onClick={() => onExplicar({ rotulo: `${prejuizo ? "Prejuízo" : "Lucro"} de ${nomeDoMes(resumo.mes)}`, valor: compactValue(resumo.lucroMes, "money"), metric: cmp?.lucro, sub: facts?.receitaLiquida > 0.5 ? `Margem de ${fmtPct(facts.margemLiquida)} da receita` : "", explicacao: GLOSSARIO.lucro, serie: "lucro", tituloSerie: "Lucro mês a mês" })}
+            className={`inicio-explicar -mx-2.5 px-2.5 py-2 ${CLICAVEL}`}
           >
-            <span className="block text-[12px] text-ink-400">
-              {resumo.lucroMes < -0.5 ? "Prejuízo" : "Lucro"} de {nomeDoMes(resumo.mes)}
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-400">
+              {prejuizo ? "Prejuízo" : "Lucro"} de {nomeDoMes(resumo.mes)}
             </span>
-            <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-              <span className={`text-[28px] font-semibold leading-tight tracking-tight tabular-nums ${resumo.lucroMes < -0.5 ? "text-danger-600" : "text-ink-900"}`}>{compactValue(resumo.lucroMes, "money")}</span>
+            <span className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+              <span className={`text-[34px] font-semibold leading-none tracking-tight tabular-nums ${prejuizo ? "text-danger-600" : "text-ink-900"}`}>{compactValue(resumo.lucroMes, "money")}</span>
               <DeltaPill metric={cmp?.lucro} />
             </span>
-            <span className="mt-0.5 block text-[11.5px] text-ink-400">
+            <span className="mt-2 block text-[12px] text-ink-400">
               {facts?.receitaLiquida > 0.5 ? `Margem de ${fmtPct(facts.margemLiquida)} da receita` : ""}
               {facts?.receitaLiquida > 0.5 && resumo.prevLabel ? " · " : ""}
-              {resumo.prevLabel ? `vs. ${resumo.prevLabel}` : ""}
+              {resumo.prevLabel ? `comparado a ${resumo.prevLabel}` : ""}
             </span>
           </button>
-          <div className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-[12.5px] text-ink-500">
-            <button type="button" onClick={() => onExplicar({ rotulo: `${resumo.lucroAno < -0.5 ? "Prejuízo" : "Lucro"} no ano`, valor: compactValue(resumo.lucroAno, "money"), sub: `Janeiro a ${nomeDoMes(resumo.mes)}`, explicacao: GLOSSARIO.lucroAno })} className={`px-2 py-1 ${CLICAVEL}`}>
-              {resumo.lucroAno < -0.5 ? "Prejuízo" : "Lucro"} no ano <strong className={`font-semibold tabular-nums ${resumo.lucroAno < -0.5 ? "text-danger-600" : "text-ink-800"}`}>{compactValue(resumo.lucroAno, "money")}</strong>
-            </button>
-            <button type="button" onClick={() => onExplicar({ rotulo: "Receita no ano", valor: compactValue(resumo.receitaAno, "money"), sub: `Janeiro a ${nomeDoMes(resumo.mes)}`, explicacao: GLOSSARIO.receitaAno })} className={`px-2 py-1 ${CLICAVEL}`}>
-              Receita no ano <strong className="font-semibold tabular-nums text-ink-800">{compactValue(resumo.receitaAno, "money")}</strong>
-            </button>
+          <div className="flex overflow-hidden rounded-2xl bg-surface-muted/60 sm:min-w-[200px] sm:flex-col">
+            <p className="hidden px-3.5 pt-2.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-400 sm:block">No ano · até {mesCurto(resumo.mes)}</p>
+            {[
+              { rotulo: resumo.lucroAno < -0.5 ? "Prejuízo" : "Lucro", valor: resumo.lucroAno, explicar: { rotulo: `${resumo.lucroAno < -0.5 ? "Prejuízo" : "Lucro"} no ano`, explicacao: GLOSSARIO.lucroAno, serie: "lucro", tituloSerie: "Lucro mês a mês" } },
+              { rotulo: "Receita", valor: resumo.receitaAno, explicar: { rotulo: "Receita no ano", explicacao: GLOSSARIO.receitaAno, serie: "receita", tituloSerie: "Receita mês a mês" } },
+            ].map((item) => (
+              <button key={item.rotulo} type="button" onClick={() => onExplicar({ ...item.explicar, valor: compactValue(item.valor, "money"), sub: ate })} className="inicio-explicar flex flex-1 flex-col px-3.5 py-2 text-left transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                <span className="text-[11.5px] text-ink-500">
+                  {item.rotulo}
+                  <span className="sm:hidden"> no ano</span>
+                </span>
+                <span className={`text-[15px] font-semibold tabular-nums ${item.valor < -0.5 ? "text-danger-600" : "text-ink-900"}`}>{compactValue(item.valor, "money")}</span>
+              </button>
+            ))}
           </div>
         </div>
-      ),
+      );
+    },
     numeros: () => {
       const lista = config.numeros.map((id) => tiles[id]).filter(Boolean);
       if (!lista.length) return null;
       return (
-        <div className={`grid gap-2 ${grande ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2"}`}>
-          {lista.map((tile) => (
-            <button
-              key={tile.id}
-              type="button"
-              onClick={() => onExplicar({ rotulo: tile.label, valor: tile.value, metric: tile.metric, sub: tile.sub, explicacao: GLOSSARIO[tile.id] })}
-              className="inicio-explicar group/tile min-w-0 rounded-xl bg-surface-muted/60 p-3 text-left ring-accent-300 transition-all hover:bg-surface-card hover:shadow-sm hover:ring-1 focus-visible:outline-none focus-visible:ring-2"
-            >
-              <span className="flex items-center justify-between gap-1">
-                <span className="truncate text-[11px] text-ink-400">{tile.label}</span>
-                <HelpCircle size={12} className="shrink-0 text-ink-300 opacity-0 transition-opacity group-hover/tile:opacity-100" />
-              </span>
-              <span className="block truncate text-[15px] font-semibold tabular-nums text-ink-900">{tile.value}</span>
-              <span className="mt-0.5 flex min-h-[18px] flex-wrap items-center gap-1">
-                <DeltaPill metric={tile.metric} />
-                {tile.sub && <span className="truncate text-[10.5px] text-ink-400">{tile.sub}</span>}
-              </span>
-            </button>
-          ))}
+        <div className="@container">
+          <div className={`grid gap-2.5 ${colunasDosNumeros(lista.length)}`}>
+            {lista.map((tile) => (
+              <button
+                key={tile.id}
+                type="button"
+                onClick={() => onExplicar({ rotulo: tile.label, valor: tile.value, metric: tile.metric, sub: tile.sub, explicacao: GLOSSARIO[tile.id], serie: tile.id, tituloSerie: `${tile.label} mês a mês` })}
+                className="inicio-explicar group/tile flex min-w-0 flex-col rounded-2xl bg-surface-card p-3.5 text-left ring-1 ring-line transition-all hover:-translate-y-0.5 hover:shadow-md hover:ring-accent-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
+              >
+                <span className="flex items-start justify-between gap-1.5">
+                  <span className="line-clamp-2 text-[11.5px] leading-tight text-ink-500">{tile.label}</span>
+                  <HelpCircle size={13} className="shrink-0 text-ink-300 transition-colors group-hover/tile:text-accent-500" />
+                </span>
+                <span className="mt-auto block truncate pt-2 text-[18px] font-semibold leading-tight tracking-tight tabular-nums text-ink-900">{tile.value}</span>
+                {/* Cartão estreito: o complemento vai pra linha de baixo (sempre
+                    reservada, pra os valores ficarem alinhados na fileira). */}
+                <span className="mt-1.5 flex min-h-[20px] flex-wrap items-center gap-x-1.5 gap-y-1">
+                  <DeltaPill metric={tile.metric} />
+                  <span className="min-h-[14px] min-w-0 basis-full truncate text-[10.5px] text-ink-400 @lg:min-h-0 @lg:basis-auto">{tile.sub || ""}</span>
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       );
     },
     atencao: () =>
       resumo?.analysis && (
         <div>
-          <TituloBloco icone={alertas.length ? AlertTriangle : CheckCircle2}>{alertas.length ? "Pede atenção" : "Tudo em ordem"}</TituloBloco>
-          <div className="flex flex-col gap-1.5">
-            {alertas.map((alerta) => (
-              <button key={alerta.id} type="button" onClick={() => onExplicar({ rotulo: alerta.title, texto: alerta.text, acao: alerta.action, severity: alerta.severity, explicacao: explicacaoDoAssunto(alerta.topic) })} className={`inicio-explicar -mx-2 flex gap-2.5 px-2 py-1 ${CLICAVEL}`}>
-                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${alerta.severity >= 3 ? "bg-danger-500" : alerta.severity === 2 ? "bg-warning-500" : "bg-ink-300"}`} />
-                <span className="min-w-0">
-                  <span className="block text-[13px] font-semibold text-ink-900">{alerta.title}</span>
-                  <span className="block text-[12.5px] leading-snug text-ink-500">{alerta.text}</span>
-                </span>
-              </button>
-            ))}
-            {!alertas.length && !positivos.length && <p className="text-[12.5px] text-ink-500">Nenhum alerta neste mês.</p>}
-            {positivos.map((item) => (
-              <button key={item.id} type="button" onClick={() => onExplicar({ rotulo: item.title, texto: item.text, positivo: true, explicacao: explicacaoDoAssunto(item.topic) })} className={`inicio-explicar -mx-2 flex gap-2.5 px-2 py-1 ${CLICAVEL}`}>
-                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-success-500" />
-                <span className="min-w-0">
-                  <span className="block text-[13px] font-semibold text-ink-900">{item.title}</span>
-                  <span className="block text-[12.5px] leading-snug text-ink-500">{item.text}</span>
-                </span>
-              </button>
-            ))}
-          </div>
+          {alertas.length > 0 && (
+            <>
+              <TituloBloco icone={AlertTriangle} tom="text-warning-700">
+                Pede atenção
+              </TituloBloco>
+              <div className="flex flex-col">
+                {alertas.map((alerta) => (
+                  <LinhaAnalise key={alerta.id} titulo={alerta.title} texto={alerta.text} tom={TOM_GRAVIDADE(alerta.severity)} onClick={() => onExplicar({ rotulo: alerta.title, texto: alerta.text, acao: alerta.action, severity: alerta.severity, explicacao: explicacaoDoAssunto(alerta.topic), ...serieDoAssunto(alerta.topic) })} />
+                ))}
+              </div>
+            </>
+          )}
+          {positivos.length > 0 && (
+            <div className={alertas.length ? "mt-4" : ""}>
+              <TituloBloco icone={CheckCircle2} tom="text-success-600">
+                {alertas.length ? "Pontos positivos" : "Tudo em ordem"}
+              </TituloBloco>
+              <div className="flex flex-col">
+                {positivos.map((item) => (
+                  <LinhaAnalise key={item.id} positivo titulo={item.title} texto={item.text} tom="bg-success-50 text-success-600" onClick={() => onExplicar({ rotulo: item.title, texto: item.text, positivo: true, explicacao: explicacaoDoAssunto(item.topic), ...serieDoAssunto(item.topic) })} />
+                ))}
+              </div>
+            </div>
+          )}
+          {!alertas.length && !positivos.length && (
+            <p className="flex items-center gap-2 text-[13px] text-ink-500">
+              <CheckCircle2 size={15} className="text-success-500" /> Nenhum alerta neste mês.
+            </p>
+          )}
         </div>
       ),
     caixa: () =>
       facts?.bridge && (
-        <button type="button" onClick={() => onExplicar({ rotulo: "Do lucro ao caixa", texto: bridgeSentence(facts.bridge), explicacao: GLOSSARIO.ponteCaixa })} className={`inicio-explicar -mx-2 block w-[calc(100%+1rem)] px-2 py-1 ${CLICAVEL}`}>
-          <TituloBloco icone={Wallet}>Do lucro ao caixa</TituloBloco>
-          <span className="block text-[13px] leading-snug text-ink-700">{bridgeSentence(facts.bridge)}</span>
+        <button type="button" onClick={() => onExplicar({ rotulo: "Do lucro ao caixa", texto: bridgeSentence(facts.bridge), explicacao: GLOSSARIO.ponteCaixa, serie: "caixa", tituloSerie: "Caixa no fim de cada mês" })} className={`inicio-explicar group/linha -mx-2.5 flex w-[calc(100%+1.25rem)] items-start gap-3 px-2.5 py-2 ${CLICAVEL}`}>
+          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-navy-700/10 text-navy-700">
+            <Wallet size={14.5} strokeWidth={2.2} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[13.5px] font-semibold text-ink-900">Do lucro ao caixa</span>
+            <span className="mt-0.5 block text-[12.5px] leading-snug text-ink-600">{bridgeSentence(facts.bridge)}</span>
+          </span>
+          <ChevronRight size={15} className="mt-1.5 shrink-0 text-ink-300 opacity-0 transition-opacity group-hover/linha:opacity-100" />
         </button>
       ),
     orcamento: () => {
       const budget = resumo?.budget;
       if (!budget) return null;
       return (
-        <button type="button" onClick={() => onExplicar({ rotulo: `Orçamento ${budget.ano}`, texto: `Receita: ${compactValue(budget.receita.realizado, "money")} de ${compactValue(budget.receita.orcado, "money")} orçados. Resultado: ${compactValue(budget.resultado.realizado, "money")} de ${compactValue(budget.resultado.orcado, "money")} orçados.`, explicacao: GLOSSARIO.orcamento })} className={`inicio-explicar -mx-2 block w-[calc(100%+1rem)] px-2 py-1 ${CLICAVEL}`}>
+        <button type="button" onClick={() => onExplicar({ rotulo: `Orçamento ${budget.ano}`, texto: `Receita: ${compactValue(budget.receita.realizado, "money")} de ${compactValue(budget.receita.orcado, "money")} orçados. Resultado: ${compactValue(budget.resultado.realizado, "money")} de ${compactValue(budget.resultado.orcado, "money")} orçados.`, explicacao: GLOSSARIO.orcamento, tema: "orcamento" })} className={`inicio-explicar -mx-2.5 block w-[calc(100%+1.25rem)] px-2.5 py-2 ${CLICAVEL}`}>
           <TituloBloco icone={Target}>Orçamento {budget.ano}</TituloBloco>
           <span className="grid grid-cols-2 gap-3 text-[12.5px]">
             {[
               { rotulo: "Receita", item: budget.receita },
               { rotulo: "Resultado", item: budget.resultado },
-            ].map(({ rotulo, item }) => (
-              <span key={rotulo} className="block">
-                <span className="block text-ink-400">{rotulo}</span>
-                <span className="block text-[15px] font-semibold tabular-nums text-ink-900">{compactValue(item.realizado, "money")}</span>
-                <span className={`block ${item.tone === "bom" ? "text-success-600" : item.tone === "ruim" ? "text-danger-700" : item.tone === "atencao" ? "text-warning-700" : "text-ink-500"}`}>
-                  de {compactValue(item.orcado, "money")} orçados{item.reach != null && item.orcado > 0 && item.reach >= 0 && item.reach <= 300 ? ` · ${Math.round(item.reach)}%` : ""}
+            ].map(({ rotulo, item }) => {
+              const alcance = item.reach != null && item.orcado > 0 && item.reach >= 0 ? Math.min(100, item.reach) : null;
+              const cor = item.tone === "bom" ? "bg-success-500" : item.tone === "ruim" ? "bg-danger-500" : item.tone === "atencao" ? "bg-warning-500" : "bg-ink-300";
+              return (
+                <span key={rotulo} className="block">
+                  <span className="block text-ink-500">{rotulo}</span>
+                  <span className="block text-[15px] font-semibold tabular-nums text-ink-900">{compactValue(item.realizado, "money")}</span>
+                  {alcance != null && (
+                    <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-surface-muted">
+                      <span className={`block h-full rounded-full ${cor}`} style={{ width: `${alcance}%` }} />
+                    </span>
+                  )}
+                  <span className="mt-1 block text-[11.5px] text-ink-400">
+                    de {compactValue(item.orcado, "money")} orçados{item.reach != null && item.orcado > 0 && item.reach >= 0 && item.reach <= 300 ? ` · ${Math.round(item.reach)}%` : ""}
+                  </span>
                 </span>
-              </span>
-            ))}
+              );
+            })}
           </span>
         </button>
       );
@@ -246,47 +322,73 @@ function CartaoEmpresa({ company, resumo, calculando, grande, onAbrir, onApresen
   // No Início ficam de fora o gráfico mês a mês e a última apresentação
   // (essa vira o botão do rodapé).
   const conteudo = calculando ? [] : visiveis.filter((id) => id !== "tendencia" && id !== "apresentacao").map((id) => [id, blocos[id]?.()]).filter(([, bloco]) => bloco);
+  const comDivisa = new Set(["atencao", "caixa", "orcamento"]);
+  // Empresa única (cartão grande) em tela larga: números e caixa à
+  // esquerda; alertas e orçamento à direita.
+  const esquerda = conteudo.filter(([id]) => NA_ESQUERDA.has(id));
+  const direita = conteudo.filter(([id]) => !NA_ESQUERDA.has(id));
+  const dividir = grande && esquerda.length > 0 && direita.length > 0;
+  const bloco = ([id, elemento], index, primeiroDaColuna = false) => (
+    <div key={id} className={`inicio-bloco-${id} mt-5 ${index > 0 && comDivisa.has(id) ? `border-t border-line pt-4 ${primeiroDaColuna ? "@5xl:border-t-0 @5xl:pt-0" : ""}` : ""}`}>
+      {elemento}
+    </div>
+  );
 
   return (
-    <article className="inicio-empresa flex flex-col overflow-hidden rounded-2xl bg-surface-card shadow-sm ring-1 ring-line transition-shadow hover:shadow-md">
-      <div className={`flex items-start gap-3 pt-5 ${px} ${grande ? "pt-6" : ""}`}>
-        <Avatar name={company.name} size={grande ? 44 : 40} className="rounded-xl" />
+    <article className="inicio-empresa @container flex flex-col overflow-hidden rounded-3xl bg-surface-card shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_-12px_rgba(16,24,40,0.12)] ring-1 ring-line">
+      <header className={`flex items-center gap-3.5 border-b border-line bg-gradient-to-b from-surface-muted/50 to-transparent py-4 ${px}`}>
+        <Avatar name={company.name} size={grande ? 46 : 42} className="rounded-2xl shadow-sm" />
         <div className="min-w-0 flex-1">
-          <h3 className={`truncate font-semibold tracking-tight text-ink-900 ${grande ? "text-[18px]" : "text-[15px]"}`}>{company.name}</h3>
-          <p className="truncate text-[12px] text-ink-400">{company.cnpj || "\u00a0"}</p>
+          <h3 className={`truncate font-semibold tracking-tight text-ink-900 ${grande ? "text-[19px]" : "text-[16px]"}`}>{company.name}</h3>
+          <p className="truncate text-[12px] tabular-nums text-ink-400">{company.cnpj || "\u00a0"}</p>
         </div>
-        <span className="inicio-fechado flex shrink-0 items-center gap-1 rounded-full bg-surface-muted px-2.5 py-1 text-[11px] font-medium text-ink-500" title="Os números vão até o último mês fechado pelo escritório">
+        <span className="inicio-fechado flex shrink-0 items-center gap-1.5 rounded-full bg-surface-card px-2.5 py-1 text-[11px] font-medium text-ink-500 ring-1 ring-line" title="Os números vão até o último mês fechado pelo escritório">
           <Lock size={11} /> <span className="hidden sm:inline">Fechado até</span> {mesCurto(fechado)}
         </span>
-      </div>
+      </header>
 
-      <div className={`flex flex-col ${px}`}>
+      <div className={`flex flex-col pb-2 ${px}`}>
         {calculando && (
-          <div className="mt-5 flex flex-col gap-3" aria-label="Calculando os números">
-            <span className="h-3 w-24 animate-pulse rounded bg-surface-muted" />
-            <span className="h-8 w-40 animate-pulse rounded bg-surface-muted" />
-            <span className="h-16 w-full animate-pulse rounded bg-surface-muted" />
+          <div className="mt-6 flex flex-col gap-3" aria-label="Calculando os números">
+            <span className="h-3 w-28 animate-pulse rounded bg-surface-muted" />
+            <span className="h-9 w-48 animate-pulse rounded-lg bg-surface-muted" />
+            <span className="mt-2 grid grid-cols-3 gap-2.5">
+              {[0, 1, 2].map((item) => (
+                <span key={item} className="h-20 animate-pulse rounded-2xl bg-surface-muted" />
+              ))}
+            </span>
           </div>
         )}
-        {conteudo.map(([id, bloco], index) => (
-          <div key={id} className={`inicio-bloco-${id} ${index === 0 ? "mt-5" : id === "atencao" || id === "caixa" || id === "orcamento" ? "mt-4 border-t border-line pt-4" : "mt-4"}`}>
-            {bloco}
+        {dividir ? (
+          <div className="@5xl:grid @5xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] @5xl:gap-x-10">
+            <div>{esquerda.map((item, index) => bloco(item, index))}</div>
+            <div className="@5xl:border-l @5xl:border-line @5xl:pl-10">{direita.map((item, index) => bloco(item, esquerda.length + index, index === 0))}</div>
           </div>
-        ))}
+        ) : (
+          conteudo.map((item, index) => bloco(item, index))
+        )}
       </div>
 
-      {conteudo.length > 0 && resumo && <p className={`mt-4 text-[11px] text-ink-400 ${px}`}>Toque num número ou alerta para entender o que ele quer dizer.</p>}
-      <div className={`mt-auto flex flex-wrap items-center gap-2 pb-5 pt-4 ${px} ${grande ? "pb-6" : ""}`}>
-        <button type="button" onClick={onAbrir} className="inicio-abrir flex items-center gap-1.5 rounded-full bg-accent-500 px-4 py-2 text-[13px] font-medium text-white shadow-sm shadow-accent-600/20 transition-all hover:-translate-y-0.5 hover:bg-accent-600">
-          Abrir <ArrowRight size={15} />
-        </button>
-        {ultimaApresentacao && (
-          <button type="button" onClick={() => onApresentacao(ultimaApresentacao.id)} title={ultimaApresentacao.name} className="inicio-apresentacao flex min-w-0 items-center gap-1.5 rounded-full border border-line-strong px-3.5 py-2 text-[12.5px] text-ink-700 hover:bg-surface-muted">
-            <Presentation size={14} className="shrink-0" />
-            <span className="truncate">Última apresentação</span>
-          </button>
+      <footer className={`mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-line py-4 ${px}`}>
+        {conteudo.length > 0 && resumo ? (
+          <p className="flex items-center gap-1.5 text-[11.5px] text-ink-400">
+            <HelpCircle size={13} /> Toque num número ou alerta para entender
+          </p>
+        ) : (
+          <span />
         )}
-      </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {ultimaApresentacao && (
+            <button type="button" onClick={() => onApresentacao(ultimaApresentacao.id)} title={ultimaApresentacao.name} className="inicio-apresentacao flex min-w-0 items-center gap-1.5 rounded-full border border-line-strong px-3.5 py-2 text-[12.5px] font-medium text-ink-700 transition-colors hover:bg-surface-muted">
+              <Presentation size={14} className="shrink-0" />
+              <span className="truncate">Última apresentação</span>
+            </button>
+          )}
+          <button type="button" onClick={onAbrir} className="inicio-abrir flex items-center gap-1.5 rounded-full bg-accent-500 px-4 py-2 text-[13px] font-semibold text-white shadow-sm shadow-accent-600/25 transition-all hover:-translate-y-0.5 hover:bg-accent-600">
+            Abrir a empresa <ArrowRight size={15} />
+          </button>
+        </div>
+      </footer>
     </article>
   );
 }
@@ -384,6 +486,16 @@ export default function Landing() {
   // A explicação aberta por cima (clique num número/alerta do cartão).
   const [explicando, setExplicando] = useState(null); // { item, company, resumo }
   const fecharExplicacao = useCallback(() => setExplicando(null), []);
+  // Aba "Evolução": a série do número na empresa da explicação aberta.
+  const empresaExplicada = explicando?.company?.id;
+  const carregarSerie = useCallback(
+    (serie, inicio, fim) => {
+      const company = state.companies.find((item) => item.id === empresaExplicada);
+      return company ? serieDoItem(company, serie, { inicio, fim }) : [];
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [empresaExplicada]
+  );
   const calcularNumeros = !staff && temBi && state.companies.length <= MAX_COM_NUMEROS;
   const chaveEmpresas = state.companies.map((company) => `${company.id}:${mesFechadoDa(company)}`).join("|");
   useEffect(() => {
@@ -477,7 +589,7 @@ export default function Landing() {
       </div>
       <div className="relative">
         <Topo staff={staff} onConfig={() => navigate("/parametros")} />
-        <div className="mx-auto max-w-5xl px-5 pb-10 pt-3 sm:px-8 sm:pb-12 sm:pt-5">
+        <div className="mx-auto max-w-[1600px] px-5 pb-10 pt-3 sm:px-8 sm:pb-12 sm:pt-5">
           <p className="text-[12.5px] font-medium text-white/50">{hojePorExtenso()}</p>
           <h1 className="inicio-ola mt-1 text-[30px] font-semibold leading-tight tracking-tight sm:text-[38px]">{ola}</h1>
           <p className="mt-1.5 text-[14.5px] text-white/60">
@@ -540,6 +652,8 @@ export default function Landing() {
           periodo={explicando.resumo?.mes ? `${nomeDoMes(explicando.resumo.mes)}/${explicando.resumo.mes.slice(2, 4)}` : ""}
           prevLabel={explicando.resumo?.prevLabel || ""}
           onClose={fecharExplicacao}
+          mesesDisponiveis={mesesComDados(explicando.company, { ate: mesFechadoDa(explicando.company) })}
+          carregarSerie={carregarSerie}
           onAbrirEmpresa={() => {
             const id = explicando.company.id;
             setExplicando(null);
@@ -549,7 +663,7 @@ export default function Landing() {
       )}
       {hero}
 
-      <main className="mx-auto flex max-w-5xl flex-col gap-9 px-5 pt-8 sm:px-8">
+      <main className="mx-auto flex max-w-[1600px] flex-col gap-9 px-5 pt-8 sm:px-8">
         {staff ? (
           <>
             {abertas.length > 0 && (
@@ -614,7 +728,7 @@ export default function Landing() {
                     <ArrowRight size={18} className="shrink-0 sm:hidden" />
                   </button>
                 ))}
-                <div className={`grid grid-cols-1 gap-4 ${state.companies.length > 1 ? "md:grid-cols-2" : ""}`}>
+                <div className={`grid grid-cols-1 gap-5 ${state.companies.length > 1 ? "lg:grid-cols-2" : ""}`}>
                   {state.companies.map((company) => (
                     <CartaoEmpresa
                       key={company.id}
