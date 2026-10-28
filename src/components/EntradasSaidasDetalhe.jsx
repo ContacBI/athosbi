@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ArrowDownRight, ArrowUpRight, Lightbulb, X } from "lucide-react";
 import { NAVY, ROSA, VERDE, brlCompacto, dec, eixo, inteiro, moneyFull, pct } from "../lib/fmtNotas.js";
@@ -92,10 +93,12 @@ export default function EntradasSaidasDetalhe({ kpi, onClose, r, anterior, rotul
     [`Vendas (${unidade})`, "vendas", inteiro, true],
   ];
 
-  return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 p-4 backdrop-blur-[3px]" onClick={onClose} role="dialog" aria-modal="true" aria-label={meta.titulo}>
+  // Portal no <body>: o painel é sempre centralizado na janela, mesmo dentro de uma tela com rolagem ou animação (um "fixed" dentro de elemento com transform fica preso a ele).
+  // Não fecha clicando fora (pedido do Izaias): só pelo X ou pela tecla Esc.
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 p-4 backdrop-blur-[3px]" role="dialog" aria-modal="true" aria-label={meta.titulo}>
       <style>{`@keyframes esPainel { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } } .es-painel { animation: esPainel .22s ease-out both; } @media (prefers-reduced-motion: reduce) { .es-painel { animation: none; } }`}</style>
-      <div className="es-painel relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-surface-page shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)]" onClick={(e) => e.stopPropagation()}>
+      <div className="es-painel relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-surface-page shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)]">
         <div className="h-1.5 w-full" style={{ background: `linear-gradient(90deg, ${meta.cor}, #e8681f)` }} />
         <div className="flex items-start justify-between gap-4 px-6 pb-3 pt-5">
           <div className="min-w-0">
@@ -209,6 +212,7 @@ export default function EntradasSaidasDetalhe({ kpi, onClose, r, anterior, rotul
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
