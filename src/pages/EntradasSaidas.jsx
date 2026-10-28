@@ -1,38 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, Bar, CartesianGrid, ComposedChart, LabelList, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowDownRight, ArrowLeftRight, ArrowUpRight, Check, ChevronDown, ChevronRight, Lightbulb, Minus, SlidersHorizontal, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowLeftRight, ArrowUpRight, Check, ChevronDown, ChevronRight, Lightbulb, Minus, Percent, Receipt, Scale, SlidersHorizontal, Ticket, Wallet } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { saveNotasConfig } from "../lib/companies.js";
 import { groupCompanies, saveNotasMedidaGrupo } from "../lib/groups.js";
 import { oculto } from "../lib/visibilidade.js";
+import EntradasSaidasDetalhe from "../components/EntradasSaidasDetalhe.jsx";
+import { CARTAO, MES_CURTO, MES_LONGO, NAVY, ROSA, VERDE, brlCompacto, dec, eixo, inteiro, moneyFull, pct } from "../lib/fmtNotas.js";
 import { CONFIG_PADRAO, TIPOS, considerado, fetchNotas, montarEntradasSaidas, sugerirConsiderar } from "../lib/notasFiscais.js";
-
-const MES_CURTO = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-const MES_LONGO = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
-const NAVY = "#1e3a5f";
-const VERDE = "#10b981";
-const ROSA = "#f43f5e";
-const moneyFull = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const inteiro = (value) => Number(value || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
-const dec = (value, casas = 1) => Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
-const pct = (parte, todo) => (todo ? `${dec((parte / todo) * 100)}%` : "—");
-// R$ 7,19 mi · R$ 412 mil · R$ 350,00 (o valor exato fica na dica ao passar o mouse)
-const brlCompacto = (value) => {
-  const n = Number(value || 0);
-  const abs = Math.abs(n);
-  if (abs >= 1e6) return `R$ ${dec(n / 1e6, 2)} mi`;
-  if (abs >= 1e4) return `R$ ${dec(n / 1e3, 0)} mil`;
-  return moneyFull(n);
-};
-const eixo = (value) => {
-  const abs = Math.abs(Number(value || 0));
-  if (abs >= 1e6) return `${dec(value / 1e6, 1)} mi`;
-  if (abs >= 1e3) return `${dec(value / 1e3, 0)} mil`;
-  return dec(value, 0);
-};
-
-// Cartão no padrão do módulo: borda fina e sombra bem suave.
-const CARTAO = "rounded-2xl border border-line/70 bg-surface-card shadow-[0_1px_2px_rgba(16,24,40,0.04),0_10px_28px_-14px_rgba(16,24,40,0.10)]";
 
 function Variacao({ atual, anterior, bomSobe = true, rotulo }) {
   if (!anterior || !Number.isFinite(atual)) return null;
@@ -47,13 +22,21 @@ function Variacao({ atual, anterior, bomSobe = true, rotulo }) {
   );
 }
 
-function Kpi({ rotulo, valor, exato, dica, delta, icone: Icone, destaque, children }) {
+function Kpi({ id, rotulo, valor, exato, dica, delta, icone: Icone, destaque, onAbrir, spark, cor = VERDE }) {
   return (
-    <div className={`${CARTAO} relative flex min-w-0 flex-col justify-between overflow-hidden p-4 ${destaque ? "col-span-2" : ""}`}>
-      {destaque && <span className="absolute inset-y-0 left-0 w-1 bg-accent-500" />}
+    <button
+      type="button"
+      onClick={() => onAbrir(id)}
+      title="Clique para ver as comparações e análises"
+      className={`${CARTAO} group relative flex min-w-0 flex-col justify-between overflow-hidden p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent-500/40 hover:shadow-[0_18px_40px_-16px_rgba(16,24,40,0.22)] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 ${destaque ? "col-span-2" : ""}`}
+    >
+      <span className="absolute inset-y-0 left-0 w-1 opacity-90" style={{ background: cor }} />
       <div className="flex items-start justify-between gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">{rotulo}</p>
-        {Icone && <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-500/10 text-accent-600"><Icone size={14} /></span>}
+        <span className="flex items-center gap-1.5">
+          <ChevronRight size={14} className="-translate-x-1 text-accent-600 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
+          {Icone && <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-500/10 text-accent-600"><Icone size={14} /></span>}
+        </span>
       </div>
       <div className="mt-2 flex items-end justify-between gap-3">
         <div className="min-w-0">
@@ -63,9 +46,20 @@ function Kpi({ rotulo, valor, exato, dica, delta, icone: Icone, destaque, childr
             {dica && <span className="truncate text-[11.5px] text-ink-400">{dica}</span>}
           </div>
         </div>
-        {children}
+        {spark && spark.length > 1 && (
+          <div className={`h-11 shrink-0 ${destaque ? "w-36" : "w-20"}`}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={spark} margin={{ top: 3, right: 0, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id={`eeSpark-${id}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={cor} stopOpacity={0.35} /><stop offset="100%" stopColor={cor} stopOpacity={0} /></linearGradient>
+                </defs>
+                <Area type="monotone" dataKey="v" stroke={cor} strokeWidth={2} fill={`url(#eeSpark-${id})`} connectNulls isAnimationActive={false} dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -111,6 +105,7 @@ export default function EntradasSaidas() {
   const [foco, setFoco] = useState("todas"); // grupo: "todas" (consolidado) ou o id de uma empresa
   const [verAcumuladores, setVerAcumuladores] = useState(false);
   const [medirAberto, setMedirAberto] = useState(false);
+  const [detalhe, setDetalhe] = useState(null); // cartão aberto no painel de comparações ("fat" | "ent" | "saldo" | "ticket" | "ratio")
   const equipe = Boolean(state.isAdmin || state.isColaborador); // cliente só vê as informações; os acumuladores (configuração) são da equipe
   const membrosUso = useMemo(() => (grupo && foco !== "todas" ? membros.filter((m) => m.id === foco) : membros), [membros, grupo, foco]);
   const ehConsolidado = Boolean(grupo) && foco === "todas";
@@ -174,6 +169,31 @@ export default function EntradasSaidas() {
     const rotulo = n === 1 ? `${MES_CURTO[mIni]}/${aIni}` : `${MES_CURTO[mIni]}/${aIni} a ${MES_CURTO[mFim]}/${aFim}`;
     return { faturamento: fat, vendas, ticket: vendas ? fat / vendas : null, totais: { E: { v: entradas, c: entradasC } }, saldo: fat - entradas, rotulo };
   }, [membrosUso, brutos, ano, mesDe, mesAte, base, valor, ehConsolidado]);
+  // Série dos 12 meses que terminam no mês final escolhido (pode cruzar o ano): alimenta os minigráficos dos cartões e o painel de análises.
+  const serie12 = useMemo(() => {
+    if (!brutos || !ano) return [];
+    const cache = new Map();
+    const doAno = (a) => {
+      if (!cache.has(a)) cache.set(a, anos.includes(a) ? montarEntradasSaidas({ membros: membrosUso, brutos, ano: a, mesDe: 1, mesAte: 12, base, valor, ehGrupo: ehConsolidado }) : null);
+      return cache.get(a);
+    };
+    const fim = ano * 12 + (mesAte - 1);
+    const iniPeriodo = ano * 12 + (mesDe - 1);
+    const out = [];
+    for (let t = fim - 11; t <= fim; t += 1) {
+      const a = Math.floor(t / 12);
+      const m = t % 12;
+      const mm = doAno(a)?.meses[m];
+      const rotulo = `${MES_CURTO[m]}/${String(a).slice(2)}`;
+      const base0 = { rotulo, t, a, m: m + 1, noPeriodo: t >= iniPeriodo };
+      const fat = mm ? mm.S.v + mm.V.v : 0;
+      const ent = mm ? mm.E.v : 0;
+      const cont = mm ? mm.S.c + mm.V.c : 0;
+      if (!mm || (!fat && !ent)) { out.push({ ...base0, fat: null, ent: null, saldo: null, ticket: null, ratio: null }); continue; }
+      out.push({ ...base0, fat, ent, saldo: fat - ent, ticket: cont ? fat / cont : null, ratio: fat ? ent / fat : null });
+    }
+    return out;
+  }, [membrosUso, brutos, ano, anos, mesDe, mesAte, base, valor, ehConsolidado]);
   // grupo: uma linha por empresa pra comparar (cada uma com a própria escolha de acumuladores e a mesma base/valor)
   const comparativo = useMemo(() => (grupo && brutos && ano ? membros.map((m) => ({ membro: m, r: montarEntradasSaidas({ membros: [m], brutos, ano, mesDe, mesAte, base, valor }) })) : []), [grupo, membros, brutos, ano, mesDe, mesAte, base, valor]);
 
@@ -306,26 +326,19 @@ export default function EntradasSaidas() {
         {aviso && <p className="text-[12px] text-warning-700">{aviso}</p>}
       </div>
 
-      {/* Cartões */}
+      {/* Cartões (clicar abre as comparações e análises) */}
       {!oculto("es:kpis") && (
       <div className="grid grid-cols-2 gap-4 md:grid-cols-6">
-        <Kpi destaque rotulo="Faturamento (saídas + serviços)" valor={brlCompacto(r.faturamento)} exato={moneyFull(r.faturamento)} icone={Wallet}
-          delta={<Variacao atual={r.faturamento} anterior={anterior?.faturamento} rotulo={rotuloAnt} />} dica={`${inteiro(r.vendas)} ${unidade}`}>
-          <div className="hidden h-12 w-32 sm:block">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={tendencia} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="eeSpark" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={VERDE} stopOpacity={0.35} /><stop offset="100%" stopColor={VERDE} stopOpacity={0} /></linearGradient>
-                </defs>
-                <Area type="monotone" dataKey="v" stroke={VERDE} strokeWidth={2} fill="url(#eeSpark)" isAnimationActive={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </Kpi>
-        <Kpi rotulo="Entradas" valor={brlCompacto(r.totais.E.v)} exato={moneyFull(r.totais.E.v)} delta={<Variacao atual={r.totais.E.v} anterior={anterior?.totais.E.v} bomSobe={false} rotulo={rotuloAnt} />} dica={`${inteiro(r.totais.E.c)} ${unidade}`} />
-        <Kpi rotulo="Fat. − entradas" valor={brlCompacto(r.saldo)} exato={moneyFull(r.saldo)} delta={<Variacao atual={r.saldo} anterior={anterior?.saldo} rotulo={rotuloAnt} />} dica="o que sai menos o que entra" />
-        <Kpi rotulo={`Ticket médio por ${base === "item" ? "peça" : "nota"}`} valor={r.ticket == null ? "—" : moneyFull(r.ticket)} exato={r.ticket == null ? "" : moneyFull(r.ticket)} delta={<Variacao atual={r.ticket} anterior={anterior?.ticket} rotulo={rotuloAnt} />} dica="faturamento ÷ vendas" />
-        <Kpi rotulo="Entradas ÷ faturamento" valor={pct(r.totais.E.v, r.faturamento)} delta={<Variacao atual={r.faturamento ? r.totais.E.v / r.faturamento : NaN} anterior={anterior?.faturamento ? anterior.totais.E.v / anterior.faturamento : 0} bomSobe={false} rotulo={rotuloAnt} />} dica="quanto vira entrada" />
+        <Kpi id="fat" destaque cor={VERDE} onAbrir={setDetalhe} spark={serie12.map((p) => ({ v: p.fat }))} rotulo="Faturamento (saídas + serviços)" valor={brlCompacto(r.faturamento)} exato={moneyFull(r.faturamento)} icone={Wallet}
+          delta={<Variacao atual={r.faturamento} anterior={anterior?.faturamento} rotulo={rotuloAnt} />} dica={`${inteiro(r.vendas)} ${unidade}`} />
+        <Kpi id="ent" cor={ROSA} onAbrir={setDetalhe} spark={serie12.map((p) => ({ v: p.ent }))} rotulo="Entradas" valor={brlCompacto(r.totais.E.v)} exato={moneyFull(r.totais.E.v)} icone={Receipt}
+          delta={<Variacao atual={r.totais.E.v} anterior={anterior?.totais.E.v} bomSobe={false} rotulo={rotuloAnt} />} dica={`${inteiro(r.totais.E.c)} ${unidade}`} />
+        <Kpi id="saldo" cor={NAVY} onAbrir={setDetalhe} spark={serie12.map((p) => ({ v: p.saldo }))} rotulo="Fat. − entradas" valor={brlCompacto(r.saldo)} exato={moneyFull(r.saldo)} icone={Scale}
+          delta={<Variacao atual={r.saldo} anterior={anterior?.saldo} rotulo={rotuloAnt} />} dica="sai menos entra" />
+        <Kpi id="ticket" cor={NAVY} onAbrir={setDetalhe} spark={serie12.map((p) => ({ v: p.ticket }))} rotulo={`Ticket médio por ${base === "item" ? "peça" : "nota"}`} valor={r.ticket == null ? "—" : moneyFull(r.ticket)} exato={r.ticket == null ? "" : moneyFull(r.ticket)} icone={Ticket}
+          delta={<Variacao atual={r.ticket} anterior={anterior?.ticket} rotulo={rotuloAnt} />} dica="faturamento ÷ vendas" />
+        <Kpi id="ratio" cor={ROSA} onAbrir={setDetalhe} spark={serie12.map((p) => ({ v: p.ratio }))} rotulo="Entradas ÷ faturamento" valor={pct(r.totais.E.v, r.faturamento)} icone={Percent}
+          delta={<Variacao atual={r.faturamento ? r.totais.E.v / r.faturamento : NaN} anterior={anterior?.faturamento ? anterior.totais.E.v / anterior.faturamento : 0} bomSobe={false} rotulo={rotuloAnt} />} dica="quanto vira entrada" />
       </div>
       )}
 
@@ -410,6 +423,11 @@ export default function EntradasSaidas() {
           </ResponsiveContainer>
         </div>
       </div>
+      )}
+
+      {detalhe && (
+        <EntradasSaidasDetalhe kpi={detalhe} onClose={() => setDetalhe(null)} r={r} anterior={anterior} rotuloAnterior={anterior?.rotulo} serie={serie12} comparativo={comparativo}
+          ehConsolidado={ehConsolidado} equipe={equipe} valor={valor} unidade={unidade} periodoRotulo={periodoRotulo} />
       )}
 
       {/* Acumuladores: só a equipe, recolhido */}
