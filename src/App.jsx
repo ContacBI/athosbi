@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import CompanyLayout from "./components/CompanyLayout.jsx";
 import SaveErrorBanner from "./components/SaveErrorBanner.jsx";
 import ParametrosLayout from "./components/ParametrosLayout.jsx";
@@ -8,6 +8,7 @@ import Login from "./pages/Login.jsx";
 import SetPassword from "./pages/SetPassword.jsx";
 import ConfirmAccess from "./pages/ConfirmAccess.jsx";
 import { supabase } from "./lib/supabaseClient.js";
+import { ligarRegistroDeUso, mudouDeTela } from "./lib/uso.js";
 import Empresas from "./pages/Empresas.jsx";
 import CompanyHome from "./pages/CompanyHome.jsx";
 import { loadPlan } from "./lib/plan.js";
@@ -58,10 +59,24 @@ const HistoricoVersoes = lazy(() => import("./pages/parametros/HistoricoVersoes.
 const PlanoPadraoAdmin = lazy(() => import("./pages/parametros/PlanoPadraoAdmin.jsx"));
 const ColaborarAdmin = lazy(() => import("./pages/parametros/ColaborarAdmin.jsx"));
 const ReformaParametros = lazy(() => import("./pages/parametros/ReformaParametros.jsx"));
+const Central = lazy(() => import("./pages/parametros/Central.jsx"));
 const ReformaHome = lazy(() => import("./pages/reforma/ReformaHome.jsx"));
 const ReformaSimulacao = lazy(() => import("./pages/reforma/ReformaSimulacao.jsx"));
 const ReformaPainel = lazy(() => import("./pages/reforma/ReformaPainel.jsx"));
 const ReformaEmpresa = lazy(() => import("./pages/reforma/ReformaEmpresa.jsx"));
+
+// Uso do portal pra Central (lib/uso.js): liga a coleta uma vez e avisa
+// cada troca de tela.
+function RegistroDeUso() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    ligarRegistroDeUso();
+  }, []);
+  useEffect(() => {
+    mudouDeTela(pathname);
+  }, [pathname]);
+  return null;
+}
 
 function RouteFallback() {
   return <Carregando />;
@@ -181,15 +196,26 @@ function AuthedApp() {
   }
 
   if (bootError) {
+    const sessaoVencida = /JWT expired|PGRST303|sess[aã]o/i.test(bootError);
     return (
-      <div className="flex h-screen items-center justify-center bg-surface-page px-6 text-center text-[13px] text-danger-600">
-        Erro ao carregar o portal: {bootError}
+      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-surface-page px-6 text-center">
+        <p className="max-w-md text-[14px] font-medium text-ink-900">{sessaoVencida ? "Sua sessão venceu enquanto o portal estava fechado." : "Não consegui carregar o portal agora."}</p>
+        <p className="max-w-lg text-[12.5px] text-ink-500">{sessaoVencida ? "Tente de novo — se continuar, entre de novo com seu e-mail e senha." : `Detalhe: ${bootError}`}</p>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => window.location.reload()} className="rounded-full bg-accent-500 px-4 py-2 text-[13px] font-semibold text-white hover:bg-accent-600">
+            Tentar de novo
+          </button>
+          <button type="button" onClick={() => supabase.auth.signOut()} className="rounded-full border border-line-strong px-4 py-2 text-[13px] font-medium text-ink-700 hover:bg-surface-muted">
+            Entrar de novo
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
     <BrowserRouter>
+      <RegistroDeUso />
       <SaveErrorBanner />
       <Suspense fallback={<RouteFallback />}>
       <Routes>
@@ -199,6 +225,7 @@ function AuthedApp() {
         <Route path="carteira" element={<Carteira />} />
         <Route path="parametros" element={<ParametrosLayout />}>
           <Route index element={<Navigate to="empresas" replace />} />
+          <Route path="central" element={<Central />} />
           <Route path="empresas" element={<CompaniesAdmin />} />
           <Route path="grupo" element={<GruposAdmin />} />
           <Route path="de-para" element={<DeParaAdmin />} />

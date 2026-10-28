@@ -726,6 +726,59 @@ check(
 check("Mesmo período em vários blocos calcula uma vez", pdb.envDoBloco({ kind: "widget", periodo: { tipo: "ultimoMes" } }, envTri).ctx === envMarco.ctx, null);
 setCompanyState();
 
+// ── Sessão vencida: o cliente do Supabase renova e repete a chamada ──
+section("Sessão vencida");
+const { respostaDeTokenVencido } = await src("lib/supabaseClient.js");
+check(
+  "Reconhece token vencido do banco e dos arquivos; não confunde com outros erros",
+  respostaDeTokenVencido(401, '{"code":"PGRST303","message":"JWT expired"}') &&
+    respostaDeTokenVencido(400, '{"statusCode":"403","error":"Unauthorized","message":"\\"exp\\" claim timestamp check failed"}') &&
+    !respostaDeTokenVencido(401, '{"code":"42501","message":"permission denied"}') &&
+    !respostaDeTokenVencido(500, "JWT expired"),
+  null
+);
+
+// ── Central: uso do portal (lib/uso.js) ──
+section("Central");
+const uso = await src("lib/uso.js");
+check(
+  "Nome de cada tela (rotas do app e abas do B.I.)",
+  uso.nomeDaTela("/") === "Início" &&
+    uso.nomeDaTela("/empresa/demonstrativos") === "Demonstrativos" &&
+    uso.nomeDaTela("/empresa/apresentacoes/pr_1") === "Apresentação aberta" &&
+    uso.nomeDaTela("/empresa/painel/tab_1", [{ id: "tab_0", name: "Geral", subTabs: [{ id: "tab_1", name: "Receitas" }] }]) === "B.I. · Receitas" &&
+    uso.nomeDaTela("/parametros/de-para") === "Parâmetros · De para" &&
+    uso.nomeDaTela("/reforma/simulacao/9") === "Reforma Tributária",
+  null
+);
+const eventos = [
+  { email: "a@x.com", tipo: "acesso", dispositivo: "celular", criado_em: "2026-10-26T13:00:00Z" },
+  { email: "a@x.com", tipo: "tela", tela: "Início", visita: "v1", empresa: "", segundos: 40, criado_em: "2026-10-26T13:01:00Z" },
+  { email: "a@x.com", tipo: "tela", tela: "B.I. · Geral", visita: "v2", empresa: "QUAENT", segundos: 300, criado_em: "2026-10-26T13:06:00Z" },
+  { email: "a@x.com", tipo: "tela", tela: "B.I. · Geral", visita: "v2", empresa: "QUAENT", segundos: 60, criado_em: "2026-10-26T13:08:00Z" },
+  { email: "b@x.com", tipo: "acesso", dispositivo: "computador", criado_em: "2026-10-27T18:00:00Z" },
+  { email: "b@x.com", tipo: "tela", tela: "Demonstrativos", visita: "v3", empresa: "CONCENT", segundos: 120, criado_em: "2026-10-27T18:05:00Z" },
+  { email: "c@x.com", tipo: "acesso", dispositivo: "computador", criado_em: "2026-09-01T12:00:00Z" },
+];
+const rUso = uso.resumoDeUso(eventos, { inicio: new Date(2026, 9, 21), fim: new Date(2026, 9, 28) });
+check(
+  "Resumo da Central: acessos, pessoas, tempo, telas (visita em dois pedaços conta uma vez), pessoas e aparelhos",
+  rUso.acessos === 2 && rUso.pessoas === 2 && rUso.segundos === 520 && rUso.porDia.length === 7 &&
+    rUso.telas[0].tela === "B.I. · Geral" && rUso.telas[0].segundos === 360 && rUso.telas[0].visitas === 1 &&
+    rUso.pessoasLista[0].email === "a@x.com" && rUso.pessoasLista[0].tela === "B.I. · Geral" && rUso.pessoasLista[0].dispositivo === "celular" &&
+    rUso.empresas[0].empresa === "QUAENT" && rUso.dispositivos.celular === 1 && rUso.dispositivos.computador === 1 &&
+    rUso.horarios.flat().reduce((soma, valor) => soma + valor, 0) === 2,
+  rUso
+);
+const pistas = uso.pistasDeUso(rUso, { naoEntraram: 2 });
+check("Pistas pra melhorar: tela com mais tempo, celular e quem não entrou", pistas.some((pista) => pista.tipo === "foco" && pista.texto.includes("B.I. · Geral")) && pistas.some((pista) => pista.tipo === "celular") && pistas.some((pista) => pista.texto.startsWith("2 clientes")), pistas);
+check(
+  "Duração e 'há quanto tempo'",
+  uso.duracao(45) === "45 s" && uso.duracao(720) === "12 min" && uso.duracao(4800) === "1 h 20 min" && uso.duracao(7200) === "2 h" &&
+    uso.haQuanto("2026-10-28T10:00:00Z", new Date("2026-10-28T10:30:00Z")) === "há 30 min" && uso.haQuanto("2026-10-27T09:00:00Z", new Date("2026-10-28T10:00:00Z")) === "ontem",
+  null
+);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
