@@ -1174,6 +1174,22 @@ drop policy if exists "dominio_carga_read_scoped" on public.dominio_carga;
 create policy "dominio_carga_read_scoped" on public.dominio_carga for select to authenticated
   using (is_portal_admin() or is_colaborador() or company_id = any (allowed_company_ids()));
 
+-- Resumo das notas fiscais (entradas, saídas e serviços) por empresa e ano, por mês e acumulador (a Central manda; o módulo "Entradas x Saídas" lê).
+create table if not exists public.dominio_notas (
+  company_id text not null,
+  company_codigo text not null,
+  cnpj text not null,
+  ano integer not null check (ano >= 2000 and ano <= 2100),
+  dados jsonb not null,
+  assinatura text,
+  synced_at timestamptz not null default now(),
+  primary key (company_id, ano)
+);
+alter table public.dominio_notas enable row level security;
+drop policy if exists "dominio_notas_read_scoped" on public.dominio_notas;
+create policy "dominio_notas_read_scoped" on public.dominio_notas for select to authenticated
+  using (is_portal_admin() or is_colaborador() or company_id = any (allowed_company_ids()));
+
 create table if not exists public.dominio_dfc_modelo (
   company_codigo text not null,
   cnpj text not null,

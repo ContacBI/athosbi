@@ -43,6 +43,7 @@ const TELAS = [
   [/^\/empresa\/orcamento$/, "Orçamento"],
   [/^\/empresa\/carga-tributaria$/, "Carga tributária"],
   [/^\/empresa\/analise-desempenho$/, "Análise de desempenho"],
+  [/^\/empresa\/entradas-saidas$/, "Entradas x Saídas"],
   [/^\/reforma(\/.*)?$/, "Reforma Tributária"],
   [/^\/parametros\/central$/, "Parâmetros · Central"],
   [/^\/parametros\/(\w[\w-]*)/, "Parâmetros"],

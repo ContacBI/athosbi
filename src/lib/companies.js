@@ -1395,6 +1395,21 @@ export async function saveCargaManual(ano, mes, valor) {
   }
 }
 
+// Entradas x Saídas: a escolha da empresa de quais acumuladores contam e de como medir (ticket por nota ou por item; valor da nota ou dos itens).
+// company.notasConfig = { base: "nota"|"item", valor: "nota"|"itens", flags: { S|E|V: { "<acumulador>": true|false } } }; só vale a escolha explícita (o resto segue a sugestão).
+export async function saveNotasConfig(config) {
+  const company = state.companies.find((item) => item.id === state.activeCompanyId);
+  if (!company || state.activeGroupId) return;
+  const before = state.companies;
+  setData({ companies: state.companies.map((item) => (item.id === company.id ? { ...item, notasConfig: config } : item)) });
+  try {
+    await persistActiveCompany();
+  } catch (error) {
+    setData({ companies: before });
+    throw error;
+  }
+}
+
 // Modelo de DFC da empresa "instituto" que veio da Domínio (lib/dfcInstituto.js): guarda na empresa a estrutura e as contas
 // ligadas a cada grupo, como estão na Domínio. Espera o Supabase confirmar e desfaz se falhar (mesmo contrato de applyBalancete).
 export async function applyDfcInstituto(modelo) {

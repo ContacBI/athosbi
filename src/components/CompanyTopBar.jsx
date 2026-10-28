@@ -483,7 +483,7 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
   // Módulos complementares (Orçamento, Carga tributária) são coisas separadas do B.I Contábil: sem as abas do B.I (Resumo, Demonstrativos…), e a
   // Carga tributária também sem os botões do B.I (período, relatórios, personalizar) -- ela tem o período e a personalização dela.
   const isCarga = location.pathname.startsWith("/empresa/carga-tributaria");
-  const isModulo = isCarga || location.pathname.startsWith("/empresa/orcamento") || location.pathname.startsWith("/empresa/analise-desempenho");
+  const isModulo = isCarga || location.pathname.startsWith("/empresa/orcamento") || location.pathname.startsWith("/empresa/analise-desempenho") || location.pathname.startsWith("/empresa/entradas-saidas");
   const showNav = !isPersonalizar && !isDataArea && !isModulo && tabs.length > 0;
   const hasData = appState.accounts.length > 0 || appState.journal.length > 0;
 

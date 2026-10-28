@@ -27,6 +27,7 @@ export const MODULOS_COMPLEMENTARES = [
   { id: "orcamento", nome: "Orçamento", rota: "/empresa/orcamento" },
   { id: "carga-tributaria", nome: "Carga tributária", rota: "/empresa/carga-tributaria" },
   { id: "analise-desempenho", nome: "Análise de desempenho", rota: "/empresa/analise-desempenho" },
+  { id: "entradas-saidas", nome: "Entradas x Saídas", rota: "/empresa/entradas-saidas" },
 ];
 
 export function modulosLiberados(state) {
