@@ -518,8 +518,14 @@ setCompanyState();
 
 // ── Módulos que o cliente vê (Parâmetros › Acessos) ──
 section("Módulos por pessoa");
-const { modulosLiberados, moduloDaRota } = await src("lib/modulos.js");
-check("Equipe vê todos os módulos", modulosLiberados({ isAdmin: true }).length === 3 && modulosLiberados({ isColaborador: true }).length === 3, null);
+const { modulosLiberados, moduloDaRota, MODULOS_COMPLEMENTARES } = await src("lib/modulos.js");
+check(
+  "Equipe vê todos os módulos",
+  MODULOS_COMPLEMENTARES.length >= 4 &&
+    modulosLiberados({ isAdmin: true }).length === MODULOS_COMPLEMENTARES.length &&
+    modulosLiberados({ isColaborador: true }).length === MODULOS_COMPLEMENTARES.length,
+  modulosLiberados({ isAdmin: true })
+);
 check("Cliente sem ficha (ou ainda carregando) → só o B.I., sem menu", modulosLiberados({ modulosCliente: null }).length === 0 && modulosLiberados({ modulosCliente: [] }).length === 0, null);
 check("Cliente vê só o que foi liberado (e ignora lixo)", JSON.stringify(modulosLiberados({ modulosCliente: ["carga-tributaria", "xyz"] })) === JSON.stringify(["carga-tributaria"]), modulosLiberados({ modulosCliente: ["carga-tributaria", "xyz"] }));
 check("Rota → módulo (B.I. e outras telas = nenhum)", moduloDaRota("/empresa/orcamento") === "orcamento" && moduloDaRota("/empresa/analise-desempenho/x") === "analise-desempenho" && moduloDaRota("/empresa") === null && moduloDaRota("/empresa/dre") === null, null);
