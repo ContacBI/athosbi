@@ -556,6 +556,8 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
               </button>
             </>
           )}
+          {/* longe da lua (antes ficava colado nela e se clicava errado) */}
+          <VisaoClienteOlho className="shrink-0" />
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -588,7 +590,6 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
             </button>
           )}
           {company && canEdit && <SettingsButton />}
-          <VisaoClienteOlho />
           <ThemeToggle className="h-8 w-8" />
         </div>
       </div>
