@@ -832,8 +832,10 @@ check(
 );
 const { hubLigado } = await src("lib/hub.js");
 check(
-  "Hub novo: só no site de teste e só pro dono (nem cliente, nem colaborador, nem no oficial)",
+  "Hub novo: só no site de teste e só pros e-mails do dono (nem cliente, nem colaborador, nem no oficial)",
   hubLigado({ userEmail: "IzaiasContac@gmail.com " }, true) &&
+    hubLigado({ userEmail: "izaiasspaulino@gmail.com" }, true) &&
+    !hubLigado({ userEmail: "izaiasspaulino@gmail.com" }, false) &&
     !hubLigado({ userEmail: "izaiascontac@gmail.com" }, false) &&
     !hubLigado({ userEmail: "contac@gmail.com", isAdmin: true }, true) &&
     !hubLigado({ userEmail: "cliente@empresa.com" }, true) &&
