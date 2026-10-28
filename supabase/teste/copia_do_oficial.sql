@@ -12,7 +12,19 @@
 -- teste tem hoje (menos de 80%), a cópia NÃO é aplicada — o teste continua
 -- com a última cópia boa e o robô avisa o erro. Pra passar mesmo assim,
 -- rodar o robô à mão com "forçar".
+--
+-- Pode rodar de novo sem erro; o robô avisa quando precisa da versão nova.
 -- ============================================================================
+
+-- A troca de tudo numa transação só leva minutos, e a API do Supabase dá 8 s
+-- por pedido à chave de serviço. Só neste banco de teste.
+alter role service_role set statement_timeout = '10min';
+alter role service_role set lock_timeout = '2min';
+notify pgrst, 'reload config';
+
+create or replace function public.versao_da_copia()
+returns integer language sql immutable as $$ select 2 $$;
+grant execute on function public.versao_da_copia() to service_role;
 
 create table if not exists public.copia_lotes (
   id bigint generated always as identity primary key,
@@ -35,9 +47,9 @@ revoke all on public.copia_do_oficial from anon;
 drop policy if exists "copia_do_oficial_leitura" on public.copia_do_oficial;
 create policy "copia_do_oficial_leitura" on public.copia_do_oficial for select to authenticated using (true);
 
--- Tabelas copiadas, na ordem de inserção (as "mães" antes das "filhas");
--- apaga na ordem inversa. Fora da cópia: histórico de versões, uso do
--- portal (Central) e apresentações compartilhadas por link.
+-- Tabelas copiadas, na ordem de inserção (as "mães" antes das "filhas").
+-- Fora da cópia: histórico de versões, uso do portal (Central) e
+-- apresentações compartilhadas por link.
 create or replace function public.tabelas_da_copia()
 returns text[] language sql immutable as $$
   select array[
@@ -54,7 +66,6 @@ language plpgsql security definer set search_path = public as $$
 declare
   tabelas text[] := tabelas_da_copia();
   t text;
-  i integer;
   n integer;
   empresas_antes integer;
   empresas_depois integer;
@@ -74,9 +85,10 @@ begin
   foreach t in array tabelas loop
     execute format('alter table public.%I disable trigger user', t);
   end loop;
-  for i in reverse array_length(tabelas, 1)..1 loop
-    execute format('delete from public.%I', tabelas[i]);
-  end loop;
+  -- truncate (e não delete): libera o espaço na hora — o banco de teste é o
+  -- plano grátis, de 500 MB — e a API do Supabase barra delete sem where.
+  -- Dentro da transação: se der erro adiante, volta tudo.
+  execute (select 'truncate table ' || string_agg(format('public.%I', nome), ', ') from unnest(tabelas) nome);
   foreach t in array tabelas loop
     execute format('insert into public.%I select r.* from public.copia_lotes l, jsonb_populate_recordset(null::public.%I, l.linhas) r where l.tabela = %L', t, t, t);
     get diagnostics n = row_count;
@@ -86,7 +98,7 @@ begin
     execute format('alter table public.%I enable trigger user', t);
   end loop;
 
-  delete from copia_lotes;
+  truncate table copia_lotes;
   insert into copia_do_oficial (forcada, resumo) values (forcar, resumo);
   return resumo;
 end;

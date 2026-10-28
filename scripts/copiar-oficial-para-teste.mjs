@@ -14,13 +14,14 @@ import { createClient } from "@supabase/supabase-js";
 
 const BANCO_OFICIAL = "ijmkvxtdlthyxpawncbs";
 // Mesmas tabelas de tabelas_da_copia() (supabase/teste/copia_do_oficial.sql),
-// com a chave de cada uma pra ler em ordem.
+// com a chave de cada uma pra ler em ordem e, nas pesadas, quantas linhas
+// por página (o app_storage tem partes do razão de até ~8 MB cada).
 export const TABELAS = [
   ["portal_admins", "email"],
   ["colaboradores", "email"],
   ["access_grants", "id"],
   ["acesso_pessoas", "email"],
-  ["app_storage", "key"],
+  ["app_storage", "key", 10],
   ["dominio_sync", "company_codigo,competencia,lote,parte"],
   ["dominio_balancete", "company_codigo,lote,parte"],
   ["dominio_carga", "company_id,ano"],
@@ -33,6 +34,9 @@ export const TABELAS = [
   ["reforma_acessos", "id"],
   ["reforma_simulacoes", "id"],
 ];
+// Versão de supabase/teste/copia_do_oficial.sql que este robô espera
+// (versao_da_copia() no banco de teste).
+export const VERSAO_DA_COPIA = 2;
 const POR_PAGINA = 100;
 const TAMANHO_DO_LOTE = 3.5 * 1024 * 1024;
 
@@ -64,17 +68,38 @@ export function emLotes(linhas, limite = TAMANHO_DO_LOTE) {
   return lotes;
 }
 
-async function lerTudo(banco, tabela, chave) {
-  const linhas = [];
-  for (let pagina = 0; ; pagina += 1) {
+const chaveRecusada = ({ error, status }) => status === 401 || /Invalid API key|JWS|JWT/i.test(error?.message || "");
+// Pedido que não coube no tempo da API (8 s por pedido no Supabase), erro do
+// servidor ou conexão caída.
+const pedidoPesado = ({ error, status }) => error?.code === "57014" || status >= 500 || /statement timeout|fetch failed/i.test(error?.message || "");
+
+function explicar(resposta, segredo) {
+  if (chaveRecusada(resposta)) return `chave recusada — confira o segredo ${segredo}_SUPABASE_SERVICE_KEY`;
+  return resposta.error?.message || `erro ${resposta.status}`;
+}
+
+// Lê a tabela inteira, página por página. Uma página que não cabe no tempo
+// da API (linhas enormes, como o razão das empresas) é pedida de novo com
+// metade das linhas, até uma só.
+export async function* lerEmPaginas(banco, tabela, chave, porPagina = POR_PAGINA) {
+  let inicio = 0;
+  let tamanho = porPagina;
+  for (;;) {
     let consulta = banco.from(tabela).select("*");
     chave.split(",").forEach((coluna) => {
       consulta = consulta.order(coluna, { ascending: true });
     });
-    const { data, error } = await consulta.range(pagina * POR_PAGINA, pagina * POR_PAGINA + POR_PAGINA - 1);
-    if (error) throw new Error(`Leitura de ${tabela} no oficial: ${error.message}`);
-    linhas.push(...data);
-    if (data.length < POR_PAGINA) return linhas;
+    const resposta = await consulta.range(inicio, inicio + tamanho - 1);
+    if (resposta.error) {
+      if (tamanho > 1 && pedidoPesado(resposta)) {
+        tamanho = Math.ceil(tamanho / 2);
+        continue;
+      }
+      throw new Error(`Leitura de ${tabela} no oficial: ${explicar(resposta, "OFICIAL")}`);
+    }
+    if (resposta.data.length) yield resposta.data;
+    if (resposta.data.length < tamanho) return;
+    inicio += resposta.data.length;
   }
 }
 
@@ -85,24 +110,52 @@ export async function copiar() {
   const opcoes = { auth: { persistSession: false, autoRefreshToken: false } };
   const oficial = createClient(OFICIAL_SUPABASE_URL, OFICIAL_SUPABASE_SERVICE_KEY, opcoes);
   const teste = createClient(TESTE_SUPABASE_URL, TESTE_SUPABASE_SERVICE_KEY, opcoes);
+  const comeco = new Date().toISOString();
 
-  // O banco de teste precisa ter a área de espera (só existe no teste).
+  // O banco de teste precisa da versão certa do SQL da cópia (só existe no teste).
+  const versao = await teste.rpc("versao_da_copia");
+  if (chaveRecusada(versao)) throw new Error(`Banco de teste: ${explicar(versao, "TESTE")}.`);
+  if (versao.error || !(versao.data >= VERSAO_DA_COPIA)) throw new Error("O banco de teste não está preparado: rode a versão nova de supabase/teste/copia_do_oficial.sql no SQL Editor do teste.");
   const preparo = await teste.from("copia_lotes").delete().gt("id", 0);
-  if (preparo.error) throw new Error(`O banco de teste não está preparado (rode supabase/teste/copia_do_oficial.sql nele): ${preparo.error.message}`);
+  if (preparo.error) throw new Error(`Limpeza da área de espera do teste: ${explicar(preparo, "TESTE")}`);
 
-  for (const [tabela, chave] of TABELAS) {
-    const linhas = await lerTudo(oficial, tabela, chave);
-    const lotes = emLotes(linhas);
-    for (const lote of lotes) {
-      const { error } = await teste.from("copia_lotes").insert({ tabela, linhas: lote });
-      if (error) throw new Error(`Envio de ${tabela} pro teste: ${error.message}`);
+  for (const [tabela, chave, porPagina] of TABELAS) {
+    let linhas = 0;
+    let lotes = 0;
+    let pendentes = [];
+    const enviar = async (lote) => {
+      const resposta = await teste.from("copia_lotes").insert({ tabela, linhas: lote });
+      if (resposta.error) throw new Error(`Envio de ${tabela} pro teste: ${explicar(resposta, "TESTE")}`);
+      lotes += 1;
+    };
+    // Manda os lotes conforme lê — a tabela inteira não fica na memória.
+    for await (const pagina of lerEmPaginas(oficial, tabela, chave, porPagina)) {
+      linhas += pagina.length;
+      const prontos = emLotes(pendentes.concat(pagina));
+      pendentes = prontos.pop();
+      for (const lote of prontos) await enviar(lote);
     }
-    console.log(`${tabela}: ${linhas.length} linha(s) em ${lotes.length} lote(s)`);
+    if (pendentes.length) await enviar(pendentes);
+    console.log(`${tabela}: ${linhas} linha(s) em ${lotes} lote(s)`);
   }
 
-  const { data, error } = await teste.rpc("aplicar_copia", { forcar: FORCAR === "sim" || FORCAR === "true" });
-  if (error) throw new Error(error.message);
-  console.log("Cópia aplicada no teste:", JSON.stringify(data));
+  const aplicada = await teste.rpc("aplicar_copia", { forcar: FORCAR === "sim" || FORCAR === "true" });
+  if (!aplicada.error) {
+    console.log("Cópia aplicada no teste:", JSON.stringify(aplicada.data));
+    return;
+  }
+  if (!pedidoPesado(aplicada)) throw new Error(explicar(aplicada, "TESTE"));
+  // A resposta pode cair antes de o banco terminar a troca: espera o
+  // registro da cópia aparecer (até 10 min).
+  for (let tentativa = 0; tentativa < 40; tentativa += 1) {
+    await new Promise((resolver) => setTimeout(resolver, 15000));
+    const { data } = await teste.from("copia_do_oficial").select("feita_em, resumo").gte("feita_em", comeco).limit(1);
+    if (data?.length) {
+      console.log("Cópia aplicada no teste:", JSON.stringify(data[0].resumo));
+      return;
+    }
+  }
+  throw new Error(`A troca no teste não confirmou (${explicar(aplicada, "TESTE")}).`);
 }
 
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop())) {
