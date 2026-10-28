@@ -820,6 +820,38 @@ check(
     tabelasSql.join() === robo.TABELAS.map(([tabela]) => tabela).join(),
   { lotes: lotesCopia.map((lote) => lote.length), tabelasSql }
 );
+// Banco de mentira: página com mais de 3 linhas estoura o tempo da API.
+const linhasFalsas = Array.from({ length: 10 }, (_, i) => ({ id: i }));
+const paginasPedidas = [];
+const bancoFalso = (resposta) => ({
+  from: () => {
+    const consulta = { select: () => consulta, order: () => consulta, range: async (de, ate) => resposta(de, ate) };
+    return consulta;
+  },
+});
+const lento = bancoFalso((de, ate) => {
+  paginasPedidas.push(ate - de + 1);
+  return ate - de + 1 > 3 ? { data: null, error: { code: "57014", message: "canceling statement due to statement timeout" }, status: 500 } : { data: linhasFalsas.slice(de, ate + 1), error: null, status: 200 };
+});
+const lidas = [];
+for await (const pagina of robo.lerEmPaginas(lento, "t", "id", 8)) lidas.push(...pagina);
+let chaveRuim = "";
+try {
+  for await (const pagina of robo.lerEmPaginas(bancoFalso(() => ({ data: null, error: { message: "Invalid API key" }, status: 401 })), "t", "id")) lidas.push(pagina);
+} catch (error) {
+  chaveRuim = error.message;
+}
+const versaoSql = Number((sqlCopia.match(/versao_da_copia\(\)[\s\S]*?select (\d+)/) || [])[1]);
+check(
+  "Cópia: página pesada demais é pedida de novo pela metade; chave errada avisa o segredo; SQL do teste sem delete e na versão do robô",
+  lidas.map((linha) => linha.id).join() === "0,1,2,3,4,5,6,7,8,9" &&
+    paginasPedidas.join() === "8,4,2,2,2,2,2,2" &&
+    /OFICIAL_SUPABASE_SERVICE_KEY/.test(chaveRuim) &&
+    !/delete from/i.test(sqlCopia) &&
+    /alter role service_role set statement_timeout/.test(sqlCopia) &&
+    versaoSql === robo.VERSAO_DA_COPIA,
+  { paginasPedidas, chaveRuim, versaoSql }
+);
 
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {

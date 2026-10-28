@@ -57,7 +57,7 @@ Duas vezes por dia, às 6h17 e às 13h17 (horário de Brasília), o robô `.gith
 **Isto não substitui o backup do oficial.** O banco oficial tem o backup diário do Supabase (plano Pro) e o histórico de versões de cada registro (`app_storage_history`).
 
 **Montar (uma vez):**
-1. No **SQL Editor do banco de TESTE**, rodar `supabase/teste/copia_do_oficial.sql`. Esse arquivo **nunca** vai no oficial.
+1. No **SQL Editor do banco de TESTE**, rodar `supabase/teste/copia_do_oficial.sql`. Esse arquivo **nunca** vai no oficial. Ele também dá à chave de serviço do teste até 10 minutos por pedido (a troca de tudo passa dos 8 s padrão). Quando o arquivo mudar, o robô avisa "rode a versão nova" e é só rodar de novo.
 2. Em **GitHub › Settings › Secrets and variables › Actions › New repository secret**, criar estes quatro segredos (as chaves de serviço ficam em Supabase › Project Settings › API Keys › *Secret keys*):
 
    | Segredo | Valor |
