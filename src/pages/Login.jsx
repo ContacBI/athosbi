@@ -3,7 +3,7 @@ import { LogIn } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
 import AthosMark from "../components/AthosMark.jsx";
 import { enderecoDoPortal } from "../lib/enderecos.js";
-import { hubNoNavegador } from "../lib/hub.js";
+import { loginNovo } from "../lib/hub.js";
 
 // O jeito de entrar (e-mail + senha, "esqueci minha senha") — usado por esta
 // tela e pela do hub novo (hub/LoginHub.jsx).
@@ -44,12 +44,11 @@ export function useLogin() {
   return { email, setEmail, password, setPassword, error, notice, loading, handleSubmit, handleForgotPassword };
 }
 
-// Hub novo (lib/hub.js): no site de teste, no navegador onde o dono já
-// entrou no hub, o login também é o novo.
+// No site de teste, o login já é o do hub novo (lib/hub.js), pra todo mundo.
 const LoginHub = lazy(() => import("../hub/LoginHub.jsx"));
 
 export default function Login() {
-  if (hubNoNavegador()) {
+  if (loginNovo()) {
     return (
       <Suspense fallback={<div className="min-h-screen bg-surface-page" />}>
         <LoginHub />
