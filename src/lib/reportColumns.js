@@ -41,6 +41,30 @@ export function reportColumns({ tab, reportCompare, showPreviousBalance, showRep
   return columns;
 }
 
+// Cartão de demonstração do Painel (EBITDA, DRE resumida, Balanço, DFC) e o
+// relatório que sai dele (dashboardExport.js): só os meses mais o "Saldo
+// total" da engrenagem — nunca "Saldo anterior" —, ou uma coluna só.
+export function colunasDoCartao(tab, mensal, ajustes) {
+  if (!mensal) return ["saldo"];
+  return reportColumns({
+    tab,
+    reportCompare: true,
+    showPreviousBalance: false,
+    showReportTotal: tab === "BP" ? ajustes.showReportTotalBP : tab === "DFC" ? ajustes.showReportTotalDFC : ajustes.showReportTotalDRE,
+    bpMonthlyMode: ajustes.bpMonthlyMode,
+  });
+}
+
+// Como o cartão não mostra "Saldo anterior", o total da DRE é a soma dos
+// meses do período — senão abril + maio não batia com o total, que vinha
+// acumulado desde janeiro.
+export function valorDoCartao(row, column, { tab, bpMonthlyMode, months }) {
+  if (column === "saldo") return row.saldo || 0;
+  if (row.isPercentage) return column === "total" ? row.saldo : row.monthValues?.[column] || 0;
+  if (column === "total" && tab === "DRE") return Object.values(row.monthValues || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+  return columnValue(row, column, { tab, bpMonthlyMode, months });
+}
+
 export function columnLabel(column) {
   if (column === "saldo") return "Saldo do período";
   if (column === "initial") return "Saldo inicial";

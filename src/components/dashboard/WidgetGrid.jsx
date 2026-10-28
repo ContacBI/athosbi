@@ -31,7 +31,7 @@ import { directChildren } from "../../lib/reportTree.js";
 import { AnaliseCascataWidget, AnaliseDeducoesWidget, AnaliseParetoWidget, AnaliseRankingWidget, CargaComposicaoWidget, CargaMesWidget, CargaResumoWidget } from "./AnaliseWidgets.jsx";
 import { buildDfcDirect, buildDfcIndirect, codigoDeExibicao } from "../../data/calculations.js";
 import { money } from "../../lib/format.js";
-import { columnLabel, columnValue, reportColumns, isZeroNoMovement } from "../../lib/reportColumns.js";
+import { columnLabel, colunasDoCartao, valorDoCartao, isZeroNoMovement } from "../../lib/reportColumns.js";
 import { budgetFor } from "../../lib/budget.js";
 import { buildCashBridge, bridgeSentence } from "../../lib/cashBridge.js";
 import { prazosSeries } from "../../lib/prazos.js";
@@ -1030,24 +1030,8 @@ function TableWidgetCard({ definition, ctx, maxRows }) {
   // mexeu na tela de Demonstrativos.
   const monthly = slide ? slide.tableColumns === "meses" : state.reportCompare;
   const valueCol = slide ? "124px" : "92px";
-  const columns = monthly
-    ? reportColumns({
-        tab,
-        reportCompare: true,
-        showPreviousBalance: false,
-        showReportTotal: tab === "BP" ? state.showReportTotalBP : tab === "DFC" ? state.showReportTotalDFC : state.showReportTotalDRE,
-        bpMonthlyMode: state.bpMonthlyMode,
-      })
-    : ["saldo"];
-  const valueFor = (row, column) => {
-    if (column === "saldo") return row.saldo || 0;
-    if (row.isPercentage) return column === "total" ? row.saldo : row.monthValues?.[column] || 0;
-    // Este cartão nunca mostra a coluna "Saldo anterior", então o total da
-    // DRE é a soma dos meses do período — senão abril + maio não batia com
-    // o total, que vinha acumulado desde janeiro.
-    if (column === "total" && tab === "DRE") return Object.values(row.monthValues || {}).reduce((sum, value) => sum + Number(value || 0), 0);
-    return columnValue(row, column, { tab, bpMonthlyMode: state.bpMonthlyMode, months: ctx.months });
-  };
+  const columns = colunasDoCartao(tab, monthly, state);
+  const valueFor = (row, column) => valorDoCartao(row, column, { tab, bpMonthlyMode: state.bpMonthlyMode, months: ctx.months });
   return (
     <div className="min-w-0">
       <div data-widget-title className="mb-3 flex items-center justify-between gap-2"><p className="text-[13px] font-medium text-ink-900">{definition.label}</p>{!slide && <ReportSettingsMenu tab={tab} />}</div>

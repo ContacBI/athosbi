@@ -7,7 +7,7 @@ import { groupCompanies, activeWorkspaceName } from "../lib/groups.js";
 import { isResponsavelForGroup } from "../lib/colaboradores.js";
 import { usePageActions } from "../lib/pageActions.jsx";
 import { sharedDashboardContext } from "../lib/dashboardData.js";
-import { buildSummaryExportRows } from "../lib/dashboardExport.js";
+import { buildSummaryExportRows, buildTableWidgetExport } from "../lib/dashboardExport.js";
 import { buildFullReportExport, slug } from "../lib/demonstrativoExport.js";
 import { buildFullDfcExport } from "../lib/dfcExport.js";
 import { buildPerCompanyReports } from "../lib/groupExport.js";
@@ -24,12 +24,15 @@ import ThemeToggle from "./ThemeToggle.jsx";
 // {type, mode|tab} que a própria página registrou (ver reportKind em
 // useDownloadHandlers) — usado tanto pro consolidado quanto, escopado por
 // empresa (ver buildPerCompanyReports em groupExport.js), pra cada membro
-// do grupo. null quando a tela atual não tem um construtor "cheio"
-// equivalente (ex.: o Resumo com widgets) — export Consolidado+Individual
-// fica indisponível nesse caso.
+// do grupo. "tabela" é uma aba do Painel com um só cartão de demonstração
+// (EBITDA, DRE resumida, Balanço, DFC — ver buildTableWidgetExport). null
+// quando a tela atual não tem um construtor "cheio" equivalente (ex.: o
+// Resumo com vários cartões) — export Consolidado+Individual fica
+// indisponível nesse caso.
 function buildReportForKind(reportKind) {
   if (reportKind?.type === "dfc") return buildFullDfcExport(reportKind.mode);
   if (reportKind?.type === "demonstrativo") return buildFullReportExport(reportKind.tab);
+  if (reportKind?.type === "tabela") return buildTableWidgetExport(reportKind.table);
   return null;
 }
 

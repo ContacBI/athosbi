@@ -439,6 +439,40 @@ Object.assign(state, {
 const ativoGrupo = value(arvore("BP"), "01");
 check("Balancete do ano: a empresa B usa o dela (ativo em dobro)", near(ativoB, 2 * expected.ativo), ativoB);
 check("…e o grupo também: ativo do grupo = A + B", near(ativoGrupo, expected.ativo + ativoB), { grupo: ativoGrupo, soma: expected.ativo + ativoB });
+// Aba do Painel com só o cartão "EBITDA": o "Consolidado + Individual" do
+// grupo baixa o EBITDA consolidado e o de cada empresa.
+const { buildTableWidgetExport } = await src("lib/dashboardExport.js");
+const { buildPerCompanyReports } = await src("lib/groupExport.js");
+const { moneyOrDash } = await src("lib/format.js");
+const ebitdaDe = (relatorio) => relatorio?.rows.find((linha) => linha.codigo === "DEX.10")?.cells;
+setCompanyState();
+const ebitdaEmpresa = buildDashboardContext().ebitda;
+Object.assign(state, {
+  companies: [{ ...company, journal }, { ...empresaB, journal }],
+  groups: gruposTeste,
+  activeGroupId: "grp_teste",
+  activeCompanyId: "",
+  accounts: [...mA.accounts, ...mB.accounts],
+  mappings: [...mA.mappings, ...mB.mappings],
+  journal: [...mA.journal, ...mB.journal],
+  reportCompare: false,
+});
+const ebitdaConsolidado = buildTableWidgetExport("executiva");
+const ebitdaPorEmpresa = buildPerCompanyReports(gruposTeste[0], () => buildTableWidgetExport("executiva"));
+const razaoDoGrupo = state.journal.length;
+Object.assign(state, { reportCompare: true });
+const ebitdaMensal = buildTableWidgetExport("executiva");
+check(
+  "Consolidado + Individual na aba EBITDA do Painel: grupo = 2× cada empresa, uma por empresa, mesmas colunas do cartão",
+  ebitdaConsolidado?.reportName === "EBITDA" &&
+    ebitdaDe(ebitdaConsolidado)?.saldo === moneyOrDash(2 * ebitdaEmpresa) &&
+    ebitdaPorEmpresa.length === 2 &&
+    ebitdaPorEmpresa.every(({ data }) => ebitdaDe(data)?.saldo === moneyOrDash(ebitdaEmpresa)) &&
+    ebitdaPorEmpresa[1].data.companyName === "Empresa B" &&
+    state.journal.length === razaoDoGrupo &&
+    ebitdaMensal.columns.some((coluna) => /^\d{4}-\d{2}$/.test(coluna.key)),
+  { consolidado: ebitdaDe(ebitdaConsolidado), empresa: moneyOrDash(ebitdaEmpresa), porEmpresa: ebitdaPorEmpresa.map(({ data }) => ebitdaDe(data)?.saldo), colunas: ebitdaMensal.columns.map((coluna) => coluna.key) }
+);
 setCompanyState();
 
 // ── Razão no formato compacto ──

@@ -36,9 +36,13 @@ function SummaryDownloadRegistrar({ widgets, ctx, tabName, printRef }) {
       fileLabel: slug(`resumo_${tabName}_${workspaceName}`),
     };
     const columns = [{ key: "valor", label: "Valor" }];
+    // Aba que é só um cartão de demonstração (ex.: "EBITDA"): no grupo, o
+    // "Consolidado + Individual" baixa essa demonstração de cada empresa.
+    const unico = widgets.length === 1 ? WIDGET_CATALOG.find((definition) => definition.id === widgets[0].id) : null;
     return {
       pdf: () => exportDomSnapshotPdf({ ...meta, element: printRef.current }),
       excel: () => exportDemonstrativoExcel({ ...meta, columns, rows: buildSummaryExportRows(widgets, ctx) }),
+      reportKind: unico?.type === "table" ? { type: "tabela", table: unico.table } : undefined,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widgets, ctx, tabName]);
