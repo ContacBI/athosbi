@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { Activity, AlertCircle, Building2, CalendarClock, Clock, Laptop, Lightbulb, Lock, LogIn, MonitorSmartphone, RefreshCw, Smartphone, Tablet, Target, Timer, TrendingUp, Users } from "lucide-react";
+import { Activity, AlertCircle, Building2, CalendarClock, Clock, Laptop, Lightbulb, Lock, LogIn, MonitorSmartphone, RefreshCw, Settings2, Smartphone, Tablet, Target, Timer, TrendingUp, Users, X } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import PageHeader from "../../components/PageHeader.jsx";
 import { useAppState } from "../../data/useStore.js";
@@ -150,6 +150,7 @@ export default function Central() {
   const [comAcesso, setComAcesso] = useState([]);
   const [todasTelas, setTodasTelas] = useState(false);
   const [recarregar, setRecarregar] = useState(0);
+  const [configAberta, setConfigAberta] = useState(false);
   const interno = aba === "equipe";
 
   const agora = useMemo(() => new Date(), [dias, aba, recarregar]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -222,17 +223,16 @@ export default function Central() {
 
   return (
     <div className="central">
-      <PageHeader eyebrow="Central" title="Uso do portal" icon={Activity} />
-
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1 rounded-xl bg-surface-muted p-1" role="tablist">
-          <button type="button" role="tab" aria-selected={!interno} onClick={() => setAba("clientes")} className={`central-aba-clientes flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-[12.5px] font-medium transition-all ${!interno ? "bg-surface-card text-ink-900 shadow-sm ring-1 ring-line" : "text-ink-500 hover:text-ink-900"}`}>
-            <Users size={14} /> Clientes
-          </button>
-          {dono && (
-            <button type="button" role="tab" aria-selected={interno} onClick={() => setAba("equipe")} className={`central-aba-equipe flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-[12.5px] font-medium transition-all ${interno ? "bg-surface-card text-ink-900 shadow-sm ring-1 ring-line" : "text-ink-500 hover:text-ink-900"}`} title="Só você vê esta aba">
-              <Lock size={13} /> Equipe interna
-            </button>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <PageHeader eyebrow="Central" title="Uso do portal" icon={Activity} />
+          {interno && (
+            <span className="central-equipe-ativa -mt-4 flex items-center gap-2 rounded-full bg-accent-50 py-1 pl-3 pr-1 text-[12px] font-medium text-accent-700 ring-1 ring-accent-200/80">
+              <Lock size={12} /> Equipe interna
+              <button type="button" onClick={() => setAba("clientes")} title="Voltar para os clientes" className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-accent-100">
+                <X size={12} />
+              </button>
+            </span>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -246,6 +246,37 @@ export default function Central() {
           <button type="button" onClick={() => setRecarregar((valor) => valor + 1)} title="Atualizar" className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-500 ring-1 ring-line hover:bg-surface-muted hover:text-ink-900">
             <RefreshCw size={14} />
           </button>
+          {/* Só o dono: um botão discreto troca pra ver o uso da equipe. */}
+          {dono && (
+            <div className="relative">
+              <button type="button" onClick={() => setConfigAberta((valor) => !valor)} title="Configurações" aria-expanded={configAberta} className={`central-config flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-surface-muted hover:text-ink-700 ${configAberta ? "bg-surface-muted text-ink-700" : "text-ink-300"}`}>
+                <Settings2 size={14} />
+              </button>
+              {configAberta && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setConfigAberta(false)} />
+                  <div className="absolute right-0 top-[calc(100%+6px)] z-40 w-64 rounded-xl bg-surface-card p-1.5 shadow-xl ring-1 ring-line">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAba(interno ? "clientes" : "equipe");
+                        setConfigAberta(false);
+                      }}
+                      className="central-ver-equipe flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left hover:bg-surface-muted"
+                    >
+                      <span>
+                        <span className="block text-[12.5px] font-medium text-ink-800">Uso da equipe interna</span>
+                        <span className="block text-[11px] text-ink-400">Só você vê</span>
+                      </span>
+                      <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${interno ? "bg-accent-500" : "bg-line-strong"}`}>
+                        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${interno ? "left-[18px]" : "left-0.5"}`} />
+                      </span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -261,11 +292,6 @@ export default function Central() {
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {interno && (
-            <p className="flex items-center gap-1.5 text-[12px] text-ink-500">
-              <Lock size={13} className="text-accent-500" /> Uso da equipe (administradores e colaboradores). Só você vê esta aba.
-            </p>
-          )}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Numero icone={LogIn} rotulo="Acessos" valor={resumo.acessos.toLocaleString("pt-BR")} sub={`nos últimos ${dias} dias`} atual={resumo.acessos} anterior={anterior.acessos} />
             <Numero icone={Users} rotulo="Pessoas que entraram" valor={resumo.pessoas.toLocaleString("pt-BR")} sub={comAcesso.length ? `de ${comAcesso.length} com acesso` : ""} atual={resumo.pessoas} anterior={anterior.pessoas} />
