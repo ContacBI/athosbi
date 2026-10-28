@@ -105,6 +105,14 @@ export default function EntradasSaidas() {
   const [foco, setFoco] = useState("todas"); // grupo: "todas" (consolidado) ou o id de uma empresa
   const [verAcumuladores, setVerAcumuladores] = useState(false);
   const [medirAberto, setMedirAberto] = useState(false);
+  // Lâmpada: liga/desliga as frases de leitura rápida (lembra a escolha neste navegador; começa ligada)
+  const [verInsights, setVerInsights] = useState(() => {
+    try { return localStorage.getItem("athosbi.es.insights") !== "0"; } catch { return true; }
+  });
+  const alternarInsights = () => setVerInsights((atual) => {
+    try { localStorage.setItem("athosbi.es.insights", atual ? "0" : "1"); } catch { /* sem armazenamento: só não lembra */ }
+    return !atual;
+  });
   const [detalhe, setDetalhe] = useState(null); // cartão aberto no painel de comparações ("fat" | "ent" | "saldo" | "ticket" | "ratio")
   const equipe = Boolean(state.isAdmin || state.isColaborador); // cliente só vê as informações; os acumuladores (configuração) são da equipe
   const membrosUso = useMemo(() => (grupo && foco !== "todas" ? membros.filter((m) => m.id === foco) : membros), [membros, grupo, foco]);
@@ -304,6 +312,11 @@ export default function EntradasSaidas() {
             <button type="button" onClick={() => setMedirAberto((v) => !v)} className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12.5px] font-medium transition-colors ${medirAberto ? "border-accent-500 bg-accent-500/10 text-accent-700" : "border-line text-ink-600 hover:bg-surface-muted"}`}>
               <SlidersHorizontal size={13} /> Medir por
             </button>
+            {!oculto("es:insights") && (
+              <button type="button" onClick={alternarInsights} aria-pressed={verInsights} title={verInsights ? "Ocultar a leitura rápida" : "Mostrar a leitura rápida"} className={`flex h-[34px] w-[34px] items-center justify-center rounded-lg border transition-colors ${verInsights ? "border-accent-500 bg-accent-500 text-white shadow-sm" : "border-line text-ink-500 hover:bg-surface-muted"}`}>
+                <Lightbulb size={15} />
+              </button>
+            )}
             {medirAberto && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setMedirAberto(false)} />
@@ -343,7 +356,7 @@ export default function EntradasSaidas() {
       )}
 
       {/* Leitura rápida */}
-      {insights.length > 0 && !oculto("es:insights") && (
+      {insights.length > 0 && verInsights && !oculto("es:insights") && (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {insights.slice(0, 4).map((frase) => (
             <div key={frase} className="flex items-start gap-2.5 rounded-xl border border-accent-500/20 bg-accent-500/[0.06] px-3.5 py-3">
