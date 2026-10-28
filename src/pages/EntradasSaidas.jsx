@@ -3,7 +3,7 @@ import { Area, AreaChart, Bar, CartesianGrid, ComposedChart, LabelList, Legend, 
 import { ArrowDownRight, ArrowLeftRight, ArrowUpRight, Check, ChevronDown, ChevronRight, Lightbulb, Minus, SlidersHorizontal, Wallet } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { saveNotasConfig } from "../lib/companies.js";
-import { groupCompanies } from "../lib/groups.js";
+import { groupCompanies, saveNotasMedidaGrupo } from "../lib/groups.js";
 import { oculto } from "../lib/visibilidade.js";
 import { CONFIG_PADRAO, TIPOS, considerado, fetchNotas, montarEntradasSaidas, sugerirConsiderar } from "../lib/notasFiscais.js";
 
@@ -115,8 +115,9 @@ export default function EntradasSaidas() {
   const membrosUso = useMemo(() => (grupo && foco !== "todas" ? membros.filter((m) => m.id === foco) : membros), [membros, grupo, foco]);
   const ehConsolidado = Boolean(grupo) && foco === "todas";
   const config = (!grupo && company?.notasConfig) || (grupo && foco !== "todas" && membrosUso[0]?.notasConfig) || CONFIG_PADRAO;
-  const base = config.base || "nota";
-  const valor = config.valor || "nota";
+  // grupo: a medida é do grupo (vale pra todas as empresas); empresa: a medida é dela
+  const base = (grupo ? grupo.notasMedida?.base : config.base) || "nota";
+  const valor = (grupo ? grupo.notasMedida?.valor : config.valor) || "nota";
   const podeEditar = Boolean(!grupo && company && (state.isAdmin || (company.responsaveis || []).includes(state.userEmail)));
 
   useEffect(() => {
@@ -168,6 +169,11 @@ export default function EntradasSaidas() {
     gravar({ ...CONFIG_PADRAO, ...config, flags: { ...(config.flags || {}), [tipo]: novo } });
   };
   const mudarMedida = (campo, id) => {
+    if (grupo) {
+      if (!equipe) { setAviso("Só a equipe muda essa opção."); return; }
+      saveNotasMedidaGrupo(grupo.id, { base, valor, [campo]: id });
+      return;
+    }
     if (!podeEditar) { setAviso("Só quem edita a empresa muda essa opção."); return; }
     gravar({ ...CONFIG_PADRAO, ...config, [campo]: id });
   };
@@ -255,7 +261,7 @@ export default function EntradasSaidas() {
                 <div className={`${CARTAO} absolute right-0 top-full z-40 mt-2 flex w-[300px] flex-col gap-4 p-4`}>
                   <Seletor rotulo="Ticket médio por" valor={base} opcoes={[["nota", "Nota"], ["item", "Item (peças)"]]} onChange={(id) => mudarMedida("base", id)} />
                   <Seletor rotulo="Valor" valor={valor} opcoes={[["nota", "Total da nota"], ["itens", "Só os itens"]]} onChange={(id) => mudarMedida("valor", id)} />
-                  <p className="text-[11.5px] leading-4 text-ink-400">{grupo ? "No grupo, cada empresa usa a própria escolha de medida e de acumuladores; para mudar, abra a empresa." : "A escolha fica salva na empresa."}</p>
+                  <p className="text-[11.5px] leading-4 text-ink-400">{grupo ? "No grupo, esta medida vale para todas as empresas. Os acumuladores seguem a escolha de cada empresa (para mudar, abra a empresa)." : "A escolha fica salva na empresa."}</p>
                 </div>
               </>
             )}

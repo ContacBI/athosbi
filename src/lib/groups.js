@@ -56,6 +56,13 @@ export function createGroup({ name, companyIds = [] }) {
   return group;
 }
 
+// Entradas x Saídas no grupo: a medida (ticket por nota ou por item; valor da nota ou dos itens) vale pro grupo todo; os acumuladores seguem a escolha de cada empresa.
+export function saveNotasMedidaGrupo(id, medida) {
+  const groups = state.groups.map((group) => (group.id === id ? { ...group, notasMedida: medida, updatedAt: new Date().toISOString() } : group));
+  writeStoredGroups(groups).catch((error) => setData({ saveError: { message: String(error?.message || error).slice(0, 240), at: Date.now() } }));
+  setData({ groups });
+}
+
 // Visibilidade pros clientes do grupo (ver lib/visibilidade.js): vale quando a pessoa abre o GRUPO; cada empresa tem a sua.
 export function saveVisibilidadeGrupo(id, visibilidade) {
   const groups = state.groups.map((group) => (group.id === id ? { ...group, visibilidade, updatedAt: new Date().toISOString() } : group));
