@@ -56,6 +56,13 @@ export function createGroup({ name, companyIds = [] }) {
   return group;
 }
 
+// Visibilidade pros clientes do grupo (ver lib/visibilidade.js): vale quando a pessoa abre o GRUPO; cada empresa tem a sua.
+export function saveVisibilidadeGrupo(id, visibilidade) {
+  const groups = state.groups.map((group) => (group.id === id ? { ...group, visibilidade, updatedAt: new Date().toISOString() } : group));
+  writeStoredGroups(groups).catch((error) => setData({ saveError: { message: String(error?.message || error).slice(0, 240), at: Date.now() } }));
+  setData({ groups });
+}
+
 export function updateGroup(id, { name, companyIds }) {
   const groups = state.groups.map((group) =>
     group.id === id

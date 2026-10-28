@@ -17,6 +17,7 @@ import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
 import PeriodPicker from "./PeriodPicker.jsx";
 import FechamentoMenu from "./FechamentoMenu.jsx";
 import { VisaoClienteOlho } from "./VisaoClienteBotao.jsx";
+import { kAba, oculto } from "../lib/visibilidade.js";
 import { limiteDoCliente, ultimoDiaDoMes } from "../lib/fechamento.js";
 import ThemeToggle from "./ThemeToggle.jsx";
 
@@ -461,7 +462,7 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
   const appState = useAppState();
   const navigate = useNavigate();
   const location = useLocation();
-  const tabs = appState.dashboardTabs || [];
+  const tabs = (appState.dashboardTabs || []).filter((tab) => !oculto(kAba(tab.id))); // abas que a equipe ocultou pro cliente (lib/visibilidade.js)
   const group = appState.activeGroupId ? appState.groups.find((item) => item.id === appState.activeGroupId) || null : null;
   const groupMembers = group ? groupCompanies(group) : [];
   // Mesma regra do CompanyLayout.jsx: admin sempre edita; colaborador

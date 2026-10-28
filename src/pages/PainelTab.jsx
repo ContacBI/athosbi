@@ -14,6 +14,7 @@ import Placeholder from "../components/Placeholder.jsx";
 import WidgetGrid, { PrintableWidgetGrid } from "../components/dashboard/WidgetGrid.jsx";
 import Demonstrativos from "./Demonstrativos.jsx";
 import Dfc from "./Dfc.jsx";
+import { kAba, kItem, kSubaba, oculto } from "../lib/visibilidade.js";
 
 // Renders nothing — just registers the top bar's "Relatório atual" action
 // for this tab. PDF is a screenshot of `printRef` — a plain, off-screen
@@ -54,7 +55,7 @@ export default function PainelTab() {
   const printRef = useRef(null);
   const hasData = state.accounts.length > 0 || state.journal.length > 0;
   const tab = (state.dashboardTabs || []).find((item) => item.id === tabId);
-  const subTabs = tab?.subTabs || [];
+  const subTabs = (tab?.subTabs || []).filter((sub) => !oculto(kSubaba(tab.id, sub.id))); // o que a equipe ocultou pro cliente (lib/visibilidade.js)
 
   const [activeSubId, setActiveSubId] = useState(subTabs[0]?.id || null);
   useEffect(() => {
@@ -71,7 +72,7 @@ export default function PainelTab() {
 
   const activeSub = subTabs.find((sub) => sub.id === activeSubId) || null;
   const editTarget = subTabs.length > 0 ? activeSub : tab;
-  const widgets = editTarget?.widgets || [];
+  const widgets = (editTarget?.widgets || []).filter((item) => !oculto(kItem(tab?.id, activeSub?.id, item.id)));
   const spacing = editTarget?.spacing;
   const personalizarState = subTabs.length > 0 ? { tabId: tab?.id, subId: activeSub?.id } : { tabId: tab?.id };
 
@@ -82,7 +83,7 @@ export default function PainelTab() {
   const isSoleLink = soleLinkDefinition?.type === "link" && soleLinkDefinition.href === "/empresa/demonstrativos";
   const isSoleDfcLink = soleLinkDefinition?.type === "link" && soleLinkDefinition.href === "/empresa/dfc";
 
-  if (!tab) return <Navigate to="/empresa" replace />;
+  if (!tab || oculto(kAba(tab.id))) return <Navigate to="/empresa" replace />;
 
   if (!hasData) {
     return (

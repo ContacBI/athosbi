@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Network, Pencil, Trash2, Building2, ArrowRight, Layers } from "lucide-react";
+import { Network, Pencil, Trash2, Building2, ArrowRight, Layers, Eye } from "lucide-react";
+import AcessoClientesModal from "../../components/AcessoClientesModal.jsx";
 import { useAppState } from "../../data/useStore.js";
 import { createGroup, updateGroup, deleteGroup, groupCompanies } from "../../lib/groups.js";
 import GroupModal from "../../components/GroupModal.jsx";
@@ -9,6 +10,7 @@ import PageHeader from "../../components/PageHeader.jsx";
 export default function GruposAdmin() {
   const state = useAppState();
   const navigate = useNavigate();
+  const [acessoGrupo, setAcessoGrupo] = useState(null); // grupo cujo "Acesso dos clientes" está aberto
   const [modalGroup, setModalGroup] = useState(undefined); // undefined = fechado, null = criar, objeto = editar
 
   function handleSubmit(fields) {
@@ -107,6 +109,15 @@ export default function GruposAdmin() {
                       <div className="flex shrink-0 gap-1.5">
                         <button
                           type="button"
+                          onClick={() => setAcessoGrupo(group)}
+                          title="Acesso dos clientes: quem entra e o que veem"
+                          aria-label={`Acesso dos clientes de ${group.name}`}
+                          className="flex h-7 w-7 items-center justify-center rounded-md border border-line-strong text-ink-600 hover:bg-surface-muted"
+                        >
+                          <Eye size={13} />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setModalGroup(group)}
                           aria-label={`Editar ${group.name}`}
                           className="flex h-7 w-7 items-center justify-center rounded-md border border-line-strong text-ink-600 hover:bg-surface-muted"
@@ -189,6 +200,7 @@ export default function GruposAdmin() {
         </div>
       </div>
 
+      {acessoGrupo && <AcessoClientesModal tipo="grupo" item={state.groups.find((g) => g.id === acessoGrupo.id) || acessoGrupo} onClose={() => setAcessoGrupo(null)} />}
       {modalGroup !== undefined && (
         <GroupModal group={modalGroup} onClose={() => setModalGroup(undefined)} onSubmit={handleSubmit} />
       )}

@@ -4,6 +4,7 @@ import { ArrowDownRight, ArrowLeftRight, ArrowUpRight, Check, ChevronDown, Chevr
 import { useAppState } from "../data/useStore.js";
 import { saveNotasConfig } from "../lib/companies.js";
 import { groupCompanies } from "../lib/groups.js";
+import { oculto } from "../lib/visibilidade.js";
 import { CONFIG_PADRAO, TIPOS, considerado, fetchNotas, montarEntradasSaidas, sugerirConsiderar } from "../lib/notasFiscais.js";
 
 const MES_CURTO = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -271,6 +272,7 @@ export default function EntradasSaidas() {
       </div>
 
       {/* Cartões */}
+      {!oculto("es:kpis") && (
       <div className="grid grid-cols-2 gap-4 md:grid-cols-6">
         <Kpi destaque rotulo="Faturamento (saídas + serviços)" valor={brlCompacto(r.faturamento)} exato={moneyFull(r.faturamento)} icone={Wallet}
           delta={<Variacao atual={r.faturamento} anterior={anterior?.faturamento} rotulo={rotuloAnt} />} dica={`${inteiro(r.vendas)} ${unidade}`}>
@@ -290,9 +292,10 @@ export default function EntradasSaidas() {
         <Kpi rotulo={`Ticket médio por ${base === "item" ? "peça" : "nota"}`} valor={r.ticket == null ? "—" : moneyFull(r.ticket)} exato={r.ticket == null ? "" : moneyFull(r.ticket)} delta={<Variacao atual={r.ticket} anterior={anterior?.ticket} rotulo={rotuloAnt} />} dica="faturamento ÷ vendas" />
         <Kpi rotulo="Entradas ÷ faturamento" valor={pct(r.totais.E.v, r.faturamento)} delta={<Variacao atual={r.faturamento ? r.totais.E.v / r.faturamento : NaN} anterior={anterior?.faturamento ? anterior.totais.E.v / anterior.faturamento : 0} bomSobe={false} rotulo={rotuloAnt} />} dica="quanto vira entrada" />
       </div>
+      )}
 
       {/* Leitura rápida */}
-      {insights.length > 0 && (
+      {insights.length > 0 && !oculto("es:insights") && (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {insights.slice(0, 4).map((frase) => (
             <div key={frase} className="flex items-start gap-2.5 rounded-xl border border-accent-500/20 bg-accent-500/[0.06] px-3.5 py-3">
@@ -304,7 +307,7 @@ export default function EntradasSaidas() {
       )}
 
       {/* Ranking entre as empresas do grupo */}
-      {ehConsolidado && comparativo.length > 1 && (
+      {ehConsolidado && comparativo.length > 1 && !oculto("es:comparativo") && (
         <div className={`${CARTAO} p-5`}>
           <div className="mb-3 flex items-baseline justify-between gap-2">
             <h2 className="text-[14px] font-semibold text-ink-900">Comparativo entre as empresas</h2>
@@ -347,6 +350,7 @@ export default function EntradasSaidas() {
       )}
 
       {/* Mês a mês */}
+      {!oculto("es:grafico") && (
       <div className={`${CARTAO} p-5`}>
         <h2 className="mb-4 text-[14px] font-semibold text-ink-900">Mês a mês: o que sai × o que entra</h2>
         <div className="h-[300px] text-ink-400">
@@ -371,6 +375,7 @@ export default function EntradasSaidas() {
           </ResponsiveContainer>
         </div>
       </div>
+      )}
 
       {/* Acumuladores: só a equipe, recolhido */}
       {equipe && (

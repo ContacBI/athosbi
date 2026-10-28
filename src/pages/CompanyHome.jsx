@@ -3,6 +3,7 @@ import { LayoutGrid, Sparkles } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { useIsMobile } from "../lib/useIsMobile.js";
 import { prefersFullPanel } from "../lib/installApp.js";
+import { kAba, oculto } from "../lib/visibilidade.js";
 
 // The company's front door. Nothing is pre-built: if the user already has a
 // tab, jump straight to the first one. Otherwise show a blank slate — the
@@ -12,7 +13,7 @@ import { prefersFullPanel } from "../lib/installApp.js";
 export default function CompanyHome() {
   const state = useAppState();
   const navigate = useNavigate();
-  const tabs = state.dashboardTabs || [];
+  const tabs = (state.dashboardTabs || []).filter((tab) => !oculto(kAba(tab.id))); // sem as que a equipe ocultou pro cliente
   const isGroup = Boolean(state.activeGroupId);
   const isMobile = useIsMobile();
 

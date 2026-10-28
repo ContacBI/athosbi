@@ -1395,6 +1395,13 @@ export async function saveCargaManual(ano, mes, valor) {
   }
 }
 
+// Visibilidade pros clientes (ver lib/visibilidade.js): grava no cadastro da empresa o que fica oculto e quais módulos ela libera. Não mexe no resto do cadastro.
+export function saveVisibilidadeEmpresa(id, visibilidade) {
+  const companies = state.companies.map((company) => (company.id === id ? { ...company, visibilidade, updatedAt: new Date().toISOString() } : company));
+  writeStoredCompanies(companies).catch((error) => setData({ saveError: { message: String(error?.message || error).slice(0, 240), at: Date.now() } }));
+  setData({ companies });
+}
+
 // Entradas x Saídas: a escolha da empresa de quais acumuladores contam e de como medir (ticket por nota ou por item; valor da nota ou dos itens).
 // company.notasConfig = { base: "nota"|"item", valor: "nota"|"itens", flags: { S|E|V: { "<acumulador>": true|false } } }; só vale a escolha explícita (o resto segue a sugestão).
 export async function saveNotasConfig(config) {

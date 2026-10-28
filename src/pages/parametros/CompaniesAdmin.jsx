@@ -5,9 +5,10 @@ import { createCompany, updateCompany, deleteCompany, importBackupFile } from ".
 import { exportCompanyBackup, exportFullBackup, importCompanyBackup, importFullBackup, inspectBackupFile } from "../../lib/fullBackup.js";
 import { listAdmins, listColaboradores } from "../../lib/colaboradores.js";
 import CompanyModal from "../../components/CompanyModal.jsx";
+import AcessoClientesModal from "../../components/AcessoClientesModal.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import PageHeader from "../../components/PageHeader.jsx";
-import { Building2, Users2, FileSpreadsheet, Pencil, Trash2, Repeat, SlidersHorizontal, Download, ArrowRight, UserCheck, ArchiveRestore, FolderDown } from "lucide-react";
+import { Eye, Building2, Users2, FileSpreadsheet, Pencil, Trash2, Repeat, SlidersHorizontal, Download, ArrowRight, UserCheck, ArchiveRestore, FolderDown } from "lucide-react";
 
 // Tempo restante estimado a partir do ritmo médio até agora (tempo
 // decorrido / itens já feitos, projetado pros itens que faltam) — não dá
@@ -50,6 +51,7 @@ function BackupProgress({ busy }) {
 export default function CompaniesAdmin() {
   const state = useAppState();
   const navigate = useNavigate();
+  const [acessoEmpresa, setAcessoEmpresa] = useState(null); // empresa cujo "Acesso dos clientes" está aberto
   const [modalCompany, setModalCompany] = useState(undefined); // undefined = fechado, null = criar, objeto = editar
   const [busy, setBusy] = useState(null); // null | { label, done, total, startedAt }
   const [pessoasByEmail, setPessoasByEmail] = useState({}); // email -> nome, pra listar responsáveis pelo nome
@@ -260,6 +262,15 @@ export default function CompaniesAdmin() {
                       </button>
                       <button
                         type="button"
+                        onClick={() => setAcessoEmpresa(company)}
+                        title="Acesso dos clientes: quem entra e o que veem"
+                        aria-label={`Acesso dos clientes de ${company.name}`}
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-line-strong text-ink-600 hover:bg-surface-muted"
+                      >
+                        <Eye size={13} />
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setModalCompany(company)}
                         aria-label={`Editar ${company.name}`}
                         className="flex h-7 w-7 items-center justify-center rounded-md border border-line-strong text-ink-600 hover:bg-surface-muted"
@@ -397,6 +408,7 @@ export default function CompaniesAdmin() {
         </div>
       </div>
 
+      {acessoEmpresa && <AcessoClientesModal tipo="empresa" item={state.companies.find((c) => c.id === acessoEmpresa.id) || acessoEmpresa} onClose={() => setAcessoEmpresa(null)} />}
       {modalCompany !== undefined && (
         <CompanyModal company={modalCompany} onClose={() => setModalCompany(undefined)} onSubmit={handleSubmit} />
       )}

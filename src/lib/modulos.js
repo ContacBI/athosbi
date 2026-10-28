@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient.js";
+import { modulosDaEmpresa } from "./visibilidade.js";
 
 // Dois módulos à parte, cada um com o seu cadastro e os seus acessos:
 //   B.I.  — a carteira do escritório. Cliente vê as empresas/grupos que
@@ -32,7 +33,11 @@ export const MODULOS_COMPLEMENTARES = [
 
 export function modulosLiberados(state) {
   if (state.isAdmin || state.isColaborador) return MODULOS_COMPLEMENTARES.map((modulo) => modulo.id);
-  return MODULOS_COMPLEMENTARES.map((modulo) => modulo.id).filter((id) => (state.modulosCliente || []).includes(id));
+  // empresa/grupo configurado (Parâmetros › Acesso dos clientes): a lista dele manda; senão vale a ficha da pessoa
+  const daEmpresa = modulosDaEmpresa();
+  const todos = MODULOS_COMPLEMENTARES.map((modulo) => modulo.id);
+  if (daEmpresa) return todos.filter((id) => daEmpresa.includes(id));
+  return todos.filter((id) => (state.modulosCliente || []).includes(id));
 }
 
 // O módulo complementar de uma rota (null = B.I. ou outra tela).
