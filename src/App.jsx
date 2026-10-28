@@ -11,6 +11,7 @@ import ConfirmAccess from "./pages/ConfirmAccess.jsx";
 import { supabase } from "./lib/supabaseClient.js";
 import { ligarRegistroDeUso, mudouDeTela } from "./lib/uso.js";
 import { EH_TESTE } from "./lib/ambiente.js";
+import { hubLigado, querPortalAtual } from "./lib/hub.js";
 import Empresas from "./pages/Empresas.jsx";
 import CompanyHome from "./pages/CompanyHome.jsx";
 import { loadPlan } from "./lib/plan.js";
@@ -23,7 +24,7 @@ import { isColaborador, listAdmins, listColaboradores } from "./lib/colaboradore
 import { loadPlanosPadrao, refreshEffectivePlano } from "./lib/planosPadrao.js";
 import { isReformaEscritorio } from "./lib/modulos.js";
 import { listarEmpresas as listarEmpresasReforma } from "./lib/reforma/api.js";
-import { setData } from "./data/useStore.js";
+import { setData, useAppState } from "./data/useStore.js";
 import { limparCopiaLocal } from "./lib/journalCache.js";
 import Carregando from "./components/Carregando.jsx";
 
@@ -64,6 +65,11 @@ const ColaborarAdmin = lazy(() => import("./pages/parametros/ColaborarAdmin.jsx"
 const ReformaParametros = lazy(() => import("./pages/parametros/ReformaParametros.jsx"));
 const Central = lazy(() => import("./pages/parametros/Central.jsx"));
 const ReformaHome = lazy(() => import("./pages/reforma/ReformaHome.jsx"));
+// Hub novo (src/hub, ver lib/hub.js): só no site de teste e só pro dono.
+const HubLayout = lazy(() => import("./hub/HubLayout.jsx"));
+const HubInicio = lazy(() => import("./hub/HubInicio.jsx"));
+const HubTributario = lazy(() => import("./hub/HubTributario.jsx"));
+const HubEmBreve = lazy(() => import("./hub/HubEmBreve.jsx"));
 const ReformaSimulacao = lazy(() => import("./pages/reforma/ReformaSimulacao.jsx"));
 const ReformaPainel = lazy(() => import("./pages/reforma/ReformaPainel.jsx"));
 const ReformaEmpresa = lazy(() => import("./pages/reforma/ReformaEmpresa.jsx"));
@@ -83,6 +89,14 @@ function RegistroDeUso() {
 
 function RouteFallback() {
   return <Carregando />;
+}
+
+// Início: pra quem tem o hub ligado (lib/hub.js), o hub é a página inicial —
+// a não ser que tenha pedido o portal atual (menu da conta no hub).
+function InicioOuHub() {
+  const state = useAppState();
+  if (hubLigado(state) && !querPortalAtual()) return <Navigate to="/hub" replace />;
+  return <Landing />;
 }
 
 function AuthedApp() {
@@ -223,7 +237,14 @@ function AuthedApp() {
       <VisaoClienteBotao />
       <Suspense fallback={<RouteFallback />}>
       <Routes>
-        <Route index element={<Landing />} />
+        <Route index element={<InicioOuHub />} />
+        <Route path="hub" element={<HubLayout />}>
+          <Route index element={<HubInicio />} />
+          <Route path="tributario" element={<HubTributario />} />
+          <Route path="servicos" element={<HubEmBreve area="servicos" />} />
+          <Route path="conteudos" element={<HubEmBreve area="conteudos" />} />
+          <Route path="ferramentas" element={<HubEmBreve area="ferramentas" />} />
+        </Route>
         <Route path="definir-senha" element={<SetPassword />} />
         <Route path="empresas" element={<Empresas />} />
         <Route path="carteira" element={<Carteira />} />

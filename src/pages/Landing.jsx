@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Activity, AlertTriangle, ArrowRight, CheckCircle2, ChevronRight, Clock, HelpCircle, LayoutGrid, Lock, LogOut, MessageSquare, Network, Presentation, Scale, Search, Settings, Target, Wallet } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, CheckCircle2, ChevronRight, Clock, HelpCircle, LayoutGrid, Lock, LogOut, MessageSquare, Network, Presentation, Scale, Search, Settings, Sparkles, Target, Wallet } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
 import { useAppState } from "../data/useStore.js";
 import { temBi as temModuloBi, temReforma as temModuloReforma } from "../lib/modulos.js";
@@ -9,6 +9,7 @@ import { ensureCompanyJournalLoaded } from "../lib/companies.js";
 import { mesesComDados, primeiroNome, resumoCarteira, resumoDaEmpresa, saudacao, serieDoItem } from "../lib/inicio.js";
 import { mesFechadoDa } from "../lib/fechamento.js";
 import { recentes } from "../lib/recentes.js";
+import { hubLigado, preferirPortalAtual } from "../lib/hub.js";
 import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
 import { compactValue } from "../lib/presentations.js";
 import { alertasDoResumo, blocosVisiveis, configResumo, tilesDoResumo } from "../lib/resumoCelular.js";
@@ -58,7 +59,7 @@ function hojePorExtenso() {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
-function Topo({ staff, onConfig }) {
+function Topo({ staff, onConfig, onHub }) {
   return (
     <div className="flex items-center justify-between px-5 py-4 sm:px-8">
       <span className="flex items-center gap-2.5">
@@ -66,6 +67,11 @@ function Topo({ staff, onConfig }) {
         <span className="text-[16px] font-semibold tracking-tight text-white">AthosBI</span>
       </span>
       <span className="flex items-center gap-1">
+        {onHub && (
+          <button type="button" onClick={onHub} className="mr-1 flex h-9 items-center gap-1.5 rounded-full bg-accent-500 px-3.5 text-[12.5px] font-semibold text-white shadow-lg shadow-accent-600/25 transition-colors hover:bg-accent-600">
+            <Sparkles size={14} /> Novo hub
+          </button>
+        )}
         <VisaoClienteOlho />
         <ThemeToggle />
         {staff && (
@@ -590,7 +596,18 @@ export default function Landing() {
         <AthosMark size={200} className="absolute bottom-6 right-[7%] hidden opacity-[0.045] lg:block" />
       </div>
       <div className="relative">
-        <Topo staff={staff} onConfig={() => navigate("/parametros")} />
+        <Topo
+          staff={staff}
+          onConfig={() => navigate("/parametros")}
+          onHub={
+            hubLigado(state)
+              ? () => {
+                  preferirPortalAtual(false);
+                  navigate("/hub");
+                }
+              : undefined
+          }
+        />
         <div className="mx-auto max-w-[1600px] px-5 pb-10 pt-3 sm:px-8 sm:pb-12 sm:pt-5">
           <p className="text-[12.5px] font-medium text-white/50">{hojePorExtenso()}</p>
           <h1 className="inicio-ola mt-1 text-[30px] font-semibold leading-tight tracking-tight sm:text-[38px]">{ola}</h1>
