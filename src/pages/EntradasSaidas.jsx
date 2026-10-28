@@ -144,8 +144,36 @@ export default function EntradasSaidas() {
   const sincronizado = useMemo(() => Object.values(brutos || {}).flatMap((linhas) => linhas.filter((i) => i.ano === ano).map((i) => i.synced_at)).sort().pop(), [brutos, ano]);
 
   const r = useMemo(() => (brutos && ano ? montarEntradasSaidas({ membros: membrosUso, brutos, ano, mesDe, mesAte, base, valor, ehGrupo: ehConsolidado }) : null), [membrosUso, brutos, ano, mesDe, mesAte, base, valor, ehConsolidado]);
-  // mesmo período do ano anterior (quando existe), pras variações dos cartões
-  const anterior = useMemo(() => (brutos && ano && anos.includes(ano - 1) ? montarEntradasSaidas({ membros: membrosUso, brutos, ano: ano - 1, mesDe, mesAte, base, valor, ehGrupo: ehConsolidado }) : null), [membrosUso, brutos, ano, anos, mesDe, mesAte, base, valor, ehConsolidado]);
+  // Período ANTERIOR de mesmo tamanho, colado no escolhido (1 mês -> o mês anterior; 6 meses -> os 6 meses anteriores; pode cruzar o ano), pras variações dos cartões.
+  // Só vale quando TODOS os meses desse período têm nota nos dados; com meio período, a comparação enganaria e o selo some.
+  const anterior = useMemo(() => {
+    if (!brutos || !ano) return null;
+    const n = mesAte - mesDe + 1;
+    const ini = ano * 12 + (mesDe - 1) - n;
+    const segmentos = new Map(); // ano -> [primeiro mês, último mês] (1..12)
+    for (let k = 0; k < n; k += 1) {
+      const t = ini + k;
+      const a = Math.floor(t / 12);
+      const m = (t % 12) + 1;
+      const seg = segmentos.get(a) || [m, m];
+      seg[0] = Math.min(seg[0], m);
+      seg[1] = Math.max(seg[1], m);
+      segmentos.set(a, seg);
+    }
+    const temDados = (a, m) => membrosUso.some((mb) => (brutos[mb.id] || []).find((x) => x.ano === a)?.dados?.linhas?.some((l) => Number(String(l.m).slice(5, 7)) === m));
+    let fat = 0, vendas = 0, entradas = 0, entradasC = 0;
+    for (const [a, [m1, m2]] of segmentos) {
+      for (let m = m1; m <= m2; m += 1) if (!temDados(a, m)) return null;
+      const rr = montarEntradasSaidas({ membros: membrosUso, brutos, ano: a, mesDe: m1, mesAte: m2, base, valor, ehGrupo: ehConsolidado });
+      fat += rr.faturamento;
+      vendas += rr.vendas;
+      entradas += rr.totais.E.v;
+      entradasC += rr.totais.E.c;
+    }
+    const mIni = ini % 12, aIni = Math.floor(ini / 12), mFim = (ini + n - 1) % 12, aFim = Math.floor((ini + n - 1) / 12);
+    const rotulo = n === 1 ? `${MES_CURTO[mIni]}/${aIni}` : `${MES_CURTO[mIni]}/${aIni} a ${MES_CURTO[mFim]}/${aFim}`;
+    return { faturamento: fat, vendas, ticket: vendas ? fat / vendas : null, totais: { E: { v: entradas, c: entradasC } }, saldo: fat - entradas, rotulo };
+  }, [membrosUso, brutos, ano, mesDe, mesAte, base, valor, ehConsolidado]);
   // grupo: uma linha por empresa pra comparar (cada uma com a própria escolha de acumuladores e a mesma base/valor)
   const comparativo = useMemo(() => (grupo && brutos && ano ? membros.map((m) => ({ membro: m, r: montarEntradasSaidas({ membros: [m], brutos, ano, mesDe, mesAte, base, valor }) })) : []), [grupo, membros, brutos, ano, mesDe, mesAte, base, valor]);
 
@@ -222,7 +250,7 @@ export default function EntradasSaidas() {
   const totalLinhas = (tipo) => (r.linhas[tipo] || []).reduce((s, l) => ({ notas: s.notas + l.notas, itens: s.itens + l.itens, vcon: s.vcon + l.vcon, vprod: s.vprod + l.vprod }), { notas: 0, itens: 0, vcon: 0, vprod: 0 });
   const tot = totalLinhas(aba);
   const totBase = valor === "itens" ? tot.vprod : tot.vcon;
-  const rotuloAnt = `vs. mesmo período de ${ano - 1}`;
+  const rotuloAnt = anterior ? `vs. ${anterior.rotulo}` : "";
   const select = "rounded-lg border border-line bg-surface-card px-2.5 py-1.5 text-[12.5px] text-ink-800 outline-none focus:border-accent-500";
 
   return (
@@ -238,6 +266,7 @@ export default function EntradasSaidas() {
             <p className="mt-1 text-[12.5px] text-ink-400" title="Da escrituração fiscal da Domínio, por acumulador. Só entra na conta o que está marcado.">
               {periodoRotulo}{sincronizado ? ` · atualizado em ${new Date(sincronizado).toLocaleDateString("pt-BR")}` : ""}
             </p>
+            {anterior && <p className="mt-0.5 text-[11.5px] text-ink-400">Variações comparadas com o período anterior ({anterior.rotulo}).</p>}
           </div>
           <div className="relative flex flex-wrap items-center gap-2">
             <select value={ano || ""} onChange={(e) => setAno(Number(e.target.value))} className={select} aria-label="Ano">
