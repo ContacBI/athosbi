@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Building2, Network, Repeat, Users, SlidersHorizontal, ChevronLeft, BarChart3, LogOut, ShieldCheck, Layers, UserCog, UserCheck, Scale } from "lucide-react";
+import { Activity, Building2, Network, Repeat, Users, SlidersHorizontal, ChevronLeft, BarChart3, LogOut, ShieldCheck, Layers, UserCog, UserCheck, Scale } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
 import { useAppState } from "../data/useStore.js";
 import ThemeToggle from "./ThemeToggle.jsx";
@@ -39,8 +39,9 @@ export default function ParametrosSidebar() {
   const state = useAppState();
   // Parâmetros da Reforma Tributária: só o escritório da Reforma (à parte
   // de admin/colaborador — ver lib/modulos.js).
+  // Central (uso do portal) no topo, só pra admin.
   const items = [
-    ...(state.isAdmin ? [...ITEMS, ...ADMIN_ONLY_ITEMS] : ITEMS),
+    ...(state.isAdmin ? [{ to: "/parametros/central", label: "Central", icon: Activity }, ...ITEMS, ...ADMIN_ONLY_ITEMS] : ITEMS),
     ...(state.isReformaEscritorio ? [{ to: "/parametros/reforma", label: "Reforma Tributária", icon: Scale }] : []),
   ];
 

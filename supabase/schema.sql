@@ -1095,3 +1095,59 @@ create policy "acesso_pessoas_update" on public.acesso_pessoas for update to aut
 drop policy if exists "acesso_pessoas_delete" on public.acesso_pessoas;
 create policy "acesso_pessoas_delete" on public.acesso_pessoas for delete to authenticated
   using (is_portal_admin());
+
+-- ============================================================================
+-- Central (Parâmetros › Central): uso do portal — cada acesso e o tempo em
+-- cada tela, pra ver o que os clientes mais usam e onde melhorar. O app grava
+-- (lib/uso.js); ninguém edita nem apaga. E-mail, "interno" (equipe) e a hora
+-- vêm sempre do servidor (gatilho), nunca do navegador. Quem vê:
+--   - admin: os registros dos CLIENTES;
+--   - o dono da Central (izaiascontac@gmail.com): também os da equipe.
+-- ============================================================================
+create table if not exists public.uso_eventos (
+  id bigint generated always as identity primary key,
+  email text not null default '',
+  tipo text not null check (tipo in ('acesso', 'tela')),
+  rota text not null default '',
+  tela text not null default '',
+  visita text not null default '',
+  empresa_id text not null default '',
+  empresa text not null default '',
+  segundos integer not null default 0 check (segundos between 0 and 86400),
+  dispositivo text not null default '' check (dispositivo in ('', 'computador', 'celular', 'tablet')),
+  interno boolean not null default false,
+  criado_em timestamptz not null default now()
+);
+create index if not exists uso_eventos_criado_idx on public.uso_eventos (interno, criado_em desc);
+create index if not exists uso_eventos_email_idx on public.uso_eventos (email, criado_em desc);
+alter table public.uso_eventos enable row level security;
+revoke all on public.uso_eventos from anon;
+
+create or replace function public.e_dono_da_central()
+returns boolean
+language sql stable as $$
+  select lower(coalesce(auth.jwt()->>'email', '')) = 'izaiascontac@gmail.com';
+$$;
+
+create or replace function public.uso_eventos_carimbo()
+returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.email := lower(coalesce(auth.jwt()->>'email', ''));
+  new.interno := is_portal_admin() or is_colaborador();
+  new.criado_em := now();
+  return new;
+end;
+$$;
+drop trigger if exists uso_eventos_carimbo on public.uso_eventos;
+create trigger uso_eventos_carimbo before insert on public.uso_eventos
+  for each row execute function public.uso_eventos_carimbo();
+
+-- Todo mundo logado grava o próprio uso (o gatilho carimba o e-mail).
+drop policy if exists "uso_eventos_insert" on public.uso_eventos;
+create policy "uso_eventos_insert" on public.uso_eventos for insert to authenticated
+  with check (email = lower(coalesce(auth.jwt()->>'email', '')));
+
+drop policy if exists "uso_eventos_select" on public.uso_eventos;
+create policy "uso_eventos_select" on public.uso_eventos for select to authenticated
+  using (e_dono_da_central() or (is_portal_admin() and not interno));
