@@ -3,11 +3,14 @@ import { DONO_DA_CENTRAL } from "./uso.js";
 
 // Hub novo (o portal com cara de site: Início, Meu B.I., Tributário,
 // Serviços, Conteúdos, Ferramentas) é montado em paralelo ao portal de hoje
-// (pedido do Izaias, 28/10/2026): só aparece no site de TESTE e só para o
-// dono. No oficial — e para clientes e colaboradores, em qualquer site —
-// nada muda. Quando estiver pronto, é aqui que se liga para os outros.
+// (pedido do Izaias, 28/10/2026): só aparece no site de TESTE e só para os
+// e-mails abaixo (os dois do Izaias). No oficial — e para clientes e
+// colaboradores, em qualquer site — nada muda. Quando estiver pronto, é
+// aqui que se liga para os outros.
+const QUEM_VE_O_HUB = [DONO_DA_CENTRAL, "izaiasspaulino@gmail.com"];
+
 export function hubLigado(st, ambienteTeste = EH_TESTE) {
-  return Boolean(ambienteTeste) && String(st?.userEmail || "").trim().toLowerCase() === DONO_DA_CENTRAL;
+  return Boolean(ambienteTeste) && QUEM_VE_O_HUB.includes(String(st?.userEmail || "").trim().toLowerCase());
 }
 
 // A tela de login nova não sabe ainda quem vai entrar — então só aparece
