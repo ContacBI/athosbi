@@ -24,10 +24,32 @@ export function visibilidadeAtiva() {
   return state.companies.find((company) => company.id === state.activeCompanyId)?.visibilidade || null;
 }
 
-/** A equipe vê tudo; o cliente (ou a equipe na "visão do cliente") não vê o que a empresa ocultou. */
+/**
+ * A equipe vê tudo; o cliente (ou a equipe na "visão do cliente") vê conforme a configuração da empresa/grupo:
+ *  - modo "marcados" (o padrão novo, 29/10/2026): só aparece o que a equipe MARCOU (`visiveis`); item novo nasce desmarcado;
+ *  - legado (`ocultos`): aparece tudo, menos o que foi ocultado — vale até a equipe abrir o "Acesso dos clientes" e salvar de novo;
+ *  - sem configuração: aparece tudo (pra não tirar a tela de quem já usa antes de configurar).
+ */
 export function oculto(chave) {
   if (state.isAdmin || state.isColaborador) return false;
-  return (visibilidadeAtiva()?.ocultos || []).includes(chave);
+  const v = visibilidadeAtiva();
+  if (v?.modo === "marcados") return !(v.visiveis || []).includes(chave);
+  return (v?.ocultos || []).includes(chave);
+}
+
+/** Todas as chaves que dá pra marcar numa empresa/grupo (abas, subabas, itens do B.I e blocos do Entradas x Saídas). */
+export function todasAsChaves(alvo) {
+  const chaves = [];
+  for (const aba of abasDoAlvo(alvo)) {
+    chaves.push(kAba(aba.id));
+    for (const item of aba.widgets || []) chaves.push(kItem(aba.id, null, item.id));
+    for (const sub of aba.subTabs || []) {
+      chaves.push(kSubaba(aba.id, sub.id));
+      for (const item of sub.widgets || []) chaves.push(kItem(aba.id, sub.id, item.id));
+    }
+  }
+  BLOCOS_ENTRADAS_SAIDAS.forEach((b) => chaves.push(b.id));
+  return [...new Set(chaves)];
 }
 
 /** Módulos que a empresa/grupo aberto libera pros clientes — null = não configurado (vale a ficha da pessoa). */

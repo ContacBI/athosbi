@@ -5,10 +5,10 @@ import { saveVisibilidadeEmpresa } from "../lib/companies.js";
 import { saveVisibilidadeGrupo } from "../lib/groups.js";
 import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
 import { MODULOS_COMPLEMENTARES } from "../lib/modulos.js";
-import { BLOCOS_ENTRADAS_SAIDAS, abasDoAlvo, kAba, kItem, kSubaba } from "../lib/visibilidade.js";
+import { BLOCOS_ENTRADAS_SAIDAS, abasDoAlvo, kAba, kItem, kSubaba, todasAsChaves } from "../lib/visibilidade.js";
 
 // "Acesso dos clientes" de uma empresa ou grupo (pedido do Izaias, 28/10/2026): numa tela só, QUEM tem acesso e O QUE cada módulo mostra pra eles.
-// Tudo começa visível; a equipe oculta o que quiser (aba inteira, subaba ou item). A configuração vale pra todas as pessoas daquela empresa/grupo
+// Tudo começa DESMARCADO (29/10/2026): a equipe marca o que o cliente deve ver (aba inteira, subaba ou item), com "Marcar todos" pra agilizar. A configuração vale pra todas as pessoas daquela empresa/grupo
 // (lib/visibilidade.js). Ocultar é só da tela — a segurança de verdade continua sendo a lista de quem tem acesso.
 const SECOES = [{ id: "pessoas", nome: "Quem tem acesso", icone: Users }, { id: "bi", nome: "B.I Contábil" }, ...MODULOS_COMPLEMENTARES.map((m) => ({ id: m.id, nome: m.nome }))];
 
@@ -26,7 +26,14 @@ export default function AcessoClientesModal({ tipo, item, onClose }) {
   const ehGrupo = tipo === "grupo";
   const scopeType = ehGrupo ? "group" : "company";
   const [secao, setSecao] = useState("pessoas");
-  const [ocultos, setOcultos] = useState(() => new Set(item.visibilidade?.ocultos || []));
+  const configAnterior = item.visibilidade;
+  const naoConfigurado = configAnterior?.modo !== "marcados" && !Array.isArray(configAnterior?.ocultos);
+  const [visiveis, setVisiveis] = useState(() => {
+    if (configAnterior?.modo === "marcados") return new Set(configAnterior.visiveis || []);
+    // configuração antiga (lista de ocultos): converte pro que o cliente vê hoje, pra não mudar nada ao salvar
+    if (Array.isArray(configAnterior?.ocultos)) { const oc = new Set(configAnterior.ocultos); return new Set(todasAsChaves(item).filter((k) => !oc.has(k))); }
+    return new Set(); // ainda não configurado: tudo desmarcado
+  });
   const configurado = Array.isArray(item.visibilidade?.modulos);
   const [modulos, setModulos] = useState(() => new Set(item.visibilidade?.modulos || []));
   const [grants, setGrants] = useState(null);
@@ -61,12 +68,19 @@ export default function AcessoClientesModal({ tipo, item, onClose }) {
   const nomeWidget = (id) => WIDGET_CATALOG.find((d) => d.id === id)?.label || id;
 
   const marcarVisivel = (chave, visivel) =>
-    setOcultos((atual) => {
+    setVisiveis((atual) => {
       const novo = new Set(atual);
-      if (visivel) novo.delete(chave);
-      else novo.add(chave);
+      if (visivel) novo.add(chave);
+      else novo.delete(chave);
       return novo;
     });
+  const marcarVarias = (chaves, visivel) =>
+    setVisiveis((atual) => {
+      const novo = new Set(atual);
+      chaves.forEach((k) => (visivel ? novo.add(k) : novo.delete(k)));
+      return novo;
+    });
+  const chavesBi = useMemo(() => todasAsChaves(item).filter((k) => k.startsWith("bi:")), [item]);
 
   async function darAcesso() {
     const limpo = email.trim().toLowerCase();
@@ -98,7 +112,7 @@ export default function AcessoClientesModal({ tipo, item, onClose }) {
   }
 
   function salvar() {
-    const visibilidade = { ocultos: [...ocultos], modulos: [...modulos] };
+    const visibilidade = { modo: "marcados", visiveis: [...visiveis], modulos: [...modulos] };
     if (ehGrupo) saveVisibilidadeGrupo(item.id, visibilidade);
     else saveVisibilidadeEmpresa(item.id, visibilidade);
     onClose();
@@ -161,25 +175,30 @@ export default function AcessoClientesModal({ tipo, item, onClose }) {
             {secao === "bi" && (
               <div>
                 <h3 className="text-[14px] font-semibold text-ink-900">B.I Contábil</h3>
-                <p className="mt-1 text-[12.5px] text-ink-400">As abas e itens do B.I desta {ehGrupo ? "grupo" : "empresa"}. Desmarque uma aba inteira, uma subaba ou só um item (por exemplo, um indicador específico).</p>
+                <p className="mt-1 text-[12.5px] text-ink-400">As abas e itens do B.I {ehGrupo ? "deste grupo" : "desta empresa"}. Marque o que o cliente deve ver: uma aba inteira, uma subaba ou só alguns itens (por exemplo, indicadores específicos).</p>
+                {naoConfigurado && <p className="mt-3 rounded-lg bg-warning-500/10 px-3 py-2 text-[12px] text-warning-800">Ainda não configurado: hoje o cliente vê tudo. Ao salvar, ele passa a ver só o que estiver marcado aqui.</p>}
+                <div className="mt-3 flex gap-2">
+                  <button type="button" onClick={() => marcarVarias(chavesBi, true)} className="rounded-lg border border-line px-2.5 py-1 text-[12px] text-ink-600 hover:bg-surface-muted">Marcar todos</button>
+                  <button type="button" onClick={() => marcarVarias(chavesBi, false)} className="rounded-lg border border-line px-2.5 py-1 text-[12px] text-ink-600 hover:bg-surface-muted">Desmarcar todos</button>
+                </div>
                 {!abaTotal && <p className="mt-4 text-[12.5px] text-ink-400">Esta {ehGrupo ? "grupo" : "empresa"} ainda não tem abas montadas no B.I (Personalizar).</p>}
                 <div className="mt-4 flex flex-col gap-3">
                   {abas.map((aba) => {
-                    const abaOculta = ocultos.has(kAba(aba.id));
+                    const abaOculta = !visiveis.has(kAba(aba.id));
                     const subs = aba.subTabs || [];
                     return (
                       <div key={aba.id} className="rounded-xl border border-line p-2">
                         <Caixa forte marcado={!abaOculta} onChange={(v) => marcarVisivel(kAba(aba.id), v)}>{aba.name}</Caixa>
                         {!subs.length && (aba.widgets || []).map((w, i) => (
-                          <Caixa key={`${w.id}-${i}`} recuo={1} marcado={!ocultos.has(kItem(aba.id, null, w.id))} disabled={abaOculta} onChange={(v) => marcarVisivel(kItem(aba.id, null, w.id), v)}>{nomeWidget(w.id)}</Caixa>
+                          <Caixa key={`${w.id}-${i}`} recuo={1} marcado={visiveis.has(kItem(aba.id, null, w.id))} disabled={abaOculta} onChange={(v) => marcarVisivel(kItem(aba.id, null, w.id), v)}>{nomeWidget(w.id)}</Caixa>
                         ))}
                         {subs.map((sub) => {
-                          const subOculta = ocultos.has(kSubaba(aba.id, sub.id));
+                          const subOculta = !visiveis.has(kSubaba(aba.id, sub.id));
                           return (
                             <div key={sub.id}>
                               <Caixa recuo={1} marcado={!subOculta} disabled={abaOculta} onChange={(v) => marcarVisivel(kSubaba(aba.id, sub.id), v)}>{sub.name}</Caixa>
                               {(sub.widgets || []).map((w, i) => (
-                                <Caixa key={`${w.id}-${i}`} recuo={2} marcado={!ocultos.has(kItem(aba.id, sub.id, w.id))} disabled={abaOculta || subOculta} onChange={(v) => marcarVisivel(kItem(aba.id, sub.id, w.id), v)}>{nomeWidget(w.id)}</Caixa>
+                                <Caixa key={`${w.id}-${i}`} recuo={2} marcado={visiveis.has(kItem(aba.id, sub.id, w.id))} disabled={abaOculta || subOculta} onChange={(v) => marcarVisivel(kItem(aba.id, sub.id, w.id), v)}>{nomeWidget(w.id)}</Caixa>
                               ))}
                             </div>
                           );
@@ -200,10 +219,16 @@ export default function AcessoClientesModal({ tipo, item, onClose }) {
                 {!configurado && <p className="mt-2 text-[11.5px] text-ink-400">Hoje valem as fichas de cada pessoa. Ao salvar, esta lista de módulos passa a valer para todos {ehGrupo ? "do grupo" : "da empresa"}.</p>}
                 {moduloAtual.id === "entradas-saidas" && (
                   <div className="mt-4">
-                    <p className="mb-1 text-[12px] font-medium uppercase tracking-wide text-ink-400">Blocos da tela</p>
+                    <div className="mb-1 flex items-center justify-between">
+                      <p className="text-[12px] font-medium uppercase tracking-wide text-ink-400">Blocos da tela</p>
+                      <span className="flex gap-2 text-[12px]">
+                        <button type="button" onClick={() => marcarVarias(BLOCOS_ENTRADAS_SAIDAS.map((b) => b.id), true)} className="rounded-lg border border-line px-2 py-0.5 text-ink-600 hover:bg-surface-muted">Marcar todos</button>
+                        <button type="button" onClick={() => marcarVarias(BLOCOS_ENTRADAS_SAIDAS.map((b) => b.id), false)} className="rounded-lg border border-line px-2 py-0.5 text-ink-600 hover:bg-surface-muted">Desmarcar todos</button>
+                      </span>
+                    </div>
                     <div className="rounded-xl border border-line p-2">
                       {BLOCOS_ENTRADAS_SAIDAS.map((b) => (
-                        <Caixa key={b.id} marcado={!ocultos.has(b.id)} disabled={!modulos.has("entradas-saidas")} onChange={(v) => marcarVisivel(b.id, v)}>{b.nome}</Caixa>
+                        <Caixa key={b.id} marcado={visiveis.has(b.id)} disabled={!modulos.has("entradas-saidas")} onChange={(v) => marcarVisivel(b.id, v)}>{b.nome}</Caixa>
                       ))}
                     </div>
                     <p className="mt-2 text-[11.5px] text-ink-400">A tabela de acumuladores é sempre só da equipe.</p>
