@@ -1235,7 +1235,35 @@ export { DetailModal };
 // The real, read-only view — same layout math as the editor (gridLayout.js),
 // just with dragging and resizing turned off, so a tab looks exactly like
 // however it was last arranged in Personalizar.
-export default function WidgetGrid({ widgets, ctx, spacing = DEFAULT_SPACING }) {
+// Quando a equipe oculta itens pro cliente (lib/visibilidade.js), sobram buracos na grade. Reencaixa o que restou: mantém a ordem de leitura (linha, depois coluna)
+// e coloca cada item no primeiro espaço livre a partir do anterior — sem mexer na ordem nem no tamanho de ninguém.
+function compactarLayout(itens, cols) {
+  const ordenados = [...itens].sort((a, b) => a.y - b.y || a.x - b.x);
+  const ocupado = new Set();
+  const cabe = (x, y, w, h) => {
+    if (x + w > cols) return false;
+    for (let i = 0; i < h; i += 1) for (let j = 0; j < w; j += 1) if (ocupado.has(`${x + j},${y + i}`)) return false;
+    return true;
+  };
+  let py = 0;
+  let px = 0;
+  return ordenados.map((item) => {
+    const w = Math.min(item.w, cols);
+    let x = px;
+    let y = py;
+    while (!cabe(x, y, w, item.h)) {
+      x += 1;
+      if (x + w > cols) { x = 0; y += 1; }
+    }
+    for (let i = 0; i < item.h; i += 1) for (let j = 0; j < w; j += 1) ocupado.add(`${x + j},${y + i}`);
+    py = y;
+    px = x + w;
+    if (px >= cols) { px = 0; py = y + 1; }
+    return { ...item, x, y, w };
+  });
+}
+
+export default function WidgetGrid({ widgets, ctx, spacing = DEFAULT_SPACING, compactar = false }) {
   const [detailFor, setDetailFor] = useState(null);
   const navigate = useNavigate();
   const appState = useAppState();
@@ -1259,7 +1287,7 @@ export default function WidgetGrid({ widgets, ctx, spacing = DEFAULT_SPACING }) 
     [widgets, catalogById]
   );
   const layout = useMemo(() => {
-    if (!isMobile) return desktopLayout;
+    if (!isMobile) return compactar ? compactarLayout(desktopLayout, GRID_COLS) : desktopLayout;
     const ordered = [...desktopLayout].sort((a, b) => a.y - b.y || a.x - b.x);
     let cursorY = 0;
     return ordered.map((item) => {
@@ -1267,7 +1295,7 @@ export default function WidgetGrid({ widgets, ctx, spacing = DEFAULT_SPACING }) 
       cursorY += item.h;
       return stacked;
     });
-  }, [desktopLayout, isMobile]);
+  }, [desktopLayout, isMobile, compactar]);
 
   const [drillFor, setDrillFor] = useState(null);
   function handleOpenDetail(definition) {

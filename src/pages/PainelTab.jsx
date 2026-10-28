@@ -161,7 +161,7 @@ export default function PainelTab() {
         </div>
       ) : (
         <>
-          <WidgetGrid widgets={widgets} ctx={ctx} spacing={spacing} />
+          <WidgetGrid widgets={widgets} ctx={ctx} spacing={spacing} compactar={(editTarget?.widgets || []).length > widgets.length} />
           {/* Invisible but still laid out at full size — html2canvas needs
               real dimensions to capture when "Relatório atual" fires, and
               Recharts' ResponsiveContainer needs a real, unclipped-from-its-
