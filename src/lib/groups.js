@@ -1,6 +1,6 @@
 import { state, setData } from "../data/useStore.js";
 import { ACTIVE_GROUP_KEY, GROUPS_KEY, writePersistent, rememberActiveWorkspace } from "./persistence.js";
-import { persistActiveCompany, replicateTabsToCompanies, ensureCompanyJournalLoaded, remapJournal, canWriteGroups } from "./companies.js";
+import { persistActiveCompany, replicateTabsToCompanies, ensureCompanyJournalLoaded, remapJournal, canWriteGroups, propagarVisibilidade } from "./companies.js";
 import { refreshEffectivePlano } from "./planosPadrao.js";
 import { lembrarRecente } from "./recentes.js";
 
@@ -68,6 +68,7 @@ export function saveVisibilidadeGrupo(id, visibilidade) {
   const groups = state.groups.map((group) => (group.id === id ? { ...group, visibilidade, updatedAt: new Date().toISOString() } : group));
   writeStoredGroups(groups).catch((error) => setData({ saveError: { message: String(error?.message || error).slice(0, 240), at: Date.now() } }));
   setData({ groups });
+  propagarVisibilidade("grupo", id, visibilidade); // grupo sincronizado: as empresas ficam iguais
 }
 
 export function updateGroup(id, { name, companyIds }) {

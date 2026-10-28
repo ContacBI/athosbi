@@ -952,7 +952,10 @@ export async function selectCompany(id, { skipPersist = false } = {}) {
 export function persistActiveCompany(options = {}) {
   const promise = persistActiveCompanyInner(options);
   promise.then(
-    () => { if (state.saveError) setData({ saveError: null }); },
+    () => {
+      if (state.saveError) setData({ saveError: null });
+      propagarVisao(); // empresa/grupo sincronizado: o mesmo Personalizar em todos (ver abaixo)
+    },
     (error) => {
       console.error("Falha ao gravar a última alteração:", error);
       setData({ saveError: { message: String(error?.message || error || "erro desconhecido").slice(0, 240), at: Date.now() } });
@@ -1400,6 +1403,104 @@ export function saveVisibilidadeEmpresa(id, visibilidade) {
   const companies = state.companies.map((company) => (company.id === id ? { ...company, visibilidade, updatedAt: new Date().toISOString() } : company));
   writeStoredCompanies(companies).catch((error) => setData({ saveError: { message: String(error?.message || error).slice(0, 240), at: Date.now() } }));
   setData({ companies });
+  propagarVisibilidade("empresa", id, visibilidade);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------
+// Visão sincronizada do grupo (pedido do Izaias, 29/10/2026): num grupo alinhado, o grupo e TODAS as empresas dele têm a mesma visão — as mesmas abas,
+// posições e itens (mesmos códigos) e a mesma visibilidade pro cliente. Mexeu no Personalizar de uma empresa (ou do grupo), vai pra todas. Marcas:
+//   grupo.sincronizarVisao = true; empresa.grupoVisaoId = id do grupo que ela segue (uma empresa segue UM grupo); empresa.semSincronia = true = exceção.
+// ---------------------------------------------------------------------------------------------------------------------------------------
+function conjuntoDeVisao(tipo, id) {
+  const grupo = tipo === "grupo" ? state.groups.find((g) => g.id === id) : state.groups.find((g) => g.id === state.companies.find((c) => c.id === id)?.grupoVisaoId);
+  if (!grupo?.sincronizarVisao) return null;
+  const empresa = tipo === "empresa" ? state.companies.find((c) => c.id === id) : null;
+  if (empresa && (empresa.semSincronia || empresa.grupoVisaoId !== grupo.id)) return null;
+  const membros = state.companies.filter((c) => (grupo.companyIds || []).includes(c.id) && c.grupoVisaoId === grupo.id && !c.semSincronia);
+  return { grupo, membros };
+}
+
+// Depois de gravar o Personalizar da empresa/grupo aberto: se está num conjunto sincronizado e as abas dele diferem das dos outros, copia pra todos.
+function propagarVisao() {
+  const origem = state.activeGroupId ? { tipo: "grupo", id: state.activeGroupId } : state.activeCompanyId ? { tipo: "empresa", id: state.activeCompanyId } : null;
+  if (!origem) return;
+  const conj = conjuntoDeVisao(origem.tipo, origem.id);
+  if (!conj) return;
+  const sig = JSON.stringify(state.dashboardTabs || []);
+  const alvosEmpresas = (origem.tipo === "grupo" ? conj.membros : conj.membros.filter((c) => c.id !== origem.id)).filter((c) => canWriteCompany(c));
+  const alvoGrupo = origem.tipo === "empresa" && canWriteGroups();
+  const precisa = alvosEmpresas.some((c) => JSON.stringify(c.dashboardTabs || []) !== sig) || (alvoGrupo && JSON.stringify(conj.grupo.dashboardTabs || []) !== sig);
+  if (!precisa) return;
+  const agora = new Date().toISOString();
+  const ids = new Set(alvosEmpresas.map((c) => c.id));
+  const companies = state.companies.map((c) => (ids.has(c.id) ? { ...c, dashboardTabs: JSON.parse(sig), updatedAt: agora } : c));
+  const groups = alvoGrupo ? state.groups.map((g) => (g.id === conj.grupo.id ? { ...g, dashboardTabs: JSON.parse(sig), updatedAt: agora } : g)) : state.groups;
+  setData({ companies, groups });
+  const falhou = (error) => setData({ saveError: { message: `Não consegui sincronizar a visão do grupo: ${String(error?.message || error).slice(0, 200)}`, at: Date.now() } });
+  if (ids.size) writeStoredCompanies(companies).catch(falhou);
+  if (alvoGrupo) writeStoredGroups(groups).catch(falhou);
+}
+
+// A visibilidade pro cliente (lib/visibilidade.js) também acompanha: mexeu na do grupo, vai pras empresas; mexeu na de uma empresa, vai pro grupo e pras outras.
+export function propagarVisibilidade(tipo, id, visibilidade) {
+  const conj = conjuntoDeVisao(tipo, id);
+  if (!conj) return;
+  const copia = () => JSON.parse(JSON.stringify(visibilidade));
+  const agora = new Date().toISOString();
+  const alvosEmpresas = (tipo === "grupo" ? conj.membros : conj.membros.filter((c) => c.id !== id)).filter((c) => canWriteCompany(c));
+  const ids = new Set(alvosEmpresas.map((c) => c.id));
+  const alvoGrupo = tipo === "empresa" && canWriteGroups();
+  const companies = state.companies.map((c) => (ids.has(c.id) ? { ...c, visibilidade: copia(), updatedAt: agora } : c));
+  const groups = alvoGrupo ? state.groups.map((g) => (g.id === conj.grupo.id ? { ...g, visibilidade: copia(), updatedAt: agora } : g)) : state.groups;
+  setData({ companies, groups });
+  const falhou = (error) => setData({ saveError: { message: `Não consegui sincronizar a visibilidade do grupo: ${String(error?.message || error).slice(0, 200)}`, at: Date.now() } });
+  if (ids.size) writeStoredCompanies(companies).catch(falhou);
+  if (alvoGrupo) writeStoredGroups(groups).catch(falhou);
+}
+
+/**
+ * Alinha o grupo: o que o GRUPO tem hoje (abas, posições, itens e visibilidade) é copiado, com os mesmos códigos, pra todas as empresas dele — que
+ * perdem o que tinham. Devolve também um backup (o que cada empresa tinha) pra quem chamou baixar. Uma empresa segue um grupo só: as que já seguem
+ * outro grupo sincronizado ficam de fora (puladas).
+ */
+export function alinharVisaoDoGrupo(groupId) {
+  const grupo = state.groups.find((g) => g.id === groupId);
+  if (!grupo) return { erro: "Grupo não encontrado." };
+  if (!Array.isArray(grupo.dashboardTabs) || !grupo.dashboardTabs.length) return { erro: "O grupo ainda não tem abas montadas no B.I (Personalizar). Monte a visão do grupo primeiro e depois alinhe." };
+  if (!canWriteGroups()) return { erro: "Sem permissão para salvar grupos." };
+  const membros = state.companies.filter((c) => (grupo.companyIds || []).includes(c.id));
+  const outras = membros.filter((c) => c.grupoVisaoId && c.grupoVisaoId !== grupo.id && state.groups.some((g) => g.id === c.grupoVisaoId && g.sincronizarVisao));
+  const semPermissao = membros.filter((c) => !outras.includes(c) && !canWriteCompany(c));
+  const alvos = membros.filter((c) => !outras.includes(c) && !c.semSincronia && canWriteCompany(c));
+  const abasAtuais = (c) => (c.id === state.activeCompanyId ? state.dashboardTabs : c.dashboardTabs) || [];
+  const backup = {
+    tipo: "backup-visao-do-grupo",
+    quando: new Date().toISOString(),
+    grupo: { id: grupo.id, name: grupo.name, dashboardTabs: grupo.dashboardTabs, visibilidade: grupo.visibilidade || null },
+    empresas: alvos.map((c) => ({ id: c.id, name: c.name, grupoVisaoId: c.grupoVisaoId || null, dashboardTabs: abasAtuais(c), visibilidade: c.visibilidade || null })),
+  };
+  const sig = JSON.stringify(grupo.dashboardTabs);
+  const agora = new Date().toISOString();
+  const ids = new Set(alvos.map((c) => c.id));
+  const companies = state.companies.map((c) =>
+    ids.has(c.id) ? { ...c, dashboardTabs: JSON.parse(sig), grupoVisaoId: grupo.id, ...(grupo.visibilidade ? { visibilidade: JSON.parse(JSON.stringify(grupo.visibilidade)) } : {}), updatedAt: agora } : c
+  );
+  const groups = state.groups.map((g) => (g.id === grupo.id ? { ...g, sincronizarVisao: true, updatedAt: agora } : g));
+  setData({ companies, groups });
+  if (ids.has(state.activeCompanyId)) setData({ dashboardTabs: JSON.parse(sig) });
+  writeStoredCompanies(companies).catch((error) => setData({ saveError: { message: `Não consegui alinhar a visão: ${String(error?.message || error).slice(0, 200)}`, at: Date.now() } }));
+  writeStoredGroups(groups).catch((error) => setData({ saveError: { message: `Não consegui salvar o grupo: ${String(error?.message || error).slice(0, 200)}`, at: Date.now() } }));
+  return { alinhadas: alvos.length, puladas: outras.map((c) => c.name), semPermissao: semPermissao.map((c) => c.name), backup };
+}
+
+/** Desliga a sincronização do grupo (as empresas mantêm o que têm hoje e voltam a ser independentes). */
+export function pararSincroniaDoGrupo(groupId) {
+  const agora = new Date().toISOString();
+  const companies = state.companies.map((c) => (c.grupoVisaoId === groupId ? { ...c, grupoVisaoId: null, updatedAt: agora } : c));
+  const groups = state.groups.map((g) => (g.id === groupId ? { ...g, sincronizarVisao: false, updatedAt: agora } : g));
+  setData({ companies, groups });
+  writeStoredCompanies(companies).catch(() => undefined);
+  writeStoredGroups(groups).catch(() => undefined);
 }
 
 // Entradas x Saídas: a escolha da empresa de quais acumuladores contam e de como medir (ticket por nota ou por item; valor da nota ou dos itens).
