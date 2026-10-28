@@ -830,7 +830,8 @@ check(
     ambienteDe({}) === "teste",
   null
 );
-const { hubLigado } = await src("lib/hub.js");
+const { hubLigado, loginNovo } = await src("lib/hub.js");
+check("Login novo: todo mundo no site de teste, ninguém no oficial", loginNovo(true) && !loginNovo(false), null);
 check(
   "Hub novo: só no site de teste e só pros e-mails do dono (nem cliente, nem colaborador, nem no oficial)",
   hubLigado({ userEmail: "IzaiasContac@gmail.com " }, true) &&

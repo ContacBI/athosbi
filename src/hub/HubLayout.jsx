@@ -7,7 +7,7 @@ import { ArrowUpRight, Building2, ChevronDown, CornerDownLeft, LayoutGrid, LogOu
 import { supabase } from "../lib/supabaseClient.js";
 import { useAppState } from "../data/useStore.js";
 import { useTheme } from "../lib/theme.js";
-import { AREAS_DO_HUB, hubLigado, lembrarHubNoNavegador, preferirPortalAtual } from "../lib/hub.js";
+import { AREAS_DO_HUB, hubLigado, preferirPortalAtual } from "../lib/hub.js";
 import { primeiroNome } from "../lib/inicio.js";
 import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
 import AthosMark from "../components/AthosMark.jsx";
@@ -226,7 +226,6 @@ export default function HubLayout() {
 
   useEffect(() => {
     if (!ligado) return;
-    lembrarHubNoNavegador();
     preferirPortalAtual(false);
   }, [ligado]);
 

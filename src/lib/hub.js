@@ -13,26 +13,10 @@ export function hubLigado(st, ambienteTeste = EH_TESTE) {
   return Boolean(ambienteTeste) && QUEM_VE_O_HUB.includes(String(st?.userEmail || "").trim().toLowerCase());
 }
 
-// A tela de login nova não sabe ainda quem vai entrar — então só aparece
-// no site de teste e no navegador onde o dono já entrou no hub (marca
-// gravada pelo próprio hub, ver HubLayout).
-const MARCA_DO_NAVEGADOR = "athosbi.hub.previa";
-
-export function lembrarHubNoNavegador() {
-  try {
-    localStorage.setItem(MARCA_DO_NAVEGADOR, "1");
-  } catch {
-    // navegador sem armazenamento: só não lembra
-  }
-}
-
-export function hubNoNavegador(ambienteTeste = EH_TESTE) {
-  if (!ambienteTeste) return false;
-  try {
-    return localStorage.getItem(MARCA_DO_NAVEGADOR) === "1";
-  } catch {
-    return false;
-  }
+// A tela de login nova vale pra todo mundo no site de teste (pedido do
+// Izaias, 28/10/2026); no oficial continua a de sempre.
+export function loginNovo(ambienteTeste = EH_TESTE) {
+  return Boolean(ambienteTeste);
 }
 
 // "Portal atual" no topo do hub: volta pro Início de hoje até fechar a aba.
