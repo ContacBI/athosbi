@@ -830,6 +830,16 @@ check(
     ambienteDe({}) === "teste",
   null
 );
+const { hubLigado } = await src("lib/hub.js");
+check(
+  "Hub novo: só no site de teste e só pro dono (nem cliente, nem colaborador, nem no oficial)",
+  hubLigado({ userEmail: "IzaiasContac@gmail.com " }, true) &&
+    !hubLigado({ userEmail: "izaiascontac@gmail.com" }, false) &&
+    !hubLigado({ userEmail: "contac@gmail.com", isAdmin: true }, true) &&
+    !hubLigado({ userEmail: "cliente@empresa.com" }, true) &&
+    !hubLigado({}, true),
+  null
+);
 const { baseDeTeste } = await import(path.join(ROOT, "scripts/gerar-base-de-teste.mjs"));
 const base = baseDeTeste();
 const fechaPartidas = base.companies.every((empresa) => Math.abs(empresa.journal.reduce((soma, entry) => soma + entry.debito - entry.credito, 0)) < 0.05);

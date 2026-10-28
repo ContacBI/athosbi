@@ -1,0 +1,386 @@
+/* Hub novo (src/hub, ver lib/hub.js) — o portal com cara de site.
+   Linguagem visual tirada da própria marca: o ladrilho arredondado dos
+   seis quadrados em degrau da Athos, o azul-marinho e o laranja. Claro ou
+   escuro conforme o tema que a pessoa escolheu (data-theme no <html>, o
+   mesmo do resto do portal). Tudo aqui fica dentro de .hub — não vaza
+   para as outras telas. */
+
+.hub {
+  --hub-fundo: #f5f7fb;
+  --hub-fundo-2: #edf1f7;
+  --hub-cartao: rgba(255, 255, 255, 0.86);
+  --hub-cartao-solido: #ffffff;
+  --hub-borda: rgba(12, 43, 74, 0.09);
+  --hub-borda-forte: rgba(12, 43, 74, 0.18);
+  --hub-texto: #0a1a2d;
+  --hub-texto-2: #3a4b61;
+  --hub-texto-3: #6a7a8e;
+  --hub-acento: #e8691f;
+  --hub-acento-2: #f28a42;
+  --hub-acento-suave: rgba(232, 105, 31, 0.1);
+  --hub-azul: #2f6fed;
+  --hub-sombra: 0 1px 2px rgba(8, 29, 51, 0.04), 0 18px 40px -22px rgba(8, 29, 51, 0.28);
+  --hub-sombra-forte: 0 2px 4px rgba(8, 29, 51, 0.05), 0 30px 60px -28px rgba(8, 29, 51, 0.38);
+  --hub-topo: rgba(245, 247, 251, 0.78);
+  --hub-ladrilho: #e6ecf4;
+  --hub-ladrilho-borda: rgba(12, 43, 74, 0.06);
+  --hub-ladrilho-aceso: #f8c9a0;
+  --hub-grade: rgba(12, 43, 74, 0.05);
+  --hub-brilho-1: rgba(47, 111, 237, 0.1);
+  --hub-brilho-2: rgba(232, 105, 31, 0.1);
+  font-family: "Plus Jakarta Sans Variable", "Inter", "Segoe UI", system-ui, sans-serif;
+  background: var(--hub-fundo);
+  color: var(--hub-texto);
+  -webkit-font-smoothing: antialiased;
+}
+
+:root[data-theme="dark"] .hub {
+  --hub-fundo: #060b15;
+  --hub-fundo-2: #0a1322;
+  --hub-cartao: rgba(255, 255, 255, 0.035);
+  --hub-cartao-solido: #0c1626;
+  --hub-borda: rgba(255, 255, 255, 0.075);
+  --hub-borda-forte: rgba(255, 255, 255, 0.16);
+  --hub-texto: #eef3fa;
+  --hub-texto-2: #b3c0d1;
+  --hub-texto-3: #7c8aa0;
+  --hub-acento-suave: rgba(242, 138, 66, 0.12);
+  --hub-sombra: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 24px 48px -26px rgba(0, 0, 0, 0.75);
+  --hub-sombra-forte: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 34px 70px -30px rgba(0, 0, 0, 0.85);
+  --hub-topo: rgba(6, 11, 21, 0.72);
+  --hub-ladrilho: rgba(255, 255, 255, 0.035);
+  --hub-ladrilho-borda: rgba(255, 255, 255, 0.06);
+  --hub-ladrilho-aceso: rgba(242, 138, 66, 0.32);
+  --hub-grade: rgba(255, 255, 255, 0.035);
+  --hub-brilho-1: rgba(47, 111, 237, 0.16);
+  --hub-brilho-2: rgba(232, 105, 31, 0.13);
+  color-scheme: dark;
+}
+
+.hub-display {
+  font-family: "Plus Jakarta Sans Variable", "Inter", system-ui, sans-serif;
+  letter-spacing: -0.035em;
+  font-feature-settings: "ss01", "cv11";
+}
+
+/* Uma palavra em itálico com serifa, no laranja da marca — o toque editorial dos títulos. */
+.hub-italico {
+  font-family: "Fraunces Variable", Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  background: linear-gradient(100deg, #c8530f, #e8691f 30%, #f4a96f 55%, #e8691f 80%);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: hub-reflexo 9s linear infinite;
+  padding-right: 0.04em;
+}
+/* Vírgula/ponto logo depois da palavra em itálico: encosta (o itálico já inclina pra direita). */
+.hub-pontuacao {
+  margin-left: -0.1em;
+}
+
+@keyframes hub-reflexo {
+  to {
+    background-position: -220% center;
+  }
+}
+
+/* Fundo da página: dois brilhos suaves e a grade bem fraca que some pra baixo. */
+.hub-fundo-decor {
+  background:
+    radial-gradient(900px circle at 8% -10%, var(--hub-brilho-1), transparent 60%),
+    radial-gradient(700px circle at 92% 8%, var(--hub-brilho-2), transparent 60%);
+}
+.hub-fundo-grade {
+  background-image: linear-gradient(var(--hub-grade) 1px, transparent 1px), linear-gradient(90deg, var(--hub-grade) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at 50% 0%, black 20%, transparent 70%);
+}
+
+.hub-topo {
+  background: var(--hub-topo);
+  backdrop-filter: saturate(160%) blur(18px);
+  -webkit-backdrop-filter: saturate(160%) blur(18px);
+}
+
+.hub-cartao {
+  position: relative;
+  background: var(--hub-cartao);
+  border: 1px solid var(--hub-borda);
+  border-radius: 24px;
+  box-shadow: var(--hub-sombra);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition:
+    transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.35s ease,
+    border-color 0.35s ease;
+  isolation: isolate;
+  overflow: hidden;
+}
+/* Luz que segue o mouse dentro do cartão (--mx/--my, ver useLuz). */
+.hub-cartao::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, -20%), var(--hub-acento-suave), transparent 55%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: -1;
+  pointer-events: none;
+}
+.hub-cartao-vivo:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--hub-sombra-forte);
+  border-color: var(--hub-borda-forte);
+}
+.hub-cartao-vivo:hover::before {
+  opacity: 1;
+}
+
+.hub-botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 48px;
+  padding: 0 1.4rem;
+  border-radius: 999px;
+  font-weight: 650;
+  font-size: 14.5px;
+  letter-spacing: -0.01em;
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    background-color 0.25s ease,
+    border-color 0.25s ease;
+  white-space: nowrap;
+}
+.hub-botao-primario {
+  color: #fff;
+  background: linear-gradient(135deg, #d95a17, #e8691f 45%, #f28a42);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.25) inset,
+    0 14px 30px -12px rgba(232, 105, 31, 0.65);
+}
+.hub-botao-primario:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.25) inset,
+    0 20px 38px -14px rgba(232, 105, 31, 0.75);
+}
+.hub-botao-fantasma {
+  color: var(--hub-texto);
+  background: var(--hub-cartao);
+  border: 1px solid var(--hub-borda-forte);
+}
+.hub-botao-fantasma:hover {
+  transform: translateY(-2px);
+  border-color: var(--hub-texto-3);
+}
+
+.hub-rotulo {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--hub-texto-3);
+}
+
+.hub-selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 24px;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 650;
+  border: 1px solid var(--hub-borda);
+  background: var(--hub-cartao);
+  color: var(--hub-texto-2);
+}
+.hub-selo-vivo {
+  color: #0f6e56;
+  background: rgba(29, 158, 117, 0.1);
+  border-color: rgba(29, 158, 117, 0.25);
+}
+:root[data-theme="dark"] .hub-selo-vivo {
+  color: #5fd4ad;
+}
+
+/* Item do menu do topo: pílula que acende no ativo. */
+.hub-menu-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 0.95rem;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--hub-texto-2);
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
+}
+.hub-menu-item:hover {
+  color: var(--hub-texto);
+  background: var(--hub-acento-suave);
+}
+.hub-menu-item[aria-current="page"] {
+  color: var(--hub-texto);
+  background: var(--hub-cartao-solido);
+  box-shadow: 0 0 0 1px var(--hub-borda), 0 6px 16px -10px rgba(8, 29, 51, 0.35);
+}
+.hub-menu-item[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 2px;
+  background: var(--hub-acento);
+  transform: translateX(-50%);
+}
+
+/* Cartões que flutuam sobre o mosaico: sólidos, pra ler bem nos dois temas. */
+.hub-flutua > .hub-cartao {
+  background: var(--hub-cartao-solido);
+}
+
+/* O selo "Ambiente de teste" (App.jsx) desce pro canto dentro do hub, pra não cobrir o menu. */
+body:has(.hub) .selo-teste {
+  top: auto;
+  bottom: 14px;
+  left: 14px;
+  translate: none;
+}
+
+/* ── Mosaico (Mosaico.jsx): ladrilhos que acendem em degrau ── */
+.hub-mosaico {
+  display: grid;
+  gap: clamp(6px, 0.9vw, 12px);
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.hub-ladrilho {
+  aspect-ratio: 1;
+  border-radius: 22%;
+  background: var(--hub-ladrilho);
+  box-shadow: inset 0 0 0 1px var(--hub-ladrilho-borda);
+  animation: hub-cintila 7s ease-in-out infinite;
+  animation-delay: var(--atraso, 0s);
+}
+@keyframes hub-cintila {
+  0%,
+  86%,
+  100% {
+    background: var(--hub-ladrilho);
+  }
+  92% {
+    background: var(--hub-ladrilho-aceso);
+  }
+}
+.hub-ladrilho-icone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--hub-cartao-solido);
+  color: var(--hub-texto-3);
+  box-shadow:
+    inset 0 0 0 1px var(--hub-borda),
+    0 10px 24px -16px rgba(8, 29, 51, 0.35);
+  animation: none;
+}
+.hub-ladrilho-icone svg {
+  width: 38%;
+  height: 38%;
+}
+.hub-ladrilho-degrau {
+  background: var(--cor);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 12px 28px -14px var(--sombra, rgba(232, 105, 31, 0.6));
+  animation: hub-degrau 6s ease-in-out infinite;
+  animation-delay: var(--atraso, 0s);
+}
+@keyframes hub-degrau {
+  0%,
+  100% {
+    transform: translateZ(0) translateY(0);
+    filter: brightness(1);
+  }
+  45% {
+    transform: translateZ(14px) translateY(-3px);
+    filter: brightness(1.12);
+  }
+}
+.hub-flutua {
+  animation: hub-flutua 7s ease-in-out infinite;
+  animation-delay: var(--atraso, 0s);
+}
+@keyframes hub-flutua {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Entrada suave ao aparecer na tela (useRevelar). */
+.hub-revelar {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition-delay: var(--atraso, 0s);
+}
+.hub-revelar.hub-revelado {
+  opacity: 1;
+  transform: none;
+}
+
+/* Linha do tempo da Reforma: trilho com o trecho já percorrido em laranja. */
+.hub-trilho {
+  background: linear-gradient(90deg, var(--hub-acento) 0%, var(--hub-acento-2) var(--feito, 0%), var(--hub-borda-forte) var(--feito, 0%));
+}
+
+.hub-faixa {
+  mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
+}
+.hub-faixa-trilho {
+  animation: hub-faixa 40s linear infinite;
+}
+@keyframes hub-faixa {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hub-italico,
+  .hub-ladrilho,
+  .hub-ladrilho-degrau,
+  .hub-flutua,
+  .hub-faixa-trilho {
+    animation: none;
+  }
+  .hub-revelar {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .hub-mosaico,
+  .hub-cartao {
+    transition: none;
+  }
+}

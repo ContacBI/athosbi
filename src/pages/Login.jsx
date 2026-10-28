@@ -1,20 +1,13 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { LogIn } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
 import AthosMark from "../components/AthosMark.jsx";
 import { enderecoDoPortal } from "../lib/enderecos.js";
+import { hubNoNavegador } from "../lib/hub.js";
 
-// Same visual language as Landing.jsx (navy background, accent badge) — this
-// is the very first thing anyone sees now that the portal is online with
-// real data behind it, so it needed to look like part of the same product,
-// not a bolted-on auth screen.
-//
-// Ninguém cria a própria conta aqui — toda conta nasce de um convite que o
-// admin dispara em Parâmetros > Acessos (ver lib/access.js inviteUser e a
-// função supabase/functions/invite-user). A pessoa recebe um e-mail, clica,
-// cai logada em /definir-senha pra escolher a senha, e só a partir daí usa
-// e-mail+senha nesta tela.
-export default function Login() {
+// O jeito de entrar (e-mail + senha, "esqueci minha senha") — usado por esta
+// tela e pela do hub novo (hub/LoginHub.jsx).
+export function useLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -48,6 +41,36 @@ export default function Login() {
     else setNotice("Se esse e-mail tiver conta, chega um link pra redefinir a senha.");
   }
 
+  return { email, setEmail, password, setPassword, error, notice, loading, handleSubmit, handleForgotPassword };
+}
+
+// Hub novo (lib/hub.js): no site de teste, no navegador onde o dono já
+// entrou no hub, o login também é o novo.
+const LoginHub = lazy(() => import("../hub/LoginHub.jsx"));
+
+export default function Login() {
+  if (hubNoNavegador()) {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-surface-page" />}>
+        <LoginHub />
+      </Suspense>
+    );
+  }
+  return <LoginAtual />;
+}
+
+// Same visual language as Landing.jsx (navy background, accent badge) — this
+// is the very first thing anyone sees now that the portal is online with
+// real data behind it, so it needed to look like part of the same product,
+// not a bolted-on auth screen.
+//
+// Ninguém cria a própria conta aqui — toda conta nasce de um convite que o
+// admin dispara em Parâmetros > Acessos (ver lib/access.js inviteUser e a
+// função supabase/functions/invite-user). A pessoa recebe um e-mail, clica,
+// cai logada em /definir-senha pra escolher a senha, e só a partir daí usa
+// e-mail+senha nesta tela.
+function LoginAtual() {
+  const { email, setEmail, password, setPassword, error, notice, loading, handleSubmit, handleForgotPassword } = useLogin();
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-navy-950 px-6 text-center text-white">
       <div
