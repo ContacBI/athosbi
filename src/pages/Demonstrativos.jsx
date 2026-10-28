@@ -678,8 +678,10 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
 
   // The top bar's global "Baixar" button always exports whatever's active
   // here — disabled (registers nothing) on the chart-only EBITDA view,
-  // which has no tabular form to export.
-  useDownloadHandlers(hasData && mode !== "graficos" ? { pdf: handleExportPdf, excel: handleExportExcel, reportKind: { type: "demonstrativo", tab } } : null);
+  // which has no tabular form to export. Na visão EBITDA, o "Consolidado +
+  // Individual" do grupo baixa o EBITDA de cada empresa (não a DRE).
+  const reportKind = mode === "executiva" ? { type: "tabela", table: "executiva" } : { type: "demonstrativo", tab };
+  useDownloadHandlers(hasData && mode !== "graficos" ? { pdf: handleExportPdf, excel: handleExportExcel, reportKind } : null);
 
   if (!hasData) {
     return (

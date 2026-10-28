@@ -1,5 +1,12 @@
+import { state } from "../data/useStore.js";
+import { buildReportTree, buildDfcDirect, buildDfcIndirect, reportMonths } from "../data/calculations.js";
 import { WIDGET_CATALOG, formatWidgetValue } from "./dashboardWidgets.js";
-import { moneyOrDash } from "./format.js";
+import { withPeriodDreValues } from "./dashboardData.js";
+import { buildExecutiveDreRows, DRE_RESUMIDA_MAP } from "./executiveDre.js";
+import { columnLabel, colunasDoCartao, valorDoCartao, isZeroNoMovement } from "./reportColumns.js";
+import { slug } from "./demonstrativoExport.js";
+import { activeWorkspaceName } from "./groups.js";
+import { moneyOrDash, periodLabelPt } from "./format.js";
 
 function percent(value) {
   return `${Number(value || 0).toFixed(1).replace(".", ",")}%`;
@@ -87,4 +94,60 @@ export function buildSummaryExportRows(widgets, ctx) {
   });
 
   return rows;
+}
+
+const ehSintetico = (row) => row.kind === "synthetic" && row.hasValue && Number(row.nivel || 0) >= 1 && Number(row.nivel || 0) <= 2;
+
+export function abaDaTabela(table) {
+  return table === "bp" ? "BP" : table?.startsWith("dfc_") ? "DFC" : "DRE";
+}
+
+// Uma aba do Painel que é só um cartão de demonstração (ex.: "EBITDA") como
+// relatório de verdade — as mesmas linhas e colunas do cartão —, montado
+// direto do estado global. Assim o "Consolidado + Individual" do grupo
+// (CompanyTopBar) consegue refazer o mesmo relatório pra cada empresa.
+export function buildTableWidgetExport(table) {
+  const definition = WIDGET_CATALOG.find((item) => item.type === "table" && item.table === table);
+  if (!definition) return null;
+  const tab = abaDaTabela(table);
+  let built;
+  if (table === "dfc_direta") built = buildDfcDirect();
+  else if (table === "dfc_indireta") built = buildDfcIndirect();
+  else if (table === "bp") built = buildReportTree("BP").filter(ehSintetico);
+  else {
+    const dre = withPeriodDreValues(buildReportTree("DRE"));
+    if (table === "executiva") built = buildExecutiveDreRows(dre);
+    else if (table === "dre_resumida") built = buildExecutiveDreRows(dre, DRE_RESUMIDA_MAP);
+    else built = dre.filter(ehSintetico);
+  }
+  const linhas = state.hideZeroNoMovement ? built.filter((row) => row.natureza === "heading" || !isZeroNoMovement(row)) : built;
+  const columns = colunasDoCartao(tab, state.reportCompare, state);
+  const months = reportMonths();
+  const celulas = (row) =>
+    Object.fromEntries(
+      columns.map((column) => {
+        const valor = valorDoCartao(row, column, { tab, bpMonthlyMode: state.bpMonthlyMode, months });
+        return [column, row.isPercentage ? percent(valor) : moneyOrDash(valor)];
+      })
+    );
+  const rows = [];
+  linhas.forEach((row) => {
+    const nivel = Number(row.nivel || 0);
+    rows.push({ codigo: row.codigo_gerencial || "", nome: row.categoria_gerencial || "", nivel, isAnalytic: !(row.isFormula || nivel <= 1), cells: celulas(row) });
+    // DFC: as contas de cada linha, que o cartão abre com um clique.
+    (row.contas || []).forEach((conta) => {
+      rows.push({ codigo: "", nome: conta.nome_conta || "", nivel: nivel + 1, isAnalytic: true, cells: celulas(conta) });
+    });
+  });
+
+  const company = state.companies.find((item) => item.id === state.activeCompanyId);
+  const workspaceName = activeWorkspaceName();
+  return {
+    companyName: workspaceName,
+    reportName: definition.label,
+    metaLine: [company?.cnpj && `CNPJ ${company.cnpj}`, definition.label, periodLabelPt(state.periodStart, state.periodEnd)].filter(Boolean).join(" | "),
+    fileLabel: slug(`${definition.label}_${workspaceName}`),
+    columns: columns.map((column) => ({ key: column, label: columnLabel(column) })),
+    rows,
+  };
 }

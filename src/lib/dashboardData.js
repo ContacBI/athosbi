@@ -63,7 +63,7 @@ export const takeDashboardContext = sharedDashboardContext;
 // desde 1º de janeiro — é o que o Balanço usa pro resultado do exercício —,
 // então com o período em abril-maio os números, as margens e a "DRE
 // resumida" mostravam janeiro a maio. Período começando em janeiro: igual.
-function withPeriodDreValues(rows) {
+export function withPeriodDreValues(rows) {
   return rows.map((row) => {
     const months = Object.values(row.monthValues || {});
     const value = months.length ? months.reduce((sum, item) => sum + Number(item || 0), 0) : Number(row.movimento_periodo || 0);
