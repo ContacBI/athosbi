@@ -85,7 +85,24 @@ Para testar sem dados de cliente, o arquivo de empresas fictícias continua disp
 
 O arquivo traz três empresas (Comercial Modelo, Serviços Exemplo e Indústria Fictícia), de jan a set/2026, e o Grupo Modelo.
 
+## Sincronizador da Domínio no teste (espelho)
+
+A Central (hub) envia os mesmos dados da Domínio para o banco oficial **e** para o de teste, no mesmo horário (9h/13h/18h, pedidos e detecção de mudanças valem só para o oficial). Ela repete no teste todo POST que o oficial aceitou: lançamentos, balancete, carga tributária e DFC. É melhor-esforço: se o teste falhar, só vai para o log da Central e nunca atrapalha o oficial (3 falhas seguidas pausam 10 min). A cópia de 6h17 e 13h17 alinha o teste caso ele fique para trás.
+
+**Montar (uma vez):**
+1. No Supabase de **teste**, publicar as quatro funções que estão em `supabase/functions/`: `dominio-sync`, `dominio-carga`, `dominio-dfc` (as três com *verify_jwt desligado*) e, se quiser convite por e-mail, `invite-user`.
+2. No Supabase de teste › Edge Functions › Secrets: criar `DOMINIO_SYNC_TOKEN` com um token **novo, diferente do oficial**.
+3. No computador da Central, em `%USERPROFILE%\.athosbi-sync.json`, acrescentar o bloco `teste` (o `token` do oficial continua como está):
+
+   ```json
+   {
+     "token": "<token do oficial>",
+     "teste": { "url": "https://sbpmstnfdojrsfksakhy.supabase.co/functions/v1", "token": "<token do teste>" }
+   }
+   ```
+
+   Sem o bloco `teste`, nada muda. A Central recusa espelhar para o projeto oficial.
+
 ## O que ainda não existe no teste
 
-- **Convite por e-mail**: a função `invite-user` só está publicada no banco oficial. No teste, crie os logins direto no Supabase (passo 2 acima).
-- **Sincronizador da Domínio**: grava só no banco oficial. As telas que dependem dele (balancete da Domínio, carga tributária) ficam vazias no teste.
+- **Pedidos de período e "Pedir à Central"**: a Central só atende pedidos do banco oficial. No teste, o botão não é atendido (os dados chegam no horário normal pelo espelho).
