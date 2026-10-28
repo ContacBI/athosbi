@@ -9,6 +9,7 @@ import SetPassword from "./pages/SetPassword.jsx";
 import ConfirmAccess from "./pages/ConfirmAccess.jsx";
 import { supabase } from "./lib/supabaseClient.js";
 import { ligarRegistroDeUso, mudouDeTela } from "./lib/uso.js";
+import { EH_TESTE } from "./lib/ambiente.js";
 import Empresas from "./pages/Empresas.jsx";
 import CompanyHome from "./pages/CompanyHome.jsx";
 import { loadPlan } from "./lib/plan.js";
@@ -268,7 +269,29 @@ function AuthedApp() {
   );
 }
 
+// Site de teste (homologação): selo fixo em todas as telas e "[TESTE]" no
+// título da aba — pra ninguém confundir com o oficial (ver lib/ambiente.js).
+function SeloDeTeste() {
+  useEffect(() => {
+    if (!document.title.startsWith("[TESTE]")) document.title = `[TESTE] ${document.title}`;
+  }, []);
+  return (
+    <div className="selo-teste pointer-events-none fixed left-1/2 top-1.5 z-[1000] -translate-x-1/2 rounded-full bg-warning-500/95 px-3 py-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-white shadow-lg ring-2 ring-white/70">
+      Ambiente de teste · dados fictícios
+    </div>
+  );
+}
+
 export default function App() {
+  return (
+    <>
+      {EH_TESTE && <SeloDeTeste />}
+      <AppConteudo />
+    </>
+  );
+}
+
+function AppConteudo() {
   // Antes de qualquer checagem de sessão — quem chega aqui (link de convite
   // ou de "esqueci minha senha", ver ConfirmAccess.jsx) ainda não está
   // logado de propósito; a troca de verdade só acontece dentro do clique

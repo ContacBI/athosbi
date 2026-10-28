@@ -1151,3 +1151,41 @@ create policy "uso_eventos_insert" on public.uso_eventos for insert to authentic
 drop policy if exists "uso_eventos_select" on public.uso_eventos;
 create policy "uso_eventos_select" on public.uso_eventos for select to authenticated
   using (e_dono_da_central() or (is_portal_admin() and not interno));
+
+-- ============================================================================
+-- Tabelas do sincronizador da Domínio criadas direto no banco (estavam fora
+-- deste arquivo): a carga tributária por empresa e ano (Carga tributária,
+-- lib/cargaTributaria.js) e o modelo de DFC de cada empresa na Domínio
+-- (lib/dfcInstituto.js). Só o sincronizador grava (chave de serviço);
+-- o app só lê.
+-- ============================================================================
+create table if not exists public.dominio_carga (
+  company_id text not null,
+  company_codigo text not null,
+  cnpj text not null,
+  ano integer not null check (ano >= 2000 and ano <= 2100),
+  dados jsonb not null,
+  assinatura text,
+  synced_at timestamptz not null default now(),
+  primary key (company_id, ano)
+);
+alter table public.dominio_carga enable row level security;
+drop policy if exists "dominio_carga_read_scoped" on public.dominio_carga;
+create policy "dominio_carga_read_scoped" on public.dominio_carga for select to authenticated
+  using (is_portal_admin() or is_colaborador() or company_id = any (allowed_company_ids()));
+
+create table if not exists public.dominio_dfc_modelo (
+  company_codigo text not null,
+  cnpj text not null,
+  metodo text not null default 'D',
+  estrutura jsonb not null,
+  contas jsonb not null,
+  qtd_contas integer not null,
+  assinatura text,
+  synced_at timestamptz not null default now(),
+  primary key (company_codigo, cnpj)
+);
+alter table public.dominio_dfc_modelo enable row level security;
+drop policy if exists "dominio_dfc_modelo_read_staff" on public.dominio_dfc_modelo;
+create policy "dominio_dfc_modelo_read_staff" on public.dominio_dfc_modelo for select to authenticated
+  using (is_portal_admin() or is_colaborador());

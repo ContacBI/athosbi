@@ -779,6 +779,26 @@ check(
   null
 );
 
+// ── Ambientes: oficial × teste (lib/ambiente.js, docs/AMBIENTES.md) ──
+section("Ambientes");
+const { ambienteDe } = await src("lib/ambiente.js");
+check(
+  "Banco oficial = oficial; qualquer outro banco = teste; VITE_AMBIENTE manda",
+  ambienteDe({ VITE_SUPABASE_URL: "https://ijmkvxtdlthyxpawncbs.supabase.co" }) === "oficial" &&
+    ambienteDe({ VITE_SUPABASE_URL: "https://sbpmstnfdojrsfksakhy.supabase.co" }) === "teste" &&
+    ambienteDe({ VITE_SUPABASE_URL: "https://ijmkvxtdlthyxpawncbs.supabase.co", VITE_AMBIENTE: "teste" }) === "teste" &&
+    ambienteDe({}) === "teste",
+  null
+);
+const { baseDeTeste } = await import(path.join(ROOT, "scripts/gerar-base-de-teste.mjs"));
+const base = baseDeTeste();
+const fechaPartidas = base.companies.every((empresa) => Math.abs(empresa.journal.reduce((soma, entry) => soma + entry.debito - entry.credito, 0)) < 0.05);
+check(
+  "Base do site de teste: 3 empresas fictícias de jan a set, partidas dobradas fechando, e o grupo",
+  base.companies.length === 3 && fechaPartidas && base.companies.every((empresa) => empresa.journalLoaded && empresa.fechadoAte === "2026-09" && empresa.journal.some((entry) => entry.data.startsWith("2026-09"))) && base.groups[0].companyIds.length === 3,
+  null
+);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
