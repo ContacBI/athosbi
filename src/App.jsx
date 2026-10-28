@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import CompanyLayout from "./components/CompanyLayout.jsx";
 import SaveErrorBanner from "./components/SaveErrorBanner.jsx";
+import VisaoClienteBotao from "./components/VisaoClienteBotao.jsx";
 import ParametrosLayout from "./components/ParametrosLayout.jsx";
 import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
@@ -144,7 +145,7 @@ function AuthedApp() {
       }),
     ])
       .then(async ([, companiesResult, , , adminFlag, , colaboradorFlag, email, reformaFlag, reformaEmpresas]) => {
-        setData({ isAdmin: adminFlag, isColaborador: colaboradorFlag, userEmail: email, isReformaEscritorio: reformaFlag, reformaEmpresas });
+        setData({ isAdmin: adminFlag, isColaborador: colaboradorFlag, realIsAdmin: adminFlag, realIsColaborador: colaboradorFlag, visaoCliente: false, userEmail: email, isReformaEscritorio: reformaFlag, reformaEmpresas });
         // Cliente: quais módulos complementares (Orçamento, Carga…) foram
         // liberados na ficha dele — sem ficha (ou sem a tabela), só o B.I.
         if (!adminFlag && !colaboradorFlag) {
@@ -219,6 +220,7 @@ function AuthedApp() {
     <BrowserRouter>
       <RegistroDeUso />
       <SaveErrorBanner />
+      <VisaoClienteBotao />
       <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route index element={<Landing />} />

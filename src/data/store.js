@@ -42,6 +42,10 @@ export const state = {
   // cadastro ficam editáveis. Todo o resto de fato é aplicado pela RLS do
   // Supabase; esta flag é só pra UI não nem oferecer o que o banco recusaria.
   isAdmin: false,
+  // Valores reais de quem está logado (isAdmin/isColaborador mudam enquanto a "visão do cliente" está ligada — ver lib/visaoCliente.js).
+  realIsAdmin: false,
+  realIsColaborador: false,
+  visaoCliente: false,
   // Colaborador Restrito (ver lib/colaboradores.js e supabase/schema.sql) —
   // enxerga a carteira inteira e entra em Parâmetros como um admin, mas só
   // edita de fato as empresas onde o próprio e-mail (userEmail abaixo) está
