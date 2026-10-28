@@ -119,6 +119,8 @@ export default function EntradasSaidas() {
     );
   }
 
+  if (!r) return <Carregando texto="Carregando as notas fiscais…" />; // o ano é escolhido no efeito logo depois da primeira leitura
+
   const dadosGrafico = (r?.meses || []).map((m, i) => ({
     mes: MES_CURTO[i],
     ativo: i + 1 >= mesDe && i + 1 <= mesAte,
