@@ -1,0 +1,42 @@
+# Cópia automática do banco OFICIAL para o de TESTE (docs/AMBIENTES.md):
+# duas vezes por dia o teste fica igual ao oficial. Só de ida — o oficial
+# só é lido. Se o oficial vier com bem menos empresas do que o teste tem
+# (trava de segurança), a cópia não é aplicada e esta tarefa fica vermelha;
+# pra aplicar mesmo assim: Actions › "Cópia do oficial para o teste" ›
+# Run workflow › marcar "forçar".
+name: Cópia do oficial para o teste
+
+on:
+  schedule:
+    - cron: "17 9 * * *" # 6h17 em Brasília
+    - cron: "17 16 * * *" # 13h17 em Brasília
+  workflow_dispatch:
+    inputs:
+      forcar:
+        description: "Aplicar mesmo se a trava de segurança barrar (o oficial veio com bem menos empresas)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: copia-oficial-para-teste
+  cancel-in-progress: false
+
+jobs:
+  copiar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Copia o oficial para o teste
+        run: node scripts/copiar-oficial-para-teste.mjs
+        env:
+          OFICIAL_SUPABASE_URL: ${{ secrets.OFICIAL_SUPABASE_URL }}
+          OFICIAL_SUPABASE_SERVICE_KEY: ${{ secrets.OFICIAL_SUPABASE_SERVICE_KEY }}
+          TESTE_SUPABASE_URL: ${{ secrets.TESTE_SUPABASE_URL }}
+          TESTE_SUPABASE_SERVICE_KEY: ${{ secrets.TESTE_SUPABASE_SERVICE_KEY }}
+          FORCAR: ${{ inputs.forcar && 'sim' || '' }}

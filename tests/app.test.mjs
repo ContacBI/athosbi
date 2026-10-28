@@ -799,6 +799,28 @@ check(
   null
 );
 
+const robo = await import(path.join(ROOT, "scripts/copiar-oficial-para-teste.mjs"));
+const recusa = (oficial, teste) => {
+  try {
+    robo.conferirEnderecos(oficial, teste);
+    return false;
+  } catch {
+    return true;
+  }
+};
+const lotesCopia = robo.emLotes([{ a: "x".repeat(60) }, { a: "y".repeat(60) }, { a: "z".repeat(300) }, { a: "w" }], 150);
+const sqlCopia = fs.readFileSync(path.join(ROOT, "supabase/teste/copia_do_oficial.sql"), "utf8");
+const tabelasSql = (sqlCopia.match(/select array\[([\s\S]*?)\]::text\[\]/) || [])[1]?.match(/'([a-z_]+)'/g)?.map((nome) => nome.slice(1, -1)) || [];
+check(
+  "Cópia do oficial pro teste: nunca grava no oficial, lotes por tamanho, mesmas tabelas no robô e no banco",
+  recusa("https://sbpmstnfdojrsfksakhy.supabase.co", "https://ijmkvxtdlthyxpawncbs.supabase.co") &&
+    recusa("https://ijmkvxtdlthyxpawncbs.supabase.co", "https://ijmkvxtdlthyxpawncbs.supabase.co") &&
+    !recusa("https://ijmkvxtdlthyxpawncbs.supabase.co", "https://sbpmstnfdojrsfksakhy.supabase.co") &&
+    lotesCopia.map((lote) => lote.length).join() === "2,1,1" &&
+    tabelasSql.join() === robo.TABELAS.map(([tabela]) => tabela).join(),
+  { lotes: lotesCopia.map((lote) => lote.length), tabelasSql }
+);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
