@@ -726,6 +726,18 @@ check(
 check("Mesmo período em vários blocos calcula uma vez", pdb.envDoBloco({ kind: "widget", periodo: { tipo: "ultimoMes" } }, envTri).ctx === envMarco.ctx, null);
 setCompanyState();
 
+// ── Sessão vencida: o cliente do Supabase renova e repete a chamada ──
+section("Sessão vencida");
+const { respostaDeTokenVencido } = await src("lib/supabaseClient.js");
+check(
+  "Reconhece token vencido do banco e dos arquivos; não confunde com outros erros",
+  respostaDeTokenVencido(401, '{"code":"PGRST303","message":"JWT expired"}') &&
+    respostaDeTokenVencido(400, '{"statusCode":"403","error":"Unauthorized","message":"\\"exp\\" claim timestamp check failed"}') &&
+    !respostaDeTokenVencido(401, '{"code":"42501","message":"permission denied"}') &&
+    !respostaDeTokenVencido(500, "JWT expired"),
+  null
+);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);

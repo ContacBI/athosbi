@@ -181,9 +181,19 @@ function AuthedApp() {
   }
 
   if (bootError) {
+    const sessaoVencida = /JWT expired|PGRST303|sess[aã]o/i.test(bootError);
     return (
-      <div className="flex h-screen items-center justify-center bg-surface-page px-6 text-center text-[13px] text-danger-600">
-        Erro ao carregar o portal: {bootError}
+      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-surface-page px-6 text-center">
+        <p className="max-w-md text-[14px] font-medium text-ink-900">{sessaoVencida ? "Sua sessão venceu enquanto o portal estava fechado." : "Não consegui carregar o portal agora."}</p>
+        <p className="max-w-lg text-[12.5px] text-ink-500">{sessaoVencida ? "Tente de novo — se continuar, entre de novo com seu e-mail e senha." : `Detalhe: ${bootError}`}</p>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => window.location.reload()} className="rounded-full bg-accent-500 px-4 py-2 text-[13px] font-semibold text-white hover:bg-accent-600">
+            Tentar de novo
+          </button>
+          <button type="button" onClick={() => supabase.auth.signOut()} className="rounded-full border border-line-strong px-4 py-2 text-[13px] font-medium text-ink-700 hover:bg-surface-muted">
+            Entrar de novo
+          </button>
+        </div>
       </div>
     );
   }
