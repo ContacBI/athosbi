@@ -1,7 +1,7 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowDownRight, ArrowUpRight, Lightbulb, X } from "lucide-react";
+import { ArrowDownRight, ArrowLeft, ArrowUpRight, CalendarSearch, Lightbulb, X } from "lucide-react";
 import { NAVY, ROSA, VERDE, brlCompacto, dec, eixo, inteiro, moneyFull, pct } from "../lib/fmtNotas.js";
 
 // Painel flutuante de comparações e análises de um cartão do Entradas x Saídas (clicar no cartão abre). Mostra: tendência dos últimos 12 meses com o período
@@ -41,10 +41,18 @@ function Secao({ titulo, children, direita }) {
   );
 }
 
-export default function EntradasSaidasDetalhe({ kpi, onClose, r, anterior, rotuloAnterior, serie, comparativo, ehConsolidado, equipe, valor, unidade, periodoRotulo }) {
+const ORDEM = ["fat", "ent", "saldo", "ticket", "ratio"];
+
+export default function EntradasSaidasDetalhe({ kpi, onClose, onTrocar, onFiltrarMes, onFocarEmpresa, ehGrupo, r, anterior, rotuloAnterior, serie, comparativo, ehConsolidado, equipe, valor, unidade, periodoRotulo }) {
   const meta = META[kpi];
+  const [sel, setSel] = useState(null); // mês clicado no gráfico (rotulo)
+  const [hoverEmpresa, setHoverEmpresa] = useState(null);
   useEffect(() => {
-    const aoTeclar = (e) => e.key === "Escape" && onClose();
+    const aoTeclar = (e) => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowRight") onTrocar(ORDEM[(ORDEM.indexOf(kpi) + 1) % ORDEM.length]);
+      else if (e.key === "ArrowLeft") onTrocar(ORDEM[(ORDEM.indexOf(kpi) + ORDEM.length - 1) % ORDEM.length]);
+    };
     window.addEventListener("keydown", aoTeclar);
     const anterior = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -52,7 +60,7 @@ export default function EntradasSaidasDetalhe({ kpi, onClose, r, anterior, rotul
       window.removeEventListener("keydown", aoTeclar);
       document.body.style.overflow = anterior;
     };
-  }, [onClose]);
+  }, [onClose, onTrocar, kpi]);
 
   const atual = useMemo(() => flat(r), [r]);
   const prev = useMemo(() => (anterior ? { fat: anterior.faturamento, ent: anterior.totais.E.v, saldo: anterior.saldo, ticket: anterior.ticket, ratio: anterior.faturamento ? anterior.totais.E.v / anterior.faturamento : null, vendas: anterior.vendas, comprasN: anterior.totais.E.c } : null), [anterior]);
@@ -63,6 +71,9 @@ export default function EntradasSaidasDetalhe({ kpi, onClose, r, anterior, rotul
   const melhor = pontos.reduce((b, p) => (b == null || meta.de(p) > meta.de(b) ? p : b), null);
   const pior = pontos.reduce((b, p) => (b == null || meta.de(p) < meta.de(b) ? p : b), null);
   const dadosGrafico = serie.map((p) => ({ ...p, v: meta.de(p) }));
+  const iSel = sel ? serie.findIndex((p) => p.rotulo === sel) : -1;
+  const pSel = iSel >= 0 ? serie[iSel] : null;
+  const pAnt = iSel > 0 ? serie[iSel - 1] : null;
 
   const frases = [];
   if (media != null && valorAtual != null && media) frases.push(`O valor deste período está ${dec(Math.abs((valorAtual - media) / Math.abs(media)) * 100)}% ${valorAtual >= media ? "acima" : "abaixo"} da média dos últimos 12 meses (${meta.fmt(media)}).`);
@@ -70,7 +81,7 @@ export default function EntradasSaidasDetalhe({ kpi, onClose, r, anterior, rotul
 
   // por empresa (grupo consolidado)
   const porEmpresa = ehConsolidado
-    ? comparativo.map(({ membro, r: re }) => ({ nome: String(membro.name).replace(/\s+(LTDA|S\/A|EPP|ME)\b.*$/i, ""), v: meta.de(flat(re)) })).filter((x) => x.v != null).sort((a, b) => b.v - a.v)
+    ? comparativo.map(({ membro, r: re }) => ({ id: membro.id, nome: String(membro.name).replace(/\s+(LTDA|S\/A|EPP|ME)\b.*$/i, ""), v: meta.de(flat(re)) })).filter((x) => x.v != null).sort((a, b) => b.v - a.v)
     : [];
   const maxEmpresa = Math.max(...porEmpresa.map((x) => Math.abs(x.v)), 1);
 
@@ -96,11 +107,20 @@ export default function EntradasSaidasDetalhe({ kpi, onClose, r, anterior, rotul
   // Portal no <body>: o painel é sempre centralizado na janela, mesmo dentro de uma tela com rolagem ou animação (um "fixed" dentro de elemento com transform fica preso a ele).
   // Não fecha clicando fora (pedido do Izaias): só pelo X ou pela tecla Esc.
   return createPortal(
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 p-4 backdrop-blur-[3px]" role="dialog" aria-modal="true" aria-label={meta.titulo}>
-      <style>{`@keyframes esPainel { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } } .es-painel { animation: esPainel .22s ease-out both; } @media (prefers-reduced-motion: reduce) { .es-painel { animation: none; } }`}</style>
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={meta.titulo}>
+      <style>{`@keyframes esPainel { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } } .es-painel { animation: esPainel .14s ease-out both; } @media (prefers-reduced-motion: reduce) { .es-painel { animation: none; } }`}</style>
       <div className="es-painel relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-surface-page shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)]">
         <div className="h-1.5 w-full" style={{ background: `linear-gradient(90deg, ${meta.cor}, #e8681f)` }} />
-        <div className="flex items-start justify-between gap-4 px-6 pb-3 pt-5">
+        <div className="flex flex-wrap items-center gap-1.5 px-6 pt-4">
+          {ORDEM.map((id) => (
+            <button key={id} type="button" onClick={() => { setSel(null); onTrocar(id); }} className={`rounded-full border px-3 py-1 text-[12px] font-medium transition-colors ${id === kpi ? "border-accent-500 bg-accent-500 text-white shadow-sm" : "border-line text-ink-600 hover:bg-surface-muted"}`}>{META[id].titulo}</button>
+          ))}
+          {ehGrupo && !ehConsolidado && (
+            <button type="button" onClick={() => onFocarEmpresa("todas")} className="ml-auto flex items-center gap-1 rounded-full border border-accent-500/40 px-3 py-1 text-[12px] font-medium text-accent-700 hover:bg-accent-500/10"><ArrowLeft size={12} /> voltar ao consolidado</button>
+          )}
+          <span className="ml-auto hidden text-[11px] text-ink-300 sm:inline">use ← → para trocar de indicador</span>
+        </div>
+        <div className="flex items-start justify-between gap-4 px-6 pb-3 pt-3">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">{meta.titulo} · {periodoRotulo}</p>
             <div className="mt-1 flex flex-wrap items-end gap-3">
@@ -114,33 +134,58 @@ export default function EntradasSaidasDetalhe({ kpi, onClose, r, anterior, rotul
         </div>
 
         <div className="flex flex-col gap-4 overflow-y-auto px-6 pb-6">
-          <Secao titulo="Últimos 12 meses" direita="o período escolhido está em destaque">
+          <Secao titulo="Últimos 12 meses" direita="clique num mês para ver o detalhe">
             <div className="h-[230px] text-ink-400">
               <ResponsiveContainer width="100%" height="100%">
                 {kpi === "ticket" || kpi === "ratio" ? (
-                  <LineChart data={dadosGrafico} margin={{ top: 10, right: 12, left: 4, bottom: 0 }}>
+                  <LineChart data={dadosGrafico} margin={{ top: 10, right: 12, left: 4, bottom: 0 }} onClick={(e) => e?.activePayload?.[0]?.payload && setSel(e.activePayload[0].payload.rotulo)} style={{ cursor: "pointer" }}>
                     <CartesianGrid stroke="currentColor" strokeOpacity={0.12} vertical={false} />
                     <XAxis dataKey="rotulo" tick={{ fontSize: 11, fill: "currentColor" }} axisLine={false} tickLine={false} interval={0} />
                     <YAxis tickFormatter={(v) => (kpi === "ratio" ? `${dec(v * 100, 0)}%` : eixo(v))} tick={{ fontSize: 11, fill: "currentColor" }} width={48} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid rgba(128,128,128,0.2)" }} formatter={(v) => [meta.fmt(v), meta.titulo]} />
                     {media != null && <ReferenceLine y={media} stroke="currentColor" strokeDasharray="4 4" strokeOpacity={0.5} />}
-                    <Line dataKey="v" stroke={meta.cor} strokeWidth={2.5} connectNulls isAnimationActive={false} dot={(p) => <circle key={p.index} cx={p.cx} cy={p.cy} r={p.payload.noPeriodo ? 5 : 3} fill={p.payload.noPeriodo ? meta.cor : "#fff"} stroke={meta.cor} strokeWidth={2} />} />
+                    <Line dataKey="v" stroke={meta.cor} strokeWidth={2.5} connectNulls isAnimationActive={false} dot={(p) => <circle key={p.index} cx={p.cx} cy={p.cy} r={p.payload.rotulo === sel ? 7 : p.payload.noPeriodo ? 5 : 3} fill={p.payload.noPeriodo ? meta.cor : "#fff"} stroke={meta.cor} strokeWidth={2} />} />
                   </LineChart>
                 ) : (
-                  <BarChart data={dadosGrafico} margin={{ top: 10, right: 12, left: 4, bottom: 0 }}>
+                  <BarChart data={dadosGrafico} margin={{ top: 10, right: 12, left: 4, bottom: 0 }} onClick={(e) => e?.activePayload?.[0]?.payload && setSel(e.activePayload[0].payload.rotulo)} style={{ cursor: "pointer" }}>
                     <CartesianGrid stroke="currentColor" strokeOpacity={0.12} vertical={false} />
                     <XAxis dataKey="rotulo" tick={{ fontSize: 11, fill: "currentColor" }} axisLine={false} tickLine={false} interval={0} />
                     <YAxis tickFormatter={eixo} tick={{ fontSize: 11, fill: "currentColor" }} width={48} axisLine={false} tickLine={false} />
                     <Tooltip cursor={{ fill: "currentColor", fillOpacity: 0.06 }} contentStyle={{ borderRadius: 12, border: "1px solid rgba(128,128,128,0.2)" }} formatter={(v) => [moneyFull(v), meta.titulo]} />
                     {media != null && <ReferenceLine y={media} stroke="currentColor" strokeDasharray="4 4" strokeOpacity={0.5} />}
                     <Bar dataKey="v" radius={[6, 6, 0, 0]} maxBarSize={34} isAnimationActive={false}>
-                      {dadosGrafico.map((p) => <Cell key={p.rotulo} fill={kpi === "saldo" && (p.v ?? 0) < 0 ? ROSA : meta.cor} fillOpacity={p.noPeriodo ? 1 : 0.35} />)}
+                      {dadosGrafico.map((p) => <Cell key={p.rotulo} fill={kpi === "saldo" && (p.v ?? 0) < 0 ? ROSA : meta.cor} fillOpacity={p.noPeriodo || p.rotulo === sel ? 1 : 0.35} stroke={p.rotulo === sel ? "currentColor" : "none"} strokeWidth={p.rotulo === sel ? 2 : 0} />)}
                     </Bar>
                   </BarChart>
                 )}
               </ResponsiveContainer>
             </div>
             {media != null && <p className="mt-1 text-[11.5px] text-ink-400">Linha tracejada: média dos 12 meses ({meta.fmt(media)}).</p>}
+            {pSel && (
+              <div className="mt-3 rounded-xl border border-accent-500/25 bg-accent-500/[0.05] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[12.5px] font-semibold text-ink-900">{pSel.rotulo}</p>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => onFiltrarMes(pSel.a, pSel.m)} className="flex items-center gap-1 rounded-lg bg-accent-500 px-2.5 py-1 text-[12px] font-semibold text-white hover:bg-accent-600"><CalendarSearch size={12} /> Ver só este mês na tela</button>
+                    <button type="button" onClick={() => setSel(null)} className="rounded-lg border border-line px-2 py-1 text-[12px] text-ink-500 hover:bg-surface-muted">limpar</button>
+                  </div>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                  {ORDEM.map((id) => {
+                    const ant = pAnt ? META[id].de(pAnt) : null;
+                    const v = META[id].de(pSel);
+                    return (
+                      <div key={id} className="rounded-lg bg-surface-card px-2.5 py-2">
+                        <p className="truncate text-[10.5px] uppercase tracking-wide text-ink-400">{META[id].titulo}</p>
+                        <p className="mt-0.5 truncate text-[14px] font-semibold tabular-nums text-ink-900">{v == null ? "—" : META[id].fmt(v)}</p>
+                        <Pill atual={v} anterior={ant} bomSobe={META[id].bomSobe} />
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="mt-1.5 text-[11px] text-ink-400">Variação contra {pAnt ? pAnt.rotulo : "o mês anterior (sem dados)"}.</p>
+              </div>
+            )}
           </Secao>
 
           <div className="grid gap-4 lg:grid-cols-2">
@@ -165,13 +210,13 @@ export default function EntradasSaidasDetalhe({ kpi, onClose, r, anterior, rotul
             </Secao>
 
             {ehConsolidado && porEmpresa.length > 1 ? (
-              <Secao titulo="Por empresa" direita="no período">
+              <Secao titulo="Por empresa" direita="clique para ver só uma">
                 <div className="flex flex-col gap-2.5">
                   {porEmpresa.map((x) => (
-                    <div key={x.nome}>
+                    <button key={x.id} type="button" onClick={() => onFocarEmpresa(x.id)} onMouseEnter={() => setHoverEmpresa(x.id)} onMouseLeave={() => setHoverEmpresa(null)} title="Ver só esta empresa" className={`rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-surface-muted ${hoverEmpresa && hoverEmpresa !== x.id ? "opacity-50" : ""}`}>
                       <div className="mb-1 flex items-baseline justify-between gap-2 text-[12.5px]"><span className="truncate text-ink-700">{x.nome}</span><span className="tabular-nums font-medium text-ink-900">{meta.fmt(x.v)}</span></div>
-                      <div className="h-2 overflow-hidden rounded-full bg-surface-muted"><div className="h-full rounded-full" style={{ width: `${Math.max(2, (Math.abs(x.v) / maxEmpresa) * 100)}%`, background: meta.cor }} /></div>
-                    </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-surface-muted"><div className="h-full rounded-full transition-all" style={{ width: `${Math.max(2, (Math.abs(x.v) / maxEmpresa) * 100)}%`, background: meta.cor }} /></div>
+                    </button>
                   ))}
                 </div>
               </Secao>

@@ -283,7 +283,7 @@ export default function EntradasSaidas() {
 
   return (
     <div key={`${ano}-${foco}`} className="ee-entra flex w-full flex-col gap-5 p-4 md:p-6">
-      <style>{`@keyframes eeEntra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } } .ee-entra { animation: eeEntra .28s ease-out both; } @media (prefers-reduced-motion: reduce) { .ee-entra { animation: none; } }`}</style>
+      <style>{`@keyframes eeEntra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } } .ee-entra { animation: eeEntra .16s ease-out both; } @media (prefers-reduced-motion: reduce) { .ee-entra { animation: none; } }`}</style>
 
       {/* Cabeçalho */}
       <div className={`${CARTAO} flex flex-col gap-4 p-5`}>
@@ -300,6 +300,13 @@ export default function EntradasSaidas() {
             <select value={ano || ""} onChange={(e) => setAno(Number(e.target.value))} className={select} aria-label="Ano">
               {anos.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
+            <div className="flex items-center rounded-lg bg-surface-muted p-0.5 text-[11.5px]">
+              {[["1M", 1], ["3M", 3], ["6M", 6], ["Ano", 12]].map(([nome, n]) => {
+                const de = n === 12 ? 1 : Math.max(1, mesAte - n + 1);
+                const ativo = mesDe === de && (n === 12 ? mesAte === 12 : true);
+                return <button key={nome} type="button" onClick={() => { setMesDe(de); if (n === 12) setMesAte(12); }} className={`rounded-md px-2 py-1 font-medium transition-colors ${ativo ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-800"}`}>{nome}</button>;
+              })}
+            </div>
             <div className="flex items-center gap-1.5 rounded-lg border border-line bg-surface-card px-1.5">
               <select value={mesDe} onChange={(e) => { const v = Number(e.target.value); setMesDe(v); if (v > mesAte) setMesAte(v); }} className="bg-transparent py-1.5 text-[12.5px] text-ink-800 outline-none" aria-label="Mês inicial">
                 {MES_CURTO.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
@@ -439,7 +446,8 @@ export default function EntradasSaidas() {
       )}
 
       {detalhe && (
-        <EntradasSaidasDetalhe kpi={detalhe} onClose={() => setDetalhe(null)} r={r} anterior={anterior} rotuloAnterior={anterior?.rotulo} serie={serie12} comparativo={comparativo}
+        <EntradasSaidasDetalhe kpi={detalhe} onClose={() => setDetalhe(null)} onTrocar={setDetalhe} ehGrupo={Boolean(grupo)}
+          onFocarEmpresa={setFoco} onFiltrarMes={(a, m) => { setAno(a); setMesDe(m); setMesAte(m); }} r={r} anterior={anterior} rotuloAnterior={anterior?.rotulo} serie={serie12} comparativo={comparativo}
           ehConsolidado={ehConsolidado} equipe={equipe} valor={valor} unidade={unidade} periodoRotulo={periodoRotulo} />
       )}
 
