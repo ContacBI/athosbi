@@ -16,6 +16,7 @@ import { periodLabelPt } from "../lib/format.js";
 import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
 import PeriodPicker from "./PeriodPicker.jsx";
 import FechamentoMenu from "./FechamentoMenu.jsx";
+import { VisaoClienteOlho } from "./VisaoClienteBotao.jsx";
 import { limiteDoCliente, ultimoDiaDoMes } from "../lib/fechamento.js";
 import ThemeToggle from "./ThemeToggle.jsx";
 
@@ -586,6 +587,7 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
             </button>
           )}
           {company && canEdit && <SettingsButton />}
+          <VisaoClienteOlho />
           <ThemeToggle className="h-8 w-8" />
         </div>
       </div>

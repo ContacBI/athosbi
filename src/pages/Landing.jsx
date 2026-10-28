@@ -18,6 +18,7 @@ import DeltaPill from "../components/DeltaPill.jsx";
 import ExplicaItem from "../components/ExplicaItem.jsx";
 import { GLOSSARIO, explicacaoDoAssunto } from "../lib/glossario.js";
 import ThemeToggle from "../components/ThemeToggle.jsx";
+import { VisaoClienteOlho } from "../components/VisaoClienteBotao.jsx";
 import AthosMark from "../components/AthosMark.jsx";
 import Avatar from "../components/Avatar.jsx";
 import WorkspaceLoading from "../components/WorkspaceLoading.jsx";
@@ -65,6 +66,7 @@ function Topo({ staff, onConfig }) {
         <span className="text-[16px] font-semibold tracking-tight text-white">AthosBI</span>
       </span>
       <span className="flex items-center gap-1">
+        <VisaoClienteOlho />
         <ThemeToggle />
         {staff && (
           <button type="button" onClick={onConfig} aria-label="Configurações" title="Configurações" className="flex h-10 w-10 items-center justify-center rounded-full text-white/55 transition-colors hover:bg-white/10 hover:text-white">
