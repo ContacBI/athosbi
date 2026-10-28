@@ -39,10 +39,11 @@ export default function ParametrosSidebar() {
   const state = useAppState();
   // Parâmetros da Reforma Tributária: só o escritório da Reforma (à parte
   // de admin/colaborador — ver lib/modulos.js).
-  // Central (uso do portal) no topo, só pra admin.
+  // Central (uso do portal), só pra admin, no fim da lista.
   const items = [
-    ...(state.isAdmin ? [{ to: "/parametros/central", label: "Central", icon: Activity }, ...ITEMS, ...ADMIN_ONLY_ITEMS] : ITEMS),
+    ...(state.isAdmin ? [...ITEMS, ...ADMIN_ONLY_ITEMS] : ITEMS),
     ...(state.isReformaEscritorio ? [{ to: "/parametros/reforma", label: "Reforma Tributária", icon: Scale }] : []),
+    ...(state.isAdmin ? [{ to: "/parametros/central", label: "Central", icon: Activity }] : []),
   ];
 
   function handleNavClick(to) {
