@@ -271,13 +271,27 @@ function AuthedApp() {
 
 // Site de teste (homologação): selo fixo em todas as telas e "[TESTE]" no
 // título da aba — pra ninguém confundir com o oficial (ver lib/ambiente.js).
+// Mostra de quando é a cópia do oficial (copia_do_oficial, só no banco de
+// teste — ver supabase/teste/copia_do_oficial.sql); antes do login, ou sem
+// cópia ainda, só "Ambiente de teste".
 function SeloDeTeste() {
+  const [copia, setCopia] = useState("");
   useEffect(() => {
     if (!document.title.startsWith("[TESTE]")) document.title = `[TESTE] ${document.title}`;
+    const buscar = () =>
+      supabase
+        .from("copia_do_oficial")
+        .select("feita_em")
+        .order("feita_em", { ascending: false })
+        .limit(1)
+        .then(({ data }) => setCopia(data?.[0]?.feita_em ? new Date(data[0].feita_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""));
+    buscar();
+    const { data } = supabase.auth.onAuthStateChange((evento) => evento === "SIGNED_IN" && buscar());
+    return () => data.subscription.unsubscribe();
   }, []);
   return (
-    <div className="selo-teste pointer-events-none fixed left-1/2 top-1.5 z-[1000] -translate-x-1/2 rounded-full bg-warning-500/95 px-3 py-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-white shadow-lg ring-2 ring-white/70">
-      Ambiente de teste · dados fictícios
+    <div className="selo-teste pointer-events-none fixed left-1/2 top-1.5 z-[1000] -translate-x-1/2 whitespace-nowrap rounded-full bg-warning-500/95 px-3 py-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-white shadow-lg ring-2 ring-white/70">
+      Ambiente de teste{copia ? ` · cópia do oficial de ${copia}` : ""}
     </div>
   );
 }
