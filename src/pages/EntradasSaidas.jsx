@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowLeftRight, Check, Minus } from "lucide-react";
+import { ArrowLeftRight, Check, ChevronDown, ChevronRight, Minus } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { saveNotasConfig } from "../lib/companies.js";
 import { groupCompanies } from "../lib/groups.js";
@@ -55,7 +55,12 @@ export default function EntradasSaidas() {
   const [mesDe, setMesDe] = useState(1);
   const [mesAte, setMesAte] = useState(12);
   const [aba, setAba] = useState("S");
-  const config = (!grupo && company?.notasConfig) || CONFIG_PADRAO;
+  const [foco, setFoco] = useState("todas"); // grupo: "todas" (consolidado) ou o id de uma empresa
+  const [verAcumuladores, setVerAcumuladores] = useState(false);
+  const equipe = Boolean(state.isAdmin || state.isColaborador); // cliente só vê as informações; os acumuladores (configuração) são da equipe
+  const membrosUso = useMemo(() => (grupo && foco !== "todas" ? membros.filter((m) => m.id === foco) : membros), [membros, grupo, foco]);
+  const ehConsolidado = Boolean(grupo) && foco === "todas";
+  const config = (!grupo && company?.notasConfig) || (grupo && foco !== "todas" && membrosUso[0]?.notasConfig) || CONFIG_PADRAO;
   const base = config.base || "nota";
   const valor = config.valor || "nota";
   const podeEditar = Boolean(!grupo && company && (state.isAdmin || (company.responsaveis || []).includes(state.userEmail)));
@@ -83,7 +88,9 @@ export default function EntradasSaidas() {
   }, [anos, ano]);
   const sincronizado = useMemo(() => Object.values(brutos || {}).flatMap((linhas) => linhas.filter((i) => i.ano === ano).map((i) => i.synced_at)).sort().pop(), [brutos, ano]);
 
-  const r = useMemo(() => (brutos && ano ? montarEntradasSaidas({ membros, brutos, ano, mesDe, mesAte, base, valor, ehGrupo: Boolean(grupo) }) : null), [membros, brutos, ano, mesDe, mesAte, base, valor, grupo]);
+  const r = useMemo(() => (brutos && ano ? montarEntradasSaidas({ membros: membrosUso, brutos, ano, mesDe, mesAte, base, valor, ehGrupo: ehConsolidado }) : null), [membrosUso, brutos, ano, mesDe, mesAte, base, valor, ehConsolidado]);
+  // grupo: uma linha por empresa pra comparar (cada uma com a própria escolha de acumuladores e a mesma base/valor)
+  const comparativo = useMemo(() => (grupo && brutos && ano ? membros.map((m) => ({ membro: m, r: montarEntradasSaidas({ membros: [m], brutos, ano, mesDe, mesAte, base, valor }) })) : []), [grupo, membros, brutos, ano, mesDe, mesAte, base, valor]);
 
   async function gravar(proxima) {
     setAviso("");
@@ -134,7 +141,7 @@ export default function EntradasSaidas() {
   const totBase = valor === "itens" ? tot.vprod : tot.vcon;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-4 p-4">
+    <div className="flex w-full flex-col gap-4 p-4 md:p-6">
       <div className="flex flex-col gap-3 rounded-xl bg-surface-card p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -158,6 +165,15 @@ export default function EntradasSaidas() {
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <Seletor rotulo="Ticket médio por" valor={base} opcoes={[["nota", "Nota"], ["item", "Item (peças)"]]} onChange={podeEditar ? (id) => gravar({ ...CONFIG_PADRAO, ...config, base: id }) : () => setAviso("Só quem edita a empresa muda essa opção.")} />
           <Seletor rotulo="Valor" valor={valor} opcoes={[["nota", "Total da nota"], ["itens", "Só os itens"]]} onChange={podeEditar ? (id) => gravar({ ...CONFIG_PADRAO, ...config, valor: id }) : () => setAviso("Só quem edita a empresa muda essa opção.")} />
+          {grupo && (
+            <div className="flex items-center gap-2">
+              <span className="text-[11.5px] text-ink-400">Ver</span>
+              <select value={foco} onChange={(e) => setFoco(e.target.value)} className="rounded-lg border border-line bg-surface-card px-2 py-1.5 text-[12.5px]">
+                <option value="todas">Todas as empresas (consolidado)</option>
+                {membros.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+          )}
           {grupo && <span className="text-[11.5px] text-ink-400">No grupo, cada empresa usa a própria escolha de acumuladores; para mudar, abra a empresa.</span>}
         </div>
         {aviso && <p className="text-[12px] text-warning-700">{aviso}</p>}
@@ -170,6 +186,54 @@ export default function EntradasSaidas() {
         <Card label={`Ticket médio por ${base === "item" ? "peça" : "nota"}`} value={r.ticket == null ? "—" : moneyFull(r.ticket)} hint="faturamento ÷ vendas consideradas" />
         <Card label="Entradas ÷ faturamento" value={r.faturamento ? `${((r.totais.E.v / r.faturamento) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "—"} hint="quanto do faturamento vira entrada" />
       </div>
+
+      {grupo && comparativo.length > 1 && (
+        <div className="rounded-xl bg-surface-card p-4 shadow-sm">
+          <h2 className="mb-3 text-[13px] font-semibold text-ink-900">Comparativo entre as empresas do grupo</h2>
+          <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] text-[13px]">
+                <thead>
+                  <tr className="border-b border-line text-left text-[11px] font-medium uppercase tracking-wide text-ink-400">
+                    <th className="py-2 pr-3">Empresa</th>
+                    <th className="py-2 pr-3 text-right">Faturamento</th>
+                    <th className="py-2 pr-3 text-right">Entradas</th>
+                    <th className="py-2 pr-3 text-right">Fat. − entradas</th>
+                    <th className="py-2 pr-3 text-right">Ticket médio</th>
+                    <th className="py-2 text-right">Entradas ÷ fat.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparativo.map(({ membro, r: re }) => (
+                    <tr key={membro.id} onClick={() => setFoco(membro.id)} className="cursor-pointer border-b border-line last:border-0 hover:bg-surface-muted/60" title="Ver só esta empresa">
+                      <td className="py-2 pr-3">{membro.name}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums">{moneyFull(re.faturamento)}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums">{moneyFull(re.totais.E.v)}</td>
+                      <td className={`py-2 pr-3 text-right tabular-nums ${re.saldo < 0 ? "text-danger-600" : ""}`}>{moneyFull(re.saldo)}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums">{re.ticket == null ? "—" : moneyFull(re.ticket)}</td>
+                      <td className="py-2 text-right tabular-nums">{re.faturamento ? `${((re.totais.E.v / re.faturamento) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="h-[240px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={comparativo.map(({ membro, r: re }) => ({ nome: String(membro.name).split(" ")[0], faturamento: re.faturamento, entradas: re.totais.E.v }))} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+                  <YAxis tickFormatter={compacto} tick={{ fontSize: 11 }} width={56} />
+                  <Tooltip formatter={(v, nome) => [moneyFull(v), nome]} />
+                  <Legend />
+                  <Bar dataKey="faturamento" name="Faturamento" fill="#16a34a" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="entradas" name="Entradas" fill="#dc2626" radius={[3, 3, 0, 0]} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <p className="mt-2 text-[11.5px] text-ink-400">Clique numa empresa para ver só ela. Cada empresa usa a própria escolha de acumuladores.</p>
+        </div>
+      )}
 
       <div className="rounded-xl bg-surface-card p-4 shadow-sm">
         <h2 className="mb-3 text-[13px] font-semibold text-ink-900">Mês a mês: o que sai × o que entra</h2>
@@ -190,8 +254,14 @@ export default function EntradasSaidas() {
         </div>
       </div>
 
+      {equipe && (
       <div className="rounded-xl bg-surface-card p-4 shadow-sm">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <button type="button" onClick={() => setVerAcumuladores((v) => !v)} className="flex w-full items-center gap-2 text-left text-[13px] font-semibold text-ink-900">
+          {verAcumuladores ? <ChevronDown size={16} /> : <ChevronRight size={16} />} Acumuladores: escolher o que entra na conta
+          <span className="ml-1 text-[11.5px] font-normal text-ink-400">(só a equipe vê esta parte)</span>
+        </button>
+        {verAcumuladores && (<>
+        <div className="mb-3 mt-3 flex flex-wrap items-center justify-between gap-2">
           <div className="inline-flex rounded-xl bg-surface-muted p-1 text-[12.5px]">
             {TIPOS.map((t) => (
               <button key={t.id} type="button" onClick={() => setAba(t.id)} className={`rounded-lg px-3 py-1.5 font-medium transition-colors ${aba === t.id ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-800"}`}>{t.nome}</button>
@@ -265,7 +335,9 @@ export default function EntradasSaidas() {
           </table>
         </div>
         <p className="mt-3 text-[11.5px] text-ink-400">Acumuladores de venda e de compra de mercadoria vêm marcados por sugestão; devolução, remessa, bonificação e demonstração vêm desmarcados. Ajuste ao seu critério: a escolha fica salva na empresa.</p>
+        </>)}
       </div>
+      )}
     </div>
   );
 }

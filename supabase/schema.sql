@@ -1074,7 +1074,7 @@ create table if not exists public.acesso_pessoas (
 alter table public.acesso_pessoas add column if not exists modulos text[] not null default '{}';
 alter table public.acesso_pessoas drop constraint if exists acesso_pessoas_modulos_validos;
 alter table public.acesso_pessoas add constraint acesso_pessoas_modulos_validos
-  check (modulos <@ array['orcamento', 'carga-tributaria', 'analise-desempenho']::text[]);
+  check (modulos <@ array['orcamento', 'carga-tributaria', 'analise-desempenho', 'entradas-saidas']::text[]);
 alter table public.acesso_pessoas enable row level security;
 
 -- Equipe (admin/colaborador) vê todas as fichas; a pessoa vê a própria.
