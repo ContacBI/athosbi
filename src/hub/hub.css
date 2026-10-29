@@ -28,6 +28,17 @@
   --hub-grade: rgba(12, 43, 74, 0.05);
   --hub-brilho-1: rgba(47, 111, 237, 0.1);
   --hub-brilho-2: rgba(232, 105, 31, 0.1);
+  /* Ilustrações (hub/ilustracoes.jsx): as cores da marca em tons que seguram
+     texto branco por cima e aparecem nos dois temas. */
+  --hub-ilu-marinho: #12355b;
+  --hub-ilu-azul: #2f6fed;
+  --hub-ilu-laranja: #c8530f;
+  --hub-ilu-laranja-claro: #f4a96f;
+  --hub-ilu-azul-claro: #a9c2f7;
+  --hub-ilu-verde: #12805e;
+  --hub-ilu-vermelho: #d8493a;
+  --hub-ilu-trilho: rgba(12, 43, 74, 0.07);
+  --hub-ilu-guia: rgba(12, 43, 74, 0.2);
   font-family: "Plus Jakarta Sans Variable", "Inter", "Segoe UI", system-ui, sans-serif;
   background: var(--hub-fundo);
   color: var(--hub-texto);
@@ -54,6 +65,14 @@
   --hub-grade: rgba(255, 255, 255, 0.035);
   --hub-brilho-1: rgba(47, 111, 237, 0.16);
   --hub-brilho-2: rgba(232, 105, 31, 0.13);
+  --hub-ilu-marinho: #3b5f92;
+  --hub-ilu-azul: #3a78f0;
+  --hub-ilu-laranja: #d45c17;
+  --hub-ilu-azul-claro: #86a6ea;
+  --hub-ilu-verde: #168a66;
+  --hub-ilu-vermelho: #e0584a;
+  --hub-ilu-trilho: rgba(255, 255, 255, 0.06);
+  --hub-ilu-guia: rgba(255, 255, 255, 0.22);
   color-scheme: dark;
 }
 
@@ -231,6 +250,22 @@
 }
 :root[data-theme="dark"] .hub-selo-vivo {
   color: #5fd4ad;
+}
+
+/* "Bons sinais" e "sinais de alerta" nos Conteúdos (HubConteudo.jsx): verde e âmbar, sempre com o título junto. */
+.hub-sinal-bom {
+  color: #0f6e56;
+  background: rgba(29, 158, 117, 0.12);
+}
+.hub-sinal-alerta {
+  color: #95600a;
+  background: rgba(217, 154, 43, 0.15);
+}
+:root[data-theme="dark"] .hub-sinal-bom {
+  color: #5fd4ad;
+}
+:root[data-theme="dark"] .hub-sinal-alerta {
+  color: #f0bf5e;
 }
 
 /* Item do menu do topo: pílula que acende no ativo. */

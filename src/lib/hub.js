@@ -67,15 +67,16 @@ export function querPortalAtual() {
 }
 
 // As áreas do hub, na ordem do menu. O B.I., a Reforma Tributária (só
-// informação) e as Ferramentas (os módulos que ficavam no menu lateral do
-// B.I. — pedido do Izaias, 29/10/2026); Serviços e Conteúdos ficam no menu,
-// ainda sem nada.
+// informação), os Conteúdos (guias dos demonstrativos e indicadores, em
+// lib/conteudos.js) e as Ferramentas (os módulos que ficavam no menu lateral
+// do B.I. — pedido do Izaias, 29/10/2026); Serviços fica no menu, ainda sem
+// nada.
 export const AREAS_DO_HUB = [
   { id: "inicio", nome: "Início", rota: "/hub", pronta: true },
   { id: "bi", nome: "Meu B.I.", rota: null, pronta: true, resumo: "Resultado, caixa, balanço e indicadores da empresa, fechados pelo escritório." },
   { id: "reforma", nome: "Reforma Tributária", rota: "/hub/reforma", pronta: true, resumo: "O que muda, quando muda e o que observar — sem juridiquês." },
   { id: "servicos", nome: "Serviços", rota: "/hub/servicos", pronta: false },
-  { id: "conteudos", nome: "Conteúdos", rota: "/hub/conteudos", pronta: false },
+  { id: "conteudos", nome: "Conteúdos", rota: "/hub/conteudos", pronta: true, resumo: "Guias da DRE, do balanço, do fluxo de caixa e dos indicadores, com exemplos desenhados." },
   { id: "ferramentas", nome: "Ferramentas", rota: "/hub/ferramentas", pronta: true, resumo: "Orçamento, carga tributária, desempenho e notas fiscais da empresa." },
 ];
 

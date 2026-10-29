@@ -4,8 +4,8 @@ import { AREAS_DO_HUB } from "../lib/hub.js";
 import Mosaico from "./Mosaico.jsx";
 import { Revelar } from "./efeitos.jsx";
 
-// Área que ainda não tem nada (Serviços, Conteúdos, Ferramentas): só o nome
-// e o caminho de volta, até a equipe alimentar.
+// Área que ainda não tem nada (hoje, Serviços): só o nome e o caminho de
+// volta, até a equipe alimentar.
 export default function HubEmBreve({ area: id }) {
   const navigate = useNavigate();
   const area = AREAS_DO_HUB.find((item) => item.id === id);
