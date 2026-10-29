@@ -11,7 +11,7 @@ import ConfirmAccess from "./pages/ConfirmAccess.jsx";
 import { supabase } from "./lib/supabaseClient.js";
 import { ligarRegistroDeUso, mudouDeTela } from "./lib/uso.js";
 import { EH_TESTE } from "./lib/ambiente.js";
-import { hubLigado, querPortalAtual } from "./lib/hub.js";
+import { aplicarTemaDoHub, hubLigado, querPortalAtual } from "./lib/hub.js";
 import Empresas from "./pages/Empresas.jsx";
 import CompanyHome from "./pages/CompanyHome.jsx";
 import { loadPlan } from "./lib/plan.js";
@@ -68,7 +68,7 @@ const ReformaHome = lazy(() => import("./pages/reforma/ReformaHome.jsx"));
 // Hub novo (src/hub, ver lib/hub.js): só no site de teste e só pro dono.
 const HubLayout = lazy(() => import("./hub/HubLayout.jsx"));
 const HubInicio = lazy(() => import("./hub/HubInicio.jsx"));
-const HubTributario = lazy(() => import("./hub/HubTributario.jsx"));
+const HubReforma = lazy(() => import("./hub/HubReforma.jsx"));
 const HubEmBreve = lazy(() => import("./hub/HubEmBreve.jsx"));
 const ReformaSimulacao = lazy(() => import("./pages/reforma/ReformaSimulacao.jsx"));
 const ReformaPainel = lazy(() => import("./pages/reforma/ReformaPainel.jsx"));
@@ -89,6 +89,18 @@ function RegistroDeUso() {
 
 function RouteFallback() {
   return <Carregando />;
+}
+
+// Visual novo (src/hub/bi.css) pra quem tem o hub ligado — liga/desliga a
+// cada login, e baixa as fontes dele só nesse caso.
+function TemaDoHub() {
+  const state = useAppState();
+  const ligado = hubLigado(state);
+  useEffect(() => {
+    aplicarTemaDoHub(ligado);
+    if (ligado) import("./hub/fontes.js");
+  }, [ligado]);
+  return null;
 }
 
 // Início: pra quem tem o hub ligado (lib/hub.js), o hub é a página inicial —
@@ -233,6 +245,7 @@ function AuthedApp() {
   return (
     <BrowserRouter>
       <RegistroDeUso />
+      <TemaDoHub />
       <SaveErrorBanner />
       <VisaoClienteBotao />
       <Suspense fallback={<RouteFallback />}>
@@ -240,7 +253,8 @@ function AuthedApp() {
         <Route index element={<InicioOuHub />} />
         <Route path="hub" element={<HubLayout />}>
           <Route index element={<HubInicio />} />
-          <Route path="tributario" element={<HubTributario />} />
+          <Route path="reforma" element={<HubReforma />} />
+          <Route path="tributario" element={<Navigate to="/hub/reforma" replace />} />
           <Route path="servicos" element={<HubEmBreve area="servicos" />} />
           <Route path="conteudos" element={<HubEmBreve area="conteudos" />} />
           <Route path="ferramentas" element={<HubEmBreve area="ferramentas" />} />

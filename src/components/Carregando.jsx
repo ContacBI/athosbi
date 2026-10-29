@@ -49,7 +49,7 @@ export default function Carregando({ texto = "Carregando…", tela = false, escu
       </div>
     );
   }
-  const fundo = escuro ? "bg-[#081d33] text-white/70" : tela ? "bg-surface-page text-ink-500" : "text-ink-500";
+  const fundo = escuro ? "bg-[#081d33] text-white/70" : tela ? "bi-pagina bg-surface-page text-ink-500" : "text-ink-500";
   return (
     <div role="status" aria-live="polite" className={`flex ${tela || escuro ? "h-screen" : "h-[60vh]"} flex-col items-center justify-center gap-5 px-6 ${fundo} ${className}`}>
       <MarcaAnimada size={tela || escuro ? 64 : 48} />

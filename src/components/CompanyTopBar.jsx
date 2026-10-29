@@ -20,6 +20,8 @@ import { VisaoClienteOlho } from "./VisaoClienteBotao.jsx";
 import { kAba, oculto } from "../lib/visibilidade.js";
 import { limiteDoCliente, ultimoDiaDoMes } from "../lib/fechamento.js";
 import ThemeToggle from "./ThemeToggle.jsx";
+import AthosMark from "./AthosMark.jsx";
+import { hubLigado } from "../lib/hub.js";
 
 // Chama a função pura certa (buildFullDfcExport/buildFullReportExport) pra
 // reconstruir "o mesmo tipo de relatório que está na tela" a partir do
@@ -493,7 +495,7 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
   const hasData = appState.accounts.length > 0 || appState.journal.length > 0;
 
   return (
-    <header className="sticky top-0 z-30 bg-navy-950">
+    <header className="bi-topo sticky top-0 z-30 bg-navy-950">
       {appState.journalLoadFailed && (
         <div className="flex items-center gap-2 bg-warning-500 px-5 py-1.5 text-[12px] font-medium text-warning-950">
           <TriangleAlert size={14} strokeWidth={2} className="shrink-0" />
@@ -518,15 +520,21 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
               <PanelLeft size={15} strokeWidth={1.8} />
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent-500 text-[11px] font-semibold text-white transition-transform hover:scale-105"
-            aria-label="Início"
-            title="Início"
-          >
-            A
-          </button>
+          {hubLigado(appState) ? (
+            <button type="button" onClick={() => navigate("/")} className="flex shrink-0 items-center transition-transform hover:scale-105" aria-label="Início" title="Início">
+              <AthosMark size={26} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent-500 text-[11px] font-semibold text-white transition-transform hover:scale-105"
+              aria-label="Início"
+              title="Início"
+            >
+              A
+            </button>
+          )}
 
           {(company || group) && (
             <>
@@ -598,13 +606,13 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
       </div>
 
       {showNav && (
-        <nav className="flex items-center gap-4 overflow-x-auto border-b border-line bg-surface-card px-5 py-1">
+        <nav className="bi-abas flex items-center gap-4 overflow-x-auto border-b border-line bg-surface-card px-5 py-1">
           {tabs.map((tab) => (
             <NavLink
               key={tab.id}
               to={`/empresa/painel/${tab.id}`}
               className={({ isActive }) =>
-                `shrink-0 border-b-2 py-3 text-[13px] transition-colors ${
+                `bi-aba shrink-0 border-b-2 py-3 text-[13px] transition-colors ${
                   isActive
                     ? "border-accent-500 font-medium text-ink-900"
                     : "border-transparent text-ink-500 hover:text-ink-800"
@@ -618,7 +626,7 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
       )}
 
       {isDataArea && (
-        <nav className="flex items-center gap-4 overflow-x-auto border-b border-line bg-surface-card px-5 py-1">
+        <nav className="bi-abas flex items-center gap-4 overflow-x-auto border-b border-line bg-surface-card px-5 py-1">
           <button
             type="button"
             onClick={() => navigate("/empresa")}
@@ -638,7 +646,7 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `shrink-0 border-b-2 py-3 text-[13px] transition-colors ${
+                `bi-aba shrink-0 border-b-2 py-3 text-[13px] transition-colors ${
                   isActive
                     ? "border-accent-500 font-medium text-ink-900"
                     : "border-transparent text-ink-500 hover:text-ink-800"

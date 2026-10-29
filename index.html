@@ -32,6 +32,8 @@
         try {
           var theme = localStorage.getItem("athosbi.theme") || "light";
           document.documentElement.dataset.theme = theme;
+          // Visual novo (hub) — ver lib/hub.js aplicarTemaDoHub.
+          if (localStorage.getItem("athosbi.hub") === "1") document.documentElement.dataset.hub = "1";
         } catch (e) {}
       })();
     </script>
@@ -42,6 +44,8 @@
     <style>
       .splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; background: #f4f6f9; color: #5b6670; font: 13px/1.4 system-ui, sans-serif; letter-spacing: 0.02em; }
       :root[data-theme="dark"] .splash { background: #16181c; color: #9aa0a8; }
+      :root[data-hub] .splash { background: #f5f7fb; color: #63738a; }
+      :root[data-hub][data-theme="dark"] .splash { background: #080c14; color: #949fae; }
       .splash rect { transform-box: fill-box; transform-origin: center; animation: splash-degrau 1.8s cubic-bezier(0.3, 0.7, 0.2, 1) infinite both; }
       .splash .trilho { width: 160px; height: 4px; border-radius: 4px; overflow: hidden; background: rgb(127 127 127 / 0.15); }
       .splash .barra { width: 40%; height: 100%; border-radius: 4px; background: #e8691f; animation: splash-barra 1.3s cubic-bezier(0.45, 0, 0.25, 1) infinite; }

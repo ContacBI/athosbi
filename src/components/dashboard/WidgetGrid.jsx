@@ -1308,7 +1308,7 @@ export default function WidgetGrid({ widgets, ctx, spacing = DEFAULT_SPACING, co
           const definition = catalogById.get(entry.id);
           if (!definition) return null;
           return (
-            <div key={entry.id} className="overflow-hidden rounded-xl bg-surface-card p-4 shadow-sm transition-shadow hover:shadow-md">
+            <div key={entry.id} className="bi-cartao overflow-hidden rounded-xl bg-surface-card p-4 shadow-sm transition-shadow hover:shadow-md">
               <WidgetBody definition={definition} ctx={ctx} onOpenDetail={handleOpenDetail} onNavigate={navigate} />
             </div>
           );
@@ -1423,7 +1423,7 @@ function KpiInline({ definition, ctx }) {
   return (
     <>
       <div className="flex items-center justify-between">
-        <p className="flex min-w-0 items-center gap-1.5 text-[12px] text-ink-400">
+        <p className="bi-kpi-rotulo flex min-w-0 items-center gap-1.5 text-[12px] text-ink-400">
           <span className="truncate">{definition.label}</span>
           {comments.length > 0 && (
             <span className="kpi-comentarios flex shrink-0 items-center gap-0.5 rounded bg-accent-50 px-1 py-px text-[10px] font-semibold text-accent-700" title={comments.map((comment) => `${monthNamePt(comment.month)}: ${comment.text}`).join("\n")}>
@@ -1433,12 +1433,12 @@ function KpiInline({ definition, ctx }) {
           )}
         </p>
         {Icon && (
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-50 text-accent-600">
+          <span className="bi-kpi-icone flex h-7 w-7 items-center justify-center rounded-lg bg-accent-50 text-accent-600">
             <Icon size={14} strokeWidth={1.8} />
           </span>
         )}
       </div>
-      <p className={`mt-1.5 text-[22px] font-medium ${goal ? (goal.ok ? "text-success-600" : "text-danger-600") : tone}`}>{formatWidgetValue(value, format)}</p>
+      <p data-comprimento={formatWidgetValue(value, format).length > 11 ? "longo" : "curto"} className={`bi-kpi-valor mt-1.5 text-[22px] font-medium ${goal ? (goal.ok ? "text-success-600" : "text-danger-600") : tone}`}>{formatWidgetValue(value, format)}</p>
       {goal && (
         <p className={`kpi-meta mt-0.5 flex items-center gap-1 text-[10.5px] font-semibold ${goal.ok ? "text-success-600" : "text-danger-600"}`}>
           {goal.ok ? <CheckCircle2 size={11} /> : <TriangleAlert size={11} />}

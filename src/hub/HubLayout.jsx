@@ -1,7 +1,7 @@
 import "@fontsource-variable/plus-jakarta-sans/wght.css";
 import "@fontsource-variable/fraunces/wght-italic.css";
 import "./hub.css";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { ArrowUpRight, Building2, ChevronDown, CornerDownLeft, LayoutGrid, LogOut, Menu, Moon, Network, Search, Settings, Sun, X } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
@@ -13,6 +13,7 @@ import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
 import AthosMark from "../components/AthosMark.jsx";
 import Avatar from "../components/Avatar.jsx";
 import WorkspaceLoading from "../components/WorkspaceLoading.jsx";
+import Carregando from "../components/Carregando.jsx";
 
 const norm = (valor) => String(valor || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -157,7 +158,7 @@ function BuscaRapida({ aberta, onFechar, itensDoHub, state, onAbrir }) {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[14px] font-semibold text-[var(--hub-texto)]">{item.nome}</span>
-                <span className="block truncate text-[12px] text-[var(--hub-texto-3)]">{item.tipo === "area" ? item.resumo || "Página inicial do hub" : item.detalhe}</span>
+                <span className="block truncate text-[12px] text-[var(--hub-texto-3)]">{item.tipo === "area" ? item.resumo || (item.id === "inicio" ? "Página inicial do hub" : "Área do hub") : item.detalhe}</span>
               </span>
               {i === indice && <CornerDownLeft size={15} className="shrink-0 text-[var(--hub-texto-3)]" />}
             </button>
@@ -187,7 +188,6 @@ function Rodape({ irPara }) {
               <li key={area.id}>
                 <button type="button" onClick={() => irPara(area)} className="text-[var(--hub-texto-2)] transition-colors hover:text-[var(--hub-acento)]">
                   {area.nome}
-                  {!area.pronta && <span className="ml-2 text-[11px] text-[var(--hub-texto-3)]">em breve</span>}
                 </button>
               </li>
             ))}
@@ -333,7 +333,6 @@ export default function HubLayout() {
                 className={`flex items-center justify-between rounded-2xl px-4 py-3.5 text-left text-[16px] font-semibold ${ativo(area) ? "bg-[var(--hub-acento-suave)] text-[var(--hub-texto)]" : "text-[var(--hub-texto-2)]"}`}
               >
                 {area.nome}
-                {!area.pronta && <span className="text-[11px] font-medium text-[var(--hub-texto-3)]">em breve</span>}
               </button>
             ))}
             <div className="mt-auto space-y-1 border-t border-[var(--hub-borda)] pt-4">
@@ -353,7 +352,9 @@ export default function HubLayout() {
       )}
 
       <main className="relative">
-        <Outlet context={{ abrir, irPara, abrirBusca: () => setBusca(true) }} />
+        <Suspense fallback={<Carregando />}>
+          <Outlet context={{ abrir, irPara, abrirBusca: () => setBusca(true) }} />
+        </Suspense>
       </main>
       <Rodape irPara={irPara} />
 
