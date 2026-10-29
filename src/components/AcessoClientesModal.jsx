@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Eye, EyeOff, Trash2, UserPlus, Users, X } from "lucide-react";
 import { grantAccess, inviteUser, listAccessGrants, listAccessPeople, revokeAccess } from "../lib/access.js";
 import { saveVisibilidadeEmpresa } from "../lib/companies.js";
@@ -36,6 +36,9 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
   });
   const configurado = Array.isArray(item.visibilidade?.modulos);
   const [modulos, setModulos] = useState(() => new Set(item.visibilidade?.modulos || []));
+  // Como tudo abriu — pra só gravar o que a pessoa mexeu de verdade (ver salvar).
+  const visiveisIniciais = useRef(visiveis);
+  const modulosIniciais = useRef(modulos);
   const [grants, setGrants] = useState(null);
   const [fichas, setFichas] = useState(new Map());
   const [erro, setErro] = useState("");
@@ -56,6 +59,7 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
         if (!configurado) {
           const uniao = new Set();
           g.filter((x) => x.scope_type === scopeType && x.scope_id === item.id).forEach((x) => (f.get(x.email)?.modulos || []).forEach((id) => uniao.add(id)));
+          modulosIniciais.current = uniao;
           setModulos(uniao);
         }
       })
@@ -111,8 +115,24 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
     }
   }
 
+  // Grava só o que mudou: um grupo/empresa ainda sem configuração continua
+  // assim (o cliente vê tudo; os módulos seguem a ficha de cada pessoa) se
+  // ninguém mexeu naquela parte — antes, "Salvar alterações" depois de só
+  // dar acesso a alguém gravava tudo desmarcado e o cliente perdia o B.I.
   function salvar() {
-    const visibilidade = { modo: "marcados", visiveis: [...visiveis], modulos: [...modulos] };
+    const mudou = (inicial, atual) => inicial.size !== atual.size || [...atual].some((chave) => !inicial.has(chave));
+    const mexeuNoBi = mudou(visiveisIniciais.current, visiveis);
+    const mexeuNosModulos = mudou(modulosIniciais.current, modulos);
+    const visibilidade = { ...(configAnterior || {}) };
+    if (!naoConfigurado || mexeuNoBi) {
+      Object.assign(visibilidade, { modo: "marcados", visiveis: [...visiveis] });
+      delete visibilidade.ocultos;
+    }
+    if (configurado || mexeuNosModulos) visibilidade.modulos = [...modulos];
+    if (naoConfigurado && !mexeuNoBi && !configurado && !mexeuNosModulos) {
+      onClose();
+      return;
+    }
     if (ehGrupo) saveVisibilidadeGrupo(item.id, visibilidade);
     else saveVisibilidadeEmpresa(item.id, visibilidade);
     onClose();
@@ -128,7 +148,7 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
           <div className="min-w-0">
             <span className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Acesso dos clientes</span>
             <h2 className="mt-1 truncate text-[18px] font-semibold text-ink-900">{item.name}</h2>
-            <p className="mt-0.5 text-[12px] text-ink-400">Vale para todas as pessoas {ehGrupo ? "que abrem este grupo" : "desta empresa"}. Tudo começa visível; desmarque o que o cliente não deve ver.</p>
+            <p className="mt-0.5 text-[12px] text-ink-400">Vale para todas as pessoas {ehGrupo ? "que abrem este grupo" : "desta empresa"}. {naoConfigurado ? "Ainda sem configuração: hoje o cliente vê tudo — só muda o que você marcar e salvar." : "Marque o que o cliente vê; o que ficar desmarcado fica oculto."}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Fechar" className="rounded-md p-1 text-ink-400 hover:bg-surface-muted hover:text-ink-900"><X size={18} /></button>
         </div>
