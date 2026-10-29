@@ -72,6 +72,8 @@ const HubInicio = lazy(() => import("./hub/HubInicio.jsx"));
 const HubReforma = lazy(() => import("./hub/HubReforma.jsx"));
 const HubEmBreve = lazy(() => import("./hub/HubEmBreve.jsx"));
 const HubFerramentas = lazy(() => import("./hub/HubFerramentas.jsx"));
+const HubConteudos = lazy(() => import("./hub/HubConteudos.jsx"));
+const HubConteudo = lazy(() => import("./hub/HubConteudo.jsx"));
 // Console da equipe (src/equipe, ver lib/modoEquipe.js): também só no teste e
 // só pra quem tem o hub.
 const ConsoleLayout = lazy(() => import("./equipe/ConsoleLayout.jsx"));
@@ -221,7 +223,8 @@ function AuthedApp() {
     bootedForUserRef.current = session.user.id;
     Promise.all([
       loadPlan(),
-      loadCompanies(),
+      // No console da equipe não reabre a última empresa/grupo (nem baixa o razão dela) — ver loadCompanies.
+      loadCompanies({ semAbrir: window.location.pathname.startsWith("/equipe") }),
       loadRepresentantes(),
       loadIndicatorOverrides(),
       isPortalAdmin(),
@@ -345,7 +348,8 @@ function AuthedApp() {
             <Route path="reforma" element={<HubReforma />} />
             <Route path="tributario" element={<Navigate to="/hub/reforma" replace />} />
             <Route path="servicos" element={<HubEmBreve area="servicos" />} />
-            <Route path="conteudos" element={<HubEmBreve area="conteudos" />} />
+            <Route path="conteudos" element={<HubConteudos />} />
+            <Route path="conteudos/:slug" element={<HubConteudo />} />
             <Route path="ferramentas" element={<HubFerramentas />} />
           </Route>
           <Route path="empresa" element={<CompanyLayout />}>

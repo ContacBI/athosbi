@@ -151,12 +151,26 @@ export function journalStatsFromEntries(entries, mappings, { dismissed = [] } = 
   };
 }
 
+// Os resumos guardados neste navegador (id da empresa → resumo), lidos de
+// uma vez — quem percorre a carteira toda passa isso adiante em vez de reler
+// e reinterpretar o localStorage inteiro a cada empresa.
+export function resumosGuardados() {
+  return readStatsCache();
+}
+
+// Só o que está guardado (sem recalcular nada do razão em memória): vale
+// enquanto a quantidade de lançamentos for a mesma do registro.
+export function resumoGuardado(company, guardados = readStatsCache()) {
+  const cached = guardados[company.id];
+  return cached && company.journalCount != null && cached.count === company.journalCount ? cached : null;
+}
+
 // O resumo que já existe: do cache (se a contagem bate) ou da empresa que
 // já está com o razão na memória (a que está aberta).
-export function cachedJournalStats(company) {
+export function cachedJournalStats(company, guardados) {
   const loaded = state.companies.find((item) => item.id === company.id);
   if (loaded?.journalLoaded && (loaded.journal || []).length) return journalStatsFromEntries(loaded.journal, loaded.mappings, { dismissed: loaded.anomaliasOk });
-  const cached = readStatsCache()[company.id];
+  const cached = (guardados || readStatsCache())[company.id];
   if (cached && company.journalCount != null && cached.count === company.journalCount) return cached;
   return null;
 }
