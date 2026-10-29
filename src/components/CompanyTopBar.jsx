@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Check, ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, Layers, LayoutGrid, Network, PanelLeft, Presentation, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, LayoutGrid, Network, PanelLeft, Presentation, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
 import { useAppState, setData, state } from "../data/useStore.js";
 import { missingMappingAccounts } from "../data/calculations.js";
 import { groupCompanies, activeWorkspaceName } from "../lib/groups.js";
@@ -20,14 +20,12 @@ import { ModoDaTela, VisaoClienteOlho } from "./VisaoClienteBotao.jsx";
 import { kAba, oculto } from "../lib/visibilidade.js";
 import { limiteDoCliente, ultimoDiaDoMes } from "../lib/fechamento.js";
 import ThemeToggle from "./ThemeToggle.jsx";
-import { hubLigado } from "../lib/hub.js";
-import { realStaff, usaModos } from "../lib/modoEquipe.js";
+import { biDentroDoHub, hubLigado } from "../lib/hub.js";
+import { usaModos } from "../lib/modoEquipe.js";
 import { MODULOS_COMPLEMENTARES, modulosLiberados } from "../lib/modulos.js";
-import MenuDoHub from "./MenuDoHub.jsx";
-import { grupoDoContexto, grupoLembrado, lembrarGrupoContexto, unidadesDaCarteira } from "../lib/unidades.js";
-import { recentes } from "../lib/recentes.js";
+import { lembrarGrupoContexto } from "../lib/unidades.js";
 import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
-import Avatar from "./Avatar.jsx";
+import AthosMark from "./AthosMark.jsx";
 import SeletorDeEmpresa from "./SeletorDeEmpresa.jsx";
 import WorkspaceLoading from "./WorkspaceLoading.jsx";
 import { createPortal } from "react-dom";
@@ -472,71 +470,26 @@ function PendingMappingsBanner({ company }) {
   );
 }
 
-// Dentro de um grupo (ou numa empresa que é de um grupo): trocar entre o
-// consolidado e cada empresa sem sair do B.I. (pedido do Izaias, 29/10/2026:
-// "selecionamos o grupo, e já temos acesso às empresas do grupo + o grupo").
-// Só com o hub ligado. Demonstrativos e DFC existem nos dois — a troca fica
-// na mesma tela; o resto volta pro painel (as abas do grupo são outras).
-const TELAS_EM_COMUM = ["/empresa/demonstrativos", "/empresa/dfc"];
-
-function VisaoDoGrupo({ onAbrirGrupo, onAbrirEmpresa }) {
-  const appState = useAppState();
-  const location = useLocation();
-  const [aberto, setAberto] = useState(false);
-  const staff = Boolean(appState.isAdmin || appState.isColaborador || realStaff(appState));
-  const visiveis = useMemo(() => unidadesDaCarteira(appState.companies, appState.groups, { soCompletos: !staff }).grupos.map((unidade) => unidade.grupo), [appState.companies, appState.groups, staff]);
-  const grupo = grupoDoContexto(appState, { lembrado: grupoLembrado(), recentes: recentes(), visiveis });
-  if (!grupo) return null;
-  const membros = groupCompanies(grupo);
-  if (!membros.length) return null;
-  const noConsolidado = appState.activeGroupId === grupo.id;
-  const destino = TELAS_EM_COMUM.find((tela) => location.pathname.startsWith(tela)) || "/empresa";
-  const escolher = (item) => {
-    setAberto(false);
-    lembrarGrupoContexto(grupo.id);
-    if (item === "consolidado") {
-      if (!noConsolidado) onAbrirGrupo(grupo.id, destino);
-    } else if (item.id !== appState.activeCompanyId || noConsolidado) onAbrirEmpresa(item.id, destino);
-  };
+// Com o B.I. dentro do hub: a setinha ao lado da marca mostra/esconde o
+// menu do topo do hub (o mesmo das páginas do hub — pedido do Izaias,
+// 29/10/2026), e é lá que se troca de empresa ou grupo.
+function SetinhaDoHub() {
+  const aberto = useAppState().topoDoHubAberto;
   return (
-    <div className="relative shrink-0">
-      <button
-        type="button"
-        onClick={() => setAberto((v) => !v)}
-        title={`Grupo ${grupo.name}: consolidado ou cada empresa`}
-        className="flex h-8 max-w-[180px] items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-2.5 text-[12px] font-medium text-white/85 transition-colors hover:border-white/25 hover:bg-white/10 hover:text-white"
-      >
-        <Layers size={13} strokeWidth={1.8} className="shrink-0 text-accent-300" />
-        <span className="truncate">{noConsolidado ? "Consolidado" : grupo.name}</span>
-        <ChevronDown size={12} className={`shrink-0 text-white/50 transition-transform ${aberto ? "rotate-180" : ""}`} />
-      </button>
-      {aberto && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setAberto(false)} />
-          <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-72 rounded-xl bg-surface-card p-1.5 text-ink-900 shadow-lg ring-1 ring-line" role="menu" aria-label="Ver o grupo">
-            <p className="truncate px-2.5 pb-1.5 pt-1 text-[11px] font-bold uppercase tracking-[0.1em] text-ink-400">{/^grupo\b/i.test(grupo.name) ? grupo.name : `Grupo ${grupo.name}`}</p>
-            <button type="button" role="menuitem" onClick={() => escolher("consolidado")} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-surface-muted">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent-500 text-white">
-                <Network size={14} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-semibold">Consolidado</span>
-                <span className="block text-[11px] text-ink-400">As {membros.length} empresas somadas</span>
-              </span>
-              {noConsolidado && <Check size={15} className="shrink-0 text-accent-500" />}
-            </button>
-            <div className="my-1 h-px bg-line" />
-            {membros.map((company) => (
-              <button key={company.id} type="button" role="menuitem" onClick={() => escolher(company)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left hover:bg-surface-muted">
-                <Avatar name={company.name} size={28} className="rounded-lg" />
-                <span className="min-w-0 flex-1 truncate text-[13px]">{company.name}</span>
-                {!noConsolidado && company.id === appState.activeCompanyId && <Check size={15} className="shrink-0 text-accent-500" />}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+    <button
+      type="button"
+      onClick={() => {
+        if (!aberto) window.scrollTo({ top: 0, behavior: "smooth" });
+        setData({ topoDoHubAberto: !aberto });
+      }}
+      aria-label="Menu do hub"
+      aria-expanded={aberto}
+      title={aberto ? "Esconder o menu do hub" : "Mostrar o menu do hub (Início, Reforma, Ferramentas, trocar de empresa)"}
+      className={`flex shrink-0 items-center gap-1 rounded-lg py-1 pl-1 pr-1.5 transition-colors hover:bg-white/10 ${aberto ? "bg-white/10" : ""}`}
+    >
+      <AthosMark size={26} />
+      <ChevronDown size={14} className={`text-white/55 transition-transform duration-300 ${aberto ? "rotate-180" : ""}`} />
+    </button>
   );
 }
 
@@ -545,6 +498,8 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
   const navigate = useNavigate();
   // Com o hub ligado, trocar de empresa é numa janela flutuante, sem sair do B.I.
   const comHub = hubLigado(appState);
+  // O B.I. dentro do hub (lib/hub.js): o topo do hub tem o menu e a troca de empresa; aqui fica só o nome.
+  const dentroDoHub = biDentroDoHub(appState);
   const [seletor, setSeletor] = useState(false);
   const { pending: abrindo, abrirEmpresa, abrirGrupo, cancelar: cancelarAbertura } = useAbrirWorkspace();
   const location = useLocation();
@@ -601,8 +556,12 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
               <PanelLeft size={15} strokeWidth={1.8} />
             </button>
           )}
-          {comHub ? (
-            <MenuDoHub />
+          {dentroDoHub ? (
+            <SetinhaDoHub />
+          ) : comHub ? (
+            <button type="button" onClick={() => navigate("/")} className="flex shrink-0 items-center transition-transform hover:scale-105" aria-label="Início" title="Início">
+              <AthosMark size={26} />
+            </button>
           ) : (
             <button
               type="button"
@@ -618,35 +577,56 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
           {(company || group) && (
             <>
               <span className="h-5 w-px shrink-0 bg-white/15" aria-hidden="true" />
-              <button
-                type="button"
-                onClick={() => (comHub ? setSeletor(true) : navigate("/empresas"))}
-                aria-label="Trocar empresa"
-                title={comHub ? "Trocar de empresa ou grupo" : "Trocar empresa"}
-                className={`group flex min-w-0 items-center gap-2.5 rounded-lg py-1 pl-1 pr-2 transition-colors hover:bg-white/10 ${comHub ? "border border-white/15 bg-white/5 pl-1.5 hover:border-white/30" : "-ml-1"}`}
-              >
-                {group && (
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-500 text-white">
-                    <Network size={13} strokeWidth={2} />
-                  </span>
-                )}
-                <div className="min-w-0 text-left">
-                  <p className="flex items-baseline gap-1.5 truncate text-[14px] font-medium leading-tight text-white">
-                    {company?.codigo && <span className="text-white/50">{company.codigo}</span>}
-                    <span className="truncate">{company ? company.name : group.name}</span>
-                  </p>
-                  {company?.cnpj && <p className="truncate text-[11px] leading-tight text-white/50">{company.cnpj}</p>}
+              {dentroDoHub ? (
+                <div className="flex min-w-0 items-center gap-2.5 py-1" data-nome-do-bi="">
                   {group && (
-                    <p className="truncate text-[11px] leading-tight text-white/50">
-                      Grupo · {groupMembers.map((item) => item.name).join(" + ")}
-                    </p>
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-500 text-white">
+                      <Network size={13} strokeWidth={2} />
+                    </span>
                   )}
+                  <div className="min-w-0 text-left">
+                    <p className="flex items-baseline gap-1.5 truncate text-[14px] font-medium leading-tight text-white">
+                      {company?.codigo && <span className="text-white/50">{company.codigo}</span>}
+                      <span className="truncate">{company ? company.name : group.name}</span>
+                    </p>
+                    {company?.cnpj && <p className="truncate text-[11px] leading-tight text-white/50">{company.cnpj}</p>}
+                    {group && (
+                      <p className="truncate text-[11px] leading-tight text-white/50">
+                        Grupo · {groupMembers.map((item) => item.name).join(" + ")}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <ChevronDown size={13} className="shrink-0 text-white/40 transition-colors group-hover:text-white/70" />
-              </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => (comHub ? setSeletor(true) : navigate("/empresas"))}
+                  aria-label="Trocar empresa"
+                  title="Trocar empresa"
+                  className="group -ml-1 flex min-w-0 items-center gap-2.5 rounded-lg py-1 pl-1 pr-2 transition-colors hover:bg-white/10"
+                >
+                  {group && (
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-500 text-white">
+                      <Network size={13} strokeWidth={2} />
+                    </span>
+                  )}
+                  <div className="min-w-0 text-left">
+                    <p className="flex items-baseline gap-1.5 truncate text-[14px] font-medium leading-tight text-white">
+                      {company?.codigo && <span className="text-white/50">{company.codigo}</span>}
+                      <span className="truncate">{company ? company.name : group.name}</span>
+                    </p>
+                    {company?.cnpj && <p className="truncate text-[11px] leading-tight text-white/50">{company.cnpj}</p>}
+                    {group && (
+                      <p className="truncate text-[11px] leading-tight text-white/50">
+                        Grupo · {groupMembers.map((item) => item.name).join(" + ")}
+                      </p>
+                    )}
+                  </div>
+                  <ChevronDown size={13} className="shrink-0 text-white/40 transition-colors group-hover:text-white/70" />
+                </button>
+              )}
             </>
           )}
-          {comHub && <VisaoDoGrupo onAbrirGrupo={abrirGrupo} onAbrirEmpresa={abrirEmpresa} />}
           {/* longe da lua (antes ficava colado nela e se clicava errado) */}
           {usaModos(appState) ? <ModoDaTela className="shrink-0" /> : <VisaoClienteOlho className="shrink-0" />}
         </div>
@@ -706,7 +686,7 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
       )}
 
       {/* Com o hub não há mais menu lateral: dentro de uma ferramenta, a faixa leva de volta ao B.I. e às outras ferramentas. */}
-      {isModulo && comHub && (
+      {isModulo && dentroDoHub && (
         <nav className="bi-abas flex items-center gap-4 overflow-x-auto border-b border-line bg-surface-card px-5 py-1" aria-label="Ferramentas">
           <button type="button" onClick={() => navigate("/empresa")} className="flex shrink-0 items-center gap-1 py-3 text-[13px] text-ink-500 hover:text-ink-800">
             <ChevronLeft size={14} />
@@ -758,7 +738,7 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
           ))}
         </nav>
       )}
-      {comHub && (
+      {comHub && !dentroDoHub && (
         <SeletorDeEmpresa
           aberto={seletor}
           onFechar={() => setSeletor(false)}

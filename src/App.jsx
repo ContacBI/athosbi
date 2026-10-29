@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import CompanyLayout from "./components/CompanyLayout.jsx";
 import SaveErrorBanner from "./components/SaveErrorBanner.jsx";
 import VisaoClienteBotao from "./components/VisaoClienteBotao.jsx";
@@ -11,7 +11,7 @@ import ConfirmAccess from "./pages/ConfirmAccess.jsx";
 import { supabase } from "./lib/supabaseClient.js";
 import { ligarRegistroDeUso, mudouDeTela } from "./lib/uso.js";
 import { EH_TESTE } from "./lib/ambiente.js";
-import { aplicarTemaDoHub, hubLigado, querPortalAtual } from "./lib/hub.js";
+import { aplicarTemaDoHub, biDentroDoHub, hubLigado, querPortalAtual } from "./lib/hub.js";
 import { entrarNoModo, modoDaRota, modoGuardado, usaModos } from "./lib/modoEquipe.js";
 import Empresas from "./pages/Empresas.jsx";
 import CompanyHome from "./pages/CompanyHome.jsx";
@@ -117,6 +117,18 @@ function InicioOuHub() {
   const state = useAppState();
   if (hubLigado(state) && !querPortalAtual()) return <Navigate to="/hub" replace />;
   return <Landing />;
+}
+
+// Casca do hub (hub/HubLayout.jsx) em volta das páginas do hub e do B.I.:
+// pra quem tem o hub, o B.I. abre dentro dele. Pros outros (e pra quem pediu
+// o portal atual) o B.I. é o de sempre, e /hub volta pro início.
+function CascaDoHub() {
+  const state = useAppState();
+  const { pathname } = useLocation();
+  if (biDentroDoHub(state)) return <HubLayout />;
+  if (pathname.startsWith("/hub") && !hubLigado(state)) return <Navigate to="/" replace />;
+  if (pathname.startsWith("/hub")) return <HubLayout />;
+  return <Outlet />;
 }
 
 // Equipe com o hub: as telas de cadastro moram no console agora — o
@@ -308,14 +320,6 @@ function AuthedApp() {
       <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route index element={<InicioOuHub />} />
-        <Route path="hub" element={<HubLayout />}>
-          <Route index element={<HubInicio />} />
-          <Route path="reforma" element={<HubReforma />} />
-          <Route path="tributario" element={<Navigate to="/hub/reforma" replace />} />
-          <Route path="servicos" element={<HubEmBreve area="servicos" />} />
-          <Route path="conteudos" element={<HubEmBreve area="conteudos" />} />
-          <Route path="ferramentas" element={<HubFerramentas />} />
-        </Route>
         <Route path="definir-senha" element={<SetPassword />} />
         <Route path="empresas" element={<EmpresasOuConsole />} />
         <Route path="carteira" element={<CarteiraOuConsole />} />
@@ -334,23 +338,34 @@ function AuthedApp() {
         <Route path="reforma/painel" element={<ReformaPainel />} />
         <Route path="reforma/empresa/:id" element={<ReformaEmpresa />} />
         <Route path="reforma/simulacao/:id" element={<ReformaSimulacao />} />
-        <Route path="empresa" element={<CompanyLayout />}>
-          <Route index element={<CompanyHome />} />
-          <Route path="painel/:tabId" element={<PainelTab />} />
-          <Route path="celular" element={<Celular />} />
-          <Route path="personalizar" element={<PersonalizarHub />} />
-          <Route path="demonstrativos" element={<Demonstrativos />} />
-          <Route path="dfc" element={<Dfc />} />
-          <Route path="de-para" element={<Depara />} />
-          <Route path="conferencia" element={<Conferencia />} />
-          <Route path="vinculo-dfc" element={<VinculoDfc />} />
-          <Route path="relatorios" element={<RelatoriosMensais />} />
-          <Route path="apresentacoes" element={<Apresentacoes />} />
-          <Route path="orcamento" element={<Orcamento />} />
-          <Route path="carga-tributaria" element={<CargaTributaria />} />
-          <Route path="analise-desempenho" element={<AnaliseDesempenho />} />
-          <Route path="entradas-saidas" element={<EntradasSaidas />} />
-          <Route path="apresentacoes/:deckId" element={<Apresentacoes />} />
+        {/* O hub e o B.I. na mesma casca pra quem tem o hub (o B.I. abre dentro do hub); pros outros, só o B.I. de sempre. */}
+        <Route element={<CascaDoHub />}>
+          <Route path="hub">
+            <Route index element={<HubInicio />} />
+            <Route path="reforma" element={<HubReforma />} />
+            <Route path="tributario" element={<Navigate to="/hub/reforma" replace />} />
+            <Route path="servicos" element={<HubEmBreve area="servicos" />} />
+            <Route path="conteudos" element={<HubEmBreve area="conteudos" />} />
+            <Route path="ferramentas" element={<HubFerramentas />} />
+          </Route>
+          <Route path="empresa" element={<CompanyLayout />}>
+            <Route index element={<CompanyHome />} />
+            <Route path="painel/:tabId" element={<PainelTab />} />
+            <Route path="celular" element={<Celular />} />
+            <Route path="personalizar" element={<PersonalizarHub />} />
+            <Route path="demonstrativos" element={<Demonstrativos />} />
+            <Route path="dfc" element={<Dfc />} />
+            <Route path="de-para" element={<Depara />} />
+            <Route path="conferencia" element={<Conferencia />} />
+            <Route path="vinculo-dfc" element={<VinculoDfc />} />
+            <Route path="relatorios" element={<RelatoriosMensais />} />
+            <Route path="apresentacoes" element={<Apresentacoes />} />
+            <Route path="orcamento" element={<Orcamento />} />
+            <Route path="carga-tributaria" element={<CargaTributaria />} />
+            <Route path="analise-desempenho" element={<AnaliseDesempenho />} />
+            <Route path="entradas-saidas" element={<EntradasSaidas />} />
+            <Route path="apresentacoes/:deckId" element={<Apresentacoes />} />
+          </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -1,13 +1,8 @@
-import { useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { ArrowRight, ArrowLeftRight, Network } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
-import { selectCompany } from "../lib/companies.js";
-import { selectGroup } from "../lib/groups.js";
 import { FERRAMENTAS_EM_PREPARACAO, MODULOS_COMPLEMENTARES, modulosLiberados } from "../lib/modulos.js";
-import { lembrarGrupoContexto } from "../lib/unidades.js";
 import Avatar from "../components/Avatar.jsx";
-import SeletorDeEmpresa from "../components/SeletorDeEmpresa.jsx";
 import { iconeDaFerramenta } from "./iconesDasFerramentas.js";
 import { Revelar, moverLuz } from "./efeitos.jsx";
 
@@ -19,8 +14,8 @@ import { Revelar, moverLuz } from "./efeitos.jsx";
 export default function HubFerramentas() {
   const state = useAppState();
   const navigate = useNavigate();
-  const { abrir } = useOutletContext();
-  const [seletor, setSeletor] = useState(false);
+  // A troca de empresa/grupo é a do menu principal do hub (HubLayout).
+  const { abrir, escolherEmpresa } = useOutletContext();
 
   const grupo = state.activeGroupId ? state.groups.find((group) => group.id === state.activeGroupId) : null;
   const empresa = !grupo && state.activeCompanyId ? state.companies.find((company) => company.id === state.activeCompanyId) : null;
@@ -33,18 +28,11 @@ export default function HubFerramentas() {
   // Já aberta e com os dados na memória: entra direto; senão espera carregar (a tela de carregamento do hub).
   const usar = (ferramenta) => {
     if (!alvo) {
-      setSeletor(true);
+      escolherEmpresa();
       return;
     }
     if (carregado && !state.journalLoadFailed) navigate(ferramenta.rota);
     else abrir(alvo, ferramenta.rota);
-  };
-  // Trocar aqui só escolhe pra quem são as ferramentas — o B.I. não abre.
-  const escolher = (item) => {
-    if (item.tipo === "grupo") {
-      lembrarGrupoContexto(item.id);
-      selectGroup(item.id).catch((error) => console.error("Falha ao abrir o grupo:", error));
-    } else selectCompany(item.id).catch((error) => console.error("Falha ao abrir a empresa:", error));
   };
 
   return (
@@ -63,7 +51,7 @@ export default function HubFerramentas() {
           <p className="mt-5 max-w-[580px] text-[17px] leading-relaxed text-[var(--hub-texto-2)]">Orçamento, impostos, desempenho e notas fiscais — cada ferramenta com os números da empresa ou do grupo escolhido.</p>
         </Revelar>
         <Revelar atraso={0.18} className="mt-8">
-          <button type="button" onClick={() => setSeletor(true)} className="hub-cartao flex w-full max-w-[520px] items-center gap-3.5 p-3 pr-4 text-left transition-colors hover:border-[var(--hub-acento)]">
+          <button type="button" onClick={escolherEmpresa} className="hub-cartao flex w-full max-w-[520px] items-center gap-3.5 p-3 pr-4 text-left transition-colors hover:border-[var(--hub-acento)]">
             {alvo ? (
               alvo.tipo === "grupo" ? (
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#e8691f] to-[#f28a42] text-white">
@@ -136,8 +124,6 @@ export default function HubFerramentas() {
           })}
         </div>
       </section>
-
-      <SeletorDeEmpresa aberto={seletor} onFechar={() => setSeletor(false)} onEscolher={escolher} />
     </>
   );
 }
