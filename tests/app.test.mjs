@@ -1018,6 +1018,81 @@ check(
   { paginasPedidas, chaveRuim, versaoSql }
 );
 
+// ── Hub: Conteúdos (lib/conteudos.js) e Reforma informativa (lib/reformaInformativa.js) ──
+section("Hub: Conteúdos e Reforma");
+const conteudos = await src("lib/conteudos.js");
+const { AREAS_DO_HUB } = await src("lib/hub.js");
+const slugs = conteudos.CONTEUDOS.map((c) => c.slug);
+const semRelacionado = conteudos.CONTEUDOS.flatMap((c) => c.relacionados.filter((s) => s === c.slug || !slugs.includes(s)).map((s) => `${c.slug}→${s}`));
+const incompletos = conteudos.CONTEUDOS.filter((c) => {
+  const ids = c.secoes.map((s) => s.id);
+  return (
+    !c.titulo.includes(c.italico) ||
+    !c.intro ||
+    !c.resumo ||
+    !c.noBi ||
+    !c.comoLer?.bons?.length ||
+    !c.comoLer?.alertas?.length ||
+    !c.comoLer?.depende ||
+    !conteudos.CATEGORIAS_DE_CONTEUDO.includes(c.categoria) ||
+    c.secoes.some((s) => !s.id || !s.titulo) ||
+    new Set(ids).size !== ids.length ||
+    ids.includes("como-ler")
+  );
+}).map((c) => c.slug);
+const buracoNoTexto = /undefined|null|NaN/.test(JSON.stringify(conteudos.CONTEUDOS));
+check(
+  "Conteúdos: endereços únicos, título com a palavra em itálico, seções e como ler completos, relacionados que existem, glossário encaixado sem buraco",
+  new Set(slugs).size === slugs.length &&
+    semRelacionado.length === 0 &&
+    incompletos.length === 0 &&
+    !buracoNoTexto &&
+    conteudos.conteudoPorSlug("como-ler-a-dre")?.titulo === "Como ler a DRE" &&
+    conteudos.conteudoPorSlug("nao-existe") === null &&
+    conteudos.CONTEUDOS.every((c) => conteudos.tempoDeLeitura(c) >= 2) &&
+    AREAS_DO_HUB.find((area) => area.id === "conteudos")?.pronta === true,
+  { semRelacionado, incompletos, buracoNoTexto }
+);
+const reformaHub = await src("lib/reformaInformativa.js");
+const memoria = () => {
+  const dados = new Map();
+  return { getItem: (chave) => dados.get(chave) ?? null, setItem: (chave, valor) => dados.set(chave, String(valor)) };
+};
+const guardado = memoria();
+reformaHub.gravarFeitos(["notas", "preco"], guardado);
+const bloqueado = {
+  getItem: () => {
+    throw new Error("bloqueado");
+  },
+  setItem: () => {
+    throw new Error("bloqueado");
+  },
+};
+let gravouSemQuebrar = true;
+try {
+  reformaHub.gravarFeitos(["notas"], bloqueado);
+} catch {
+  gravouSemQuebrar = false;
+}
+const estragado = memoria();
+estragado.setItem("athosbi.hub.reforma.feitos.v1", "{não é json");
+const antigo = memoria();
+antigo.setItem("athosbi.hub.reforma.feitos.v1", JSON.stringify(["notas", "item-que-saiu"]));
+const anosDaReforma = reformaHub.ANOS_DA_REFORMA;
+check(
+  "Reforma no hub: calendário de 2026 a 2033 (ICMS/ISS de 100% a 60% e extintos em 2033); a lista do que fazer lembra no navegador e não quebra sem armazenamento",
+  anosDaReforma.map((a) => a.ano).join() === "2026,2027,2028,2029,2030,2031,2032,2033" &&
+    anosDaReforma.map((a) => a.icmsIss).join() === "100,100,100,90,80,70,60,0" &&
+    reformaHub.lerFeitos(guardado).join() === "notas,preco" &&
+    reformaHub.lerFeitos(bloqueado).length === 0 &&
+    gravouSemQuebrar &&
+    reformaHub.lerFeitos(estragado).length === 0 &&
+    reformaHub.lerFeitos(antigo).join() === "notas" &&
+    new Set(reformaHub.O_QUE_FAZER_AGORA.map((item) => item.id)).size === reformaHub.O_QUE_FAZER_AGORA.length &&
+    reformaHub.FONTES_OFICIAIS.every((fonte) => /^https:\/\/www\.(planalto\.)?gov\.br\//.test(fonte.url)),
+  null
+);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);

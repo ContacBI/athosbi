@@ -30,10 +30,11 @@ export function Revelar({ as: Tag = "div", atraso = 0, className = "", style, ch
 }
 
 // Seção de página: rótulo pequeno, título com a palavra em itálico laranja
-// e, à direita, uma ação opcional.
-export function Secao({ rotulo, titulo, italico, depois = "", acao, children, className = "" }) {
+// e, à direita, uma ação opcional. `id` vira âncora (o índice "Nesta
+// página" da Reforma), descontando a altura do topo fixo.
+export function Secao({ id, rotulo, titulo, italico, depois = "", acao, children, className = "" }) {
   return (
-    <section className={`mx-auto hub-largura px-5 sm:px-8 ${className}`}>
+    <section id={id} className={`mx-auto hub-largura scroll-mt-24 px-5 sm:px-8 ${className}`}>
       <Revelar className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="hub-rotulo">{rotulo}</p>
