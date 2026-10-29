@@ -14,6 +14,8 @@ import AthosMark from "../components/AthosMark.jsx";
 import Avatar from "../components/Avatar.jsx";
 import WorkspaceLoading from "../components/WorkspaceLoading.jsx";
 import Carregando from "../components/Carregando.jsx";
+import SeletorDeEmpresa from "../components/SeletorDeEmpresa.jsx";
+import { recentes } from "../lib/recentes.js";
 
 const norm = (valor) => String(valor || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -173,7 +175,7 @@ function Rodape({ irPara }) {
   const ano = new Date().getFullYear();
   return (
     <footer className="relative mt-24 border-t border-[var(--hub-borda)]">
-      <div className="mx-auto grid max-w-[1320px] gap-10 px-5 py-14 sm:px-8 md:grid-cols-[1.4fr_1fr_1fr]">
+      <div className="mx-auto grid hub-largura gap-10 px-5 py-14 sm:px-8 md:grid-cols-[1.4fr_1fr_1fr]">
         <div>
           <div className="flex items-center gap-2.5">
             <AthosMark size={28} />
@@ -205,7 +207,7 @@ function Rodape({ irPara }) {
         </div>
       </div>
       <div className="border-t border-[var(--hub-borda)]">
-        <div className="mx-auto flex max-w-[1320px] flex-wrap items-center justify-between gap-2 px-5 py-5 text-[12.5px] text-[var(--hub-texto-3)] sm:px-8">
+        <div className="mx-auto flex hub-largura flex-wrap items-center justify-between gap-2 px-5 py-5 text-[12.5px] text-[var(--hub-texto-3)] sm:px-8">
           <span>© {ano} Athos Consultoria Empresarial</span>
           <span>Prévia do novo portal · visível só para você no ambiente de teste</span>
         </div>
@@ -221,6 +223,7 @@ export default function HubLayout() {
   const [busca, setBusca] = useState(false);
   const [menuMovel, setMenuMovel] = useState(false);
   const [rolou, setRolou] = useState(false);
+  const [seletor, setSeletor] = useState(false);
   const { pending, abrirEmpresa, abrirGrupo, cancelar } = useAbrirWorkspace();
   const ligado = hubLigado(state);
 
@@ -259,8 +262,22 @@ export default function HubLayout() {
 
   if (!ligado) return <Navigate to="/" replace />;
 
+  // "Meu B.I.": direto na empresa/grupo aberta por último (ou na única do
+  // cliente), sem página no meio; sem nenhuma, a janela de escolha.
+  const abrirMeuBi = () => {
+    const existe = (item) => (item.tipo === "grupo" ? state.groups.some((group) => group.id === item.id) : state.companies.some((company) => company.id === item.id));
+    const staff = Boolean(state.isAdmin || state.isColaborador);
+    const alvo = recentes().find(existe) || (!staff && state.companies.length === 1 ? { tipo: "empresa", id: state.companies[0].id } : null);
+    if (!alvo) {
+      setSeletor(true);
+      return;
+    }
+    const jaAberto = alvo.tipo === "grupo" ? state.activeGroupId === alvo.id : !state.activeGroupId && state.activeCompanyId === alvo.id;
+    if (jaAberto && !state.journalLoadFailed && (state.accounts.length > 0 || state.journal.length > 0)) navigate("/empresa");
+    else abrir(alvo);
+  };
   const irPara = (area) => {
-    if (area.id === "bi") navigate("/empresas");
+    if (area.id === "bi") abrirMeuBi();
     else if (area.rota) navigate(area.rota);
   };
   const abrir = (item, destino) => {
@@ -280,7 +297,7 @@ export default function HubLayout() {
       <div className="hub-fundo-grade pointer-events-none absolute inset-x-0 top-0 h-[700px]" />
 
       <header className={`sticky top-0 z-40 transition-[background-color,box-shadow,border-color] duration-300 ${rolou ? "hub-topo border-b border-[var(--hub-borda)]" : "border-b border-transparent"}`}>
-        <div className="mx-auto flex h-[72px] max-w-[1320px] items-center gap-4 px-5 sm:px-8">
+        <div className="mx-auto flex h-[72px] hub-largura items-center gap-4 px-5 sm:px-8">
           <Marca onClick={() => navigate("/hub")} />
           <nav className="ml-6 hidden items-center gap-1 lg:flex" aria-label="Áreas do hub">
             {AREAS_DO_HUB.map((area) =>
@@ -359,6 +376,7 @@ export default function HubLayout() {
       <Rodape irPara={irPara} />
 
       <BuscaRapida aberta={busca} onFechar={() => setBusca(false)} itensDoHub={AREAS_DO_HUB} state={state} onAbrir={(item) => abrir(item)} />
+      <SeletorDeEmpresa aberto={seletor} onFechar={() => setSeletor(false)} onEscolher={(item) => abrir(item)} />
       {pending && <WorkspaceLoading name={pending.name} isGroup={pending.isGroup} phase={pending.phase} progress={state.journalLoadProgress} onCancel={cancelar} />}
     </div>
   );

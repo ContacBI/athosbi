@@ -124,7 +124,7 @@ export default function HubInicio() {
   return (
     <>
       {/* ── Abertura ── */}
-      <section className="mx-auto grid max-w-[1320px] items-center gap-14 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[1.08fr_1fr] lg:gap-10 lg:pb-24 lg:pt-14">
+      <section className="mx-auto grid hub-largura items-center gap-14 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[1.08fr_1fr] lg:gap-10 lg:pb-24 lg:pt-14">
         <div className="relative z-10">
           <Revelar className="flex flex-wrap items-center gap-3">
             <span className="hub-selo hub-selo-vivo">
@@ -139,7 +139,7 @@ export default function HubInicio() {
             </p>
           </Revelar>
           <Revelar atraso={0.1}>
-            <h1 className="hub-display mt-2 text-[44px] font-extrabold leading-[1.02] sm:text-[60px] xl:text-[72px]">
+            <h1 className="hub-display mt-2 text-[44px] font-extrabold leading-[1.02] sm:text-[60px] xl:text-[72px] min-[1700px]:text-[84px]">
               Os números da sua empresa, <span className="hub-italico">claros</span>
               <span className="hub-pontuacao">.</span>
             </h1>
@@ -177,7 +177,7 @@ export default function HubInicio() {
           </Revelar>
         </div>
 
-        <Revelar atraso={0.12} className="relative mx-auto w-full max-w-[560px]">
+        <Revelar atraso={0.12} className="relative mx-auto w-full max-w-[560px] min-[1700px]:max-w-[640px]">
           <div className="absolute -inset-10 rounded-full opacity-70 blur-3xl" style={{ background: "radial-gradient(circle at 70% 70%, rgba(232,105,31,0.22), transparent 60%)" }} />
           <Mosaico className="relative" icones={{ "0-3": BarChart3, "1-5": Scale, "3-1": PieChart, "4-2": LineChart }} />
           {carteira ? (
@@ -387,7 +387,7 @@ export default function HubInicio() {
       </Secao>
 
       {/* ── Fecho ── */}
-      <section className="mx-auto mt-28 max-w-[1320px] px-5 sm:px-8">
+      <section className="mx-auto mt-28 hub-largura px-5 sm:px-8">
         <Revelar>
           <div className="relative overflow-hidden rounded-[32px] bg-[#081d33] px-7 py-14 text-white sm:px-14">
             <div className="absolute inset-0 opacity-90" style={{ background: "radial-gradient(600px circle at 90% 120%, rgba(232,105,31,0.45), transparent 60%), radial-gradient(500px circle at 0% -20%, rgba(47,111,237,0.35), transparent 60%)" }} />
