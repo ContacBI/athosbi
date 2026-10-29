@@ -637,7 +637,10 @@ async function loadCompanyJournal(company, onProgress) {
   return updated;
 }
 
-export async function loadCompanies() {
+// `semAbrir`: só lista as empresas e grupos, sem reabrir a última aberta
+// (nem baixar o razão dela) — o console da equipe não precisa disso, e num
+// grupo grande eram dezenas de MB travando todas as telas dele.
+export async function loadCompanies({ semAbrir = false } = {}) {
   let records = await readPersistentByPrefix(COMPANY_KEY_PREFIX);
   // Mesma migração de uma vez só que fetchCompaniesAndGroups faz — ver lá
   // em cima. Duplicada aqui (em vez de compartilhada) porque essa versão
@@ -690,6 +693,7 @@ export async function loadCompanies() {
   // de verdade uma vez por empresa (depois disso journalCount já fica
   // salvo e loadCompanies nunca mais precisa buscar o razão dela à toa).
   backfillMissingJournalCounts().catch((error) => console.error("Falha ao recalcular contagens de lançamentos:", error));
+  if (semAbrir) return { groupId: null };
   if (groupValid) return { groupId: storedGroupId };
   const activeCompanyId = localStorage.getItem(ACTIVE_COMPANY_KEY) || companies[0]?.id || "";
   if (activeCompanyId) selectCompany(activeCompanyId, { skipPersist: true });
@@ -865,6 +869,22 @@ function journalForDisplay(companyId, journal, mappings) {
   return remapped;
 }
 
+// O percentual do "carregando o razão" muda muitas vezes por segundo, e cada
+// setData redesenha todas as telas abertas: só avisa a cada 2 pontos (ou no
+// fim) e no máximo a cada 120 ms.
+export function progressoEspacado() {
+  let ultimo = -1;
+  let quando = 0;
+  return (fracao) => {
+    const agora = Date.now();
+    if (fracao >= 1 || (fracao - ultimo >= 0.02 && agora - quando >= 120)) {
+      ultimo = fracao;
+      quando = agora;
+      setData({ journalLoadProgress: fracao });
+    }
+  };
+}
+
 export async function selectCompany(id, { skipPersist = false } = {}) {
   // Salvar o que ficou pra trás não pode travar nem quebrar a troca — quem
   // só tem leitura cai aqui toda vez (ver canWriteCompany).
@@ -921,11 +941,12 @@ export async function selectCompany(id, { skipPersist = false } = {}) {
   // setData acima, não antes: refreshEffectivePlano lê state.activeCompanyId.
   refreshEffectivePlano();
   if (company.journalLoaded) return;
+  const avisarProgresso = progressoEspacado();
   const loaded = await ensureCompanyJournalLoaded(company, {
     onProgress: (fraction) => {
       // Idem: não pisa numa troca de empresa que já aconteceu enquanto essa
       // busca ainda estava correndo.
-      if (state.activeCompanyId === id) setData({ journalLoadProgress: fraction });
+      if (state.activeCompanyId === id) avisarProgresso(fraction);
     },
   });
   // O usuário pode ter trocado de empresa de novo enquanto essa busca

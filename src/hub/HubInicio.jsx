@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { ArrowRight, BarChart3, Clock, FileSpreadsheet, Gauge, LayoutDashboard, LineChart, Network, PieChart, Presentation, Scale, Search, Table2 } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { AREAS_DO_HUB, LINHA_DA_REFORMA, andamentoDaReforma } from "../lib/hub.js";
 import { realStaff } from "../lib/modoEquipe.js";
-import { primeiroNome, resumoCarteira, saudacao } from "../lib/inicio.js";
+import { primeiroNome, saudacao } from "../lib/inicio.js";
+import { resumoDasSaudes, useSaude } from "../equipe/useSaude.js";
 import { recentes } from "../lib/recentes.js";
 import { haQuanto } from "../lib/uso.js";
 import Avatar from "../components/Avatar.jsx";
@@ -85,6 +86,8 @@ function ColunasDeLadrilho() {
   );
 }
 
+const SEM_EMPRESAS = [];
+
 export default function HubInicio() {
   const state = useAppState();
   const navigate = useNavigate();
@@ -94,18 +97,10 @@ export default function HubInicio() {
   const staff = realStaff(state);
   const nome = primeiroNome(state.nomeUsuario);
 
-  const [carteira, setCarteira] = useState(null);
-  useEffect(() => {
-    if (!state.realIsAdmin || !state.companies.length) return undefined;
-    const timer = setTimeout(() => {
-      try {
-        setCarteira(resumoCarteira(state.companies));
-      } catch (error) {
-        console.warn("Hub: resumo da carteira falhou", error);
-      }
-    }, 60);
-    return () => clearTimeout(timer);
-  }, [state.realIsAdmin, state.companies]);
+  // A saúde da carteira (só o admin): a mesma conta do console, em fatias e
+  // guardada por empresa — antes era a carteira inteira de uma vez, travando a tela.
+  const { healths, calculando } = useSaude(state.realIsAdmin ? state.companies : SEM_EMPRESAS);
+  const carteira = useMemo(() => (state.realIsAdmin && state.companies.length && !calculando ? resumoDasSaudes(healths) : null), [state.realIsAdmin, state.companies.length, calculando, healths]);
 
   const abertas = useMemo(
     () =>

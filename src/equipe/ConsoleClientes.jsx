@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { ArrowRight, Eye, PencilLine, Plus, Search } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
@@ -96,6 +96,12 @@ export default function ConsoleClientes() {
   const state = useAppState();
   const navigate = useNavigate();
   const { abrir } = useOutletContext();
+  // A lista de cartões só é refeita quando ela muda — qualquer outra mudança
+  // no portal (o percentual de um razão chegando, por exemplo) redesenha a
+  // página, e com a carteira toda isso pesava. `abrir` muda a cada desenho
+  // do console: vai por uma referência.
+  const abrirRef = useRef(abrir);
+  abrirRef.current = abrir;
   const [params, setParams] = useSearchParams();
   const ver = FILTROS.some((filtro) => filtro.id === params.get("ver")) ? params.get("ver") : "todos";
   const [termo, setTermo] = useState("");
@@ -116,6 +122,11 @@ export default function ConsoleClientes() {
     if (ver === "pendencias") lista.sort((a, b) => ORDEM[a.status] - ORDEM[b.status]);
     return lista;
   }, [grupos, avulsas, healths, termo, ver, minhas, state.userEmail]);
+
+  const cartoes = useMemo(
+    () => unidades.map((unidade) => <CartaoDaUnidade key={`${unidade.tipo}:${unidade.id}`} unidade={unidade} healths={healths} nomes={nomes} onFicha={() => navigate(`/equipe/clientes/${unidade.tipo}/${unidade.id}`)} onAbrir={(opcoes) => abrirRef.current(unidade, opcoes)} />),
+    [unidades, healths, nomes, navigate]
+  );
 
   return (
     <>
@@ -163,9 +174,7 @@ export default function ConsoleClientes() {
 
       {unidades.length === 0 && <Cartao className="px-6 py-12 text-center text-[14px] text-[var(--hub-texto-3)]">Nada com esse filtro.</Cartao>}
       <div className="grid gap-5 lg:grid-cols-2">
-        {unidades.map((unidade) => (
-          <CartaoDaUnidade key={`${unidade.tipo}:${unidade.id}`} unidade={unidade} healths={healths} nomes={nomes} onFicha={() => navigate(`/equipe/clientes/${unidade.tipo}/${unidade.id}`)} onAbrir={(opcoes) => abrir(unidade, opcoes)} />
-        ))}
+        {cartoes}
       </div>
     </>
   );

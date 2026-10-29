@@ -221,7 +221,8 @@ function AuthedApp() {
     bootedForUserRef.current = session.user.id;
     Promise.all([
       loadPlan(),
-      loadCompanies(),
+      // No console da equipe não reabre a última empresa/grupo (nem baixa o razão dela) — ver loadCompanies.
+      loadCompanies({ semAbrir: window.location.pathname.startsWith("/equipe") }),
       loadRepresentantes(),
       loadIndicatorOverrides(),
       isPortalAdmin(),

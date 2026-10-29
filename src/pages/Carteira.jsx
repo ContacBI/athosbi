@@ -4,7 +4,8 @@ import { Activity, ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, CircleAle
 import { useAppState } from "../data/useStore.js";
 import { selectCompany } from "../lib/companies.js";
 import { listAdmins, listColaboradores } from "../lib/colaboradores.js";
-import { analyzeCompanyJournal, cachedJournalStats, companyHealth, monthLabel } from "../lib/carteira.js";
+import { analyzeCompanyJournal, cachedJournalStats, monthLabel, resumosGuardados } from "../lib/carteira.js";
+import { agendarSaude, useSaude } from "../equipe/useSaude.js";
 import Avatar from "../components/Avatar.jsx";
 
 const norm = (value) => String(value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -123,8 +124,11 @@ export default function Carteira({ dentroDoConsole = false }) {
   const state = useAppState();
   const navigate = useNavigate();
   const staff = state.isAdmin || state.isColaborador;
-  const [healths, setHealths] = useState({});
   const [statsById, setStatsById] = useState({});
+  // A saúde de cada empresa vem da conta compartilhada (equipe/useSaude.js):
+  // em fatias, guardada por empresa e refeita só pra que mudou — e já pronta
+  // se a pessoa veio de outra tela do console.
+  const { healths } = useSaude(state.companies, { razaoAberto: true });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [issueFilter, setIssueFilter] = useState("");
@@ -150,32 +154,13 @@ export default function Carteira({ dentroDoConsole = false }) {
   // empresa aberta agora).
   useEffect(() => {
     const found = {};
+    const guardados = resumosGuardados(); // lidos uma vez, não uma por empresa
     state.companies.forEach((company) => {
-      const stats = cachedJournalStats(company);
+      const stats = cachedJournalStats(company, guardados);
       if (stats) found[company.id] = stats;
     });
     setStatsById((current) => ({ ...found, ...current }));
   }, [state.companies]);
-
-  // Uma empresa por vez, fora do clique: com a carteira inteira são alguns
-  // centésimos de segundo cada, e a tela não pode travar enquanto isso.
-  useEffect(() => {
-    let cancelled = false;
-    const queue = [...state.companies];
-    const today = new Date();
-    function next() {
-      if (cancelled || !queue.length) return;
-      const company = queue.shift();
-      const health = companyHealth(company, { today, journalStats: statsById[company.id] || null });
-      setHealths((current) => ({ ...current, [company.id]: health }));
-      setTimeout(next, 0);
-    }
-    const handle = setTimeout(next, 30);
-    return () => {
-      cancelled = true;
-      clearTimeout(handle);
-    };
-  }, [state.companies, statsById]);
 
   async function analyzeAll() {
     cancelRef.current = false;
@@ -188,6 +173,7 @@ export default function Carteira({ dentroDoConsole = false }) {
       try {
         const stats = await analyzeCompanyJournal(company, { onProgress: (fraction) => setAnalysis((current) => ({ ...current, part: fraction })) });
         setStatsById((current) => ({ ...current, [company.id]: stats }));
+        agendarSaude([company]); // o resumo novo ficou guardado: refaz a saúde dela
       } catch (error) {
         console.error(`Carteira: não consegui ler o razão de ${company.name}`, error);
         setAnalysis((current) => ({ ...current, errors: current.errors + 1 }));

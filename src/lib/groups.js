@@ -1,6 +1,6 @@
 import { state, setData } from "../data/useStore.js";
 import { ACTIVE_GROUP_KEY, GROUPS_KEY, writePersistent, rememberActiveWorkspace } from "./persistence.js";
-import { persistActiveCompany, replicateTabsToCompanies, ensureCompanyJournalLoaded, remapJournal, canWriteGroups, propagarVisibilidade } from "./companies.js";
+import { persistActiveCompany, replicateTabsToCompanies, ensureCompanyJournalLoaded, remapJournal, canWriteGroups, propagarVisibilidade, progressoEspacado } from "./companies.js";
 import { refreshEffectivePlano } from "./planosPadrao.js";
 import { lembrarRecente } from "./recentes.js";
 
@@ -308,10 +308,11 @@ export async function selectGroup(id, { skipPersist = false } = {}) {
   const weights = members.map((company) => Math.max(1, Number(company.journalCount) || 0));
   const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
   const fractions = members.map((company) => (company.journalLoaded ? 1 : 0));
+  const avisarProgresso = progressoEspacado();
   const reportProgress = () => {
     if (state.activeGroupId !== id) return;
     const done = fractions.reduce((sum, fraction, index) => sum + fraction * weights[index], 0);
-    setData({ journalLoadProgress: done / totalWeight });
+    avisarProgresso(done / totalWeight);
   };
   const companies = await Promise.all(
     members.map((company, index) =>
