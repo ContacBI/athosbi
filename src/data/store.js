@@ -46,6 +46,8 @@ export const state = {
   realIsAdmin: false,
   realIsColaborador: false,
   visaoCliente: false,
+  // Equipe com o hub: "portal" (vê como o cliente) ou "console" (edita) — ver lib/modoEquipe.js. null = fora disso.
+  modoEquipe: null,
   // Colaborador Restrito (ver lib/colaboradores.js e supabase/schema.sql) —
   // enxerga a carteira inteira e entra em Parâmetros como um admin, mas só
   // edita de fato as empresas onde o próprio e-mail (userEmail abaixo) está

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, LayoutGrid, Network, PanelLeft, Presentation, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, Layers, LayoutGrid, Network, PanelLeft, Presentation, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
 import { useAppState, setData, state } from "../data/useStore.js";
 import { missingMappingAccounts } from "../data/calculations.js";
 import { groupCompanies, activeWorkspaceName } from "../lib/groups.js";
@@ -16,13 +16,17 @@ import { periodLabelPt } from "../lib/format.js";
 import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
 import PeriodPicker from "./PeriodPicker.jsx";
 import FechamentoMenu from "./FechamentoMenu.jsx";
-import { VisaoClienteOlho } from "./VisaoClienteBotao.jsx";
+import { ModoDaTela, VisaoClienteOlho } from "./VisaoClienteBotao.jsx";
 import { kAba, oculto } from "../lib/visibilidade.js";
 import { limiteDoCliente, ultimoDiaDoMes } from "../lib/fechamento.js";
 import ThemeToggle from "./ThemeToggle.jsx";
 import AthosMark from "./AthosMark.jsx";
 import { hubLigado } from "../lib/hub.js";
+import { inicioDoModo, realStaff, usaModos } from "../lib/modoEquipe.js";
+import { grupoDoContexto, grupoLembrado, lembrarGrupoContexto, unidadesDaCarteira } from "../lib/unidades.js";
+import { recentes } from "../lib/recentes.js";
 import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
+import Avatar from "./Avatar.jsx";
 import SeletorDeEmpresa from "./SeletorDeEmpresa.jsx";
 import WorkspaceLoading from "./WorkspaceLoading.jsx";
 import { createPortal } from "react-dom";
@@ -467,6 +471,74 @@ function PendingMappingsBanner({ company }) {
   );
 }
 
+// Dentro de um grupo (ou numa empresa que é de um grupo): trocar entre o
+// consolidado e cada empresa sem sair do B.I. (pedido do Izaias, 29/10/2026:
+// "selecionamos o grupo, e já temos acesso às empresas do grupo + o grupo").
+// Só com o hub ligado. Demonstrativos e DFC existem nos dois — a troca fica
+// na mesma tela; o resto volta pro painel (as abas do grupo são outras).
+const TELAS_EM_COMUM = ["/empresa/demonstrativos", "/empresa/dfc"];
+
+function VisaoDoGrupo({ onAbrirGrupo, onAbrirEmpresa }) {
+  const appState = useAppState();
+  const location = useLocation();
+  const [aberto, setAberto] = useState(false);
+  const staff = Boolean(appState.isAdmin || appState.isColaborador || realStaff(appState));
+  const visiveis = useMemo(() => unidadesDaCarteira(appState.companies, appState.groups, { soCompletos: !staff }).grupos.map((unidade) => unidade.grupo), [appState.companies, appState.groups, staff]);
+  const grupo = grupoDoContexto(appState, { lembrado: grupoLembrado(), recentes: recentes(), visiveis });
+  if (!grupo) return null;
+  const membros = groupCompanies(grupo);
+  if (!membros.length) return null;
+  const noConsolidado = appState.activeGroupId === grupo.id;
+  const destino = TELAS_EM_COMUM.find((tela) => location.pathname.startsWith(tela)) || "/empresa";
+  const escolher = (item) => {
+    setAberto(false);
+    lembrarGrupoContexto(grupo.id);
+    if (item === "consolidado") {
+      if (!noConsolidado) onAbrirGrupo(grupo.id, destino);
+    } else if (item.id !== appState.activeCompanyId || noConsolidado) onAbrirEmpresa(item.id, destino);
+  };
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setAberto((v) => !v)}
+        title={`Grupo ${grupo.name}: consolidado ou cada empresa`}
+        className="flex h-8 max-w-[180px] items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-2.5 text-[12px] font-medium text-white/85 transition-colors hover:border-white/25 hover:bg-white/10 hover:text-white"
+      >
+        <Layers size={13} strokeWidth={1.8} className="shrink-0 text-accent-300" />
+        <span className="truncate">{noConsolidado ? "Consolidado" : grupo.name}</span>
+        <ChevronDown size={12} className={`shrink-0 text-white/50 transition-transform ${aberto ? "rotate-180" : ""}`} />
+      </button>
+      {aberto && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setAberto(false)} />
+          <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-72 rounded-xl bg-surface-card p-1.5 text-ink-900 shadow-lg ring-1 ring-line" role="menu" aria-label="Ver o grupo">
+            <p className="truncate px-2.5 pb-1.5 pt-1 text-[11px] font-bold uppercase tracking-[0.1em] text-ink-400">{/^grupo\b/i.test(grupo.name) ? grupo.name : `Grupo ${grupo.name}`}</p>
+            <button type="button" role="menuitem" onClick={() => escolher("consolidado")} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-surface-muted">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent-500 text-white">
+                <Network size={14} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-semibold">Consolidado</span>
+                <span className="block text-[11px] text-ink-400">As {membros.length} empresas somadas</span>
+              </span>
+              {noConsolidado && <Check size={15} className="shrink-0 text-accent-500" />}
+            </button>
+            <div className="my-1 h-px bg-line" />
+            {membros.map((company) => (
+              <button key={company.id} type="button" role="menuitem" onClick={() => escolher(company)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left hover:bg-surface-muted">
+                <Avatar name={company.name} size={28} className="rounded-lg" />
+                <span className="min-w-0 flex-1 truncate text-[13px]">{company.name}</span>
+                {!noConsolidado && company.id === appState.activeCompanyId && <Check size={15} className="shrink-0 text-accent-500" />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function CompanyTopBar({ company, modulesOpen = false, onToggleModules }) {
   const appState = useAppState();
   const navigate = useNavigate();
@@ -529,7 +601,7 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
             </button>
           )}
           {hubLigado(appState) ? (
-            <button type="button" onClick={() => navigate("/")} className="flex shrink-0 items-center transition-transform hover:scale-105" aria-label="Início" title="Início">
+            <button type="button" onClick={() => navigate(inicioDoModo(appState))} className="flex shrink-0 items-center transition-transform hover:scale-105" aria-label="Início" title={appState.modoEquipe === "console" ? "Console da equipe" : "Início"}>
               <AthosMark size={26} />
             </button>
           ) : (
@@ -575,8 +647,9 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
               </button>
             </>
           )}
+          {comHub && <VisaoDoGrupo onAbrirGrupo={abrirGrupo} onAbrirEmpresa={abrirEmpresa} />}
           {/* longe da lua (antes ficava colado nela e se clicava errado) */}
-          <VisaoClienteOlho className="shrink-0" />
+          {usaModos(appState) ? <ModoDaTela className="shrink-0" /> : <VisaoClienteOlho className="shrink-0" />}
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -666,7 +739,18 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
           ))}
         </nav>
       )}
-      {comHub && <SeletorDeEmpresa aberto={seletor} onFechar={() => setSeletor(false)} onEscolher={(item) => (item.tipo === "grupo" ? abrirGrupo(item.id) : abrirEmpresa(item.id))} />}
+      {comHub && (
+        <SeletorDeEmpresa
+          aberto={seletor}
+          onFechar={() => setSeletor(false)}
+          onEscolher={(item) => {
+            if (item.tipo === "grupo") {
+              lembrarGrupoContexto(item.id);
+              abrirGrupo(item.id);
+            } else abrirEmpresa(item.id);
+          }}
+        />
+      )}
       {abrindo &&
         createPortal(<WorkspaceLoading name={abrindo.name} isGroup={abrindo.isGroup} phase={abrindo.phase} progress={appState.journalLoadProgress} onCancel={cancelarAbertura} />, document.body)}
     </header>

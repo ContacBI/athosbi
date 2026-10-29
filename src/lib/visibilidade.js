@@ -32,7 +32,11 @@ export function visibilidadeAtiva() {
  */
 export function oculto(chave) {
   if (state.isAdmin || state.isColaborador) return false;
-  const v = visibilidadeAtiva();
+  return ocultoNaConfiguracao(visibilidadeAtiva(), chave);
+}
+
+/** Se uma configuração de visibilidade (a `visibilidade` de uma empresa/grupo) esconde a chave do cliente — mesmas regras de `oculto`. */
+export function ocultoNaConfiguracao(v, chave) {
   if (v?.modo === "marcados") return !(v.visiveis || []).includes(chave);
   return (v?.ocultos || []).includes(chave);
 }

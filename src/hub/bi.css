@@ -266,3 +266,11 @@
 :root[data-hub] .bi-lateral {
   background: color-mix(in srgb, var(--color-surface-card) 92%, transparent);
 }
+
+/* Selo do site de teste: no canto de baixo, pra não cobrir o topo do B.I. */
+:root[data-hub] .selo-teste {
+  top: auto;
+  bottom: 14px;
+  left: 14px;
+  translate: none;
+}

@@ -22,10 +22,10 @@ function Caixa({ marcado, onChange, disabled, children, recuo = 0, forte = false
   );
 }
 
-export default function AcessoClientesModal({ tipo, item, onClose }) {
+export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial = "pessoas" }) {
   const ehGrupo = tipo === "grupo";
   const scopeType = ehGrupo ? "group" : "company";
-  const [secao, setSecao] = useState("pessoas");
+  const [secao, setSecao] = useState(secaoInicial);
   const configAnterior = item.visibilidade;
   const naoConfigurado = configAnterior?.modo !== "marcados" && !Array.isArray(configAnterior?.ocultos);
   const [visiveis, setVisiveis] = useState(() => {

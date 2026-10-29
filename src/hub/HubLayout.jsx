@@ -1,13 +1,14 @@
 import "@fontsource-variable/plus-jakarta-sans/wght.css";
 import "@fontsource-variable/fraunces/wght-italic.css";
 import "./hub.css";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { ArrowUpRight, Building2, ChevronDown, CornerDownLeft, LayoutGrid, LogOut, Menu, Moon, Network, Search, Settings, Sun, X } from "lucide-react";
+import { ArrowUpRight, Building2, ChevronDown, CornerDownLeft, LayoutGrid, LogOut, Menu, Moon, Network, Search, Sun, Wrench, X } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
 import { useAppState } from "../data/useStore.js";
 import { useTheme } from "../lib/theme.js";
 import { AREAS_DO_HUB, hubLigado, preferirPortalAtual } from "../lib/hub.js";
+import { entrarNoModo, realStaff, sairDosModos } from "../lib/modoEquipe.js";
 import { primeiroNome } from "../lib/inicio.js";
 import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
 import AthosMark from "../components/AthosMark.jsx";
@@ -49,7 +50,7 @@ function BotaoTema({ className = "" }) {
 function MenuDaConta({ state, onPortalAtual }) {
   const navigate = useNavigate();
   const [aberto, setAberto] = useState(false);
-  const staff = Boolean(state.isAdmin || state.isColaborador);
+  const staff = realStaff(state);
   const nome = state.nomeUsuario || state.userEmail || "";
   return (
     <div className="relative">
@@ -71,8 +72,8 @@ function MenuDaConta({ state, onPortalAtual }) {
               <LayoutGrid size={15} /> Voltar ao portal atual
             </button>
             {staff && (
-              <button type="button" onClick={() => navigate("/parametros")} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13px] font-medium text-[var(--hub-texto-2)] hover:bg-[var(--hub-acento-suave)] hover:text-[var(--hub-texto)]">
-                <Settings size={15} /> Parâmetros
+              <button type="button" onClick={() => navigate("/equipe")} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13px] font-medium text-[var(--hub-texto-2)] hover:bg-[var(--hub-acento-suave)] hover:text-[var(--hub-texto)]">
+                <Wrench size={15} /> Console da equipe
               </button>
             )}
             <button type="button" onClick={() => supabase.auth.signOut()} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13px] font-medium text-[var(--hub-texto-2)] hover:bg-[var(--hub-acento-suave)] hover:text-[var(--hub-texto)]">
@@ -90,7 +91,7 @@ function BuscaRapida({ aberta, onFechar, itensDoHub, state, onAbrir }) {
   const [termo, setTermo] = useState("");
   const [indice, setIndice] = useState(0);
   const campo = useRef(null);
-  const staff = Boolean(state.isAdmin || state.isColaborador);
+  const staff = realStaff(state);
 
   useEffect(() => {
     if (!aberta) return;
@@ -227,9 +228,12 @@ export default function HubLayout() {
   const { pending, abrirEmpresa, abrirGrupo, cancelar } = useAbrirWorkspace();
   const ligado = hubLigado(state);
 
-  useEffect(() => {
+  // O hub é o portal: a equipe vê cada empresa/grupo como o cliente vê
+  // (lib/modoEquipe.js) — antes de pintar, pra nada de edição aparecer.
+  useLayoutEffect(() => {
     if (!ligado) return;
     preferirPortalAtual(false);
+    entrarNoModo("portal");
   }, [ligado]);
 
   useEffect(() => {
@@ -266,7 +270,7 @@ export default function HubLayout() {
   // cliente), sem página no meio; sem nenhuma, a janela de escolha.
   const abrirMeuBi = () => {
     const existe = (item) => (item.tipo === "grupo" ? state.groups.some((group) => group.id === item.id) : state.companies.some((company) => company.id === item.id));
-    const staff = Boolean(state.isAdmin || state.isColaborador);
+    const staff = realStaff(state);
     const alvo = recentes().find(existe) || (!staff && state.companies.length === 1 ? { tipo: "empresa", id: state.companies[0].id } : null);
     if (!alvo) {
       setSeletor(true);
@@ -286,6 +290,7 @@ export default function HubLayout() {
     else irPara(item);
   };
   const portalAtual = () => {
+    sairDosModos();
     preferirPortalAtual(true);
     navigate("/");
   };
@@ -357,6 +362,11 @@ export default function HubLayout() {
                 <span className="text-[14px] font-semibold text-[var(--hub-texto-2)]">Tema</span>
                 <BotaoTema />
               </div>
+              {realStaff(state) && (
+                <button type="button" onClick={() => navigate("/equipe")} className="flex w-full items-center gap-2.5 rounded-2xl px-4 py-3 text-left text-[14px] font-semibold text-[var(--hub-texto-2)]">
+                  <Wrench size={16} /> Console da equipe
+                </button>
+              )}
               <button type="button" onClick={portalAtual} className="flex w-full items-center gap-2.5 rounded-2xl px-4 py-3 text-left text-[14px] font-semibold text-[var(--hub-texto-2)]">
                 <LayoutGrid size={16} /> Voltar ao portal atual
               </button>

@@ -23,6 +23,19 @@ export default function CompanyHome() {
 
   if (tabs.length > 0) return <Navigate to={`/empresa/painel/${tabs[0].id}`} replace />;
 
+  // Cliente (ou a equipe vendo como cliente): não tem o "Personalizar" — só o aviso.
+  if (!state.isAdmin && !state.isColaborador) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center gap-3 px-6 py-24 text-center">
+        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
+          <Sparkles size={26} strokeWidth={1.6} />
+        </span>
+        <p className="text-[15px] font-medium text-ink-900">Os painéis estão sendo preparados</p>
+        <p className="text-[13px] text-ink-400">A equipe da Athos ainda está montando {isGroup ? "o B.I. deste grupo" : "o B.I. desta empresa"}. Assim que estiver pronto, ele aparece aqui.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-3 px-6 py-24 text-center">
       <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
