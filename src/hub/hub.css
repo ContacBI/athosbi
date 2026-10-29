@@ -35,10 +35,10 @@
 }
 
 :root[data-theme="dark"] .hub {
-  --hub-fundo: #060b15;
-  --hub-fundo-2: #0a1322;
+  --hub-fundo: #080c14;
+  --hub-fundo-2: #0b111b;
   --hub-cartao: rgba(255, 255, 255, 0.035);
-  --hub-cartao-solido: #0c1626;
+  --hub-cartao-solido: #0f1520;
   --hub-borda: rgba(255, 255, 255, 0.075);
   --hub-borda-forte: rgba(255, 255, 255, 0.16);
   --hub-texto: #eef3fa;
@@ -47,7 +47,7 @@
   --hub-acento-suave: rgba(242, 138, 66, 0.12);
   --hub-sombra: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 24px 48px -26px rgba(0, 0, 0, 0.75);
   --hub-sombra-forte: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 34px 70px -30px rgba(0, 0, 0, 0.85);
-  --hub-topo: rgba(6, 11, 21, 0.72);
+  --hub-topo: rgba(8, 12, 20, 0.74);
   --hub-ladrilho: rgba(255, 255, 255, 0.035);
   --hub-ladrilho-borda: rgba(255, 255, 255, 0.06);
   --hub-ladrilho-aceso: rgba(242, 138, 66, 0.32);

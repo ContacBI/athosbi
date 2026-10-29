@@ -53,7 +53,7 @@ export default function ParametrosSidebar() {
   }
 
   return (
-    <aside className="flex h-screen w-[232px] shrink-0 flex-col bg-navy-950 text-white">
+    <aside className="bi-lateral-escura flex h-screen w-[232px] shrink-0 flex-col bg-navy-950 text-white">
       <button type="button" onClick={() => navigate("/")} className="flex items-center gap-2.5 px-5 py-5 text-left">
         <AthosMark size={30} className="shrink-0" />
         <span className="text-[15px] font-medium leading-tight">AthosBI</span>

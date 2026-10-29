@@ -19,6 +19,26 @@ export function loginNovo(ambienteTeste = EH_TESTE) {
   return Boolean(ambienteTeste);
 }
 
+// Visual novo do portal todo (src/hub/bi.css) pra quem tem o hub ligado:
+// data-hub no <html>. A marca no navegador deixa o index.html já pintar o
+// carregamento com as cores novas, antes do React subir.
+const MARCA_DO_TEMA = "athosbi.hub";
+
+export function aplicarTemaDoHub(ligado) {
+  const raiz = document.documentElement;
+  try {
+    if (ligado) {
+      raiz.dataset.hub = "1";
+      localStorage.setItem(MARCA_DO_TEMA, "1");
+    } else {
+      delete raiz.dataset.hub;
+      localStorage.removeItem(MARCA_DO_TEMA);
+    }
+  } catch {
+    // sem armazenamento: o atributo já basta pra esta aba
+  }
+}
+
 // "Portal atual" no topo do hub: volta pro Início de hoje até fechar a aba.
 const PORTAL_ATUAL = "athosbi.hub.portalAtual";
 
@@ -39,36 +59,16 @@ export function querPortalAtual() {
   }
 }
 
-// As áreas do hub, na ordem do menu. `pronta` = já tem conteúdo de verdade;
-// as outras abrem a página "em construção", que conta o que vai ter ali.
+// As áreas do hub, na ordem do menu. Por enquanto o hub tem o B.I. e a
+// Reforma Tributária (só informação); Serviços, Conteúdos e Ferramentas
+// ficam no menu, ainda sem nada (pedido do Izaias, 28/10/2026).
 export const AREAS_DO_HUB = [
   { id: "inicio", nome: "Início", rota: "/hub", pronta: true },
   { id: "bi", nome: "Meu B.I.", rota: null, pronta: true, resumo: "Resultado, caixa, balanço e indicadores da empresa, fechados pelo escritório." },
-  { id: "tributario", nome: "Tributário", rota: "/hub/tributario", pronta: true, resumo: "A Reforma Tributária explicada, com o simulador produto a produto." },
-  {
-    id: "servicos",
-    nome: "Serviços",
-    rota: "/hub/servicos",
-    pronta: false,
-    resumo: "Agenda de obrigações, guias para pagar e a troca de documentos com o escritório.",
-    itens: ["Agenda de vencimentos da empresa, mês a mês", "Guias prontas para baixar e pagar", "Envio de documentos para o escritório, com protocolo", "Pedidos e chamados acompanhados até o fim"],
-  },
-  {
-    id: "conteudos",
-    nome: "Conteúdos",
-    rota: "/hub/conteudos",
-    pronta: false,
-    resumo: "Artigos, notícias e explicações curtas da equipe, sem juridiquês.",
-    itens: ["Radar tributário: o que mudou na semana", "Guias curtos para entender DRE, caixa e margem", "Explicações da Reforma por setor", "Tudo escrito e publicado pela própria equipe"],
-  },
-  {
-    id: "ferramentas",
-    nome: "Ferramentas",
-    rota: "/hub/ferramentas",
-    pronta: false,
-    resumo: "Calculadoras para decisões do dia a dia.",
-    itens: ["Custo real de um funcionário", "Pró-labore × distribuição de lucros", "Simples × Lucro Presumido", "Férias, 13º e rescisão"],
-  },
+  { id: "reforma", nome: "Reforma Tributária", rota: "/hub/reforma", pronta: true, resumo: "O que muda, quando muda e o que observar — sem juridiquês." },
+  { id: "servicos", nome: "Serviços", rota: "/hub/servicos", pronta: false },
+  { id: "conteudos", nome: "Conteúdos", rota: "/hub/conteudos", pronta: false },
+  { id: "ferramentas", nome: "Ferramentas", rota: "/hub/ferramentas", pronta: false },
 ];
 
 // Reforma Tributária — o calendário da transição (EC 132/2023 e LC 214/2025).

@@ -12,7 +12,7 @@ export default function ParametrosLayout() {
   // o mesmo `if (!state.isAdmin)` no topo delas.
   if (!state.isAdmin && !state.isColaborador) return <Navigate to="/empresas" replace />;
   return (
-    <div className="flex min-h-screen bg-surface-page">
+    <div className="bi-pagina flex min-h-screen bg-surface-page">
       <div className="sticky top-0 h-screen shrink-0">
         <ParametrosSidebar />
       </div>

@@ -13,8 +13,8 @@ const LARGURA = "w-full px-4 sm:px-6 lg:px-8 2xl:px-12";
 export default function ReformaShell({ titulo, subtitulo, voltarPara = "/", voltarRotulo = "Início", acoes, extra, barra, children }) {
   const navigate = useNavigate();
   return (
-    <div className="min-h-screen bg-surface-page pb-16">
-      <header className="relative overflow-hidden bg-navy-950 pb-5 pt-4 text-white">
+    <div className="bi-pagina min-h-screen bg-surface-page pb-16">
+      <header className="bi-cabecalho relative overflow-hidden bg-navy-950 pb-5 pt-4 text-white">
         <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(640px circle at 8% 0%, rgba(232,105,31,0.22), transparent 62%)" }} />
         <div className={`relative flex flex-col gap-3 ${LARGURA}`}>
           <div className="flex items-center justify-between gap-3">

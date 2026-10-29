@@ -1,0 +1,258 @@
+/* Visual novo do B.I. (e de todo o portal) — só para quem tem o hub ligado:
+   data-hub no <html> (lib/hub.js aplicarTemaDoHub; o index.html já marca
+   antes da primeira pintura). Sem data-hub — o oficial e qualquer outra
+   pessoa — nada aqui vale. Troca os tokens de cor/fonte/raio do tema e dá
+   acabamento às peças que se repetem (topo, abas, cartões, listas). */
+
+:root[data-hub] {
+  --font-sans: "Plus Jakarta Sans Variable", "Inter", "Segoe UI", system-ui, sans-serif;
+  --color-surface-page: #f5f7fb;
+  --color-surface-card: #ffffff;
+  --color-surface-muted: #eef2f8;
+  --color-ink-900: #0b1a2c;
+  --color-ink-800: #1c2c41;
+  --color-ink-700: #33445b;
+  --color-ink-600: #4a5a6f;
+  --color-ink-500: #63738a;
+  --color-ink-400: #8592a5;
+  --color-ink-300: #aeb9c8;
+  --color-line: #e5eaf2;
+  --color-line-strong: #d0d8e4;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.375rem;
+  --bi-sombra: 0 0 0 1px var(--color-line), 0 1px 2px rgba(8, 29, 51, 0.04), 0 16px 34px -24px rgba(8, 29, 51, 0.3);
+  --bi-sombra-forte: 0 0 0 1px var(--color-line-strong), 0 2px 4px rgba(8, 29, 51, 0.05), 0 24px 46px -26px rgba(8, 29, 51, 0.4);
+}
+
+/* Escuro: quase preto, com só um resquício frio (o cinza neutro de antes foi
+   pedido porque o azul-marinho saturado ficava "azul demais"; aqui o tom é
+   o mesmo do hub, bem mais fechado). */
+:root[data-hub][data-theme="dark"] {
+  --color-surface-page: #080c14;
+  --color-surface-card: #0f1520;
+  --color-surface-muted: #161e2b;
+  --color-ink-900: #eef2f8;
+  --color-ink-800: #d3dae5;
+  --color-ink-700: #b7c0cd;
+  --color-ink-600: #a1abba;
+  --color-ink-500: #949fae;
+  --color-ink-400: #7b8696;
+  --color-ink-300: #56606f;
+  --color-line: #1d2735;
+  --color-line-strong: #2a3647;
+  --bi-sombra: 0 0 0 1px var(--color-line), 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 22px 44px -30px rgba(0, 0, 0, 0.85);
+  --bi-sombra-forte: 0 0 0 1px var(--color-line-strong), 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 28px 56px -30px rgba(0, 0, 0, 0.9);
+}
+
+:root[data-hub] body {
+  font-feature-settings: "cv11", "ss01";
+  letter-spacing: -0.005em;
+}
+
+/* Cartões em geral: anel fino + sombra macia, em vez da sombra cinza. */
+:root[data-hub] .shadow-sm.bg-surface-card,
+:root[data-hub] .bi-cartao {
+  box-shadow: var(--bi-sombra);
+}
+:root[data-hub] .bi-cartao {
+  border-radius: 20px;
+  container-type: inline-size;
+  transition:
+    box-shadow 0.3s ease,
+    transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+:root[data-hub] .bi-cartao:hover {
+  box-shadow: var(--bi-sombra-forte);
+}
+
+/* Título de cada cartão do painel. */
+:root[data-hub] [data-widget-title],
+:root[data-hub] [data-widget-title] > p {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.015em;
+}
+
+/* Cartão de número (KPI). */
+:root[data-hub] .bi-kpi-rotulo {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-ink-500);
+}
+:root[data-hub] .bi-kpi-valor {
+  font-size: clamp(18px, 15cqi, 26px) !important;
+  font-weight: 750 !important;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Valor comprido (R$ com milhões) num cartão estreito: a fonte acompanha a
+   largura do cartão em vez de cortar o número. */
+:root[data-hub] .bi-kpi-valor[data-comprimento="longo"] {
+  font-size: clamp(13px, calc(100cqi / 9.4), 24px) !important;
+}
+:root[data-hub] .bi-kpi-icone {
+  height: 30px;
+  width: 30px;
+  border-radius: 10px;
+}
+
+/* ── Fundo de todas as páginas: o mesmo do hub (src/hub/hub.css) — dois
+   brilhos suaves e a grade fraca que some pra baixo. ── */
+:root[data-hub] {
+  --bi-brilho-1: rgba(47, 111, 237, 0.09);
+  --bi-brilho-2: rgba(232, 105, 31, 0.09);
+  --bi-grade: rgba(12, 43, 74, 0.05);
+}
+:root[data-hub][data-theme="dark"] {
+  --bi-brilho-1: rgba(47, 111, 237, 0.14);
+  --bi-brilho-2: rgba(232, 105, 31, 0.11);
+  --bi-grade: rgba(255, 255, 255, 0.035);
+}
+:root[data-hub] .bi-pagina {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(900px circle at 8% -10%, var(--bi-brilho-1), transparent 60%),
+    radial-gradient(700px circle at 92% 0%, var(--bi-brilho-2), transparent 60%),
+    var(--color-surface-page);
+}
+:root[data-hub] .bi-pagina::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 680px;
+  z-index: -1;
+  pointer-events: none;
+  background-image: linear-gradient(var(--bi-grade) 1px, transparent 1px), linear-gradient(90deg, var(--bi-grade) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at 50% 0%, black 20%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 0%, black 20%, transparent 70%);
+}
+
+/* ── Peças que eram azul-marinho com texto branco (topo do B.I., cabeçalho
+   da carteira/empresas/Reforma, menu dos Parâmetros): no padrão do hub,
+   vidro claro com texto escuro no tema claro, quase preto no escuro. ── */
+:root[data-hub] .bi-topo {
+  background: color-mix(in srgb, var(--color-surface-page) 80%, transparent);
+  backdrop-filter: saturate(160%) blur(18px);
+  -webkit-backdrop-filter: saturate(160%) blur(18px);
+  box-shadow: 0 1px 0 var(--color-line);
+}
+:root[data-hub] .bi-cabecalho {
+  padding-top: 26px;
+  padding-bottom: 30px;
+  background: transparent;
+}
+:root[data-hub] .bi-cabecalho > .pointer-events-none.absolute {
+  display: none;
+}
+:root[data-hub] .bi-lateral-escura {
+  background: var(--color-surface-card);
+  box-shadow: 1px 0 0 var(--color-line);
+}
+
+/* Tema claro: o que era branco sobre o azul vira tinta escura. Botão com
+   fundo laranja (ou de alerta) continua com o texto branco. */
+:root[data-hub]:not([data-theme="dark"]) :is(.bi-topo, .bi-cabecalho, .bi-lateral-escura) {
+  color: var(--color-ink-900);
+}
+:root[data-hub]:not([data-theme="dark"]) :is(.bi-topo, .bi-cabecalho, .bi-lateral-escura) .text-white:not([class*="bg-accent"], [class*="bg-danger"], [class*="bg-success"], [class*="bg-warning"]) {
+  color: var(--color-ink-900);
+}
+:root[data-hub]:not([data-theme="dark"]) :is(.bi-topo, .bi-cabecalho, .bi-lateral-escura) :is(.text-white\/85, .text-white\/80, .text-white\/75, .text-white\/70, .text-white\/65) {
+  color: var(--color-ink-700);
+}
+:root[data-hub]:not([data-theme="dark"]) :is(.bi-topo, .bi-cabecalho, .bi-lateral-escura) :is(.text-white\/60, .text-white\/55, .text-white\/50) {
+  color: var(--color-ink-500);
+}
+:root[data-hub]:not([data-theme="dark"]) :is(.bi-topo, .bi-cabecalho, .bi-lateral-escura) :is(.text-white\/45, .text-white\/40, .text-white\/35, .text-white\/30, .text-white\/25) {
+  color: var(--color-ink-400);
+}
+:root[data-hub]:not([data-theme="dark"]) :is(.bi-topo, .bi-cabecalho, .bi-lateral-escura) :is(.text-accent-300, .text-accent-400) {
+  color: var(--color-accent-600);
+}
+:root[data-hub]:not([data-theme="dark"]) :is(.bi-topo, .bi-cabecalho, .bi-lateral-escura) [class*="border-white/"] {
+  border-color: var(--color-line-strong);
+}
+:root[data-hub]:not([data-theme="dark"]) :is(.bi-topo, .bi-cabecalho, .bi-lateral-escura) :is(.bg-white\/5, .bg-white\/10) {
+  background-color: var(--color-surface-card);
+}
+:root[data-hub]:not([data-theme="dark"]) :is(.bi-topo, .bi-cabecalho, .bi-lateral-escura) :is(.bg-white\/15, .bg-white\/20) {
+  background-color: var(--color-surface-muted);
+}
+:root[data-hub]:not([data-theme="dark"]) :is(.bi-topo, .bi-cabecalho, .bi-lateral-escura) :is(.hover\:bg-white\/5, .hover\:bg-white\/10, .hover\:bg-white\/15):hover {
+  background-color: var(--color-surface-muted);
+}
+:root[data-hub]:not([data-theme="dark"]) :is(.bi-topo, .bi-cabecalho, .bi-lateral-escura) :is(.hover\:text-white, .hover\:text-white\/70, .hover\:text-white\/80, .hover\:text-white\/85):hover {
+  color: var(--color-ink-900);
+}
+:root[data-hub]:not([data-theme="dark"]) :is(.bi-topo, .bi-cabecalho, .bi-lateral-escura) :is(.hover\:border-white\/25, .hover\:border-white\/30, .hover\:border-white\/40):hover {
+  border-color: var(--color-ink-300);
+}
+
+/* Abas do B.I. (Resumo, Demonstrativos…): pílulas. */
+:root[data-hub] .bi-abas {
+  gap: 4px;
+  padding: 10px 20px;
+  background: var(--color-surface-page);
+}
+:root[data-hub] .bi-aba {
+  border-bottom: 0 !important;
+  padding: 7px 15px !important;
+  border-radius: 999px;
+  font-weight: 600 !important;
+  color: var(--color-ink-500);
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+:root[data-hub] .bi-aba:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-ink-900);
+}
+:root[data-hub] .bi-aba[aria-current="page"] {
+  background: var(--color-surface-card);
+  color: var(--color-ink-900);
+  box-shadow:
+    0 0 0 1px var(--color-line),
+    0 6px 16px -10px rgba(8, 29, 51, 0.35);
+}
+
+/* ── Carteira (Escolha uma empresa) ── */
+:root[data-hub] .bi-titulo {
+  font-size: 34px !important;
+  font-weight: 750 !important;
+  letter-spacing: -0.035em;
+}
+:root[data-hub] .bi-busca {
+  height: 54px;
+  border-radius: 18px !important;
+  box-shadow: var(--bi-sombra) !important;
+  border-color: transparent !important;
+  font-size: 15px !important;
+}
+:root[data-hub] .bi-busca:focus {
+  box-shadow:
+    0 0 0 2px #e8691f,
+    0 18px 40px -26px rgba(232, 105, 31, 0.6) !important;
+}
+:root[data-hub] .bi-lista {
+  border-radius: 20px;
+}
+:root[data-hub] .bi-linha {
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+  transition:
+    background-color 0.2s ease,
+    padding-left 0.25s ease;
+}
+:root[data-hub] .bi-linha:hover {
+  background: color-mix(in srgb, var(--color-surface-muted) 70%, transparent);
+}
+
+/* Menu de módulos (lateral). */
+:root[data-hub] .bi-lateral {
+  background: color-mix(in srgb, var(--color-surface-card) 92%, transparent);
+}

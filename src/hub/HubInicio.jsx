@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { ArrowRight, ArrowUpRight, BarChart3, BookOpen, Calculator, CalendarClock, Clock, Network, Scale, Search, Sparkles } from "lucide-react";
+import { ArrowRight, BarChart3, Clock, FileSpreadsheet, Gauge, LayoutDashboard, LineChart, Network, PieChart, Presentation, Scale, Search, Table2 } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { AREAS_DO_HUB, LINHA_DA_REFORMA, andamentoDaReforma } from "../lib/hub.js";
 import { primeiroNome, resumoCarteira, saudacao } from "../lib/inicio.js";
@@ -11,8 +11,17 @@ import Mosaico from "./Mosaico.jsx";
 import LinhaDaReforma from "./LinhaDaReforma.jsx";
 import { Revelar, Secao, moverLuz } from "./efeitos.jsx";
 
-const ICONE_DA_AREA = { bi: BarChart3, tributario: Scale, servicos: CalendarClock, conteudos: BookOpen, ferramentas: Calculator };
-const FAIXA = ["Resultado do mês", "Caixa", "Balanço", "Indicadores", "Reforma Tributária", "IBS e CBS", "Obrigações", "Guias", "Conteúdos", "Calculadoras"];
+const FAIXA = ["Resultado do mês", "Caixa", "Balanço", "DRE", "EBITDA", "Indicadores", "Fluxo de caixa", "Reforma Tributária", "IBS e CBS", "Imposto Seletivo", "Split payment", "Cashback"];
+
+// O que tem dentro do B.I. (as telas que já existem).
+const NO_BI = [
+  { icone: LayoutDashboard, titulo: "Resumo", texto: "Os números que importam do período, num olhar só." },
+  { icone: Table2, titulo: "Demonstrativos", texto: "DRE, Balanço, EBITDA e fluxo de caixa, mês a mês." },
+  { icone: Gauge, titulo: "Indicadores", texto: "Margens, liquidez, endividamento e rentabilidade." },
+  { icone: LineChart, titulo: "Gráficos", texto: "A evolução do resultado e do caixa ao longo do ano." },
+  { icone: FileSpreadsheet, titulo: "Relatórios", texto: "Tudo em PDF ou Excel, prontos para enviar." },
+  { icone: Presentation, titulo: "Apresentações", texto: "Os números em slides, para a reunião com os sócios." },
+];
 
 function hojePorExtenso() {
   const texto = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
@@ -109,8 +118,8 @@ export default function HubInicio() {
   const suasEmpresas = useMemo(() => (staff ? [] : state.companies.map((company) => ({ tipo: "empresa", id: company.id, nome: company.name }))), [staff, state.companies]);
   const continuar = staff ? abertas : suasEmpresas;
   const andamento = andamentoDaReforma();
-  const areas = AREAS_DO_HUB.filter((area) => area.id !== "inicio");
-  const [bi, tributario, ...embreve] = areas;
+  const bi = AREAS_DO_HUB.find((area) => area.id === "bi");
+  const reforma = AREAS_DO_HUB.find((area) => area.id === "reforma");
 
   return (
     <>
@@ -131,19 +140,19 @@ export default function HubInicio() {
           </Revelar>
           <Revelar atraso={0.1}>
             <h1 className="hub-display mt-2 text-[44px] font-extrabold leading-[1.02] sm:text-[60px] xl:text-[72px]">
-              Sua empresa, <span className="hub-italico">inteira</span>
-              <span className="hub-pontuacao">,</span> em um só lugar.
+              Os números da sua empresa, <span className="hub-italico">claros</span>
+              <span className="hub-pontuacao">.</span>
             </h1>
           </Revelar>
           <Revelar atraso={0.16}>
-            <p className="mt-6 max-w-[540px] text-[17px] leading-relaxed text-[var(--hub-texto-2)]">Os números fechados pelo escritório, a Reforma Tributária explicada e, em breve, prazos, guias e conteúdos da equipe Athos.</p>
+            <p className="mt-6 max-w-[540px] text-[17px] leading-relaxed text-[var(--hub-texto-2)]">Resultado, caixa, balanço e indicadores fechados pelo escritório — e o que você precisa saber sobre a Reforma Tributária.</p>
           </Revelar>
           <Revelar atraso={0.22} className="mt-8 flex flex-wrap gap-3">
             <button type="button" onClick={() => irPara(bi)} className="hub-botao hub-botao-primario">
               Abrir meu B.I. <ArrowRight size={17} />
             </button>
-            <button type="button" onClick={() => navigate("/hub/tributario")} className="hub-botao hub-botao-fantasma">
-              Entender a Reforma
+            <button type="button" onClick={() => navigate("/hub/reforma")} className="hub-botao hub-botao-fantasma">
+              Reforma Tributária
             </button>
           </Revelar>
           {staff && (
@@ -170,7 +179,7 @@ export default function HubInicio() {
 
         <Revelar atraso={0.12} className="relative mx-auto w-full max-w-[560px]">
           <div className="absolute -inset-10 rounded-full opacity-70 blur-3xl" style={{ background: "radial-gradient(circle at 70% 70%, rgba(232,105,31,0.22), transparent 60%)" }} />
-          <Mosaico className="relative" icones={{ "0-3": BarChart3, "1-5": Scale, "3-1": CalendarClock, "4-2": BookOpen }} />
+          <Mosaico className="relative" icones={{ "0-3": BarChart3, "1-5": Scale, "3-1": PieChart, "4-2": LineChart }} />
           {carteira ? (
             <Flutuante className="-left-4 top-[6%] w-[230px] sm:-left-10" atraso={0}>
               <p className="hub-rotulo !text-[10px]">Carteira hoje</p>
@@ -191,7 +200,7 @@ export default function HubInicio() {
               </p>
             </Flutuante>
           )}
-          <Flutuante className="-right-3 top-[44%] w-[250px] sm:-right-8" atraso={1.4} onClick={() => navigate("/hub/tributario")}>
+          <Flutuante className="-right-3 top-[44%] w-[250px] sm:-right-8" atraso={1.4} onClick={() => navigate("/hub/reforma")}>
             <p className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--hub-acento)]">
               <Scale size={13} /> Reforma Tributária
             </p>
@@ -229,15 +238,17 @@ export default function HubInicio() {
         </div>
       </div>
 
-      {/* ── Áreas ── */}
-      <Secao className="mt-24" rotulo="O que tem aqui" titulo="Tudo o que a sua empresa precisa," italico="organizado" depois=".">
-        <div className="grid gap-5 md:grid-cols-6">
-          <Revelar className="md:col-span-4 md:row-span-2">
+      {/* ── O B.I. e a Reforma ── */}
+      <Secao className="mt-24" rotulo="O que tem aqui" titulo="Os números e os impostos da sua empresa," italico="explicados" depois=".">
+        <div className="grid gap-5 lg:grid-cols-[1.55fr_1fr]">
+          <Revelar>
             <button type="button" onClick={() => irPara(bi)} onPointerMove={moverLuz} className="hub-cartao hub-cartao-vivo flex h-full w-full flex-col justify-between gap-10 p-7 text-left sm:flex-row sm:items-end sm:p-9">
               <div className="flex flex-col gap-10 self-stretch sm:justify-between">
                 <div>
-                  <span className="hub-selo hub-selo-vivo">Disponível</span>
-                  <h3 className="hub-display mt-5 text-[30px] font-bold leading-tight sm:text-[38px]">{bi.nome}</h3>
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--hub-acento-suave)] text-[var(--hub-acento)]">
+                    <BarChart3 size={22} />
+                  </span>
+                  <h3 className="hub-display mt-6 text-[30px] font-bold leading-tight sm:text-[38px]">{bi.nome}</h3>
                   <p className="mt-3 max-w-sm text-[15.5px] leading-relaxed text-[var(--hub-texto-2)]">{bi.resumo}</p>
                 </div>
                 <span className="inline-flex items-center gap-2 text-[14.5px] font-bold text-[var(--hub-acento)]">
@@ -247,17 +258,14 @@ export default function HubInicio() {
               <ColunasDeLadrilho />
             </button>
           </Revelar>
-          <Revelar atraso={0.08} className="md:col-span-2 md:row-span-2">
-            <button type="button" onClick={() => navigate(tributario.rota)} onPointerMove={moverLuz} className="hub-cartao hub-cartao-vivo flex h-full w-full flex-col gap-6 p-7 text-left">
-              <div className="flex items-start justify-between">
-                <span className="hub-selo hub-selo-vivo">Disponível</span>
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--hub-acento-suave)] text-[var(--hub-acento)]">
-                  <Scale size={22} />
-                </span>
-              </div>
+          <Revelar atraso={0.08}>
+            <button type="button" onClick={() => navigate(reforma.rota)} onPointerMove={moverLuz} className="hub-cartao hub-cartao-vivo flex h-full w-full flex-col gap-6 p-7 text-left sm:p-9">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--hub-acento-suave)] text-[var(--hub-acento)]">
+                <Scale size={22} />
+              </span>
               <div>
-                <h3 className="hub-display text-[26px] font-bold leading-tight">{tributario.nome}</h3>
-                <p className="mt-2 text-[14.5px] leading-relaxed text-[var(--hub-texto-2)]">{tributario.resumo}</p>
+                <h3 className="hub-display text-[28px] font-bold leading-tight">{reforma.nome}</h3>
+                <p className="mt-2 text-[14.5px] leading-relaxed text-[var(--hub-texto-2)]">{reforma.resumo}</p>
               </div>
               <ol className="relative mt-auto space-y-3 border-l border-[var(--hub-borda-forte)] pl-5">
                 {LINHA_DA_REFORMA.map((marco, i) => (
@@ -268,30 +276,30 @@ export default function HubInicio() {
                   </li>
                 ))}
               </ol>
+              <span className="inline-flex items-center gap-2 text-[14.5px] font-bold text-[var(--hub-acento)]">
+                Entender a Reforma <ArrowRight size={16} />
+              </span>
             </button>
           </Revelar>
-          {embreve.map((area, i) => {
-            const Icone = ICONE_DA_AREA[area.id] || Sparkles;
-            return (
-              <Revelar key={area.id} atraso={0.12 + i * 0.06} className="md:col-span-2">
-                <button type="button" onClick={() => navigate(area.rota)} onPointerMove={moverLuz} className="hub-cartao hub-cartao-vivo flex h-full w-full flex-col gap-5 p-7 text-left">
-                  <div className="flex items-start justify-between">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--hub-borda)] bg-[var(--hub-fundo)] text-[var(--hub-texto-2)]">
-                      <Icone size={20} />
-                    </span>
-                    <span className="hub-selo">Em breve</span>
-                  </div>
-                  <div>
-                    <h3 className="hub-display text-[22px] font-bold">{area.nome}</h3>
-                    <p className="mt-2 text-[14px] leading-relaxed text-[var(--hub-texto-2)]">{area.resumo}</p>
-                  </div>
-                  <span className="mt-auto inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-[var(--hub-texto-3)]">
-                    Ver o que vem aí <ArrowUpRight size={15} />
-                  </span>
-                </button>
-              </Revelar>
-            );
-          })}
+        </div>
+      </Secao>
+
+      {/* ── O que tem no B.I. ── */}
+      <Secao className="mt-28" rotulo="Dentro do B.I." titulo="Tudo o que o escritório fecha," italico="num lugar só" depois=".">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {NO_BI.map(({ icone: Icone, titulo, texto }, i) => (
+            <Revelar key={titulo} atraso={i * 0.05}>
+              <button type="button" onClick={() => irPara(bi)} onPointerMove={moverLuz} className="hub-cartao hub-cartao-vivo flex h-full w-full items-start gap-4 p-6 text-left">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[var(--hub-borda)] bg-[var(--hub-fundo)] text-[var(--hub-acento)]">
+                  <Icone size={19} />
+                </span>
+                <span>
+                  <span className="block text-[16px] font-bold">{titulo}</span>
+                  <span className="mt-1 block text-[14px] leading-relaxed text-[var(--hub-texto-2)]">{texto}</span>
+                </span>
+              </button>
+            </Revelar>
+          ))}
         </div>
       </Secao>
 
@@ -368,8 +376,8 @@ export default function HubInicio() {
         italico="e quando"
         depois="."
         acao={
-          <button type="button" onClick={() => navigate("/reforma")} className="hub-botao hub-botao-primario">
-            Abrir o simulador <ArrowRight size={16} />
+          <button type="button" onClick={() => navigate("/hub/reforma")} className="hub-botao hub-botao-primario">
+            Entender a Reforma <ArrowRight size={16} />
           </button>
         }
       >
@@ -385,11 +393,15 @@ export default function HubInicio() {
             <div className="absolute inset-0 opacity-90" style={{ background: "radial-gradient(600px circle at 90% 120%, rgba(232,105,31,0.45), transparent 60%), radial-gradient(500px circle at 0% -20%, rgba(47,111,237,0.35), transparent 60%)" }} />
             <Mosaico colunas={5} linhas={4} degraus={3} className="pointer-events-none absolute -right-6 bottom-[-20px] hidden w-[300px] opacity-50 md:block" />
             <div className="relative max-w-xl">
-              <p className="text-[11.5px] font-bold uppercase tracking-[0.16em] text-white/55">O começo</p>
+              <p className="text-[11.5px] font-bold uppercase tracking-[0.16em] text-white/55">Athos Consultoria Empresarial</p>
               <h2 className="hub-display mt-3 text-[32px] font-bold leading-[1.08] sm:text-[42px]">
-                Um portal que <span className="hub-italico">cresce</span> com a sua empresa.
+                Decisões melhores começam com números <span className="hub-italico">claros</span>
+                <span className="hub-pontuacao">.</span>
               </h2>
-              <p className="mt-4 text-[16px] leading-relaxed text-white/70">Cada área nova aparece aqui primeiro. As próximas são Serviços, Conteúdos e Ferramentas.</p>
+              <p className="mt-4 text-[16px] leading-relaxed text-white/70">Ficou com dúvida sobre algum número? A sua equipe na Athos está com você.</p>
+              <button type="button" onClick={() => irPara(bi)} className="hub-botao hub-botao-primario mt-8">
+                Abrir meu B.I. <ArrowRight size={17} />
+              </button>
             </div>
           </div>
         </Revelar>

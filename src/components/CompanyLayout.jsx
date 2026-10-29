@@ -95,7 +95,7 @@ export default function CompanyLayout() {
 
   return (
     <PageActionsProvider>
-      <div className="min-h-screen bg-surface-page">
+      <div className="bi-pagina min-h-screen bg-surface-page">
         <CompanyTopBar company={company} modulesOpen={modulosAberto && temMenu} onToggleModules={temMenu ? alternarModulos : undefined} />
         {isMobile && (
           <button

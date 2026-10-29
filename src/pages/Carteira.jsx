@@ -231,8 +231,8 @@ export default function Carteira() {
   if (!staff) return <Navigate to="/empresas" replace />;
 
   return (
-    <div className="min-h-screen bg-surface-page pb-16">
-      <div className="relative overflow-hidden bg-navy-950 px-6 pb-6 pt-5 text-white">
+    <div className="bi-pagina min-h-screen bg-surface-page pb-16">
+      <div className="bi-cabecalho relative overflow-hidden bg-navy-950 px-6 pb-6 pt-5 text-white">
         <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(560px circle at 12% 0%, rgba(232,105,31,0.22), transparent 62%)" }} />
         <div className="relative mx-auto flex max-w-[1200px] flex-col gap-4">
           <button type="button" onClick={() => navigate("/empresas")} className="flex w-fit items-center gap-1.5 text-[13px] text-white/60 transition-colors hover:text-white">

@@ -57,7 +57,7 @@ export default function ModulesSidebar({ onClose, isGroup, hasData, overlay, lib
   const itens = MODULOS.filter((item) => (item.id === "bi" || liberados.includes(item.id)) && !(item.soEmpresa && isGroup) && !(item.precisaDeDados && !hasData));
 
   const painel = (
-    <nav aria-label="Módulos" className={`flex w-60 shrink-0 flex-col gap-1 border-r border-line bg-surface-card p-3 ${overlay ? "h-full shadow-xl" : "min-h-[calc(100vh-64px)]"}`}>
+    <nav aria-label="Módulos" className={`bi-lateral flex w-60 shrink-0 flex-col gap-1 border-r border-line bg-surface-card p-3 ${overlay ? "h-full shadow-xl" : "min-h-[calc(100vh-64px)]"}`}>
       <div className="mb-1 flex items-center justify-between px-2">
         <p className="text-[10.5px] font-semibold uppercase tracking-wide text-ink-400">Módulos</p>
         <button type="button" onClick={onClose} aria-label="Fechar menu" title="Fechar menu" className="flex h-6 w-6 items-center justify-center rounded-md text-ink-400 hover:bg-surface-muted hover:text-ink-700">

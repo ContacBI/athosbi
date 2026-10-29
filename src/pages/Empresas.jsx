@@ -77,7 +77,7 @@ function CompanyRow({ company, isActive, onSelect, maxLancamentos }) {
     <button
       type="button"
       onClick={onSelect}
-      className={`group grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 border-l-2 px-4 py-2.5 text-left transition-colors sm:grid-cols-[auto_1fr_auto_auto_auto] sm:gap-4 ${
+      className={`bi-linha group grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 border-l-2 px-4 py-2.5 text-left transition-colors sm:grid-cols-[auto_1fr_auto_auto_auto] sm:gap-4 ${
         isActive ? "border-accent-500 bg-accent-50/50" : "border-transparent hover:bg-surface-muted"
       }`}
     >
@@ -112,7 +112,7 @@ function GroupRow({ group, members, isActive, onSelect, maxLancamentos }) {
     <button
       type="button"
       onClick={onSelect}
-      className={`group grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 border-l-2 px-4 py-2.5 text-left transition-colors sm:grid-cols-[auto_1fr_auto_auto_auto] sm:gap-4 ${
+      className={`bi-linha group grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 border-l-2 px-4 py-2.5 text-left transition-colors sm:grid-cols-[auto_1fr_auto_auto_auto] sm:gap-4 ${
         isActive ? "border-accent-500 bg-accent-50/50" : "border-transparent hover:bg-surface-muted"
       }`}
     >
@@ -207,7 +207,7 @@ export default function Empresas() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-page pb-16">
+    <div className="bi-pagina min-h-screen bg-surface-page pb-16">
       {pending && (
         <WorkspaceLoading
           name={pending.name}
@@ -221,7 +221,7 @@ export default function Empresas() {
           o trabalho de verdade é a busca+lista logo abaixo, então isso aqui
           só precisa situar "você está na carteira" e mostrar os totais de
           relance, não ocupar a metade da tela. */}
-      <div className="relative overflow-hidden bg-navy-950 px-6 pb-6 pt-5 text-white">
+      <div className="bi-cabecalho relative overflow-hidden bg-navy-950 px-6 pb-6 pt-5 text-white">
         <div
           className="pointer-events-none absolute inset-0"
           style={{ background: "radial-gradient(560px circle at 12% 0%, rgba(232,105,31,0.22), transparent 62%)" }}
@@ -261,7 +261,7 @@ export default function Empresas() {
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <span className="text-[12px] font-medium uppercase tracking-wide text-accent-400">Carteira</span>
-              <h1 className="mt-1 text-[26px] font-medium leading-tight">Escolha uma empresa</h1>
+              <h1 className="bi-titulo mt-1 text-[26px] font-medium leading-tight">Escolha uma empresa</h1>
             </div>
             {state.companies.length > 0 && (
               <p className="flex flex-wrap items-baseline gap-x-2 font-mono text-[12.5px] tabular-nums text-white/55">
@@ -292,7 +292,7 @@ export default function Empresas() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={effectiveTab === "grupos" ? "Buscar grupo..." : "Buscar por nome, código ou CNPJ..."}
-            className="w-full rounded-xl border border-line bg-surface-card py-3 pl-11 pr-16 text-[14px] text-ink-900 shadow-sm outline-none placeholder:text-ink-300 focus:border-accent-400"
+            className="bi-busca w-full rounded-xl border border-line bg-surface-card py-3 pl-11 pr-16 text-[14px] text-ink-900 shadow-sm outline-none placeholder:text-ink-300 focus:border-accent-400"
           />
           {!search && (
             <span className="pointer-events-none absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-1 text-[11px] text-ink-300">
@@ -365,7 +365,7 @@ export default function Empresas() {
               )}
             </div>
           ) : (
-            <section className="overflow-hidden rounded-xl bg-surface-card shadow-sm">
+            <section className="bi-lista overflow-hidden rounded-xl bg-surface-card shadow-sm">
               {/* Cabeçalho de tabela de verdade — rotula as colunas que a
                   VolumeCell/contas só mostravam sem legenda antes. Some no
                   celular junto com as próprias colunas (ver sm:hidden). */}
@@ -393,7 +393,7 @@ export default function Empresas() {
             </section>
           )
         ) : (
-          <section className="overflow-hidden rounded-xl bg-surface-card shadow-sm">
+          <section className="bi-lista overflow-hidden rounded-xl bg-surface-card shadow-sm">
             <div className="hidden items-center gap-4 border-b border-line bg-surface-muted/60 px-4 py-1.5 text-[10.5px] font-medium uppercase tracking-wide text-ink-400 sm:grid sm:grid-cols-[34px_1fr_96px_96px_16px]">
               <span />
               <span>Grupo</span>
