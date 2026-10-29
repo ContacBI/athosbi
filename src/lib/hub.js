@@ -39,6 +39,13 @@ export function aplicarTemaDoHub(ligado) {
   }
 }
 
+// O B.I. abre dentro do hub (pedido do Izaias, 29/10/2026): o menu do topo
+// do hub recolhe e a setinha no topo do B.I. traz ele de volta. Quem pediu o
+// portal atual fica com o B.I. de sempre.
+export function biDentroDoHub(st) {
+  return hubLigado(st) && !querPortalAtual();
+}
+
 // "Portal atual" no topo do hub: volta pro Início de hoje até fechar a aba.
 const PORTAL_ATUAL = "athosbi.hub.portalAtual";
 

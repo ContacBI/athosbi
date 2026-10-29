@@ -499,3 +499,22 @@ body:has(.console) .selo-teste {
   letter-spacing: -0.035em;
   color: var(--hub-texto);
 }
+/* Troca entre as páginas do hub e o B.I. (que abre dentro do hub): o conteúdo
+   novo aparece suave. Só opacidade — transform criaria um bloco de contenção
+   pros elementos "fixed" do B.I. */
+.hub-surgir {
+  animation: hub-surgir 0.45s ease both;
+}
+@keyframes hub-surgir {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hub-surgir {
+    animation: none;
+  }
+}

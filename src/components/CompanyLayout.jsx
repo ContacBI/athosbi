@@ -7,7 +7,7 @@ import WorkspaceLoading from "./WorkspaceLoading.jsx";
 import { useAppState, setData } from "../data/useStore.js";
 import { isResponsavelForGroup } from "../lib/colaboradores.js";
 import { moduloDaRota, modulosLiberados } from "../lib/modulos.js";
-import { hubLigado } from "../lib/hub.js";
+import { biDentroDoHub } from "../lib/hub.js";
 import { limiteDoCliente, limitarPeriodo } from "../lib/fechamento.js";
 import { PageActionsProvider } from "../lib/pageActions.jsx";
 import { densityColumnGap } from "../lib/density.js";
@@ -84,7 +84,7 @@ export default function CompanyLayout() {
     return <Navigate to="/empresa" replace />;
   }
   // Com o hub, os módulos moram em Ferramentas (no hub e no menu do topo do B.I.) — sem o menu lateral.
-  const temMenu = liberados.length > 0 && !hubLigado(state);
+  const temMenu = liberados.length > 0 && !biDentroDoHub(state);
 
   // Resumo no celular: tela própria, sem a barra do topo nem margens.
   if (location.pathname === "/empresa/celular") {
