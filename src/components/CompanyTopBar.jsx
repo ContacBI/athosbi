@@ -22,6 +22,10 @@ import { limiteDoCliente, ultimoDiaDoMes } from "../lib/fechamento.js";
 import ThemeToggle from "./ThemeToggle.jsx";
 import AthosMark from "./AthosMark.jsx";
 import { hubLigado } from "../lib/hub.js";
+import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
+import SeletorDeEmpresa from "./SeletorDeEmpresa.jsx";
+import WorkspaceLoading from "./WorkspaceLoading.jsx";
+import { createPortal } from "react-dom";
 
 // Chama a função pura certa (buildFullDfcExport/buildFullReportExport) pra
 // reconstruir "o mesmo tipo de relatório que está na tela" a partir do
@@ -466,6 +470,10 @@ function PendingMappingsBanner({ company }) {
 export default function CompanyTopBar({ company, modulesOpen = false, onToggleModules }) {
   const appState = useAppState();
   const navigate = useNavigate();
+  // Com o hub ligado, trocar de empresa é numa janela flutuante, sem sair do B.I.
+  const comHub = hubLigado(appState);
+  const [seletor, setSeletor] = useState(false);
+  const { pending: abrindo, abrirEmpresa, abrirGrupo, cancelar: cancelarAbertura } = useAbrirWorkspace();
   const location = useLocation();
   const tabs = (appState.dashboardTabs || []).filter((tab) => !oculto(kAba(tab.id))); // abas que a equipe ocultou pro cliente (lib/visibilidade.js)
   const group = appState.activeGroupId ? appState.groups.find((item) => item.id === appState.activeGroupId) || null : null;
@@ -541,7 +549,7 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
               <span className="h-5 w-px shrink-0 bg-white/15" aria-hidden="true" />
               <button
                 type="button"
-                onClick={() => navigate("/empresas")}
+                onClick={() => (comHub ? setSeletor(true) : navigate("/empresas"))}
                 aria-label="Trocar empresa"
                 title="Trocar empresa"
                 className="group flex min-w-0 items-center gap-2.5 rounded-lg py-1 pl-1 pr-2 -ml-1 transition-colors hover:bg-white/10"
@@ -658,6 +666,9 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
           ))}
         </nav>
       )}
+      {comHub && <SeletorDeEmpresa aberto={seletor} onFechar={() => setSeletor(false)} onEscolher={(item) => (item.tipo === "grupo" ? abrirGrupo(item.id) : abrirEmpresa(item.id))} />}
+      {abrindo &&
+        createPortal(<WorkspaceLoading name={abrindo.name} isGroup={abrindo.isGroup} phase={abrindo.phase} progress={appState.journalLoadProgress} onCancel={cancelarAbertura} />, document.body)}
     </header>
   );
 }

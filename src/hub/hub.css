@@ -100,10 +100,30 @@
   mask-image: radial-gradient(ellipse at 50% 0%, black 20%, transparent 70%);
 }
 
+/* O desfoque fica numa camada de fundo (::before): no próprio topo, ele
+   prenderia dentro do topo os elementos "fixed" dos menus que abrem ali
+   (o clique fora pra fechar deixava de funcionar abaixo do topo). */
 .hub-topo {
+  isolation: isolate;
+}
+.hub-topo::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background: var(--hub-topo);
   backdrop-filter: saturate(160%) blur(18px);
   -webkit-backdrop-filter: saturate(160%) blur(18px);
+}
+
+/* Largura do conteúdo: mais larga em telas grandes. */
+.hub-largura {
+  max-width: 1320px;
+}
+@media (min-width: 1700px) {
+  .hub-largura {
+    max-width: 1480px;
+  }
 }
 
 .hub-cartao {

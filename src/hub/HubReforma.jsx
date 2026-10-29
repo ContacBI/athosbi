@@ -86,7 +86,7 @@ export default function HubReforma() {
   const [aberta, setAberta] = useState(0);
   return (
     <>
-      <section className="mx-auto grid max-w-[1320px] items-center gap-12 px-5 pb-16 pt-12 sm:px-8 lg:grid-cols-[1.2fr_0.8fr] lg:pt-16">
+      <section className="mx-auto grid hub-largura items-center gap-12 px-5 pb-16 pt-12 sm:px-8 lg:grid-cols-[1.2fr_0.8fr] lg:pt-16">
         <div>
           <Revelar>
             <p className="hub-rotulo">Reforma Tributária</p>
@@ -115,7 +115,7 @@ export default function HubReforma() {
         </Revelar>
       </section>
 
-      <section className="mx-auto max-w-[1320px] px-5 sm:px-8">
+      <section className="mx-auto hub-largura px-5 sm:px-8">
         <Revelar>
           <div className="relative overflow-hidden rounded-[28px] border border-[var(--hub-borda)] bg-[var(--hub-cartao-solido)] px-7 py-10 shadow-[var(--hub-sombra)] sm:px-12">
             <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-[#e8691f] to-[#f4a96f]" />

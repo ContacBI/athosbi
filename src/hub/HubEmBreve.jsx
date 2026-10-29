@@ -11,7 +11,7 @@ export default function HubEmBreve({ area: id }) {
   const area = AREAS_DO_HUB.find((item) => item.id === id);
   if (!area) return null;
   return (
-    <section className="mx-auto grid min-h-[56vh] max-w-[1320px] items-center gap-14 px-5 pb-10 pt-12 sm:px-8 lg:grid-cols-[1.1fr_0.9fr] lg:pt-16">
+    <section className="mx-auto grid min-h-[56vh] hub-largura items-center gap-14 px-5 pb-10 pt-12 sm:px-8 lg:grid-cols-[1.1fr_0.9fr] lg:pt-16">
       <div>
         <Revelar>
           <span className="hub-selo">Em preparação</span>

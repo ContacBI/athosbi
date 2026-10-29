@@ -134,10 +134,20 @@
    da carteira/empresas/Reforma, menu dos Parâmetros): no padrão do hub,
    vidro claro com texto escuro no tema claro, quase preto no escuro. ── */
 :root[data-hub] .bi-topo {
+  background: transparent;
+  isolation: isolate;
+  box-shadow: 0 1px 0 var(--color-line);
+}
+/* Desfoque numa camada de fundo: no próprio topo, prenderia os "fixed" dos
+   menus que abrem ali (ver o mesmo em hub.css). */
+:root[data-hub] .bi-topo::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background: color-mix(in srgb, var(--color-surface-page) 80%, transparent);
   backdrop-filter: saturate(160%) blur(18px);
   -webkit-backdrop-filter: saturate(160%) blur(18px);
-  box-shadow: 0 1px 0 var(--color-line);
 }
 :root[data-hub] .bi-cabecalho {
   padding-top: 26px;

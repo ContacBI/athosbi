@@ -33,7 +33,7 @@ export function Revelar({ as: Tag = "div", atraso = 0, className = "", style, ch
 // e, à direita, uma ação opcional.
 export function Secao({ rotulo, titulo, italico, depois = "", acao, children, className = "" }) {
   return (
-    <section className={`mx-auto max-w-[1320px] px-5 sm:px-8 ${className}`}>
+    <section className={`mx-auto hub-largura px-5 sm:px-8 ${className}`}>
       <Revelar className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="hub-rotulo">{rotulo}</p>
