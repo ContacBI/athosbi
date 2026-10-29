@@ -60,7 +60,7 @@ function MenuDaConta({ state, onPortalAtual }) {
     <div className="relative">
       <button type="button" onClick={() => setAberto((v) => !v)} className="flex items-center gap-2 rounded-full border border-[var(--hub-borda)] bg-[var(--hub-cartao)] py-1 pl-1 pr-2.5 transition-colors hover:border-[var(--hub-borda-forte)]">
         <Avatar name={nome} size={30} className="rounded-full" />
-        <span className="hidden max-w-[120px] truncate text-[13px] font-semibold text-[var(--hub-texto)] lg:block">{primeiroNome(state.nomeUsuario) || "Minha conta"}</span>
+        <span className="hidden max-w-[120px] truncate text-[13px] font-semibold text-[var(--hub-texto)] 2xl:block">{primeiroNome(state.nomeUsuario) || "Minha conta"}</span>
         <ChevronDown size={14} className={`text-[var(--hub-texto-3)] transition-transform ${aberto ? "rotate-180" : ""}`} />
       </button>
       {aberto && (
@@ -314,9 +314,9 @@ function TrocaDeEmpresa({ state, onTrocar, onOutra }) {
             <Building2 size={14} />
           </span>
         )}
-        <span className="hidden min-w-0 items-center gap-1.5 xl:flex">
-          <span className="truncate text-[13.5px] font-semibold text-[var(--hub-texto)]">{nome || "Escolher empresa"}</span>
-          {grupoAberto && <span className="shrink-0 rounded-full bg-[var(--hub-acento-suave)] px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.06em] text-[var(--hub-acento)]">Consolidado</span>}
+        <span className="hidden min-w-0 items-center gap-1.5 lg:flex">
+          <span className="max-w-[150px] truncate text-[13.5px] font-semibold text-[var(--hub-texto)] 2xl:max-w-[220px]">{nome || "Escolher empresa"}</span>
+          {grupoAberto && <span className="hidden shrink-0 rounded-full bg-[var(--hub-acento-suave)] px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.06em] text-[var(--hub-acento)] 2xl:inline">Consolidado</span>}
         </span>
         <ChevronDown size={14} className={`shrink-0 text-[var(--hub-texto-3)] transition-transform ${aberto ? "rotate-180" : ""}`} />
       </button>
@@ -529,7 +529,7 @@ export default function HubLayout() {
             <header className={`relative transition-[background-color,box-shadow,border-color] duration-300 ${naBi ? "hub border-b border-[var(--hub-borda)]" : rolou ? "hub-topo border-b border-[var(--hub-borda)]" : "border-b border-transparent"}`}>
               <div className="mx-auto flex h-[72px] hub-largura items-center gap-4 px-5 sm:px-8">
                 <Marca onClick={() => navigate("/hub")} />
-                <nav className="ml-6 hidden items-center gap-1 lg:flex" aria-label="Áreas do hub">
+                <nav className="ml-3 hidden items-center gap-1 xl:flex 2xl:ml-6" aria-label="Áreas do hub">
                   {AREAS_DO_HUB.map((area) => (
                     <button key={area.id} type="button" onClick={() => irPara(area)} className="hub-menu-item" aria-current={ativo(area) ? "page" : undefined}>
                       {area.nome}
@@ -548,7 +548,7 @@ export default function HubLayout() {
                   <div className="hidden sm:block">
                     <MenuDaConta state={state} onPortalAtual={portalAtual} />
                   </div>
-                  <button type="button" onClick={() => setMenuMovel(true)} aria-label="Abrir o menu" className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--hub-borda)] bg-[var(--hub-cartao)] text-[var(--hub-texto)] lg:hidden">
+                  <button type="button" onClick={() => setMenuMovel(true)} aria-label="Abrir o menu" className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--hub-borda)] bg-[var(--hub-cartao)] text-[var(--hub-texto)] xl:hidden">
                     <Menu size={18} />
                   </button>
                 </div>
@@ -559,7 +559,7 @@ export default function HubLayout() {
       </div>
 
       {menuMovel && (
-        <div className="fixed inset-0 z-[55] bg-[#030712]/50 backdrop-blur-sm lg:hidden" onClick={() => setMenuMovel(false)}>
+        <div className="fixed inset-0 z-[55] bg-[#030712]/50 backdrop-blur-sm xl:hidden" onClick={() => setMenuMovel(false)}>
           <div className="hub absolute inset-y-0 right-0 flex w-[min(86vw,360px)] flex-col gap-1 overflow-y-auto border-l border-[var(--hub-borda)] p-5" onClick={(event) => event.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between">
               <Marca onClick={() => navigate("/hub")} />

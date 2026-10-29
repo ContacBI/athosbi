@@ -275,6 +275,7 @@
   align-items: center;
   height: 38px;
   padding: 0 0.95rem;
+  white-space: nowrap;
   border-radius: 999px;
   font-size: 14px;
   font-weight: 600;
@@ -551,5 +552,13 @@ body:has(.hub) .selo-teste {
 @media (prefers-reduced-motion: reduce) {
   .hub-surgir {
     animation: none;
+  }
+}
+
+/* Telas até ~1.5 mil px: o menu do topo divide a linha com a empresa do
+   momento — itens um pouco mais justos pra caber tudo numa linha. */
+@media (max-width: 1535px) {
+  .hub-menu-item {
+    padding: 0 0.7rem;
   }
 }
