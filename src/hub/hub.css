@@ -470,7 +470,7 @@ body:has(.hub) .selo-teste {
   background: var(--hub-acento);
 }
 /* No console, o selo do teste vai pro canto direito (o esquerdo é a lateral). */
-body:has(.console) .selo-teste {
+:root[data-hub] body:has(.console) .selo-teste {
   left: auto;
   right: 14px;
 }

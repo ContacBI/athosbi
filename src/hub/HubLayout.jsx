@@ -12,7 +12,7 @@ import { entrarNoModo, realStaff, sairDosModos } from "../lib/modoEquipe.js";
 import { moduloDaRota } from "../lib/modulos.js";
 import { selectCompany } from "../lib/companies.js";
 import { groupCompanies, selectGroup } from "../lib/groups.js";
-import { grupoDoContexto, grupoLembrado, lembrarGrupoContexto, unidadesDaCarteira } from "../lib/unidades.js";
+import { escopoDaPessoa, grupoDoContexto, grupoLembrado, lembrarGrupoContexto, unidadesDaCarteira } from "../lib/unidades.js";
 import { primeiroNome } from "../lib/inicio.js";
 import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
 import AthosMark from "../components/AthosMark.jsx";
@@ -222,87 +222,168 @@ function Rodape({ irPara }) {
 }
 
 // Empresa/grupo do momento, no menu principal (pedido do Izaias, 29/10/2026:
-// trocar aqui, não dentro do B.I.). Num grupo: o consolidado e cada empresa;
-// e "outra empresa ou grupo" abre a janela de escolha.
+// trocar aqui, não dentro do B.I.). Abre um painel com busca: num grupo, o
+// consolidado e cada empresa; as abertas por último; e "ver todos" abre a
+// janela completa (grupo primeiro).
+function LinhaDaTroca({ icone, nome, detalhe, marcado, onClick, pequena = false }) {
+  return (
+    <button type="button" role="menuitem" onClick={onClick} className={`flex w-full items-center gap-3 rounded-xl px-2.5 text-left transition-colors hover:bg-[var(--hub-acento-suave)] ${pequena ? "py-1.5" : "py-2"} ${marcado ? "bg-[var(--hub-acento-suave)]" : ""}`}>
+      {icone}
+      <span className="min-w-0 flex-1">
+        <span className={`block truncate font-semibold text-[var(--hub-texto)] ${pequena ? "text-[13px]" : "text-[13.5px]"}`}>{nome}</span>
+        {detalhe && <span className="block truncate text-[11.5px] text-[var(--hub-texto-3)]">{detalhe}</span>}
+      </span>
+      {marcado && <Check size={15} className="shrink-0 text-[var(--hub-acento)]" />}
+    </button>
+  );
+}
+
+const IconeDoGrupo = ({ tamanho = 32 }) => (
+  <span className="flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#e8691f] to-[#f28a42] text-white" style={{ width: tamanho, height: tamanho }}>
+    <Network size={Math.round(tamanho * 0.47)} />
+  </span>
+);
+
 function TrocaDeEmpresa({ state, onTrocar, onOutra }) {
   const [aberto, setAberto] = useState(false);
-  const staff = Boolean(state.isAdmin || state.isColaborador || realStaff(state));
-  const visiveis = useMemo(() => unidadesDaCarteira(state.companies, state.groups, { soCompletos: !staff }).grupos.map((unidade) => unidade.grupo), [state.companies, state.groups, staff]);
+  const [termo, setTermo] = useState("");
+  const campo = useRef(null);
+  const staff = Boolean(state.isAdmin || state.isColaborador || (realStaff(state) && !state.pessoaVista));
+  const escopo = useMemo(() => escopoDaPessoa(state.pessoaVista, state.companies, state.groups), [state.pessoaVista, state.companies, state.groups]);
+  const unidades = useMemo(() => unidadesDaCarteira(escopo.companies, escopo.groups, { soCompletos: !staff }), [escopo, staff]);
   const grupoAberto = state.activeGroupId ? state.groups.find((group) => group.id === state.activeGroupId) : null;
   const empresaAberta = !grupoAberto && state.activeCompanyId ? state.companies.find((company) => company.id === state.activeCompanyId) : null;
-  const grupo = grupoDoContexto(state, { lembrado: grupoLembrado(), recentes: recentes(), visiveis });
-  const membros = grupo ? groupCompanies(grupo) : [];
+  const grupo = grupoDoContexto(state, { lembrado: grupoLembrado(), recentes: recentes(), visiveis: unidades.grupos.map((unidade) => unidade.grupo) });
+  const membros = useMemo(() => (grupo ? groupCompanies(grupo) : []), [grupo]);
   const nome = grupoAberto?.name || empresaAberta?.name || "";
+
+  useEffect(() => {
+    if (!aberto) return undefined;
+    setTermo("");
+    const t = setTimeout(() => campo.current?.focus(), 30);
+    return () => clearTimeout(t);
+  }, [aberto]);
+
+  const resultados = useMemo(() => {
+    const busca = norm(termo.trim());
+    if (!busca) return [];
+    const grupoDe = new Map();
+    unidades.grupos.forEach((unidade) => unidade.membros.forEach((company) => grupoDe.set(company.id, grupoDe.get(company.id) || unidade.nome)));
+    return [
+      ...unidades.grupos.filter((unidade) => norm(unidade.nome).includes(busca)).map((unidade) => ({ tipo: "grupo", id: unidade.id, nome: unidade.nome, detalhe: `Grupo · consolidado de ${unidade.membros.length}` })),
+      ...escopo.companies
+        .filter((company) => norm(`${company.name} ${company.codigo || ""} ${company.cnpj || ""}`).includes(busca))
+        .map((company) => ({ tipo: "empresa", id: company.id, nome: company.name, detalhe: [grupoDe.get(company.id) && `Grupo ${grupoDe.get(company.id)}`, company.cnpj].filter(Boolean).join(" · ") })),
+    ].slice(0, 8);
+  }, [termo, unidades, escopo.companies]);
+
+  // As abertas por último que não são o grupo de agora nem as empresas dele.
+  const outras = useMemo(() => {
+    const doGrupo = new Set([grupo?.id, ...membros.map((company) => company.id)]);
+    return recentes()
+      .filter((item) => !doGrupo.has(item.id))
+      .map((item) => (item.tipo === "grupo" ? unidades.grupos.find((unidade) => unidade.id === item.id) && { ...item, nome: state.groups.find((g) => g.id === item.id)?.name } : escopo.companies.find((company) => company.id === item.id) && { ...item, nome: state.companies.find((c) => c.id === item.id)?.name }))
+      .filter(Boolean)
+      .slice(0, 3);
+  }, [grupo, membros, unidades, escopo.companies, state.groups, state.companies]);
+
   // Cliente com uma empresa só e sem grupo: não há o que trocar.
-  if (!staff && state.companies.length <= 1 && !grupo) return null;
-  const clicar = () => (grupo && membros.length ? setAberto((v) => !v) : onOutra());
+  if (!staff && escopo.companies.length <= 1 && !grupo) return null;
   const escolher = (item) => {
     setAberto(false);
-    onTrocar(item, grupo?.id);
+    onTrocar(item, grupo && (item.tipo === "grupo" ? item.id === grupo.id : membros.some((company) => company.id === item.id)) ? grupo.id : undefined);
   };
+  const iconeDe = (item, tamanho = 32) => (item.tipo === "grupo" ? <IconeDoGrupo tamanho={tamanho} /> : <Avatar name={item.nome} size={tamanho} className="rounded-full" />);
+
   return (
     <div className="relative">
       <button
         type="button"
-        onClick={clicar}
+        onClick={() => setAberto((v) => !v)}
         aria-label="Empresa ou grupo"
         aria-expanded={aberto}
         title="Trocar de empresa ou grupo"
-        className="flex h-10 max-w-[240px] items-center gap-2.5 rounded-full border border-[var(--hub-borda)] bg-[var(--hub-cartao)] py-1 pl-1 pr-3 text-left transition-colors hover:border-[var(--hub-borda-forte)]"
+        className={`flex h-10 max-w-[300px] items-center gap-2 rounded-full border bg-[var(--hub-cartao)] py-1 pl-1 pr-2.5 text-left transition-colors hover:border-[var(--hub-borda-forte)] ${aberto ? "border-[var(--hub-acento)]" : "border-[var(--hub-borda)]"}`}
       >
         {grupoAberto ? (
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#e8691f] to-[#f28a42] text-white">
-            <Network size={15} />
-          </span>
+          <IconeDoGrupo tamanho={30} />
         ) : nome ? (
-          <Avatar name={nome} size={32} className="rounded-full" />
+          <Avatar name={nome} size={30} className="rounded-full" />
         ) : (
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-dashed border-[var(--hub-borda-forte)] text-[var(--hub-texto-3)]">
-            <Building2 size={15} />
+          <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full border border-dashed border-[var(--hub-borda-forte)] text-[var(--hub-texto-3)]">
+            <Building2 size={14} />
           </span>
         )}
-        <span className="hidden min-w-0 flex-1 xl:block">
-          <span className="block truncate text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--hub-texto-3)]">{grupo ? (grupoAberto ? "Consolidado" : grupo.name) : nome ? "Empresa" : "Nenhuma aberta"}</span>
-          <span className="block truncate text-[13px] font-semibold leading-tight text-[var(--hub-texto)]">{nome || "Escolher empresa"}</span>
+        <span className="hidden min-w-0 items-center gap-1.5 xl:flex">
+          <span className="truncate text-[13.5px] font-semibold text-[var(--hub-texto)]">{nome || "Escolher empresa"}</span>
+          {grupoAberto && <span className="shrink-0 rounded-full bg-[var(--hub-acento-suave)] px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.06em] text-[var(--hub-acento)]">Consolidado</span>}
         </span>
         <ChevronDown size={14} className={`shrink-0 text-[var(--hub-texto-3)] transition-transform ${aberto ? "rotate-180" : ""}`} />
       </button>
       {aberto && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setAberto(false)} />
-          <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-80 overflow-hidden rounded-2xl border border-[var(--hub-borda)] bg-[var(--hub-cartao-solido)] p-1.5 shadow-[var(--hub-sombra-forte)]" role="menu" aria-label="Trocar de empresa ou grupo">
-            <p className="truncate px-3 pb-1.5 pt-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--hub-texto-3)]">{/^grupo\b/i.test(grupo.name) ? grupo.name : `Grupo ${grupo.name}`}</p>
-            <button type="button" role="menuitem" onClick={() => escolher({ tipo: "grupo", id: grupo.id })} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-[var(--hub-acento-suave)]">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#e8691f] to-[#f28a42] text-white">
-                <Network size={15} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[13.5px] font-semibold text-[var(--hub-texto)]">Consolidado</span>
-                <span className="block text-[11.5px] text-[var(--hub-texto-3)]">As {membros.length} empresas somadas</span>
-              </span>
-              {grupoAberto?.id === grupo.id && <Check size={15} className="shrink-0 text-[var(--hub-acento)]" />}
-            </button>
-            {membros.map((company) => (
-              <button key={company.id} type="button" role="menuitem" onClick={() => escolher({ tipo: "empresa", id: company.id })} className="flex w-full items-center gap-3 rounded-xl px-3 py-1.5 text-left hover:bg-[var(--hub-acento-suave)]">
-                <Avatar name={company.name} size={30} className="rounded-lg" />
-                <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--hub-texto)]">{company.name}</span>
-                {!grupoAberto && empresaAberta?.id === company.id && <Check size={15} className="shrink-0 text-[var(--hub-acento)]" />}
-              </button>
-            ))}
-            <div className="my-1.5 h-px bg-[var(--hub-borda)]" />
+          <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-[min(92vw,380px)] overflow-hidden rounded-3xl border border-[var(--hub-borda)] bg-[var(--hub-cartao-solido)] shadow-[var(--hub-sombra-forte)]" role="menu" aria-label="Trocar de empresa ou grupo">
+            <div className="flex items-center gap-2.5 border-b border-[var(--hub-borda)] px-4">
+              <Search size={16} className="shrink-0 text-[var(--hub-texto-3)]" />
+              <input
+                ref={campo}
+                value={termo}
+                onChange={(event) => setTermo(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setAberto(false);
+                  if (event.key === "Enter" && resultados[0]) escolher(resultados[0]);
+                }}
+                placeholder="Buscar empresa ou grupo"
+                aria-label="Buscar empresa ou grupo"
+                className="h-12 min-w-0 flex-1 bg-transparent text-[14px] text-[var(--hub-texto)] outline-none placeholder:text-[var(--hub-texto-3)]"
+              />
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto p-2">
+              {termo.trim() ? (
+                <>
+                  {resultados.length === 0 && <p className="px-3 py-6 text-center text-[13px] text-[var(--hub-texto-3)]">Nada encontrado para "{termo.trim()}".</p>}
+                  {resultados.map((item) => (
+                    <LinhaDaTroca key={`${item.tipo}:${item.id}`} icone={iconeDe(item)} nome={item.nome} detalhe={item.detalhe} onClick={() => escolher(item)} />
+                  ))}
+                </>
+              ) : (
+                <>
+                  {grupo && membros.length > 0 && (
+                    <div className="mb-1">
+                      <p className="flex items-center gap-1.5 truncate px-2.5 pb-1.5 pt-1.5 text-[10.5px] font-bold uppercase tracking-[0.12em] text-[var(--hub-texto-3)]">
+                        <Network size={12} /> {/^grupo\b/i.test(grupo.name) ? grupo.name : `Grupo ${grupo.name}`}
+                      </p>
+                      <LinhaDaTroca icone={<IconeDoGrupo />} nome="Consolidado" detalhe={`As ${membros.length} empresas somadas`} marcado={grupoAberto?.id === grupo.id} onClick={() => escolher({ tipo: "grupo", id: grupo.id })} />
+                      <div className="ml-[22px] border-l border-[var(--hub-borda)] pl-2">
+                        {membros.map((company) => (
+                          <LinhaDaTroca key={company.id} pequena icone={<Avatar name={company.name} size={26} className="rounded-lg" />} nome={company.name} marcado={!grupoAberto && empresaAberta?.id === company.id} onClick={() => escolher({ tipo: "empresa", id: company.id })} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {!grupo && empresaAberta && <LinhaDaTroca icone={<Avatar name={empresaAberta.name} size={32} className="rounded-full" />} nome={empresaAberta.name} detalhe="Aberta agora" marcado onClick={() => setAberto(false)} />}
+                  {outras.length > 0 && (
+                    <div className="mt-1 border-t border-[var(--hub-borda)] pt-1.5">
+                      <p className="px-2.5 pb-1 pt-1 text-[10.5px] font-bold uppercase tracking-[0.12em] text-[var(--hub-texto-3)]">Abertas por último</p>
+                      {outras.map((item) => (
+                        <LinhaDaTroca key={`${item.tipo}:${item.id}`} pequena icone={iconeDe(item, 26)} nome={item.nome} detalhe={item.tipo === "grupo" ? "Grupo · consolidado" : ""} onClick={() => escolher(item)} />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
             <button
               type="button"
-              role="menuitem"
               onClick={() => {
                 setAberto(false);
                 onOutra();
               }}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] font-semibold text-[var(--hub-texto-2)] hover:bg-[var(--hub-acento-suave)] hover:text-[var(--hub-texto)]"
+              className="flex w-full items-center justify-between border-t border-[var(--hub-borda)] px-4 py-3 text-left text-[13px] font-semibold text-[var(--hub-texto-2)] transition-colors hover:bg-[var(--hub-acento-suave)] hover:text-[var(--hub-texto)]"
             >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--hub-borda)]">
-                <Search size={14} />
-              </span>
-              Outra empresa ou grupo…
+              Ver todos os grupos e empresas
+              <ArrowUpRight size={14} />
             </button>
           </div>
         </>

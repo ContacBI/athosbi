@@ -42,7 +42,11 @@ export function modoDaRota(pathname, guardado = "portal") {
   return guardado === "console" ? "console" : "portal";
 }
 
-export function entrarNoModo(modo) {
+// `pessoa` (só no portal): ver como UMA pessoa do cliente — os módulos da
+// ficha dela e só as empresas/grupos que ela tem ({ email, nome, modulos,
+// empresas, grupos }). Sem `pessoa`, quem já estava "vendo como" alguém
+// continua assim até voltar pro console.
+export function entrarNoModo(modo, { pessoa = null } = {}) {
   try {
     sessionStorage.setItem(CHAVE_DO_MODO, modo);
   } catch {
@@ -50,16 +54,20 @@ export function entrarNoModo(modo) {
   }
   if (!usaModos(state)) return;
   if (modo === "portal") {
+    if (pessoa) {
+      setData({ modoEquipe: "portal", visaoCliente: true, isAdmin: false, isColaborador: false, modulosCliente: Array.isArray(pessoa.modulos) ? pessoa.modulos : [], pessoaVista: pessoa });
+      return;
+    }
     if (state.modoEquipe === "portal" && state.visaoCliente) return;
-    setData({ modoEquipe: "portal", visaoCliente: true, isAdmin: false, isColaborador: false, modulosCliente: MODULOS_COMPLEMENTARES.map((modulo) => modulo.id) });
+    setData({ modoEquipe: "portal", visaoCliente: true, isAdmin: false, isColaborador: false, modulosCliente: MODULOS_COMPLEMENTARES.map((modulo) => modulo.id), pessoaVista: null });
     return;
   }
-  if (state.modoEquipe === "console" && !state.visaoCliente) return;
-  setData({ modoEquipe: "console", visaoCliente: false, isAdmin: state.realIsAdmin, isColaborador: state.realIsColaborador, modulosCliente: null });
+  if (state.modoEquipe === "console" && !state.visaoCliente && !state.pessoaVista) return;
+  setData({ modoEquipe: "console", visaoCliente: false, isAdmin: state.realIsAdmin, isColaborador: state.realIsColaborador, modulosCliente: null, pessoaVista: null });
 }
 
 // "Voltar ao portal atual": desliga os modos e devolve a equipe como sempre foi.
 export function sairDosModos() {
   if (!state.modoEquipe) return;
-  setData({ modoEquipe: null, visaoCliente: false, isAdmin: state.realIsAdmin, isColaborador: state.realIsColaborador, modulosCliente: null });
+  setData({ modoEquipe: null, visaoCliente: false, isAdmin: state.realIsAdmin, isColaborador: state.realIsColaborador, modulosCliente: null, pessoaVista: null });
 }

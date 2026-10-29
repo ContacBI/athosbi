@@ -50,6 +50,8 @@ export const state = {
   modoEquipe: null,
   // B.I. dentro do hub: o menu do topo do hub aberto (a setinha do topo do B.I. alterna) — ver hub/HubLayout.jsx.
   topoDoHubAberto: false,
+  // Equipe no portal "vendo como" uma pessoa de um cliente: { email, nome, modulos, empresas, grupos } (ver lib/modoEquipe.js).
+  pessoaVista: null,
   // Colaborador Restrito (ver lib/colaboradores.js e supabase/schema.sql) —
   // enxerga a carteira inteira e entra em Parâmetros como um admin, mas só
   // edita de fato as empresas onde o próprio e-mail (userEmail abaixo) está

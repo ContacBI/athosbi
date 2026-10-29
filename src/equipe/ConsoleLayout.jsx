@@ -305,8 +305,8 @@ export default function ConsoleLayout() {
   // Abrir no B.I. a partir do console: editando (o modo daqui) ou vendo
   // exatamente como o cliente vê — a troca de modo só acontece na hora de
   // sair do console (se a pessoa desistir no carregamento, continua aqui).
-  const abrir = (item, { destino = "/empresa", comoCliente = false } = {}) => {
-    const opcoes = comoCliente ? { antesDeNavegar: () => entrarNoModo("portal") } : {};
+  const abrir = (item, { destino = "/empresa", comoCliente = false, pessoa = null } = {}) => {
+    const opcoes = comoCliente || pessoa ? { antesDeNavegar: () => entrarNoModo("portal", { pessoa }) } : {};
     if (item.tipo === "grupo") {
       lembrarGrupoContexto(item.id);
       abrirGrupo(item.id, destino, opcoes);

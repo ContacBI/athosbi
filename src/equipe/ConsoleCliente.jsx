@@ -1,18 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useOutletContext, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, BarChart3, CheckCircle2, CircleAlert, Eye, EyeOff, Info, LayoutGrid, PencilLine, Puzzle, ShieldCheck, TriangleAlert, Users } from "lucide-react";
+import { ArrowLeft, BarChart3, CheckCircle2, CircleAlert, Eye, EyeOff, History, Info, LayoutGrid, Mail, PencilLine, Puzzle, ShieldCheck, TriangleAlert, Users } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
-import { listAccessGrants, listAccessPeople } from "../lib/access.js";
+import { inviteUser, listAccessGrants, listAccessPeople, ultimosAcessos } from "../lib/access.js";
+import { isResponsavelForGroup } from "../lib/colaboradores.js";
+import { saveVisibilidadeEmpresa } from "../lib/companies.js";
+import { saveVisibilidadeGrupo } from "../lib/groups.js";
+import { alteracoesRecentes, descreverAlteracao } from "../lib/historico.js";
+import { haQuanto } from "../lib/uso.js";
 import { monthLabel } from "../lib/carteira.js";
-import { FERRAMENTAS_EM_PREPARACAO, MODULOS_COMPLEMENTARES } from "../lib/modulos.js";
+import { MODULOS_COMPLEMENTARES } from "../lib/modulos.js";
 import { gruposDaEmpresa, lembrarGrupoContexto } from "../lib/unidades.js";
 import { abasDoAlvo, kAba, ocultoNaConfiguracao } from "../lib/visibilidade.js";
 import AcessoClientesModal from "../components/AcessoClientesModal.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { problemasDaEmpresa, statusDaUnidade, useSaude } from "./useSaude.js";
-import { useNomesDaEquipe } from "./useNomes.js";
+import { nomeDaPessoa, useNomesDaEquipe } from "./useNomes.js";
 import { Responsaveis } from "./ConsoleClientes.jsx";
 import { Cartao, IconeDaUnidade, SeloDeStatus } from "./pecas.jsx";
+import { iconeDaFerramenta } from "../hub/iconesDasFerramentas.js";
 
 const ABAS = [
   { id: "visao", nome: "Visão geral" },
@@ -20,7 +26,20 @@ const ABAS = [
   { id: "dados", nome: "Dados" },
   { id: "acessos", nome: "Acessos" },
   { id: "ferramentas", nome: "Ferramentas" },
+  { id: "historico", nome: "Histórico" },
 ];
+
+const dataCurta = (iso) => (iso ? new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "");
+const quandoFoi = (iso) => {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })} às ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+};
+
+// Quem tem acesso a esta unidade, com as concessões e a ficha (só o admin lê tudo).
+async function lerAcessos() {
+  const [grants, fichas] = await Promise.all([listAccessGrants(), listAccessPeople().catch(() => new Map())]);
+  return { grants, fichas };
+}
 
 const ICONE_DO_NIVEL = {
   critico: <CircleAlert size={16} className="shrink-0 text-[#d8493a]" />,
@@ -202,16 +221,25 @@ function AbaDados({ empresas, healths, onAbrir }) {
   );
 }
 
-function AbaAcessos({ unidade, empresas, admin, onGerenciar, versao }) {
+function AbaAcessos({ unidade, empresas, admin, onGerenciar, onVerComo, versao }) {
   const state = useAppState();
   const [dados, setDados] = useState(null);
+  const [ultimos, setUltimos] = useState(new Map());
   const [erro, setErro] = useState("");
+  const [avisos, setAvisos] = useState({});
   useEffect(() => {
     if (!admin) return undefined;
     let vivo = true;
     setErro("");
-    Promise.all([listAccessGrants(), listAccessPeople().catch(() => new Map())])
-      .then(([grants, fichas]) => vivo && setDados({ grants, fichas }))
+    lerAcessos()
+      .then((lidos) => {
+        if (!vivo) return;
+        setDados(lidos);
+        // Último acesso (registro da Central): diz se a pessoa já entrou ou se o convite está parado.
+        ultimosAcessos(lidos.grants.map((grant) => grant.email))
+          .then((mapa) => vivo && setUltimos(mapa))
+          .catch(() => {});
+      })
       .catch((error) => vivo && setErro(String(error?.message || error)));
     return () => {
       vivo = false;
@@ -229,18 +257,40 @@ function AbaAcessos({ unidade, empresas, admin, onGerenciar, versao }) {
       if (grant.scope_type === "group" && gruposAqui.includes(grant.scope_id)) como = unidade.tipo === "grupo" ? "O grupo inteiro" : `Pelo grupo ${nomeDoGrupo.get(grant.scope_id) || ""}`.trim();
       else if (grant.scope_type === "company" && nomeDaEmpresa.has(grant.scope_id)) como = unidade.tipo === "grupo" ? `Só ${nomeDaEmpresa.get(grant.scope_id)}` : "Esta empresa";
       if (!como) continue;
-      const atual = porEmail.get(grant.email) || { email: grant.email, ficha: dados.fichas.get(grant.email), como: [] };
+      const atual = porEmail.get(grant.email) || { email: grant.email, ficha: dados.fichas.get(grant.email), como: [], liberadoEm: grant.created_at };
       atual.como.push(como);
+      if (grant.created_at && grant.created_at < atual.liberadoEm) atual.liberadoEm = grant.created_at;
       porEmail.set(grant.email, atual);
+    }
+    // Tudo o que cada pessoa tem (não só aqui) — pro "ver como".
+    for (const pessoa of porEmail.values()) {
+      const deles = dados.grants.filter((grant) => grant.email === pessoa.email);
+      pessoa.escopo = { empresas: deles.filter((grant) => grant.scope_type === "company").map((grant) => grant.scope_id), grupos: deles.filter((grant) => grant.scope_type === "group").map((grant) => grant.scope_id) };
     }
     return [...porEmail.values()].sort((a, b) => String(a.ficha?.nome || a.email).localeCompare(String(b.ficha?.nome || b.email), "pt-BR"));
   }, [dados, empresas, unidade, state.groups]);
+
+  async function reenviar(email) {
+    setAvisos((atual) => ({ ...atual, [email]: "Enviando…" }));
+    try {
+      const resultado = await inviteUser(email);
+      setAvisos((atual) => ({ ...atual, [email]: resultado?.alreadyExists ? "Já tem conta — não precisa de convite." : "Convite reenviado." }));
+    } catch {
+      setAvisos((atual) => ({ ...atual, [email]: "Não consegui enviar agora." }));
+    }
+  }
+
+  // Abre o que a pessoa vê aqui: o grupo, se ela tem o grupo; senão a empresa dela dentro dele.
+  function verComo(pessoa) {
+    const alvo = unidade.tipo === "grupo" && pessoa.escopo.grupos.includes(unidade.id) ? unidade : { tipo: "empresa", id: empresas.find((company) => pessoa.escopo.empresas.includes(company.id))?.id || unidade.id };
+    onVerComo(alvo, { email: pessoa.email, nome: pessoa.ficha?.nome || "", modulos: pessoa.ficha?.modulos || [], ...pessoa.escopo });
+  }
 
   return (
     <>
       <Titulo
         titulo="Quem tem acesso"
-        texto={unidade.tipo === "grupo" ? "Clientes que recebem o grupo inteiro e quem ficou só com alguma empresa dele." : "Clientes desta empresa, direto ou pelo grupo."}
+        texto={`${unidade.tipo === "grupo" ? "Clientes que recebem o grupo inteiro e quem ficou só com alguma empresa dele." : "Clientes desta empresa, direto ou pelo grupo."} "Ver como" abre exatamente o que aquela pessoa vê.`}
         acoes={
           admin && (
             <button type="button" onClick={onGerenciar} className="hub-botao hub-botao-primario hub-botao-p">
@@ -254,41 +304,112 @@ function AbaAcessos({ unidade, empresas, admin, onGerenciar, versao }) {
         {admin && erro && <p className="px-6 py-10 text-[14px] text-[#d8493a]">Não consegui ler os acessos: {erro}</p>}
         {admin && !erro && !dados && <p className="px-6 py-10 text-[14px] text-[var(--hub-texto-3)]">Carregando…</p>}
         {admin && dados && pessoas.length === 0 && <p className="px-6 py-10 text-[14px] text-[var(--hub-texto-3)]">Ninguém de fora tem acesso ainda.</p>}
-        {pessoas.map((pessoa) => (
-          <div key={pessoa.email} className="flex flex-wrap items-center gap-4 px-6 py-4">
-            <Avatar name={pessoa.ficha?.nome || pessoa.email} size={38} className="rounded-full" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[14px] font-bold">{pessoa.ficha?.nome || pessoa.email}</span>
-              <span className="block truncate text-[12.5px] text-[var(--hub-texto-3)]">{pessoa.ficha?.nome ? pessoa.email : "Sem ficha"}</span>
-            </span>
-            <span className="flex flex-wrap gap-1.5">
-              {pessoa.como.map((texto) => (
-                <span key={texto} className="rounded-full bg-[var(--hub-fundo-2)] px-2.5 py-1 text-[12px] font-medium text-[var(--hub-texto-2)]">
-                  {texto}
+        {pessoas.map((pessoa) => {
+          const ultimo = ultimos.get(pessoa.email);
+          return (
+            <div key={pessoa.email} className="flex flex-wrap items-center gap-x-4 gap-y-3 px-6 py-4">
+              <Avatar name={pessoa.ficha?.nome || pessoa.email} size={38} className="rounded-full" />
+              <span className="min-w-0 flex-[1_1_220px]">
+                <span className="block truncate text-[14px] font-bold">{pessoa.ficha?.nome || pessoa.email}</span>
+                <span className="block truncate text-[12.5px] text-[var(--hub-texto-3)]">
+                  {pessoa.ficha?.nome ? `${pessoa.email} · ` : ""}
+                  {pessoa.liberadoEm ? `liberado em ${dataCurta(pessoa.liberadoEm)} · ` : ""}
+                  {ultimo ? `último acesso ${haQuanto(ultimo)}` : <span className="font-semibold text-[#d99a2b]">nenhum acesso registrado</span>}
                 </span>
-              ))}
-            </span>
-          </div>
-        ))}
+                {avisos[pessoa.email] && <span className="mt-0.5 block text-[12px] font-semibold text-[var(--hub-acento)]">{avisos[pessoa.email]}</span>}
+              </span>
+              <span className="flex flex-wrap gap-1.5">
+                {pessoa.como.map((texto) => (
+                  <span key={texto} className="rounded-full bg-[var(--hub-fundo-2)] px-2.5 py-1 text-[12px] font-medium text-[var(--hub-texto-2)]">
+                    {texto}
+                  </span>
+                ))}
+              </span>
+              <span className="ml-auto flex gap-2">
+                <button type="button" onClick={() => reenviar(pessoa.email)} title="Mandar o e-mail de convite de novo (se o link venceu ou a pessoa não achou)" className="hub-botao hub-botao-fantasma hub-botao-p">
+                  <Mail size={14} /> Reenviar convite
+                </button>
+                <button type="button" onClick={() => verComo(pessoa)} title={`Ver exatamente o que ${pessoa.ficha?.nome || pessoa.email} vê`} className="hub-botao hub-botao-fantasma hub-botao-p">
+                  <Eye size={14} /> Ver como
+                </button>
+              </span>
+            </div>
+          );
+        })}
       </Cartao>
     </>
   );
 }
 
-function AbaFerramentas({ unidade, registro, onEscolher }) {
+function Interruptor({ ligado, onChange, desligado, rotulo }) {
+  return (
+    <button type="button" role="switch" aria-checked={ligado} aria-label={rotulo} disabled={desligado} onClick={() => onChange(!ligado)} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${ligado ? "bg-[#1d9e75]" : "bg-[var(--hub-borda-forte)]"}`}>
+      <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${ligado ? "translate-x-5" : ""}`} />
+    </button>
+  );
+}
+
+// Ferramentas por grupo (pedido do Izaias, 29/10/2026): liga e desliga aqui
+// mesmo. Fica no cadastro do grupo/empresa (`visibilidade.modulos`, o mesmo
+// do "Acesso dos clientes") — e, num grupo sincronizado, vale pras empresas
+// dele. Sem escolha ainda, vale a ficha de cada pessoa: o primeiro clique
+// parte do que as fichas de quem tem acesso já liberam.
+function AbaFerramentas({ unidade, registro, podeEditar, admin, onEscolher }) {
   const modulos = registro?.visibilidade?.modulos;
   const configurado = Array.isArray(modulos);
+  const [dasFichas, setDasFichas] = useState(null);
+  const [salvando, setSalvando] = useState(false);
+  const scopeType = unidade.tipo === "grupo" ? "group" : "company";
+
+  useEffect(() => {
+    if (configurado || !admin) return undefined;
+    let vivo = true;
+    lerAcessos()
+      .then(({ grants, fichas }) => {
+        const uniao = new Set();
+        grants.filter((grant) => grant.scope_type === scopeType && grant.scope_id === unidade.id).forEach((grant) => (fichas.get(grant.email)?.modulos || []).forEach((id) => uniao.add(id)));
+        if (vivo) setDasFichas(uniao);
+      })
+      .catch(() => vivo && setDasFichas(new Set()));
+    return () => {
+      vivo = false;
+    };
+  }, [configurado, admin, scopeType, unidade.id]);
+
+  const ligados = configurado ? new Set(modulos) : dasFichas || new Set();
+  const salvar = (visibilidade) => (unidade.tipo === "grupo" ? saveVisibilidadeGrupo(unidade.id, visibilidade) : saveVisibilidadeEmpresa(unidade.id, visibilidade));
+  function alternar(id, ligar) {
+    setSalvando(true);
+    const novo = new Set(ligados);
+    if (ligar) novo.add(id);
+    else novo.delete(id);
+    salvar({ ...(registro.visibilidade || {}), modulos: MODULOS_COMPLEMENTARES.map((modulo) => modulo.id).filter((m) => novo.has(m)) });
+    setSalvando(false);
+  }
+  function voltarParaAsFichas() {
+    const { modulos: _ignorado, ...resto } = registro.visibilidade || {};
+    salvar(resto);
+  }
+
   return (
     <>
       <Titulo
         titulo="Ferramentas"
-        texto={`O que os clientes ${unidade.tipo === "grupo" ? "deste grupo" : "desta empresa"} usam além do B.I. — o que fica desligado não aparece no menu deles.${configurado ? "" : " Ainda sem escolha aqui: vale o que estiver liberado na ficha de cada pessoa."}`}
+        texto={`O que os clientes ${unidade.tipo === "grupo" ? "deste grupo" : "desta empresa"} usam além do B.I. — o que fica desligado não aparece pra eles.${configurado ? "" : " Ainda sem escolha aqui: hoje vale a ficha de cada pessoa (o que aparece ligado é o que as fichas já liberam); mexer aqui passa a valer pra todos."}`}
         acoes={
-          <button type="button" onClick={() => onEscolher(MODULOS_COMPLEMENTARES[0].id)} className="hub-botao hub-botao-primario hub-botao-p">
-            <Puzzle size={14} /> Escolher as ferramentas
-          </button>
+          <>
+            {configurado && podeEditar && (
+              <button type="button" onClick={voltarParaAsFichas} className="hub-botao hub-botao-fantasma hub-botao-p" title="Deixar de escolher aqui e voltar a valer o que está liberado na ficha de cada pessoa">
+                Usar a ficha de cada pessoa
+              </button>
+            )}
+            <button type="button" onClick={() => onEscolher(MODULOS_COMPLEMENTARES[0].id)} className="hub-botao hub-botao-fantasma hub-botao-p">
+              <Puzzle size={14} /> O que cada uma mostra
+            </button>
+          </>
         }
       />
+      {!podeEditar && <p className="-mt-2 mb-4 text-[13px] text-[var(--hub-texto-3)]">Só visualização — você não é responsável por {unidade.tipo === "grupo" ? "este grupo" : "esta empresa"}.</p>}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Cartao className="flex items-start gap-3.5 p-5">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--hub-acento-suave)] text-[var(--hub-acento)]">
@@ -300,37 +421,78 @@ function AbaFerramentas({ unidade, registro, onEscolher }) {
           </span>
         </Cartao>
         {MODULOS_COMPLEMENTARES.map((modulo) => {
-          const ligado = configurado && modulos.includes(modulo.id);
+          const ligado = ligados.has(modulo.id);
+          const Icone = iconeDaFerramenta(modulo.id);
           return (
-            <button key={modulo.id} type="button" onClick={() => onEscolher(modulo.id)} className="hub-cartao hub-cartao-vivo flex items-start gap-3.5 p-5 text-left">
+            <Cartao key={modulo.id} className="flex items-start gap-3.5 p-5">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--hub-borda)] bg-[var(--hub-fundo)] text-[var(--hub-acento)]">
-                <Puzzle size={18} />
+                <Icone size={18} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[14.5px] font-bold">{modulo.nome}</span>
-                <span className={`mt-1 inline-flex items-center gap-1.5 text-[12.5px] font-semibold ${!configurado ? "text-[var(--hub-texto-3)]" : ligado ? "text-[#1d9e75]" : "text-[var(--hub-texto-3)]"}`}>
-                  <span className="h-2 w-2 rounded-full" style={{ background: !configurado ? "var(--hub-borda-forte)" : ligado ? "#1d9e75" : "var(--hub-borda-forte)" }} />
-                  {!configurado ? "Pela ficha de cada pessoa" : ligado ? "Ligado" : "Desligado"}
+                <span className="mt-1 block text-[12.5px] leading-snug text-[var(--hub-texto-3)]">{modulo.descricao}</span>
+                <span className={`mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold ${ligado ? "text-[#1d9e75]" : "text-[var(--hub-texto-3)]"}`}>
+                  {ligado ? "Ligada" : "Desligada"}
+                  {!configurado && " · pelas fichas"}
                 </span>
               </span>
-            </button>
+              <Interruptor ligado={ligado} rotulo={`${modulo.nome} para os clientes`} desligado={!podeEditar || salvando || (!configurado && admin && dasFichas === null)} onChange={(valor) => alternar(modulo.id, valor)} />
+            </Cartao>
           );
         })}
-        {FERRAMENTAS_EM_PREPARACAO.map((item) => (
-          <Cartao key={item.id} className="flex items-start gap-3.5 border-dashed p-5 opacity-80">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-dashed border-[var(--hub-borda-forte)] text-[var(--hub-texto-3)]">
-              <Puzzle size={18} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-2">
-                <span className="text-[14.5px] font-bold">{item.nome}</span>
-                <span className="hub-selo">Em preparação</span>
-              </span>
-              <span className="mt-1 block text-[12.5px] leading-snug text-[var(--hub-texto-3)]">{item.descricao}</span>
-            </span>
-          </Cartao>
-        ))}
       </div>
+    </>
+  );
+}
+
+// Histórico de alterações (pedido do Izaias, 29/10/2026: "quem mudou o quê"),
+// do backup automático do banco — ver lib/historico.js.
+function AbaHistorico({ empresas, comGrupos, admin, nomes }) {
+  const navigate = useNavigate();
+  const [linhas, setLinhas] = useState(null);
+  const [erro, setErro] = useState("");
+  const ids = empresas.map((company) => company.id).join(",");
+  useEffect(() => {
+    if (!admin) return undefined;
+    let vivo = true;
+    alteracoesRecentes({ empresas: ids ? ids.split(",") : [], comGrupos })
+      .then((lidas) => vivo && setLinhas(lidas))
+      .catch((error) => vivo && setErro(String(error?.message || error)));
+    return () => {
+      vivo = false;
+    };
+  }, [admin, ids, comGrupos]);
+  const nomeDaEmpresa = (id) => empresas.find((company) => company.id === id)?.name;
+  return (
+    <>
+      <Titulo
+        titulo="Quem mudou o quê"
+        texto="As alterações recentes no cadastro (painéis, De/Para, dados, o que o cliente vê, ferramentas). O banco guarda no máximo uma a cada 10 minutos por cadastro, por 60 dias."
+        acoes={
+          admin && (
+            <button type="button" onClick={() => navigate("/equipe/sistema/historico")} className="hub-botao hub-botao-fantasma hub-botao-p">
+              <History size={14} /> Ver e restaurar versões
+            </button>
+          )
+        }
+      />
+      <Cartao className="divide-y divide-[var(--hub-borda)] overflow-hidden">
+        {!admin && <p className="px-6 py-10 text-[14px] text-[var(--hub-texto-3)]">Só administradores veem o histórico.</p>}
+        {admin && erro && <p className="px-6 py-10 text-[14px] text-[#d8493a]">Não consegui ler o histórico: {erro}</p>}
+        {admin && !erro && !linhas && <p className="px-6 py-10 text-[14px] text-[var(--hub-texto-3)]">Carregando…</p>}
+        {admin && linhas && linhas.length === 0 && <p className="px-6 py-10 text-[14px] text-[var(--hub-texto-3)]">Nenhuma alteração registrada nos últimos 60 dias.</p>}
+        {(linhas || []).map((linha) => (
+          <div key={linha.id} className="flex items-start gap-3.5 px-6 py-4">
+            <Avatar name={nomeDaPessoa(linha.saved_by, nomes) || "?"} size={34} className="rounded-full" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13.5px] leading-snug">
+                <b>{linha.saved_by ? nomeDaPessoa(linha.saved_by, nomes) : "Alguém"}</b> {descreverAlteracao(linha, nomeDaEmpresa)}
+              </span>
+              <span className="mt-0.5 block text-[12px] text-[var(--hub-texto-3)]">{quandoFoi(linha.saved_at)}</span>
+            </span>
+          </div>
+        ))}
+      </Cartao>
     </>
   );
 }
@@ -373,6 +535,8 @@ export default function ConsoleCliente() {
   const responsaveis = [...new Set(empresas.flatMap((company) => company.responsaveis || []))];
   const datas = empresas.map((company) => healths[company.id]?.metrics?.dataAte).filter(Boolean).sort();
   const outrosGrupos = empresa ? gruposDaEmpresa(state.groups, empresa.id) : [];
+  // Mesma regra do B.I.: admin edita tudo; colaborador, onde é responsável.
+  const podeEditar = Boolean(state.isAdmin || (grupo ? isResponsavelForGroup(state, grupo.id) : (empresa.responsaveis || []).includes(state.userEmail)));
 
   // Abrir uma empresa (do grupo) numa tela do B.I., editando — e lembrar o
   // grupo, pro seletor do topo mostrar o consolidado e as irmãs.
@@ -444,8 +608,9 @@ export default function ConsoleCliente() {
       {aba === "visao" && <AbaVisaoGeral empresas={empresas} healths={healths} onResolver={resolver} />}
       {aba === "paineis" && <AbaPaineis unidade={unidade} registro={registro} onPersonalizar={() => abrir(unidade, { destino: "/empresa/personalizar" })} onVisibilidade={() => setModal("bi")} />}
       {aba === "dados" && <AbaDados empresas={empresas} healths={healths} onAbrir={abrirEmpresa} />}
-      {aba === "acessos" && <AbaAcessos unidade={unidade} empresas={empresas} admin={state.realIsAdmin} versao={versaoDosAcessos} onGerenciar={() => setModal("pessoas")} />}
-      {aba === "ferramentas" && <AbaFerramentas unidade={unidade} registro={registro} onEscolher={(secao) => setModal(secao)} />}
+      {aba === "acessos" && <AbaAcessos unidade={unidade} empresas={empresas} admin={state.realIsAdmin} versao={versaoDosAcessos} onGerenciar={() => setModal("pessoas")} onVerComo={(alvo, pessoa) => abrir(alvo, { pessoa })} />}
+      {aba === "ferramentas" && <AbaFerramentas unidade={unidade} registro={registro} podeEditar={podeEditar} admin={state.realIsAdmin} onEscolher={(secao) => setModal(secao)} />}
+      {aba === "historico" && <AbaHistorico empresas={empresas} comGrupos={Boolean(grupo)} admin={state.realIsAdmin} nomes={nomes} />}
 
       {modal && (
         <AcessoClientesModal

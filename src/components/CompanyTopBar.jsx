@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronLeft, FileSpreadsheet, FileStack, FileText, LayoutGrid, Network, PanelLeft, Presentation, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, EyeOff, FileSpreadsheet, FileStack, FileText, LayoutGrid, Network, PanelLeft, Presentation, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
 import { useAppState, setData, state } from "../data/useStore.js";
 import { missingMappingAccounts } from "../data/calculations.js";
 import { groupCompanies, activeWorkspaceName } from "../lib/groups.js";
@@ -22,7 +22,7 @@ import { limiteDoCliente, ultimoDiaDoMes } from "../lib/fechamento.js";
 import ThemeToggle from "./ThemeToggle.jsx";
 import { biDentroDoHub, hubLigado } from "../lib/hub.js";
 import { usaModos } from "../lib/modoEquipe.js";
-import { MODULOS_COMPLEMENTARES, modulosLiberados } from "../lib/modulos.js";
+import { ferramentasDaTela } from "../lib/modulos.js";
 import { lembrarGrupoContexto } from "../lib/unidades.js";
 import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
 import AthosMark from "./AthosMark.jsx";
@@ -693,15 +693,24 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
             Voltar ao B.I.
           </button>
           <span className="h-4 w-px shrink-0 bg-line" aria-hidden="true" />
-          {MODULOS_COMPLEMENTARES.filter((modulo) => modulosLiberados(appState).includes(modulo.id) && !(modulo.precisaDeDados && !hasData)).map((modulo) => (
-            <NavLink
-              key={modulo.id}
-              to={modulo.rota}
-              className={({ isActive }) => `bi-aba shrink-0 border-b-2 py-3 text-[13px] transition-colors ${isActive ? "border-accent-500 font-medium text-ink-900" : "border-transparent text-ink-500 hover:text-ink-800"}`}
-            >
-              {modulo.nome}
-            </NavLink>
-          ))}
+          {ferramentasDaTela(appState)
+            .filter((modulo) => !(modulo.precisaDeDados && !hasData))
+            .map((modulo) => (
+              <NavLink
+                key={modulo.id}
+                to={modulo.rota}
+                title={modulo.doCliente === false ? "Não liberada para o cliente — só a equipe vê" : undefined}
+                className={({ isActive }) => `bi-aba flex shrink-0 items-center gap-1.5 border-b-2 py-3 text-[13px] transition-colors ${isActive ? "border-accent-500 font-medium text-ink-900" : "border-transparent text-ink-500 hover:text-ink-800"}`}
+              >
+                {modulo.nome}
+                {modulo.doCliente === false && <EyeOff size={13} className="text-ink-400" aria-label="só a equipe vê" />}
+              </NavLink>
+            ))}
+          {ferramentasDaTela(appState).find((modulo) => location.pathname.startsWith(modulo.rota))?.doCliente === false && (
+            <span className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1 text-[12px] text-ink-500">
+              <EyeOff size={13} /> Não liberada para o cliente — só a equipe vê
+            </span>
+          )}
         </nav>
       )}
 

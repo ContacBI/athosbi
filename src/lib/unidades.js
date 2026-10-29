@@ -24,6 +24,16 @@ export function unidadesDaCarteira(companies = [], groups = [], { soCompletos = 
   return { grupos: grupos.sort(porNome), avulsas: avulsas.sort(porNome) };
 }
 
+// O que uma pessoa do cliente enxerga (equipe "vendo como" ela — ver
+// lib/modoEquipe.js): as empresas liberadas direto e as dos grupos dela, e os
+// grupos dela. Sem pessoa, tudo.
+export function escopoDaPessoa(pessoa, companies = [], groups = []) {
+  if (!pessoa) return { companies, groups };
+  const grupos = groups.filter((group) => (pessoa.grupos || []).includes(group.id));
+  const ids = new Set([...(pessoa.empresas || []), ...grupos.flatMap((group) => group.companyIds || [])]);
+  return { companies: companies.filter((company) => ids.has(company.id)), groups: grupos };
+}
+
 export function gruposDaEmpresa(groups = [], companyId) {
   if (!companyId) return [];
   return groups.filter((group) => (group.companyIds || []).includes(companyId));
