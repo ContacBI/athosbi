@@ -5,7 +5,7 @@ import { useAppState } from "../data/useStore.js";
 import { monthLabel } from "../lib/carteira.js";
 import { unidadesDaCarteira } from "../lib/unidades.js";
 import Avatar from "../components/Avatar.jsx";
-import { statusDaUnidade, useSaude } from "./useSaude.js";
+import { COR_DO_STATUS, problemasDaEmpresa, statusDaUnidade, useSaude } from "./useSaude.js";
 import { nomeDaPessoa, useNomesDaEquipe } from "./useNomes.js";
 import { Cabecalho, Cartao, IconeDaUnidade, PontoDeStatus, SeloDeStatus } from "./pecas.jsx";
 
@@ -63,13 +63,24 @@ function CartaoDaUnidade({ unidade, healths, nomes, onFicha, onAbrir }) {
       {grupo && (
         <ul className="mt-5 space-y-1.5">
           {unidade.empresas.length === 0 && <li className="rounded-xl bg-[var(--hub-fundo-2)] px-3 py-2 text-[13px] text-[var(--hub-texto-3)]">Grupo ainda sem empresas.</li>}
-          {unidade.empresas.map((company) => (
-            <li key={company.id} className="flex items-center gap-2.5 rounded-xl bg-[var(--hub-fundo-2)] px-3 py-2">
-              <PontoDeStatus status={healths[company.id]?.status} />
-              <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{company.name}</span>
-              <span className="shrink-0 text-[12px] text-[var(--hub-texto-3)]">{dadosAte(healths[company.id])}</span>
-            </li>
-          ))}
+          {unidade.empresas.map((company) => {
+            // O motivo do status (o pior problema) no lugar da data — é ele que explica o selo do grupo.
+            const problemas = problemasDaEmpresa(healths[company.id]);
+            return (
+              <li key={company.id} className="flex items-center gap-2.5 rounded-xl bg-[var(--hub-fundo-2)] px-3 py-2" title={problemas.map((problema) => problema.title).join(" · ") || undefined}>
+                <PontoDeStatus status={healths[company.id]?.status} />
+                <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{company.name}</span>
+                {problemas.length ? (
+                  <span className="max-w-[45%] shrink-0 truncate text-[12px] font-semibold" style={{ color: COR_DO_STATUS[problemas[0].level] }}>
+                    {problemas[0].title}
+                    {problemas.length > 1 ? ` +${problemas.length - 1}` : ""}
+                  </span>
+                ) : (
+                  <span className="shrink-0 text-[12px] text-[var(--hub-texto-3)]">{dadosAte(healths[company.id])}</span>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
       <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-5">

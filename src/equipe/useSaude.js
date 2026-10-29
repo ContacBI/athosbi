@@ -143,7 +143,7 @@ export function statusDaUnidade(empresas, healths) {
 
 // Os problemas (atenção ou crítico) de uma empresa, do pior pro mais leve.
 export function problemasDaEmpresa(health) {
-  return (health?.checks || []).filter((check) => LEVELS[check.level] >= LEVELS.atencao);
+  return (health?.checks || []).filter((check) => LEVELS[check.level] >= LEVELS.atencao).sort((a, b) => LEVELS[b.level] - LEVELS[a.level]);
 }
 
 export const ROTULO_DO_STATUS = { critico: "Crítica", atencao: "Atenção", ok: "Em dia" };

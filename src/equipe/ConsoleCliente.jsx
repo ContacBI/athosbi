@@ -377,6 +377,10 @@ function AbaFerramentas({ unidade, registro, podeEditar, admin, onEscolher }) {
   }, [configurado, admin, scopeType, unidade.id]);
 
   const ligados = configurado ? new Set(modulos) : dasFichas || new Set();
+  // Sem escolha salva, o que vale são as fichas de cada pessoa — e só o
+  // administrador consegue lê-las. Pro colaborador, ligar uma ferramenta
+  // aqui salvaria só ela e desligaria as que as fichas liberam: fica só pra ver.
+  const semFichas = !configurado && !admin;
   const salvar = (visibilidade) => (unidade.tipo === "grupo" ? saveVisibilidadeGrupo(unidade.id, visibilidade) : saveVisibilidadeEmpresa(unidade.id, visibilidade));
   function alternar(id, ligar) {
     setSalvando(true);
@@ -410,6 +414,7 @@ function AbaFerramentas({ unidade, registro, podeEditar, admin, onEscolher }) {
         }
       />
       {!podeEditar && <p className="-mt-2 mb-4 text-[13px] text-[var(--hub-texto-3)]">Só visualização — você não é responsável por {unidade.tipo === "grupo" ? "este grupo" : "esta empresa"}.</p>}
+      {podeEditar && semFichas && <p className="-mt-2 mb-4 text-[13px] text-[var(--hub-texto-3)]">Ainda vale a ficha de cada pessoa — a primeira escolha aqui é feita por um administrador.</p>}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Cartao className="flex items-start gap-3.5 p-5">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--hub-acento-suave)] text-[var(--hub-acento)]">
@@ -432,11 +437,11 @@ function AbaFerramentas({ unidade, registro, podeEditar, admin, onEscolher }) {
                 <span className="block text-[14.5px] font-bold">{modulo.nome}</span>
                 <span className="mt-1 block text-[12.5px] leading-snug text-[var(--hub-texto-3)]">{modulo.descricao}</span>
                 <span className={`mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold ${ligado ? "text-[#1d9e75]" : "text-[var(--hub-texto-3)]"}`}>
-                  {ligado ? "Ligada" : "Desligada"}
-                  {!configurado && " · pelas fichas"}
+                  {semFichas ? "Pela ficha de cada pessoa" : ligado ? "Ligada" : "Desligada"}
+                  {!configurado && !semFichas && " · pelas fichas"}
                 </span>
               </span>
-              <Interruptor ligado={ligado} rotulo={`${modulo.nome} para os clientes`} desligado={!podeEditar || salvando || (!configurado && admin && dasFichas === null)} onChange={(valor) => alternar(modulo.id, valor)} />
+              <Interruptor ligado={ligado} rotulo={`${modulo.nome} para os clientes`} desligado={!podeEditar || salvando || semFichas || (!configurado && admin && dasFichas === null)} onChange={(valor) => alternar(modulo.id, valor)} />
             </Cartao>
           );
         })}
