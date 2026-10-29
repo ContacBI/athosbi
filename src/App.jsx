@@ -71,6 +71,7 @@ const HubLayout = lazy(() => import("./hub/HubLayout.jsx"));
 const HubInicio = lazy(() => import("./hub/HubInicio.jsx"));
 const HubReforma = lazy(() => import("./hub/HubReforma.jsx"));
 const HubEmBreve = lazy(() => import("./hub/HubEmBreve.jsx"));
+const HubFerramentas = lazy(() => import("./hub/HubFerramentas.jsx"));
 // Console da equipe (src/equipe, ver lib/modoEquipe.js): também só no teste e
 // só pra quem tem o hub.
 const ConsoleLayout = lazy(() => import("./equipe/ConsoleLayout.jsx"));
@@ -313,7 +314,7 @@ function AuthedApp() {
           <Route path="tributario" element={<Navigate to="/hub/reforma" replace />} />
           <Route path="servicos" element={<HubEmBreve area="servicos" />} />
           <Route path="conteudos" element={<HubEmBreve area="conteudos" />} />
-          <Route path="ferramentas" element={<HubEmBreve area="ferramentas" />} />
+          <Route path="ferramentas" element={<HubFerramentas />} />
         </Route>
         <Route path="definir-senha" element={<SetPassword />} />
         <Route path="empresas" element={<EmpresasOuConsole />} />

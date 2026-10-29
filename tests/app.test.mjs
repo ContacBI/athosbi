@@ -860,16 +860,16 @@ check(
 const antesDosModos = { userEmail: state.userEmail, isAdmin: state.isAdmin, isColaborador: state.isColaborador, realIsAdmin: state.realIsAdmin, realIsColaborador: state.realIsColaborador, visaoCliente: state.visaoCliente, modoEquipe: state.modoEquipe, modulosCliente: state.modulosCliente };
 Object.assign(state, { userEmail: "izaiascontac@gmail.com", isAdmin: true, isColaborador: false, realIsAdmin: true, realIsColaborador: false, visaoCliente: false, modoEquipe: null, modulosCliente: null });
 modoEquipe.entrarNoModo("portal");
-const equipeNoPortal = { isAdmin: state.isAdmin, visaoCliente: state.visaoCliente, modulos: (state.modulosCliente || []).length, inicio: modoEquipe.inicioDoModo(state) };
+const equipeNoPortal = { isAdmin: state.isAdmin, visaoCliente: state.visaoCliente, modulos: (state.modulosCliente || []).length, modo: state.modoEquipe };
 modoEquipe.entrarNoModo("console");
-const equipeNoConsole = { isAdmin: state.isAdmin, visaoCliente: state.visaoCliente, modulos: state.modulosCliente, inicio: modoEquipe.inicioDoModo(state) };
+const equipeNoConsole = { isAdmin: state.isAdmin, visaoCliente: state.visaoCliente, modulos: state.modulosCliente, modo: state.modoEquipe };
 Object.assign(state, { userEmail: "cliente@empresa.com", isAdmin: false, realIsAdmin: false, visaoCliente: false, modoEquipe: null, modulosCliente: ["orcamento"] });
 modoEquipe.entrarNoModo("portal");
 const clienteIntacto = !state.visaoCliente && state.modoEquipe === null && state.modulosCliente.join() === "orcamento";
 Object.assign(state, antesDosModos);
 check(
   "Equipe no portal vê como o cliente (sem edição, todos os módulos); no console volta a editar; cliente nunca muda",
-  !equipeNoPortal.isAdmin && equipeNoPortal.visaoCliente && equipeNoPortal.modulos === 4 && equipeNoPortal.inicio === "/hub" && equipeNoConsole.isAdmin && !equipeNoConsole.visaoCliente && equipeNoConsole.modulos === null && equipeNoConsole.inicio === "/equipe" && clienteIntacto,
+  !equipeNoPortal.isAdmin && equipeNoPortal.visaoCliente && equipeNoPortal.modulos === 4 && equipeNoPortal.modo === "portal" && equipeNoConsole.isAdmin && !equipeNoConsole.visaoCliente && equipeNoConsole.modulos === null && equipeNoConsole.modo === "console" && clienteIntacto,
   { equipeNoPortal, equipeNoConsole, clienteIntacto }
 );
 const unidades = await src("lib/unidades.js");

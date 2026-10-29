@@ -20,9 +20,10 @@ import { ModoDaTela, VisaoClienteOlho } from "./VisaoClienteBotao.jsx";
 import { kAba, oculto } from "../lib/visibilidade.js";
 import { limiteDoCliente, ultimoDiaDoMes } from "../lib/fechamento.js";
 import ThemeToggle from "./ThemeToggle.jsx";
-import AthosMark from "./AthosMark.jsx";
 import { hubLigado } from "../lib/hub.js";
-import { inicioDoModo, realStaff, usaModos } from "../lib/modoEquipe.js";
+import { realStaff, usaModos } from "../lib/modoEquipe.js";
+import { MODULOS_COMPLEMENTARES, modulosLiberados } from "../lib/modulos.js";
+import MenuDoHub from "./MenuDoHub.jsx";
 import { grupoDoContexto, grupoLembrado, lembrarGrupoContexto, unidadesDaCarteira } from "../lib/unidades.js";
 import { recentes } from "../lib/recentes.js";
 import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
@@ -600,10 +601,8 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
               <PanelLeft size={15} strokeWidth={1.8} />
             </button>
           )}
-          {hubLigado(appState) ? (
-            <button type="button" onClick={() => navigate(inicioDoModo(appState))} className="flex shrink-0 items-center transition-transform hover:scale-105" aria-label="Início" title={appState.modoEquipe === "console" ? "Console da equipe" : "Início"}>
-              <AthosMark size={26} />
-            </button>
+          {comHub ? (
+            <MenuDoHub />
           ) : (
             <button
               type="button"
@@ -623,8 +622,8 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
                 type="button"
                 onClick={() => (comHub ? setSeletor(true) : navigate("/empresas"))}
                 aria-label="Trocar empresa"
-                title="Trocar empresa"
-                className="group flex min-w-0 items-center gap-2.5 rounded-lg py-1 pl-1 pr-2 -ml-1 transition-colors hover:bg-white/10"
+                title={comHub ? "Trocar de empresa ou grupo" : "Trocar empresa"}
+                className={`group flex min-w-0 items-center gap-2.5 rounded-lg py-1 pl-1 pr-2 transition-colors hover:bg-white/10 ${comHub ? "border border-white/15 bg-white/5 pl-1.5 hover:border-white/30" : "-ml-1"}`}
               >
                 {group && (
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-500 text-white">
@@ -701,6 +700,26 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
               }
             >
               {tab.name}
+            </NavLink>
+          ))}
+        </nav>
+      )}
+
+      {/* Com o hub não há mais menu lateral: dentro de uma ferramenta, a faixa leva de volta ao B.I. e às outras ferramentas. */}
+      {isModulo && comHub && (
+        <nav className="bi-abas flex items-center gap-4 overflow-x-auto border-b border-line bg-surface-card px-5 py-1" aria-label="Ferramentas">
+          <button type="button" onClick={() => navigate("/empresa")} className="flex shrink-0 items-center gap-1 py-3 text-[13px] text-ink-500 hover:text-ink-800">
+            <ChevronLeft size={14} />
+            Voltar ao B.I.
+          </button>
+          <span className="h-4 w-px shrink-0 bg-line" aria-hidden="true" />
+          {MODULOS_COMPLEMENTARES.filter((modulo) => modulosLiberados(appState).includes(modulo.id) && !(modulo.precisaDeDados && !hasData)).map((modulo) => (
+            <NavLink
+              key={modulo.id}
+              to={modulo.rota}
+              className={({ isActive }) => `bi-aba shrink-0 border-b-2 py-3 text-[13px] transition-colors ${isActive ? "border-accent-500 font-medium text-ink-900" : "border-transparent text-ink-500 hover:text-ink-800"}`}
+            >
+              {modulo.nome}
             </NavLink>
           ))}
         </nav>

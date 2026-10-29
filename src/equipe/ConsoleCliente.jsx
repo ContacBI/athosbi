@@ -4,7 +4,7 @@ import { ArrowLeft, BarChart3, CheckCircle2, CircleAlert, Eye, EyeOff, Info, Lay
 import { useAppState } from "../data/useStore.js";
 import { listAccessGrants, listAccessPeople } from "../lib/access.js";
 import { monthLabel } from "../lib/carteira.js";
-import { MODULOS_COMPLEMENTARES } from "../lib/modulos.js";
+import { FERRAMENTAS_EM_PREPARACAO, MODULOS_COMPLEMENTARES } from "../lib/modulos.js";
 import { gruposDaEmpresa, lembrarGrupoContexto } from "../lib/unidades.js";
 import { abasDoAlvo, kAba, ocultoNaConfiguracao } from "../lib/visibilidade.js";
 import AcessoClientesModal from "../components/AcessoClientesModal.jsx";
@@ -21,10 +21,6 @@ const ABAS = [
   { id: "acessos", nome: "Acessos" },
   { id: "ferramentas", nome: "Ferramentas" },
 ];
-
-// Ferramentas que ainda vão entrar (pedido do Izaias, 29/10/2026: a apuração
-// de ICMS não é pra todas as empresas — liga por grupo quando existir).
-const EM_PREPARACAO = [{ id: "apuracao-icms", nome: "Apuração de ICMS", texto: "Automática, a partir das notas — só para os grupos que contratarem." }];
 
 const ICONE_DO_NIVEL = {
   critico: <CircleAlert size={16} className="shrink-0 text-[#d8493a]" />,
@@ -320,7 +316,7 @@ function AbaFerramentas({ unidade, registro, onEscolher }) {
             </button>
           );
         })}
-        {EM_PREPARACAO.map((item) => (
+        {FERRAMENTAS_EM_PREPARACAO.map((item) => (
           <Cartao key={item.id} className="flex items-start gap-3.5 border-dashed p-5 opacity-80">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-dashed border-[var(--hub-borda-forte)] text-[var(--hub-texto-3)]">
               <Puzzle size={18} />
@@ -330,7 +326,7 @@ function AbaFerramentas({ unidade, registro, onEscolher }) {
                 <span className="text-[14.5px] font-bold">{item.nome}</span>
                 <span className="hub-selo">Em preparação</span>
               </span>
-              <span className="mt-1 block text-[12.5px] leading-snug text-[var(--hub-texto-3)]">{item.texto}</span>
+              <span className="mt-1 block text-[12.5px] leading-snug text-[var(--hub-texto-3)]">{item.descricao}</span>
             </span>
           </Cartao>
         ))}

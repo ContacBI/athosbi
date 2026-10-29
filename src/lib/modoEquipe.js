@@ -63,9 +63,3 @@ export function sairDosModos() {
   if (!state.modoEquipe) return;
   setData({ modoEquipe: null, visaoCliente: false, isAdmin: state.realIsAdmin, isColaborador: state.realIsColaborador, modulosCliente: null });
 }
-
-// Pra onde o "início" (a marca no topo do B.I.) leva em cada modo.
-export function inicioDoModo(st = state) {
-  if (!usaModos(st)) return "/";
-  return st.modoEquipe === "console" ? "/equipe" : "/hub";
-}
