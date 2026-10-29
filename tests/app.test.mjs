@@ -952,7 +952,9 @@ check(
     !ocultoNaConfiguracao({ modo: "marcados", visiveis: ["bi:tab:x"] }, "bi:tab:x") &&
     ocultoNaConfiguracao({ ocultos: ["bi:tab:x"] }, "bi:tab:x") &&
     nomeCurto({ name: "COMERCIAL ALFA LTDA" }) === "COMERCIAL ALFA" &&
-    nomeCurto({ name: "SERVIÇOS BETA ME" }) === "SERVIÇOS BETA",
+    nomeCurto({ name: "SERVIÇOS BETA ME" }) === "SERVIÇOS BETA" &&
+    nomeCurto({ name: "CONCENT SISTEMAS LTDA (2025)" }) === "CONCENT SISTEMAS (2025)" &&
+    nomeCurto({ name: "QUAENT LTDA (2025)" }) === "QUAENT (2025)",
   null
 );
 const { baseDeTeste } = await import(path.join(ROOT, "scripts/gerar-base-de-teste.mjs"));

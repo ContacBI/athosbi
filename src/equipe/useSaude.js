@@ -149,11 +149,16 @@ export function problemasDaEmpresa(health) {
 export const ROTULO_DO_STATUS = { critico: "Crítica", atencao: "Atenção", ok: "Em dia" };
 export const COR_DO_STATUS = { critico: "#d8493a", atencao: "#d99a2b", ok: "#1d9e75" };
 
-// Nome curto de uma empresa dentro de um grupo: sem o "LTDA"/"ME"… e só as duas primeiras palavras.
+// Nome curto de uma empresa dentro de um grupo: sem o "LTDA"/"ME"… e só as
+// duas primeiras palavras — mas sempre com o ano do fim, "(2025)": sem ele,
+// "CONCENT SISTEMAS LTDA (2025)" e a de 2026 ficavam com o mesmo nome curto.
 export function nomeCurto(company) {
-  const palavras = String(company?.name || "")
+  const nome = String(company?.name || "");
+  const [, base, ano] = nome.match(/^(.*?)\s*(\(\d{4}\))?\s*$/);
+  const palavras = base
     .replace(/\b(LTDA|EIRELI|EPP|ME|S\/?A|SOCIEDADE|EMPRESARIAL|LIMITADA)\b\.?/gi, "")
     .split(/\s+/)
     .filter(Boolean);
-  return palavras.slice(0, 2).join(" ") || String(company?.name || "");
+  const curto = palavras.slice(0, 2).join(" ");
+  return curto ? [curto, ano].filter(Boolean).join(" ") : nome;
 }
