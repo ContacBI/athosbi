@@ -909,6 +909,40 @@ check(
     grupoCtx({ activeCompanyId: "b" }, { visiveis: [gruposCtx[1]] }) === "",
   null
 );
+Object.assign(state, { userEmail: "izaiascontac@gmail.com", isAdmin: true, isColaborador: false, realIsAdmin: true, realIsColaborador: false, visaoCliente: false, modoEquipe: null, modulosCliente: null, pessoaVista: null });
+modoEquipe.entrarNoModo("portal", { pessoa: { email: "ana@cliente.com", nome: "Ana", modulos: ["orcamento"], empresas: [], grupos: ["g1"] } });
+const comoAna = { modulos: (state.modulosCliente || []).join(), pessoa: state.pessoaVista?.email, admin: state.isAdmin };
+modoEquipe.entrarNoModo("portal");
+const continuaAna = state.pessoaVista?.email === "ana@cliente.com";
+modoEquipe.entrarNoModo("console");
+const saiuDaAna = state.pessoaVista === null && state.isAdmin;
+Object.assign(state, antesDosModos, { pessoaVista: null });
+const escopoAna = unidades.escopoDaPessoa({ empresas: ["d"], grupos: ["g1"] }, empresasU, gruposU);
+check(
+  "Ver como uma pessoa: módulos da ficha dela, só o que ela tem (grupo + empresas do grupo + as diretas); o console sai disso",
+  comoAna.modulos === "orcamento" && comoAna.pessoa === "ana@cliente.com" && !comoAna.admin && continuaAna && saiuDaAna && escopoAna.companies.map((c) => c.id).join() === "a,b,d" && escopoAna.groups.map((g) => g.id).join() === "g1" && unidades.escopoDaPessoa(null, empresasU, gruposU).companies.length === 4,
+  { comoAna, continuaAna, saiuDaAna, escopoAna }
+);
+const { ferramentasDaTela } = await src("lib/modulos.js");
+const antesDasFerramentas = { modoEquipe: state.modoEquipe, pessoaVista: state.pessoaVista, isAdmin: state.isAdmin, isColaborador: state.isColaborador, modulosCliente: state.modulosCliente, groups: state.groups, activeGroupId: state.activeGroupId, activeCompanyId: state.activeCompanyId };
+Object.assign(state, { modoEquipe: "portal", pessoaVista: null, isAdmin: false, isColaborador: false, modulosCliente: ["orcamento", "carga-tributaria", "analise-desempenho", "entradas-saidas"], groups: [{ id: "gx", name: "G", companyIds: [], visibilidade: { modulos: ["orcamento"] } }], activeGroupId: "gx", activeCompanyId: "" });
+const daEquipeNoPortal = ferramentasDaTela(state).map((f) => `${f.id}:${f.doCliente}`).join();
+Object.assign(state, { modoEquipe: null });
+const doClienteDeVerdade = ferramentasDaTela(state).map((f) => f.id).join();
+Object.assign(state, antesDasFerramentas);
+check(
+  "Ferramentas: a equipe no portal vê as 4 (marcando o que o cliente vê); o cliente, só as liberadas",
+  daEquipeNoPortal === "orcamento:true,carga-tributaria:false,analise-desempenho:false,entradas-saidas:false" && doClienteDeVerdade === "orcamento",
+  { daEquipeNoPortal, doClienteDeVerdade }
+);
+const historico = await src("lib/historico.js");
+check(
+  "Histórico do console: frase de quem mudou o quê",
+  historico.descreverAlteracao({ key: "portalGerencial.company.emp_a", motivo: "alteracao" }, () => "ALFA").startsWith("alterou o cadastro de ALFA") &&
+    historico.descreverAlteracao({ key: "portalGerencial.groups.v1", motivo: "restauracao" }, () => "") === "restaurou uma versão anterior dos grupos" &&
+    historico.descreverAlteracao({ key: "portalGerencial.company.emp_a", motivo: "restauracao" }, () => "ALFA") === "restaurou uma versão anterior do cadastro de ALFA",
+  null
+);
 const { ocultoNaConfiguracao } = await src("lib/visibilidade.js");
 const { nomeCurto } = await src("equipe/useSaude.js");
 check(

@@ -6,7 +6,7 @@ import ModulesSidebar from "./ModulesSidebar.jsx";
 import WorkspaceLoading from "./WorkspaceLoading.jsx";
 import { useAppState, setData } from "../data/useStore.js";
 import { isResponsavelForGroup } from "../lib/colaboradores.js";
-import { moduloDaRota, modulosLiberados } from "../lib/modulos.js";
+import { ferramentasDaTela, moduloDaRota, modulosLiberados } from "../lib/modulos.js";
 import { biDentroDoHub } from "../lib/hub.js";
 import { limiteDoCliente, limitarPeriodo } from "../lib/fechamento.js";
 import { PageActionsProvider } from "../lib/pageActions.jsx";
@@ -80,7 +80,7 @@ export default function CompanyLayout() {
   const liberados = modulosLiberados(state);
   const moduloAqui = moduloDaRota(location.pathname);
   const fichaPendente = !state.isAdmin && !state.isColaborador && state.modulosCliente === null;
-  if (moduloAqui && !fichaPendente && !liberados.includes(moduloAqui)) {
+  if (moduloAqui && !fichaPendente && !ferramentasDaTela(state).some((ferramenta) => ferramenta.id === moduloAqui)) {
     return <Navigate to="/empresa" replace />;
   }
   // Com o hub, os módulos moram em Ferramentas (no hub e no menu do topo do B.I.) — sem o menu lateral.

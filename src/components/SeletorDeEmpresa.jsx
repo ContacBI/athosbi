@@ -4,7 +4,7 @@ import { CornerDownLeft, Network, Search, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { recentes } from "../lib/recentes.js";
 import { realStaff } from "../lib/modoEquipe.js";
-import { unidadesDaCarteira } from "../lib/unidades.js";
+import { escopoDaPessoa, unidadesDaCarteira } from "../lib/unidades.js";
 import Avatar from "./Avatar.jsx";
 
 const norm = (valor) => String(valor || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -16,8 +16,8 @@ const norm = (valor) => String(valor || "").normalize("NFD").replace(/[̀-ͯ]/g,
 // busca, as abertas por último vêm em cima; com busca: nome, código ou CNPJ.
 export default function SeletorDeEmpresa({ aberto, onFechar, onEscolher }) {
   const state = useAppState();
-  // A equipe no "ver como cliente" do portal continua vendo a carteira toda (lib/modoEquipe.js).
-  const staff = Boolean(state.isAdmin || state.isColaborador || realStaff(state));
+  // A equipe no "ver como cliente" do portal continua vendo a carteira toda (lib/modoEquipe.js) — a não ser vendo como UMA pessoa: aí, só o dela.
+  const staff = Boolean(state.isAdmin || state.isColaborador || (realStaff(state) && !state.pessoaVista));
   const [termo, setTermo] = useState("");
   const [indice, setIndice] = useState(0);
   const campo = useRef(null);
@@ -33,7 +33,8 @@ export default function SeletorDeEmpresa({ aberto, onFechar, onEscolher }) {
 
   const secoes = useMemo(() => {
     // Cliente só vê o grupo inteiro (mesma regra de Empresas.jsx).
-    const { grupos, avulsas } = unidadesDaCarteira(state.companies, state.groups, { soCompletos: !staff });
+    const escopo = escopoDaPessoa(state.pessoaVista, state.companies, state.groups);
+    const { grupos, avulsas } = unidadesDaCarteira(escopo.companies, escopo.groups, { soCompletos: !staff });
     const daEmpresa = (company, extra = {}) => ({ tipo: "empresa", id: company.id, nome: company.name, detalhe: [company.codigo, company.cnpj].filter(Boolean).join(" · "), busca: `${company.codigo || ""} ${company.cnpj || ""}`, ...extra });
     const doGrupo = (unidade) => ({ tipo: "grupo", id: unidade.id, nome: unidade.nome, detalhe: `Consolidado · ${unidade.membros.length} ${unidade.membros.length === 1 ? "empresa" : "empresas"}` });
     const busca = norm(termo.trim());
@@ -42,13 +43,13 @@ export default function SeletorDeEmpresa({ aberto, onFechar, onEscolher }) {
       grupos.forEach((unidade) => unidade.membros.forEach((company) => grupoDe.set(company.id, grupoDe.get(company.id) || unidade.nome)));
       const achados = [
         ...grupos.filter((unidade) => norm(unidade.nome).includes(busca)).map(doGrupo),
-        ...state.companies
+        ...escopo.companies
           .filter((company) => norm(`${company.name} ${company.codigo || ""} ${company.cnpj || ""}`).includes(busca))
           .map((company) => daEmpresa(company, { detalhe: [grupoDe.get(company.id) && `Grupo ${grupoDe.get(company.id)}`, company.codigo, company.cnpj].filter(Boolean).join(" · ") })),
       ];
       return [{ titulo: `${achados.length} ${achados.length === 1 ? "resultado" : "resultados"}`, itens: achados.slice(0, 40) }];
     }
-    const todos = new Map([...grupos.map((unidade) => doGrupo(unidade)), ...state.companies.map((company) => daEmpresa(company))].map((item) => [`${item.tipo}:${item.id}`, item]));
+    const todos = new Map([...grupos.map((unidade) => doGrupo(unidade)), ...escopo.companies.map((company) => daEmpresa(company))].map((item) => [`${item.tipo}:${item.id}`, item]));
     const ultimas = recentes()
       .map((item) => todos.get(`${item.tipo}:${item.id}`))
       .filter(Boolean)
@@ -59,7 +60,7 @@ export default function SeletorDeEmpresa({ aberto, onFechar, onEscolher }) {
       { titulo: "Grupos", itens: doGrupoComMembros },
       { titulo: grupos.length ? "Empresas sem grupo" : "Empresas", itens: avulsas.map((unidade) => daEmpresa(unidade.empresa)) },
     ].filter((secao) => secao.itens.length);
-  }, [termo, staff, state.groups, state.companies]);
+  }, [termo, staff, state.groups, state.companies, state.pessoaVista]);
 
   const planos = secoes.flatMap((secao) => secao.itens);
 

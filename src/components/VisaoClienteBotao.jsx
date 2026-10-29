@@ -40,8 +40,8 @@ export function ModoDaTela({ className = "" }) {
   const state = useAppState();
   if (state.modoEquipe === "portal") {
     return (
-      <span className={`flex h-8 items-center gap-1 rounded-md border border-accent-500/50 bg-accent-500/15 pl-2.5 pr-1 text-[12px] font-semibold text-accent-700 ${className}`}>
-        <Eye size={14} strokeWidth={1.8} /> Visão do cliente
+      <span title={state.pessoaVista ? `Vendo exatamente o que ${state.pessoaVista.nome || state.pessoaVista.email} vê` : undefined} className={`flex h-8 items-center gap-1 rounded-md border border-accent-500/50 bg-accent-500/15 pl-2.5 pr-1 text-[12px] font-semibold text-accent-700 ${className}`}>
+        <Eye size={14} strokeWidth={1.8} /> {state.pessoaVista ? `Como ${String(state.pessoaVista.nome || state.pessoaVista.email).split(/[ @]/)[0]}` : "Visão do cliente"}
         <button type="button" onClick={() => entrarNoModo("console")} title="Editar esta empresa/grupo (modo do console)" className="ml-1.5 flex h-6 items-center gap-1 rounded bg-accent-500 px-2 text-[11.5px] font-semibold text-white hover:bg-accent-600">
           <PencilLine size={12} /> Editar
         </button>

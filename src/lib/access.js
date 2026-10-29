@@ -109,3 +109,18 @@ export async function inviteUser(email) {
   if (error) throw error;
   return data;
 }
+
+// Último acesso de cada e-mail de cliente (Map e-mail → data ISO), do registro
+// de uso da Central (uso_eventos — só o admin lê). Quem não aparece não tem
+// acesso registrado (ou entrou antes de a Central existir).
+export async function ultimosAcessos(emails) {
+  const lista = [...new Set((emails || []).map((email) => String(email || "").trim().toLowerCase()).filter(Boolean))];
+  if (!lista.length) return new Map();
+  const { data, error } = await supabase.from("uso_eventos").select("email, criado_em").eq("tipo", "acesso").in("email", lista).order("criado_em", { ascending: false }).limit(1000);
+  if (error) throw error;
+  const ultimo = new Map();
+  (data || []).forEach((linha) => {
+    if (!ultimo.has(linha.email)) ultimo.set(linha.email, linha.criado_em);
+  });
+  return ultimo;
+}

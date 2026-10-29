@@ -32,10 +32,6 @@ export const MODULOS_COMPLEMENTARES = [
   { id: "entradas-saidas", nome: "Entradas x Saídas", rota: "/empresa/entradas-saidas", descricao: "Notas fiscais por acumulador" },
 ];
 
-// Ferramentas que ainda vão entrar (pedido do Izaias, 29/10/2026: a apuração
-// de ICMS não é pra todas as empresas — liga por grupo quando existir).
-export const FERRAMENTAS_EM_PREPARACAO = [{ id: "apuracao-icms", nome: "Apuração de ICMS", descricao: "Automática, a partir das notas — só para os grupos que contratarem." }];
-
 export function modulosLiberados(state) {
   if (state.isAdmin || state.isColaborador) return MODULOS_COMPLEMENTARES.map((modulo) => modulo.id);
   // empresa/grupo configurado (Parâmetros › Acesso dos clientes): a lista dele manda; senão vale a ficha da pessoa
@@ -43,6 +39,18 @@ export function modulosLiberados(state) {
   const todos = MODULOS_COMPLEMENTARES.map((modulo) => modulo.id);
   if (daEmpresa) return todos.filter((id) => daEmpresa.includes(id));
   return todos.filter((id) => (state.modulosCliente || []).includes(id));
+}
+
+// As ferramentas que esta tela mostra/abre, cada uma com `doCliente`: se o
+// cliente desta empresa/grupo vê (true/false) ou null (vale a ficha de cada
+// pessoa). A equipe nos modos do hub (lib/modoEquipe.js) — fora do "ver como"
+// uma pessoa — vê todas, mesmo no portal, marcadas quando o cliente não vê;
+// o resto, só as liberadas.
+export function ferramentasDaTela(state) {
+  const liberados = modulosLiberados(state);
+  const equipe = Boolean(state.modoEquipe) && !state.pessoaVista;
+  const config = modulosDaEmpresa();
+  return MODULOS_COMPLEMENTARES.filter((modulo) => equipe || liberados.includes(modulo.id)).map((modulo) => ({ ...modulo, doCliente: config ? config.includes(modulo.id) : null }));
 }
 
 // O módulo complementar de uma rota (null = B.I. ou outra tela).
