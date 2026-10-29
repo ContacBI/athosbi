@@ -32,8 +32,8 @@ function SummaryDownloadRegistrar({ widgets, ctx, tabName, printRef }) {
     const workspaceName = activeWorkspaceName();
     const meta = {
       companyName: workspaceName,
-      reportName: "Resumo",
-      metaLine: [`Resumo · ${tabName}`, periodLabelPt(state.periodStart, state.periodEnd)].filter(Boolean).join(" | "),
+      reportName: `Painel · ${tabName}`,
+      metaLine: periodLabelPt(state.periodStart, state.periodEnd),
       fileLabel: slug(`resumo_${tabName}_${workspaceName}`),
     };
     const columns = [{ key: "valor", label: "Valor" }];
@@ -42,7 +42,14 @@ function SummaryDownloadRegistrar({ widgets, ctx, tabName, printRef }) {
     const unico = widgets.length === 1 ? WIDGET_CATALOG.find((definition) => definition.id === widgets[0].id) : null;
     return {
       pdf: () => exportDomSnapshotPdf({ ...meta, element: printRef.current }),
-      excel: () => exportDemonstrativoExcel({ ...meta, columns, rows: buildSummaryExportRows(widgets, ctx) }),
+      excel: () => {
+        const rows = buildSummaryExportRows(widgets, ctx);
+        if (!rows.length) {
+          window.alert("Essa aba só tem gráficos, que não viram planilha — baixe em PDF para levar os gráficos.");
+          return;
+        }
+        exportDemonstrativoExcel({ ...meta, columns, rows });
+      },
       reportKind: unico?.type === "table" ? { type: "tabela", table: unico.table } : undefined,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

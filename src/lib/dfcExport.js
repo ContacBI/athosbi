@@ -38,6 +38,7 @@ export function buildFullDfcExport(mode = "direct") {
       nome: row.categoria_gerencial || "",
       nivel: Number(row.nivel || 0),
       isAnalytic: false,
+      destaque: row.natureza === "heading" || row.natureza === "subtotal",
       cells: row.natureza === "heading" ? {} : cellsFor(row),
     });
     (row.contas || []).forEach((child) => {

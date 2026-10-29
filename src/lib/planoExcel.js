@@ -1,5 +1,4 @@
 import * as XLSX from "xlsx";
-import ExcelJS from "exceljs";
 import { state } from "../data/useStore.js";
 import { fetchBasePlano } from "./planoStore.js";
 import { effectivePlano } from "./planosPadrao.js";
@@ -37,73 +36,56 @@ function sortForExport(rows) {
   return ordered;
 }
 
-// Same color language as the accounting reports (reportExcel.js /
-// reportPdf.js): the more synthetic a line is, the stronger the highlight —
-// level 1 gets the strongest tint, fading out through level 4+. Analítica
-// rows (the account-folhas — the only ones that actually take a De/Para)
-// stay completely plain, no fill, no bold, so they read as "blank" against
-// the highlighted structure above them.
-const LEVEL_STYLE = {
-  1: { fill: "FFD9F99D", border: "FF4D7C0F" },
-  2: { fill: "FFECFCCB", border: "FF65A30D" },
-  3: { fill: "FFEEF7DE", border: "FF84A874" },
-  4: { fill: "FFF2F7E9", border: "FF9CB68F" },
-};
-
-function styleForRow(row) {
-  const isAnalytic = normalize(row.natureza || "Analitica") === "analitica";
-  if (isAnalytic) return null;
-  const level = Math.min(4, Math.max(1, Number(row.nivel || 1)));
-  return LEVEL_STYLE[level];
+// As cores das planilhas do portal (excelVisual.js): quanto mais sintética
+// a linha, mais destaque — nível 1 com a faixa clara e o fio laranja,
+// sintéticas em negrito, as analíticas (as contas-folha, as únicas que
+// recebem De/Para) em cinza, sem destaque nenhum.
+function isAnalyticRow(row) {
+  return normalize(row.natureza || "Analitica") === "analitica";
 }
 
-// A real .xlsx (not the HTML-disguised-as-.xls trick used elsewhere in the
-// app, and via exceljs rather than the xlsx/SheetJS package used for
-// parsing below — the free tier of that one silently drops all cell
-// styling) — this one's meant to be worked in, not just glanced at:
-// autofilter, a frozen header row, sensible column widths, color/bold
-// emphasis that scales with how synthetic each line is, and every row
-// grouped at its hierarchy level so Excel's own +/- outline controls can
-// collapse it the same way the tree view does. A second sheet spells out
-// what each column expects, since there's no cell-level dropdown
-// validation available either way.
+// Um .xlsx de verdade (via exceljs — o xlsx/SheetJS usado na leitura, mais
+// abaixo, perde toda a formatação na versão gratuita) pra ser trabalhado,
+// não só lido: filtro, cabeçalho fixo, larguras boas, destaque por nível e
+// cada linha agrupada no nível dela (o +/− do Excel recolhe a árvore igual à
+// tela). A importação lê a 1ª linha como títulos (parsePlanoExcelFile) —
+// por isso aqui não vai o cabeçalho com a logo dos relatórios. Uma 2ª aba
+// explica o que cada coluna aceita.
 //
 // Compartilhada entre o Plano gerencial global (exportPlanoExcel) e
 // qualquer Plano padrão específico (exportPlanoPadraoExcel) — a única
 // diferença de verdade é QUAIS linhas entram (global puro vs. global +
 // extras de um plano) e o nome da aba/arquivo.
 async function buildPlanoWorkbook(rows, sheetName) {
-  const workbook = new ExcelJS.Workbook();
+  const { COR, argb } = await import("./exportVisual.js");
+  const { fio, fonte, impressao, linhaDeTitulos, novaPasta, preenchido } = await import("./excelVisual.js");
+  const workbook = novaPasta();
   const sheet = workbook.addWorksheet(sheetName, {
-    views: [{ state: "frozen", ySplit: 1 }],
+    properties: { tabColor: { argb: argb(COR.acento) }, outlineProperties: { summaryBelow: false, summaryRight: false } },
+    views: [{ state: "frozen", ySplit: 1, showGridLines: false }],
   });
 
   sheet.columns = [
-    { header: "Código", key: "codigo", width: 16 },
-    { header: "Demonstrativo", key: "demonstrativo", width: 14 },
-    { header: "Grupo", key: "grupo", width: 22 },
-    { header: "Nome", key: "nome", width: 48 },
-    { header: "Nível", key: "nivel", width: 8 },
-    { header: "Natureza", key: "natureza", width: 12 },
-    { header: "Aceita De/Para", key: "aceita", width: 14 },
-    { header: "Observação", key: "observacao", width: 32 },
+    { key: "codigo", width: 16 },
+    { key: "demonstrativo", width: 15 },
+    { key: "grupo", width: 22 },
+    { key: "nome", width: 52 },
+    { key: "nivel", width: 8 },
+    { key: "natureza", width: 12 },
+    { key: "aceita", width: 15 },
+    { key: "observacao", width: 34 },
   ];
+  linhaDeTitulos(sheet, 1, ["Código", "Demonstrativo", "Grupo", "Nome", "Nível", "Natureza", "Aceita De/Para", "Observação"], { alinhar: (i) => (i === 4 ? "center" : "left") });
 
-  const headerRow = sheet.getRow(1);
-  headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
-  headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF152033" } };
-  headerRow.alignment = { vertical: "middle" };
-
+  let maiorNivel = 0;
   rows.forEach((row) => {
+    const nivel = Number(row.nivel || 1);
     const excelRow = sheet.addRow({
       codigo: row.codigo_gerencial,
       demonstrativo: row.demonstrativo,
       grupo: row.grupo_macro,
-      // No manual indentation — the Nível column, the color scale below, and
-      // Excel's own outline controls already carry the hierarchy, so the
-      // text itself stays normally aligned instead of padded with spaces.
       nome: row.nome,
-      nivel: Number(row.nivel || 1),
+      nivel,
       // A handful of base rows shipped with no natureza set at all (a gap in
       // the original CSV, not something meant to stay blank) — default them
       // to Analitica on the way out so the sheet never hands back a value
@@ -112,27 +94,33 @@ async function buildPlanoWorkbook(rows, sheetName) {
       aceita: row.aceita_depara,
       observacao: row.observacao || "",
     });
-
-    const style = styleForRow(row);
-    if (style) {
-      excelRow.eachCell((cell) => {
-        cell.font = { bold: true };
-        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: style.fill } };
-        cell.border = { top: { style: "thin", color: { argb: style.border } } };
-      });
-    }
-
-    excelRow.outlineLevel = Math.min(7, Math.max(0, Number(row.nivel || 1) - 1));
+    const analitica = isAnalyticRow(row);
+    const destaque = !analitica && nivel <= 1;
+    excelRow.height = 18;
+    excelRow.eachCell({ includeEmpty: true }, (cell, coluna) => {
+      cell.border = fio;
+      cell.font = fonte({ bold: !analitica, color: { argb: argb(analitica ? COR.tinta2 : COR.tinta) } });
+      // O recuo do nome é só visual (alinhamento), o texto continua o mesmo.
+      cell.alignment = { vertical: "middle", horizontal: coluna === 5 ? "center" : "left", indent: coluna === 4 ? Math.min(6, nivel - 1) * 2 : 0 };
+      if (destaque) cell.fill = preenchido(COR.acentoSuave);
+    });
+    if (destaque) excelRow.getCell(1).border = { ...fio, left: { style: "thick", color: { argb: argb(COR.acento) } } };
+    excelRow.outlineLevel = Math.min(6, Math.max(0, nivel - 1));
+    maiorNivel = Math.max(maiorNivel, excelRow.outlineLevel);
   });
+  // Um nível acima do mais fundo: senão o ExcelJS grava as linhas mais
+  // fundas como "recolhidas" e a planilha abre fechada.
+  sheet.properties.outlineLevelRow = maiorNivel + 1;
 
   sheet.autoFilter = { from: "A1", to: `H${rows.length + 1}` };
+  impressao(sheet, { empresa: sheetName, paisagem: true, linhaDoCabecalho: 1 });
 
-  const legend = workbook.addWorksheet("Como preencher");
+  const legend = workbook.addWorksheet("Como preencher", { views: [{ showGridLines: false }] });
   legend.columns = [
-    { header: "Campo", key: "campo", width: 20 },
-    { header: "O que aceita", key: "explicacao", width: 90 },
+    { key: "campo", width: 28 },
+    { key: "explicacao", width: 100 },
   ];
-  legend.getRow(1).font = { bold: true };
+  linhaDeTitulos(legend, 1, ["Campo", "O que aceita"], { alinhar: () => "left" });
   [
     ["Código", "Segmentos separados por ponto (ex.: 01.01.05). O código pai (01.01) precisa existir em alguma outra linha da planilha."],
     ["Demonstrativo", "DRE ou BP"],
@@ -142,9 +130,15 @@ async function buildPlanoWorkbook(rows, sheetName) {
     ],
     ["Aceita De/Para", "sim ou nao — normalmente sim só nas Analíticas"],
     ["Nível", "Recalculado sozinho a partir do código ao importar — pode deixar como está ou nem preencher."],
-    ["", ""],
     ["Pra adicionar uma conta nova", "Copie uma linha parecida, troque o código pro próximo disponível dentro do mesmo pai, e o nome."],
-  ].forEach((entry) => legend.addRow(entry));
+  ].forEach((entry) => {
+    const linha = legend.addRow(entry);
+    linha.eachCell((cell, coluna) => {
+      cell.font = fonte({ bold: coluna === 1 });
+      cell.alignment = { vertical: "top", wrapText: true, indent: 1 };
+      cell.border = fio;
+    });
+  });
 
   return workbook;
 }

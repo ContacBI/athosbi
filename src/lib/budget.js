@@ -292,35 +292,53 @@ export function budgetFor(ctx) {
 // Planilha (Excel): baixar o modelo com os valores e importar de volta.
 // Valores de gasto vão positivos, como na tela.
 
+// No padrão das planilhas do portal (excelVisual.js), sem mudar o que a
+// importação lê: a linha de títulos começa com "Código" e os meses ficam
+// nas colunas D a O. O Total é fórmula — soma sozinho enquanto a pessoa
+// preenche.
 export async function exportBudgetXlsx(budget, empresa) {
-  const ExcelJS = (await import("exceljs")).default;
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet(`Orçamento ${budget.ano}`);
+  const { COR, argb } = await import("./exportVisual.js");
+  const { cabecalhoDaPlanilha, fio, fonte, impressao, linhaDeTitulos, novaPasta, preenchido } = await import("./excelVisual.js");
+  const workbook = novaPasta();
   const months = yearMonths(budget.ano);
-  sheet.addRow([`Orçamento ${budget.ano} — ${budget.versao}${empresa ? ` — ${empresa}` : ""}`]);
-  sheet.addRow(["Preencha os valores do mês (gastos em positivo). Não mude a coluna Código. Linhas de total são calculadas sozinhas."]);
-  sheet.addRow([]);
-  const header = sheet.addRow(["Código", "Linha", "Tipo", ...months.map(monthShort), "Total"]);
-  header.font = { bold: true };
+  const sheet = workbook.addWorksheet(`Orçamento ${budget.ano}`, {
+    properties: { tabColor: { argb: argb(COR.acento) } },
+    views: [{ state: "frozen", xSplit: 3, ySplit: 6, showGridLines: false, activeCell: "D7" }],
+  });
+  sheet.getColumn(1).width = 14;
+  sheet.getColumn(2).width = 40;
+  sheet.getColumn(3).width = 10;
+  for (let i = 4; i <= 16; i += 1) sheet.getColumn(i).width = 13;
+  await cabecalhoDaPlanilha(workbook, sheet, {
+    titulo: `Orçamento ${budget.ano}`,
+    empresa: empresa || "Orçamento",
+    detalhes: [`Versão ${budget.versao}`, "Preencha os valores do mês (gastos em positivo)", "Não mude a coluna Código", "Linhas de total são calculadas sozinhas"],
+    ultima: 16,
+  });
+  linhaDeTitulos(sheet, 6, ["Código", "Linha", "Tipo", ...months.map(monthShort), "Total"], { alinhar: (i) => (i < 3 ? "left" : "right"), destacar: (i) => i === 15 });
   const rows = [];
   INPUT_LINES.forEach(({ code, sign }) => {
     const opened = (budget.abertas || []).includes(code);
     const lines = opened ? childLines(code).map((child) => ({ ...child, sign })) : [{ code, name: lineName(code), sign }];
     lines.forEach((line) => rows.push(line));
   });
-  rows.forEach((line) => {
+  rows.forEach((line, index) => {
+    const numero = 7 + index;
     const display = (value) => (line.sign === -1 ? -Number(value || 0) : Number(value || 0));
-    const values = months.map((month) => display(budget.valores?.[line.code]?.[month]));
-    const row = sheet.addRow([line.code, line.name, line.sign === -1 ? "gasto" : line.sign === 1 ? "receita" : "+/−", ...values, values.reduce((a, b) => a + b, 0)]);
-    row.getCell(4 + 12).font = { bold: true };
+    const row = sheet.getRow(numero);
+    row.values = [line.code, line.name, line.sign === -1 ? "gasto" : line.sign === 1 ? "receita" : "+/−", ...months.map((month) => display(budget.valores?.[line.code]?.[month])), { formula: `SUM(D${numero}:O${numero})` }];
+    row.height = 18;
+    row.eachCell({ includeEmpty: true }, (cell, coluna) => {
+      cell.border = fio;
+      cell.alignment = { vertical: "middle", horizontal: coluna >= 4 ? "right" : "left", indent: coluna <= 2 ? 1 : 0 };
+      cell.font = fonte({ size: coluna === 3 ? 9 : 10, color: { argb: argb(coluna === 1 || coluna === 3 ? COR.tinta3 : COR.tinta) } });
+      if (coluna >= 4) cell.numFmt = '#,##0;-#,##0;"–"';
+    });
+    const total = row.getCell(16);
+    total.font = fonte({ bold: true });
+    total.fill = preenchido(COR.coluna);
   });
-  sheet.getColumn(1).width = 16;
-  sheet.getColumn(2).width = 38;
-  sheet.getColumn(3).width = 9;
-  for (let i = 4; i <= 16; i += 1) {
-    sheet.getColumn(i).width = 13;
-    sheet.getColumn(i).numFmt = "#,##0";
-  }
+  impressao(sheet, { empresa, paisagem: true });
   const buffer = await workbook.xlsx.writeBuffer();
   return new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 }
