@@ -59,16 +59,17 @@ export function querPortalAtual() {
   }
 }
 
-// As áreas do hub, na ordem do menu. Por enquanto o hub tem o B.I. e a
-// Reforma Tributária (só informação); Serviços, Conteúdos e Ferramentas
-// ficam no menu, ainda sem nada (pedido do Izaias, 28/10/2026).
+// As áreas do hub, na ordem do menu. O B.I., a Reforma Tributária (só
+// informação) e as Ferramentas (os módulos que ficavam no menu lateral do
+// B.I. — pedido do Izaias, 29/10/2026); Serviços e Conteúdos ficam no menu,
+// ainda sem nada.
 export const AREAS_DO_HUB = [
   { id: "inicio", nome: "Início", rota: "/hub", pronta: true },
   { id: "bi", nome: "Meu B.I.", rota: null, pronta: true, resumo: "Resultado, caixa, balanço e indicadores da empresa, fechados pelo escritório." },
   { id: "reforma", nome: "Reforma Tributária", rota: "/hub/reforma", pronta: true, resumo: "O que muda, quando muda e o que observar — sem juridiquês." },
   { id: "servicos", nome: "Serviços", rota: "/hub/servicos", pronta: false },
   { id: "conteudos", nome: "Conteúdos", rota: "/hub/conteudos", pronta: false },
-  { id: "ferramentas", nome: "Ferramentas", rota: "/hub/ferramentas", pronta: false },
+  { id: "ferramentas", nome: "Ferramentas", rota: "/hub/ferramentas", pronta: true, resumo: "Orçamento, carga tributária, desempenho e notas fiscais da empresa." },
 ];
 
 // Reforma Tributária — o calendário da transição (EC 132/2023 e LC 214/2025).

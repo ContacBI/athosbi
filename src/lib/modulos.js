@@ -24,12 +24,17 @@ export async function isReformaEscritorio() {
 // Contábil). A equipe (admin/colaborador) vê todos; o cliente só os que
 // foram liberados na ficha dele em Parâmetros › Acessos (acesso_pessoas.
 // modulos). Sem nenhum, o cliente fica só no B.I. e o menu nem aparece.
+// `precisaDeDados`: só abre com balancete/razão importado (sem eles a tela fica vazia).
 export const MODULOS_COMPLEMENTARES = [
-  { id: "orcamento", nome: "Orçamento", rota: "/empresa/orcamento" },
-  { id: "carga-tributaria", nome: "Carga tributária", rota: "/empresa/carga-tributaria" },
-  { id: "analise-desempenho", nome: "Análise de desempenho", rota: "/empresa/analise-desempenho" },
-  { id: "entradas-saidas", nome: "Entradas x Saídas", rota: "/empresa/entradas-saidas" },
+  { id: "orcamento", nome: "Orçamento", rota: "/empresa/orcamento", descricao: "Orçado x realizado, mês a mês", precisaDeDados: true },
+  { id: "carga-tributaria", nome: "Carga tributária", rota: "/empresa/carga-tributaria", descricao: "Impostos do fiscal ÷ faturamento" },
+  { id: "analise-desempenho", nome: "Análise de desempenho", rota: "/empresa/analise-desempenho", descricao: "O que mais pesa no faturamento", precisaDeDados: true },
+  { id: "entradas-saidas", nome: "Entradas x Saídas", rota: "/empresa/entradas-saidas", descricao: "Notas fiscais por acumulador" },
 ];
+
+// Ferramentas que ainda vão entrar (pedido do Izaias, 29/10/2026: a apuração
+// de ICMS não é pra todas as empresas — liga por grupo quando existir).
+export const FERRAMENTAS_EM_PREPARACAO = [{ id: "apuracao-icms", nome: "Apuração de ICMS", descricao: "Automática, a partir das notas — só para os grupos que contratarem." }];
 
 export function modulosLiberados(state) {
   if (state.isAdmin || state.isColaborador) return MODULOS_COMPLEMENTARES.map((modulo) => modulo.id);
