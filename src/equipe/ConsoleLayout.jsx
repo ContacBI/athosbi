@@ -31,7 +31,8 @@ import {
 import { supabase } from "../lib/supabaseClient.js";
 import { useAppState } from "../data/useStore.js";
 import { useTheme } from "../lib/theme.js";
-import { hubLigado, preferirPortalAtual } from "../lib/hub.js";
+import { EH_TESTE } from "../lib/ambiente.js";
+import { QUEM_VE_O_HUB, hubLigado, preferirPortalAtual } from "../lib/hub.js";
 import { entrarNoModo, realStaff } from "../lib/modoEquipe.js";
 import { lembrarGrupoContexto } from "../lib/unidades.js";
 import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
@@ -258,6 +259,31 @@ function Lateral({ state, onBusca, onIr }) {
   );
 }
 
+function SemAcessoAoConsole({ state }) {
+  const navigate = useNavigate();
+  const liberado = QUEM_VE_O_HUB.includes(String(state.userEmail || "").toLowerCase());
+  return (
+    <div className="hub flex min-h-screen items-center justify-center px-5">
+      <div className="hub-cartao w-full max-w-[520px] p-8 text-center sm:p-10">
+        <AthosMark size={40} className="mx-auto" />
+        <h1 className="hub-display mt-6 text-[28px] font-extrabold leading-tight">O console não abriu</h1>
+        <p className="mt-3 text-[15px] leading-relaxed text-[var(--hub-texto-2)]">
+          Você entrou como <b className="text-[var(--hub-texto)]">{state.userEmail || "—"}</b>.{" "}
+          {liberado ? "Esse e-mail não está como administrador ou colaborador neste banco de teste." : `Por enquanto o console só abre pra ${QUEM_VE_O_HUB.join(" e ")}.`}
+        </p>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <button type="button" onClick={() => supabase.auth.signOut()} className="hub-botao hub-botao-primario">
+            Entrar com outro e-mail
+          </button>
+          <button type="button" onClick={() => navigate("/")} className="hub-botao hub-botao-fantasma">
+            Ir para o início
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Console da equipe (/equipe — pedido do Izaias, 29/10/2026): o back-office,
 // separado do produto do cliente. Mesmo login; quem entra por aqui edita
 // (lib/modoEquipe.js), quem entra pelo hub vê como o cliente. Só no site de
@@ -300,7 +326,9 @@ export default function ConsoleLayout() {
     return () => window.removeEventListener("keydown", tecla);
   }, []);
 
-  if (!pode) return <Navigate to="/" replace />;
+  // No oficial o console não existe (volta pro início). No teste, em vez de
+  // voltar calado, diz por que não abriu — quase sempre é o e-mail logado.
+  if (!pode) return EH_TESTE ? <SemAcessoAoConsole state={state} /> : <Navigate to="/" replace />;
 
   // Abrir no B.I. a partir do console: editando (o modo daqui) ou vendo
   // exatamente como o cliente vê — a troca de modo só acontece na hora de
