@@ -5,15 +5,15 @@
 // propósito, então nenhuma delas precisou ser tocada pra ficar compacta.
 export default function PageHeader({ eyebrow, title, icon: Icon }) {
   return (
-    <div className="mb-4 flex items-center gap-2.5">
+    <div className="page-header mb-4 flex items-center gap-2.5">
       {Icon && (
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-50 text-accent-500">
+        <span className="page-header-icone flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-50 text-accent-500">
           <Icon size={16} strokeWidth={1.8} />
         </span>
       )}
       <div>
-        {eyebrow && <p className="text-[10px] font-medium uppercase tracking-wide text-accent-600">{eyebrow}</p>}
-        <h1 className="text-[18px] font-medium leading-tight text-ink-900">{title}</h1>
+        {eyebrow && <p className="page-header-rotulo text-[10px] font-medium uppercase tracking-wide text-accent-600">{eyebrow}</p>}
+        <h1 className="page-header-titulo text-[18px] font-medium leading-tight text-ink-900">{title}</h1>
       </div>
     </div>
   );

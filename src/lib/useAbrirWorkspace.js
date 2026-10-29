@@ -21,11 +21,15 @@ export function useAbrirWorkspace() {
   const [pending, setPending] = useState(null); // { id, name, isGroup, phase: "loading" | "calculating" }
   const pendingRef = useRef(null);
 
-  async function handleOpen(id, select, isActive, label, destino = "/empresa") {
+  async function handleOpen(id, select, isActive, label, destino = "/empresa", antesDeNavegar) {
     if (pendingRef.current === id) return;
     pendingRef.current = id;
     setPending({ id, ...label, phase: "loading" });
     const stillWanted = () => pendingRef.current === id && isActive();
+    const ir = () => {
+      antesDeNavegar?.();
+      navigate(destino);
+    };
     try {
       await select(id);
       if (!stillWanted()) return;
@@ -36,12 +40,12 @@ export function useAbrirWorkspace() {
         if (!stillWanted()) return;
         prewarmDashboardContext();
       }
-      if (stillWanted()) navigate(destino);
+      if (stillWanted()) ir();
     } catch (error) {
       console.error("Falha ao abrir:", error);
       // Mesmo com erro no pré-cálculo, abre — o painel calcula sozinho e a
       // barra do topo avisa se o razão não carregou.
-      if (stillWanted()) navigate(destino);
+      if (stillWanted()) ir();
     } finally {
       if (pendingRef.current === id) {
         pendingRef.current = null;
@@ -51,15 +55,17 @@ export function useAbrirWorkspace() {
   }
 
   // `destino`: pra onde ir depois de carregar (padrão: o painel; o Início
-  // usa pra abrir direto a última apresentação).
-  function abrirEmpresa(id, destino) {
+  // usa pra abrir direto a última apresentação). `antesDeNavegar`: roda logo
+  // antes de entrar (o console usa pra trocar pro modo "ver como cliente" só
+  // na hora de sair dele — ver lib/modoEquipe.js).
+  function abrirEmpresa(id, destino, { antesDeNavegar } = {}) {
     const company = state.companies.find((item) => item.id === id);
-    handleOpen(id, selectCompany, () => state.activeCompanyId === id && !state.activeGroupId, { name: company?.name || "Empresa", isGroup: false }, destino);
+    handleOpen(id, selectCompany, () => state.activeCompanyId === id && !state.activeGroupId, { name: company?.name || "Empresa", isGroup: false }, destino, antesDeNavegar);
   }
 
-  function abrirGrupo(id, destino) {
+  function abrirGrupo(id, destino, { antesDeNavegar } = {}) {
     const group = state.groups.find((item) => item.id === id);
-    handleOpen(id, selectGroup, () => state.activeGroupId === id, { name: group?.name || "Grupo", isGroup: true }, destino);
+    handleOpen(id, selectGroup, () => state.activeGroupId === id, { name: group?.name || "Grupo", isGroup: true }, destino, antesDeNavegar);
   }
 
   // "Voltar" no meio do carregamento: desiste de navegar quando terminar (a

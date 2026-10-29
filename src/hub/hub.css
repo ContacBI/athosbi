@@ -404,3 +404,98 @@ body:has(.hub) .selo-teste {
     transition: none;
   }
 }
+
+/* Console da equipe (src/equipe): a lateral e os itens do menu. */
+.console-lateral {
+  background: var(--hub-fundo-2);
+}
+.console-item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--hub-texto-2);
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+.console-item svg {
+  color: var(--hub-texto-3);
+  transition: color 0.2s ease;
+}
+.console-item:hover {
+  background: var(--hub-cartao);
+  color: var(--hub-texto);
+}
+.console-item[aria-current="page"] {
+  background: var(--hub-cartao-solido);
+  color: var(--hub-texto);
+  box-shadow: var(--hub-sombra);
+}
+.console-item[aria-current="page"] svg {
+  color: var(--hub-acento);
+}
+/* Botão menor (barras de ação do console). */
+.hub-botao.hub-botao-p {
+  height: 38px;
+  padding: 0 0.95rem;
+  font-size: 13px;
+  gap: 0.4rem;
+}
+/* Abas da ficha de um grupo/empresa no console. */
+.console-aba {
+  position: relative;
+  padding: 0.85rem 0.2rem;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--hub-texto-3);
+  transition: color 0.2s ease;
+  white-space: nowrap;
+}
+.console-aba:hover {
+  color: var(--hub-texto);
+}
+.console-aba[aria-selected="true"] {
+  color: var(--hub-texto);
+}
+.console-aba[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--hub-acento);
+}
+/* No console, o selo do teste vai pro canto direito (o esquerdo é a lateral). */
+body:has(.console) .selo-teste {
+  left: auto;
+  right: 14px;
+}
+/* As telas de cadastro (Parâmetros) dentro do console: o título no tamanho dos outros do console. */
+.console .page-header {
+  margin-bottom: 1.75rem;
+  gap: 0.9rem;
+}
+.console .page-header-icone {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--hub-acento-suave);
+  color: var(--hub-acento);
+}
+.console .page-header-rotulo {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--hub-texto-3);
+}
+.console .page-header-titulo {
+  font-family: "Plus Jakarta Sans Variable", "Inter", system-ui, sans-serif;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  color: var(--hub-texto);
+}

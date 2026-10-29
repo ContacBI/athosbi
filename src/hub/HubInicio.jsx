@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext } from "react-router-dom";
 import { ArrowRight, BarChart3, Clock, FileSpreadsheet, Gauge, LayoutDashboard, LineChart, Network, PieChart, Presentation, Scale, Search, Table2 } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { AREAS_DO_HUB, LINHA_DA_REFORMA, andamentoDaReforma } from "../lib/hub.js";
+import { realStaff } from "../lib/modoEquipe.js";
 import { primeiroNome, resumoCarteira, saudacao } from "../lib/inicio.js";
 import { recentes } from "../lib/recentes.js";
 import { haQuanto } from "../lib/uso.js";
@@ -88,12 +89,14 @@ export default function HubInicio() {
   const state = useAppState();
   const navigate = useNavigate();
   const { abrir, irPara, abrirBusca } = useOutletContext();
-  const staff = Boolean(state.isAdmin || state.isColaborador);
+  // A equipe no portal está "vendo como cliente" (lib/modoEquipe.js), mas o
+  // início dela continua sendo o da equipe: a carteira toda pra escolher.
+  const staff = realStaff(state);
   const nome = primeiroNome(state.nomeUsuario);
 
   const [carteira, setCarteira] = useState(null);
   useEffect(() => {
-    if (!state.isAdmin || !state.companies.length) return undefined;
+    if (!state.realIsAdmin || !state.companies.length) return undefined;
     const timer = setTimeout(() => {
       try {
         setCarteira(resumoCarteira(state.companies));
@@ -102,7 +105,7 @@ export default function HubInicio() {
       }
     }, 60);
     return () => clearTimeout(timer);
-  }, [state.isAdmin, state.companies]);
+  }, [state.realIsAdmin, state.companies]);
 
   const abertas = useMemo(
     () =>
@@ -338,8 +341,8 @@ export default function HubInicio() {
           italico="precisa de atenção"
           depois="."
           acao={
-            <button type="button" onClick={() => navigate("/carteira")} className="hub-botao hub-botao-fantasma">
-              Ver a carteira <ArrowRight size={16} />
+            <button type="button" onClick={() => navigate("/equipe")} className="hub-botao hub-botao-fantasma">
+              Abrir o console <ArrowRight size={16} />
             </button>
           }
         >

@@ -12,6 +12,7 @@ import { supabase } from "./lib/supabaseClient.js";
 import { ligarRegistroDeUso, mudouDeTela } from "./lib/uso.js";
 import { EH_TESTE } from "./lib/ambiente.js";
 import { aplicarTemaDoHub, hubLigado, querPortalAtual } from "./lib/hub.js";
+import { entrarNoModo, modoDaRota, modoGuardado, usaModos } from "./lib/modoEquipe.js";
 import Empresas from "./pages/Empresas.jsx";
 import CompanyHome from "./pages/CompanyHome.jsx";
 import { loadPlan } from "./lib/plan.js";
@@ -70,6 +71,12 @@ const HubLayout = lazy(() => import("./hub/HubLayout.jsx"));
 const HubInicio = lazy(() => import("./hub/HubInicio.jsx"));
 const HubReforma = lazy(() => import("./hub/HubReforma.jsx"));
 const HubEmBreve = lazy(() => import("./hub/HubEmBreve.jsx"));
+// Console da equipe (src/equipe, ver lib/modoEquipe.js): também só no teste e
+// só pra quem tem o hub.
+const ConsoleLayout = lazy(() => import("./equipe/ConsoleLayout.jsx"));
+const ConsoleVisaoGeral = lazy(() => import("./equipe/ConsoleVisaoGeral.jsx"));
+const ConsoleClientes = lazy(() => import("./equipe/ConsoleClientes.jsx"));
+const ConsoleCliente = lazy(() => import("./equipe/ConsoleCliente.jsx"));
 const ReformaSimulacao = lazy(() => import("./pages/reforma/ReformaSimulacao.jsx"));
 const ReformaPainel = lazy(() => import("./pages/reforma/ReformaPainel.jsx"));
 const ReformaEmpresa = lazy(() => import("./pages/reforma/ReformaEmpresa.jsx"));
@@ -109,6 +116,52 @@ function InicioOuHub() {
   const state = useAppState();
   if (hubLigado(state) && !querPortalAtual()) return <Navigate to="/hub" replace />;
   return <Landing />;
+}
+
+// Equipe com o hub: as telas de cadastro moram no console agora — o
+// endereço antigo (/parametros/x, /carteira) leva pro mesmo lugar lá dentro.
+function ParametrosOuConsole() {
+  const state = useAppState();
+  const { pathname } = useLocation();
+  if (usaModos(state)) return <Navigate to={pathname.replace(/^\/parametros\/?/, "/equipe/").replace(/\/$/, "")} replace />;
+  return <ParametrosLayout />;
+}
+
+function CarteiraOuConsole() {
+  const state = useAppState();
+  if (usaModos(state)) return <Navigate to="/equipe/carteira" replace />;
+  return <Carteira />;
+}
+
+// A lista de empresas também: no console é "Grupos e empresas"; no portal,
+// o hub (o B.I. troca de empresa pela janela do topo).
+function EmpresasOuConsole() {
+  const state = useAppState();
+  if (usaModos(state)) return <Navigate to={state.modoEquipe === "console" ? "/equipe/clientes" : "/hub"} replace />;
+  return <Empresas />;
+}
+
+// As telas de cadastro (Parâmetros), nos mesmos sub-endereços em
+// /parametros e em /equipe.
+function rotasDeCadastro() {
+  return (
+    <>
+      <Route path="central" element={<Central />} />
+      <Route path="empresas" element={<CompaniesAdmin />} />
+      <Route path="grupo" element={<GruposAdmin />} />
+      <Route path="de-para" element={<DeParaAdmin />} />
+      <Route path="representantes" element={<Representantes />} />
+      <Route path="responsaveis" element={<ResponsaveisAdmin />} />
+      <Route path="bi" element={<BiAdmin />} />
+      <Route path="acessos" element={<AcessosAdmin />} />
+      <Route path="sistema" element={<Sistema />} />
+      <Route path="sistema/plano-gerencial" element={<PlanoGerencial />} />
+      <Route path="sistema/historico" element={<HistoricoVersoes />} />
+      <Route path="planos-padrao" element={<PlanoPadraoAdmin />} />
+      <Route path="colaborar" element={<ColaborarAdmin />} />
+      <Route path="reforma" element={<ReformaParametros />} />
+    </>
+  );
 }
 
 function AuthedApp() {
@@ -171,7 +224,10 @@ function AuthedApp() {
       }),
     ])
       .then(async ([, companiesResult, , , adminFlag, , colaboradorFlag, email, reformaFlag, reformaEmpresas]) => {
-        setData({ isAdmin: adminFlag, isColaborador: colaboradorFlag, realIsAdmin: adminFlag, realIsColaborador: colaboradorFlag, visaoCliente: false, userEmail: email, isReformaEscritorio: reformaFlag, reformaEmpresas });
+        setData({ isAdmin: adminFlag, isColaborador: colaboradorFlag, realIsAdmin: adminFlag, realIsColaborador: colaboradorFlag, visaoCliente: false, modoEquipe: null, userEmail: email, isReformaEscritorio: reformaFlag, reformaEmpresas });
+        // Equipe com o hub: já entra no modo do endereço (portal = vê como o
+        // cliente, console = edita) — um F5 no B.I. continua no mesmo modo.
+        entrarNoModo(modoDaRota(window.location.pathname, modoGuardado()));
         // Cliente: quais módulos complementares (Orçamento, Carga…) foram
         // liberados na ficha dele — sem ficha (ou sem a tabela), só o B.I.
         if (!adminFlag && !colaboradorFlag) {
@@ -260,24 +316,18 @@ function AuthedApp() {
           <Route path="ferramentas" element={<HubEmBreve area="ferramentas" />} />
         </Route>
         <Route path="definir-senha" element={<SetPassword />} />
-        <Route path="empresas" element={<Empresas />} />
-        <Route path="carteira" element={<Carteira />} />
-        <Route path="parametros" element={<ParametrosLayout />}>
+        <Route path="empresas" element={<EmpresasOuConsole />} />
+        <Route path="carteira" element={<CarteiraOuConsole />} />
+        <Route path="parametros" element={<ParametrosOuConsole />}>
           <Route index element={<Navigate to="empresas" replace />} />
-          <Route path="central" element={<Central />} />
-          <Route path="empresas" element={<CompaniesAdmin />} />
-          <Route path="grupo" element={<GruposAdmin />} />
-          <Route path="de-para" element={<DeParaAdmin />} />
-          <Route path="representantes" element={<Representantes />} />
-          <Route path="responsaveis" element={<ResponsaveisAdmin />} />
-          <Route path="bi" element={<BiAdmin />} />
-          <Route path="acessos" element={<AcessosAdmin />} />
-          <Route path="sistema" element={<Sistema />} />
-          <Route path="sistema/plano-gerencial" element={<PlanoGerencial />} />
-          <Route path="sistema/historico" element={<HistoricoVersoes />} />
-          <Route path="planos-padrao" element={<PlanoPadraoAdmin />} />
-          <Route path="colaborar" element={<ColaborarAdmin />} />
-          <Route path="reforma" element={<ReformaParametros />} />
+          {rotasDeCadastro()}
+        </Route>
+        <Route path="equipe" element={<ConsoleLayout />}>
+          <Route index element={<ConsoleVisaoGeral />} />
+          <Route path="clientes" element={<ConsoleClientes />} />
+          <Route path="clientes/:tipo/:id" element={<ConsoleCliente />} />
+          <Route path="carteira" element={<Carteira dentroDoConsole />} />
+          {rotasDeCadastro()}
         </Route>
         <Route path="reforma" element={<ReformaHome />} />
         <Route path="reforma/painel" element={<ReformaPainel />} />

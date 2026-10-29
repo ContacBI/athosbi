@@ -117,7 +117,9 @@ function CompanyHealthRow({ company, health, names, expanded, onToggle, onAction
   );
 }
 
-export default function Carteira() {
+// `dentroDoConsole`: dentro do console da equipe (src/equipe) — sem o fundo de
+// página nem o "voltar", que o console já tem.
+export default function Carteira({ dentroDoConsole = false }) {
   const state = useAppState();
   const navigate = useNavigate();
   const staff = state.isAdmin || state.isColaborador;
@@ -231,13 +233,15 @@ export default function Carteira() {
   if (!staff) return <Navigate to="/empresas" replace />;
 
   return (
-    <div className="bi-pagina min-h-screen bg-surface-page pb-16">
-      <div className="bi-cabecalho relative overflow-hidden bg-navy-950 px-6 pb-6 pt-5 text-white">
+    <div className={dentroDoConsole ? "" : "bi-pagina min-h-screen bg-surface-page pb-16"}>
+      <div className={`bi-cabecalho relative overflow-hidden bg-navy-950 px-6 pb-6 pt-5 text-white ${dentroDoConsole ? "rounded-3xl" : ""}`}>
         <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(560px circle at 12% 0%, rgba(232,105,31,0.22), transparent 62%)" }} />
         <div className="relative mx-auto flex max-w-[1200px] flex-col gap-4">
-          <button type="button" onClick={() => navigate("/empresas")} className="flex w-fit items-center gap-1.5 text-[13px] text-white/60 transition-colors hover:text-white">
-            <ArrowLeft size={15} /> Empresas
-          </button>
+          {!dentroDoConsole && (
+            <button type="button" onClick={() => navigate("/empresas")} className="flex w-fit items-center gap-1.5 text-[13px] text-white/60 transition-colors hover:text-white">
+              <ArrowLeft size={15} /> Empresas
+            </button>
+          )}
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <span className="text-[12px] font-medium uppercase tracking-wide text-accent-400">Carteira</span>
@@ -253,7 +257,7 @@ export default function Carteira() {
         </div>
       </div>
 
-      <div className="mx-auto mt-5 flex max-w-[1200px] flex-col gap-4 px-6">
+      <div className={`mx-auto mt-5 flex max-w-[1200px] flex-col gap-4 ${dentroDoConsole ? "" : "px-6"}`}>
         <div className="flex flex-wrap gap-3">
           <SummaryCard active={statusFilter === "critico"} onClick={() => setStatusFilter((v) => (v === "critico" ? "" : "critico"))} tone="bg-danger-50 text-danger-600" icon={<CircleAlert size={18} />} value={count("critico")} label="Críticas" />
           <SummaryCard active={statusFilter === "atencao"} onClick={() => setStatusFilter((v) => (v === "atencao" ? "" : "atencao"))} tone="bg-warning-50 text-warning-600" icon={<TriangleAlert size={18} />} value={count("atencao")} label="Pedem atenção" />

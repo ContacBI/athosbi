@@ -843,6 +843,84 @@ check(
     !hubLigado({}, true),
   null
 );
+const modoEquipe = await src("lib/modoEquipe.js");
+check(
+  "Equipe: o console e os cadastros pedem o modo de edição, o hub e o início o de ver como cliente, o B.I. segue o modo em que estava",
+  modoEquipe.modoDaRota("/equipe") === "console" &&
+    modoEquipe.modoDaRota("/equipe/clientes/grupo/g1") === "console" &&
+    modoEquipe.modoDaRota("/parametros/acessos") === "console" &&
+    modoEquipe.modoDaRota("/carteira") === "console" &&
+    modoEquipe.modoDaRota("/") === "portal" &&
+    modoEquipe.modoDaRota("/hub/reforma") === "portal" &&
+    modoEquipe.modoDaRota("/empresa/painel/x", "console") === "console" &&
+    modoEquipe.modoDaRota("/empresa", "portal") === "portal" &&
+    modoEquipe.modoDaRota("/equipes", "portal") === "portal",
+  null
+);
+const antesDosModos = { userEmail: state.userEmail, isAdmin: state.isAdmin, isColaborador: state.isColaborador, realIsAdmin: state.realIsAdmin, realIsColaborador: state.realIsColaborador, visaoCliente: state.visaoCliente, modoEquipe: state.modoEquipe, modulosCliente: state.modulosCliente };
+Object.assign(state, { userEmail: "izaiascontac@gmail.com", isAdmin: true, isColaborador: false, realIsAdmin: true, realIsColaborador: false, visaoCliente: false, modoEquipe: null, modulosCliente: null });
+modoEquipe.entrarNoModo("portal");
+const equipeNoPortal = { isAdmin: state.isAdmin, visaoCliente: state.visaoCliente, modulos: (state.modulosCliente || []).length, inicio: modoEquipe.inicioDoModo(state) };
+modoEquipe.entrarNoModo("console");
+const equipeNoConsole = { isAdmin: state.isAdmin, visaoCliente: state.visaoCliente, modulos: state.modulosCliente, inicio: modoEquipe.inicioDoModo(state) };
+Object.assign(state, { userEmail: "cliente@empresa.com", isAdmin: false, realIsAdmin: false, visaoCliente: false, modoEquipe: null, modulosCliente: ["orcamento"] });
+modoEquipe.entrarNoModo("portal");
+const clienteIntacto = !state.visaoCliente && state.modoEquipe === null && state.modulosCliente.join() === "orcamento";
+Object.assign(state, antesDosModos);
+check(
+  "Equipe no portal vê como o cliente (sem edição, todos os módulos); no console volta a editar; cliente nunca muda",
+  !equipeNoPortal.isAdmin && equipeNoPortal.visaoCliente && equipeNoPortal.modulos === 4 && equipeNoPortal.inicio === "/hub" && equipeNoConsole.isAdmin && !equipeNoConsole.visaoCliente && equipeNoConsole.modulos === null && equipeNoConsole.inicio === "/equipe" && clienteIntacto,
+  { equipeNoPortal, equipeNoConsole, clienteIntacto }
+);
+const unidades = await src("lib/unidades.js");
+const empresasU = [
+  { id: "a", name: "Beta" },
+  { id: "b", name: "Alfa" },
+  { id: "c", name: "Gama" },
+  { id: "d", name: "Delta" },
+];
+const gruposU = [
+  { id: "g1", name: "Grupo Z", companyIds: ["a", "b"] },
+  { id: "g2", name: "Grupo A", companyIds: ["c", "x"] },
+];
+const daEquipeU = unidades.unidadesDaCarteira(empresasU, gruposU);
+const doClienteU = unidades.unidadesDaCarteira(empresasU, gruposU, { soCompletos: true });
+check(
+  "Grupo primeiro: grupos com as empresas dentro, empresas sem grupo à parte; cliente só recebe o grupo inteiro",
+  daEquipeU.grupos.map((u) => u.id).join() === "g2,g1" &&
+    daEquipeU.grupos[1].membros.map((c) => c.id).join() === "a,b" &&
+    daEquipeU.avulsas.map((u) => u.id).join() === "d" &&
+    doClienteU.grupos.map((u) => u.id).join() === "g1" &&
+    doClienteU.avulsas.map((u) => u.id).join() === "d,c",
+  { daEquipeU, doClienteU }
+);
+const gruposCtx = [
+  { id: "g1", name: "Um", companyIds: ["a", "b"] },
+  { id: "g3", name: "Três", companyIds: ["a", "c"] },
+];
+const grupoCtx = (aberto, opcoes) => unidades.grupoDoContexto({ groups: gruposCtx, ...aberto }, opcoes)?.id || "";
+check(
+  "Trocar dentro do grupo: o grupo aberto; numa empresa, o grupo em que ela foi aberta, senão o mais recente, senão o primeiro",
+  grupoCtx({ activeGroupId: "g1" }) === "g1" &&
+    grupoCtx({ activeCompanyId: "a" }, { lembrado: "g3" }) === "g3" &&
+    grupoCtx({ activeCompanyId: "a" }, { recentes: [{ tipo: "empresa", id: "a" }, { tipo: "grupo", id: "g3" }] }) === "g3" &&
+    grupoCtx({ activeCompanyId: "a" }) === "g1" &&
+    grupoCtx({ activeCompanyId: "d" }) === "" &&
+    grupoCtx({ activeCompanyId: "b" }, { visiveis: [gruposCtx[1]] }) === "",
+  null
+);
+const { ocultoNaConfiguracao } = await src("lib/visibilidade.js");
+const { nomeCurto } = await src("equipe/useSaude.js");
+check(
+  "Ficha do console: aba oculta pro cliente segue a configuração (marcados/ocultos/nada); nome curto sem o LTDA",
+  !ocultoNaConfiguracao(null, "bi:tab:x") &&
+    ocultoNaConfiguracao({ modo: "marcados", visiveis: ["bi:tab:y"] }, "bi:tab:x") &&
+    !ocultoNaConfiguracao({ modo: "marcados", visiveis: ["bi:tab:x"] }, "bi:tab:x") &&
+    ocultoNaConfiguracao({ ocultos: ["bi:tab:x"] }, "bi:tab:x") &&
+    nomeCurto({ name: "COMERCIAL ALFA LTDA" }) === "COMERCIAL ALFA" &&
+    nomeCurto({ name: "SERVIÇOS BETA ME" }) === "SERVIÇOS BETA",
+  null
+);
 const { baseDeTeste } = await import(path.join(ROOT, "scripts/gerar-base-de-teste.mjs"));
 const base = baseDeTeste();
 const fechaPartidas = base.companies.every((empresa) => Math.abs(empresa.journal.reduce((soma, entry) => soma + entry.debito - entry.credito, 0)) < 0.05);
