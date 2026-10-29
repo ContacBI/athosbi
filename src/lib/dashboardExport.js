@@ -35,16 +35,22 @@ function previewRowsFor(definition, ctx) {
 export function buildSummaryExportRows(widgets, ctx) {
   const catalogById = new Map(WIDGET_CATALOG.map((definition) => [definition.id, definition]));
   const rows = [];
+  let emKpis = false;
 
   widgets.forEach((entry) => {
     const definition = catalogById.get(entry.id);
     if (!definition || !ctx) return;
 
+    // Os cartões de número (KPI) seguidos ficam juntos sob um título, como
+    // as linhas de uma tabela — e não cada um como um título destacado.
     if (definition.type === "kpi") {
+      if (!emKpis) rows.push({ nome: "Números do período", nivel: 1, isAnalytic: false, cells: { valor: "" } });
+      emKpis = true;
       const { value, format } = definition.value(ctx);
-      rows.push({ nome: definition.label, nivel: 1, isAnalytic: false, cells: { valor: formatWidgetValue(value, format) } });
+      rows.push({ nome: definition.label, nivel: 2, isAnalytic: false, cells: { valor: formatWidgetValue(value, format) } });
       return;
     }
+    if (definition.type !== "chart") emKpis = false;
 
     if (definition.type === "table") {
       rows.push({ nome: definition.label, nivel: 1, isAnalytic: false, cells: { valor: "" } });

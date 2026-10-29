@@ -1,10 +1,11 @@
 import { Fragment, useMemo, useState } from "react";
-import { ArrowDownCircle, ArrowUpCircle, Download, Search, X } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Download, FileSpreadsheet, Search, X } from "lucide-react";
 import { entriesForAccount, journalByCompanyAndDate, counterpartsForEntry } from "../data/calculations.js";
 import { useAppState } from "../data/useStore.js";
 import { accountNature } from "../lib/accountNature.js";
 import { money } from "../lib/format.js";
-import { exportLedgerPdf } from "../lib/exportLoaders.js";
+import { exportLedgerExcel, exportLedgerPdf } from "../lib/exportLoaders.js";
+import { activeWorkspaceName } from "../lib/groups.js";
 import { slug } from "../lib/demonstrativoExport.js";
 import Avatar from "./Avatar.jsx";
 
@@ -135,9 +136,10 @@ export default function LedgerModal({ row, onClose }) {
   // (ver `entries` acima); exportLedgerPdf usa isso pra intercalar um
   // cabeçalho com o nome da empresa antes do primeiro lançamento dela, em
   // vez de misturar tudo só por data.
-  function handleDownloadPdf() {
-    exportLedgerPdf({
+  function handleDownload(formato) {
+    const dados = {
       label,
+      companyName: activeWorkspaceName(),
       classificacaoLabel,
       totalLabel: `${filtered.length} lançamento${filtered.length === 1 ? "" : "s"} · Saldo ${money(saldoPeriodo)}`,
       creditoPositivo,
@@ -151,7 +153,9 @@ export default function LedgerModal({ row, onClose }) {
         companyName: entry.companyName,
       })),
       fileLabel: `diario_${slug(label)}`,
-    });
+    };
+    if (formato === "excel") exportLedgerExcel(dados);
+    else exportLedgerPdf(dados);
   }
 
   return (
@@ -169,13 +173,23 @@ export default function LedgerModal({ row, onClose }) {
           <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
-              onClick={handleDownloadPdf}
+              onClick={() => handleDownload("pdf")}
               disabled={!filtered.length}
               title="Baixar PDF"
               className="flex h-8 items-center gap-1.5 rounded-md border border-line-strong px-3 text-[12px] font-medium text-ink-600 hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Download size={14} />
               Baixar PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDownload("excel")}
+              disabled={!filtered.length}
+              title="Baixar Excel"
+              className="flex h-8 items-center gap-1.5 rounded-md border border-line-strong px-3 text-[12px] font-medium text-ink-600 hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <FileSpreadsheet size={14} />
+              Excel
             </button>
             <button
               type="button"

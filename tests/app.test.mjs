@@ -1093,6 +1093,40 @@ check(
   null
 );
 
+// Downloads (lib/exportVisual.js): o texto da tela vira número de verdade no
+// Excel, o "R$" sai das células do PDF e o cabeçalho não repete o relatório.
+const exportVisual = await src("lib/exportVisual.js");
+const lido = (texto) => exportVisual.lerValor(texto);
+check(
+  "Downloads: valores da tela viram números (moeda, negativo, %, milhar) e o resto fica texto",
+  lido("R$\u00a01.234,56").valor === 1234.56 &&
+    lido("-R$\u00a01.234.567,89").valor === -1234567.89 &&
+    Math.abs(lido("12,5%").valor - 0.125) < 1e-9 &&
+    lido("-3,0%").valor === -0.03 &&
+    lido("1.234").valor === 1234 &&
+    lido("-").tipo === "vazio" &&
+    lido("OK").tipo === "texto" &&
+    lido("1.1.01").tipo === "texto" &&
+    lido("R$ 10,00 (5,0%)").tipo === "texto",
+  null
+);
+check(
+  "Downloads: PDF sem o \"R$\" nas células, negativo e zero reconhecidos, cabeçalho sem repetir o relatório",
+  exportVisual.semMoeda("-R$\u00a01.234,56") === "-1.234,56" &&
+    exportVisual.ehNegativo("-R$ 10,00") &&
+    !exportVisual.ehNegativo("R$ 10,00") &&
+    exportVisual.ehZero("-") &&
+    exportVisual.tituloDoRelatorio("DRE") === "Demonstração do Resultado" &&
+    exportVisual.partesDaMeta("CNPJ 1 | DRE | 01/01/2026 – 30/09/2026 | Analítico", "DRE").join("|") === "CNPJ 1|01/01/2026 – 30/09/2026|Analítico",
+  null
+);
+const usadas = new Set();
+check(
+  "Downloads: nome de aba do Excel válido e sem repetir",
+  exportVisual.nomeDaAba("A/B: C*D", usadas) === "A B  C D" && exportVisual.nomeDaAba("X".repeat(40), usadas).length === 31 && exportVisual.nomeDaAba("X".repeat(40), usadas).endsWith(" 2"),
+  null
+);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);

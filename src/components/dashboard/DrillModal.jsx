@@ -1,11 +1,12 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Bar, CartesianGrid, Cell, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowLeft, BookOpen, ChevronRight, ChevronsDownUp, ChevronsUpDown, Download, MessageSquare, Search, X } from "lucide-react";
+import { ArrowLeft, BookOpen, ChevronRight, ChevronsDownUp, ChevronsUpDown, Download, FileSpreadsheet, MessageSquare, Search, X } from "lucide-react";
 import { state } from "../../data/useStore.js";
 import { buildDrill } from "../../lib/drill.js";
 import { ledgerData } from "../../lib/slideDemo.js";
 import { formatWidgetValue } from "../../lib/dashboardWidgets.js";
-import { exportLedgerPdf } from "../../lib/exportLoaders.js";
+import { exportLedgerExcel, exportLedgerPdf } from "../../lib/exportLoaders.js";
+import { activeWorkspaceName } from "../../lib/groups.js";
 import { slug } from "../../lib/demonstrativoExport.js";
 import { money, periodLabelPt } from "../../lib/format.js";
 import { formulaComments, monthNamePt } from "../../lib/comentarios.js";
@@ -219,9 +220,10 @@ function LedgerView({ request, initialMonth, trail, onBack }) {
   const showRunning = !filtered;
   const template = `92px minmax(0,1fr) 118px 118px${showRunning ? " 128px" : ""}`;
 
-  function handlePdf() {
-    exportLedgerPdf({
+  function handleDownload(formato) {
+    (formato === "excel" ? exportLedgerExcel : exportLedgerPdf)({
       label: request.name,
+      companyName: activeWorkspaceName(),
       classificacaoLabel: [multi ? `${accounts.length} contas` : accounts[0]?.code || "", month ? monthName(month) : periodLabelPt(state.periodStart, state.periodEnd)].filter(Boolean).join(" · "),
       totalLabel: `${lines.length} lançamento${lines.length === 1 ? "" : "s"} · Total ${money(total)}`,
       showCompany: false,
@@ -296,8 +298,11 @@ function LedgerView({ request, initialMonth, trail, onBack }) {
             </select>
           )}
           <SearchInput value={search} onChange={setSearch} placeholder="Buscar histórico, contrapartida, valor ou data…" className="min-w-[220px] flex-1" />
-          <button type="button" onClick={handlePdf} disabled={!lines.length} className="flex h-8 items-center gap-1.5 rounded-lg border border-line-strong px-2.5 text-[12px] font-medium text-ink-600 hover:bg-surface-muted disabled:opacity-40">
+          <button type="button" onClick={() => handleDownload("pdf")} disabled={!lines.length} className="flex h-8 items-center gap-1.5 rounded-lg border border-line-strong px-2.5 text-[12px] font-medium text-ink-600 hover:bg-surface-muted disabled:opacity-40">
             <Download size={13} /> PDF
+          </button>
+          <button type="button" onClick={() => handleDownload("excel")} disabled={!lines.length} className="flex h-8 items-center gap-1.5 rounded-lg border border-line-strong px-2.5 text-[12px] font-medium text-ink-600 hover:bg-surface-muted disabled:opacity-40">
+            <FileSpreadsheet size={13} /> Excel
           </button>
         </div>
         {filtered && <p className="text-[11px] text-ink-400">{lines.length} de {data.lines.length} lançamentos</p>}

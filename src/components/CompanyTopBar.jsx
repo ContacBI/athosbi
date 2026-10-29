@@ -152,12 +152,14 @@ function ReportBuilderModal({ onClose }) {
           const ctx = sharedDashboardContext();
           const meta = {
             companyName: workspaceName,
-            reportName: tab.name,
-            metaLine: [`Resumo · ${tab.name}`, periodLabelPt(state.periodStart, state.periodEnd)].filter(Boolean).join(" | "),
+            reportName: `Painel · ${tab.name}`,
+            metaLine: periodLabelPt(state.periodStart, state.periodEnd),
             fileLabel: slug(`resumo_${tab.name}_${workspaceName}`),
           };
           const columns = [{ key: "valor", label: "Valor" }];
           const rows = buildSummaryExportRows(summaryItems.map((item) => ({ id: item.entryId })), ctx);
+          // Aba só de gráficos: não tem como virar tabela — não sai um arquivo vazio.
+          if (!rows.length) return;
           if (format === "pdf") exportDemonstrativoPdf({ ...meta, columns, rows });
           else exportDemonstrativoExcel({ ...meta, columns, rows });
         }
@@ -257,7 +259,7 @@ async function downloadConsolidatedAndIndividualPdf(group, reportKind) {
   const entries = buildConsolidatedAndIndividual(group, reportKind);
   if (!entries) return;
   const { buildDemonstrativoPdfBlob } = await loadReportPdf();
-  const files = entries.map(({ data }) => ({ name: `${data.fileLabel}.pdf`, blob: buildDemonstrativoPdfBlob(data) }));
+  const files = await Promise.all(entries.map(async ({ data }) => ({ name: `${data.fileLabel}.pdf`, blob: await buildDemonstrativoPdfBlob(data) })));
   await downloadZip(files, `${slug(`${entries[0].data.reportName}_${group.name}`)}.zip`);
 }
 
@@ -267,6 +269,7 @@ async function downloadConsolidatedAndIndividualExcel(group, reportKind) {
   const sheets = entries.map(({ company, data }) => ({
     sheetName: company ? company.name : "Consolidado",
     companyName: data.companyName,
+    reportName: data.reportName,
     metaLine: data.metaLine,
     columns: data.columns,
     rows: data.rows,

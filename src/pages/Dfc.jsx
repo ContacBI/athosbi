@@ -61,7 +61,9 @@ function buildDfcExportRows(rows, columns, expandedRows) {
     return cells;
   };
   rows.forEach((row) => {
-    out.push({ codigo: row.codigo_gerencial || "", nome: row.categoria_gerencial || "", nivel: Number(row.nivel || 0), isAnalytic: false, cells: cellsFor(row) });
+    // Seção ("ATIVIDADES OPERACIONAIS") sem valores e subtotal em destaque, como na tela.
+    const heading = row.natureza === "heading";
+    out.push({ codigo: row.codigo_gerencial || "", nome: row.categoria_gerencial || "", nivel: Number(row.nivel || 0), isAnalytic: false, destaque: heading || row.natureza === "subtotal", cells: heading ? {} : cellsFor(row) });
     if (!expandedRows.has(row.codigo_gerencial)) return;
     (row.contas || []).forEach((child) => {
       out.push({ codigo: codigoDeExibicao(child.classificacao), nome: child.nome_conta || "", nivel: Number(row.nivel || 0) + 1, isAnalytic: true, cells: cellsFor(child) });

@@ -1391,7 +1391,8 @@ export function PrintableWidgetGrid({ widgets, ctx, spacing = DEFAULT_SPACING })
             style={{
               height: heightPx,
               overflow: isRowBased ? "visible" : "hidden",
-              gridColumn: definition.type === "chart" || definition.type === "table" ? "span 2" : "span 1",
+              // Tabela na largura toda: com os meses lado a lado, em 2/3 da folha as últimas colunas ficavam cortadas.
+              gridColumn: definition.type === "table" ? "span 3" : definition.type === "chart" ? "span 2" : "span 1",
             }}
           >
             <WidgetBody definition={definition} ctx={ctx} maxRows={isRowBased ? printRowCap(heightPx) : undefined} />
