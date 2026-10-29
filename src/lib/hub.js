@@ -7,7 +7,7 @@ import { DONO_DA_CENTRAL } from "./uso.js";
 // e-mails abaixo (os dois do Izaias). No oficial — e para clientes e
 // colaboradores, em qualquer site — nada muda. Quando estiver pronto, é
 // aqui que se liga para os outros.
-const QUEM_VE_O_HUB = [DONO_DA_CENTRAL, "izaiasspaulino@gmail.com"];
+export const QUEM_VE_O_HUB = [DONO_DA_CENTRAL, "izaiasspaulino@gmail.com"];
 
 export function hubLigado(st, ambienteTeste = EH_TESTE) {
   return Boolean(ambienteTeste) && QUEM_VE_O_HUB.includes(String(st?.userEmail || "").trim().toLowerCase());
