@@ -8,7 +8,7 @@ import { useTheme } from "../lib/theme.js";
 import AthosMark from "../components/AthosMark.jsx";
 import Mosaico from "./Mosaico.jsx";
 
-const DESTAQUES = ["Os números da empresa, fechados pelo escritório", "A Reforma Tributária explicada, com simulador", "Prazos, guias e conteúdos da equipe — em breve"];
+const DESTAQUES = ["Números fechados e conferidos pelo escritório", "Carga tributária, faturamento e resultado", "Comparativos e análises para acompanhar o seu negócio"];
 
 function Campo({ icone: Icone, rotulo, children }) {
   return (
@@ -42,7 +42,7 @@ export default function LoginHub() {
         </div>
         <div className="relative my-auto max-w-[540px] py-12">
           <h1 className="hub-display text-[54px] font-extrabold leading-[1.02]">
-            O portal da sua <span className="hub-italico">empresa</span>
+            Clareza para <span className="hub-italico">decidir</span>
             <span className="hub-pontuacao">.</span>
           </h1>
           <ul className="mt-9 space-y-4">
