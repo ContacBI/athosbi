@@ -106,3 +106,13 @@ A Central (hub) envia os mesmos dados da Domínio para o banco oficial **e** par
 ## O que ainda não existe no teste
 
 - **Pedidos de período e "Pedir à Central"**: a Central só atende pedidos do banco oficial. No teste, o botão não é atendido (os dados chegam no horário normal pelo espelho).
+
+
+## Espelho em tempo real (17/11/2026)
+
+O teste acompanha o oficial **na hora**: cada alteração de linha nas tabelas espelhadas do oficial dispara o gatilho `espelhar_linha` (migração `espelho_tempo_real_para_o_teste`), que chama por `pg_net` a função `espelho-recebe` do projeto de teste (`supabase/functions/espelho-recebe/index.ts`, só no teste, sem JWT, segredo `ESPELHO_SECRET`). A configuração (URL e segredo) fica na tabela `espelho_config` do oficial; sem a linha de configuração os gatilhos não fazem nada, e qualquer erro dentro do gatilho é ignorado para nunca atrapalhar uma gravação do oficial. Para ver se está funcionando: `select status_code, left(content::text,120) from net._http_response order by id desc limit 10` no oficial (200 = recebido).
+
+- Só de ida: o oficial nunca é alterado pelo teste. Chamadas fora de ordem: uma versão mais antiga não sobrescreve uma mais nova (compara `updated_at`).
+- A **cópia agendada foi desligada** (ela apagava tudo o que se fazia só no teste). O botão "Run workflow" continua para recomeçar do zero.
+- Tabela nova que deva ser espelhada: acrescentar em `CHAVES` na função `espelho-recebe` (e republicar no teste) e criar o gatilho `espelho_tempo_real` nela no oficial.
+- Combinado de trabalho: pedido "nos dois" (padrão) sobe no `main` e `homologacao`; "só no teste" fica só em `homologacao` com `[só teste]` na mensagem do commit.

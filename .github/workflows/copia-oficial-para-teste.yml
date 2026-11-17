@@ -6,10 +6,10 @@
 # Run workflow › marcar "forçar".
 name: Cópia do oficial para o teste
 
+# 17/11/2026: a cópia agendada (6h17 e 13h17) foi DESLIGADA. Agora o teste acompanha o oficial em tempo real (gatilho espelhar_linha no oficial -> função
+# espelho-recebe no teste; ver docs/AMBIENTES.md), e uma cópia total apagaria o que se faz só no teste. Esta tarefa fica só no botão (Run workflow), como
+# conferência ou pra recomeçar o teste do zero.
 on:
-  schedule:
-    - cron: "17 9 * * *" # 6h17 em Brasília
-    - cron: "17 16 * * *" # 13h17 em Brasília
   workflow_dispatch:
     inputs:
       forcar:
