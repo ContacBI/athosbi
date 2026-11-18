@@ -30,6 +30,16 @@ function Cartao({ rotulo, valor, sub, cor = VERDE, icone: Icone, negativo }) {
   );
 }
 
+// Nome curto da loja pra coluna do painel (os cadastros do portal têm razão social comprida; "ANJOS VITORIA" é a loja de Maringá)
+const lojaCurta = (nome) => {
+  const n = String(nome || "").toUpperCase();
+  if (n.includes("CAMBE")) return "Cambé";
+  if (n.includes("ROLANDIA")) return "Rolândia";
+  if (n.includes("VITORIA") || n.includes("MARINGA")) return "Maringá";
+  if (n.includes("CATUAI")) return "Catuaí";
+  if (n.includes("JK")) return "JK";
+  return nome;
+};
 const num = (v) => (Math.abs(v) < 0.005 ? "—" : Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
 
@@ -90,7 +100,7 @@ function PainelLancamentos({ painel, dados, ehConsolidado, onClose }) {
               <tbody>
                 {filtradas.map((x, i) => (
                   <tr key={i} className="border-t border-line/60">
-                    {ehConsolidado && <td className="px-3 py-1.5 text-ink-600">{x.loja.replace(/^ANJOS /i, "").replace(/ (COLCHOES|COMERCIO).*$/i, "")}</td>}
+                    {ehConsolidado && <td className="px-3 py-1.5 text-ink-600">{lojaCurta(x.loja)}</td>}
                     <td className="whitespace-nowrap px-3 py-1.5 tabular-nums text-ink-600">{x.dia}</td>
                     <td className="px-3 py-1.5 text-ink-800">{x.descricao}</td>
                     {mostraPlano && <td className="px-3 py-1.5 text-ink-600">{x.plano}</td>}
