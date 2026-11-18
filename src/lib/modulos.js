@@ -25,19 +25,32 @@ export async function isReformaEscritorio() {
 // foram liberados na ficha dele em Parâmetros › Acessos (acesso_pessoas.
 // modulos). Sem nenhum, o cliente fica só no B.I. e o menu nem aparece.
 // `precisaDeDados`: só abre com balancete/razão importado (sem eles a tela fica vazia).
+// Empresas que têm dados do Gestão Click (grupo Anjos; códigos da Domínio). O módulo "DRE Gerencial" só aparece no menu quando a empresa ou o grupo aberto
+// tem uma delas — as demais empresas não têm esses dados. Outro cliente que passe a usar o Gestão Click: é só incluir o código aqui.
+export const CODIGOS_GESTAO_CLICK = ["120", "121", "122", "165", "223"];
+const semZeros = (valor) => String(valor ?? "").trim().replace(/^0+(?=\d)/, "");
+// `soCodigos`: o módulo só vale quando a empresa ativa (ou alguma do grupo ativo) tem um desses códigos.
+function aplicavel(modulo, state) {
+  if (!modulo.soCodigos) return true;
+  const grupo = state.activeGroupId ? (state.groups || []).find((g) => g.id === state.activeGroupId) : null;
+  const ids = grupo ? new Set(grupo.companyIds || []) : new Set([state.activeCompanyId]);
+  return (state.companies || []).some((c) => ids.has(c.id) && modulo.soCodigos.includes(semZeros(c.codigo)));
+}
+
 export const MODULOS_COMPLEMENTARES = [
   { id: "orcamento", nome: "Orçamento", rota: "/empresa/orcamento", descricao: "Orçado x realizado, mês a mês", precisaDeDados: true },
   { id: "carga-tributaria", nome: "Carga tributária", rota: "/empresa/carga-tributaria", descricao: "Impostos do fiscal ÷ faturamento" },
   { id: "analise-desempenho", nome: "Análise de desempenho", rota: "/empresa/analise-desempenho", descricao: "O que mais pesa no faturamento", precisaDeDados: true },
   { id: "entradas-saidas", nome: "Entradas x Saídas", rota: "/empresa/entradas-saidas", descricao: "Notas fiscais por acumulador" },
-  { id: "dre-gerencial", nome: "DRE Gerencial", rota: "/empresa/dre-gerencial", descricao: "Vendas e despesas do Gestão Click" },
+  { id: "dre-gerencial", nome: "DRE Gerencial", rota: "/empresa/dre-gerencial", descricao: "Vendas e despesas do Gestão Click", soCodigos: CODIGOS_GESTAO_CLICK },
 ];
 
 export function modulosLiberados(state) {
-  if (state.isAdmin || state.isColaborador) return MODULOS_COMPLEMENTARES.map((modulo) => modulo.id);
+  const aplicaveis = MODULOS_COMPLEMENTARES.filter((modulo) => aplicavel(modulo, state));
+  if (state.isAdmin || state.isColaborador) return aplicaveis.map((modulo) => modulo.id);
   // empresa/grupo configurado (Parâmetros › Acesso dos clientes): a lista dele manda; senão vale a ficha da pessoa
   const daEmpresa = modulosDaEmpresa();
-  const todos = MODULOS_COMPLEMENTARES.map((modulo) => modulo.id);
+  const todos = aplicaveis.map((modulo) => modulo.id);
   if (daEmpresa) return todos.filter((id) => daEmpresa.includes(id));
   return todos.filter((id) => (state.modulosCliente || []).includes(id));
 }
@@ -51,7 +64,7 @@ export function ferramentasDaTela(state) {
   const liberados = modulosLiberados(state);
   const equipe = Boolean(state.modoEquipe) && !state.pessoaVista;
   const config = modulosDaEmpresa();
-  return MODULOS_COMPLEMENTARES.filter((modulo) => equipe || liberados.includes(modulo.id)).map((modulo) => ({ ...modulo, doCliente: config ? config.includes(modulo.id) : null }));
+  return MODULOS_COMPLEMENTARES.filter((modulo) => aplicavel(modulo, state) && (equipe || liberados.includes(modulo.id))).map((modulo) => ({ ...modulo, doCliente: config ? config.includes(modulo.id) : null }));
 }
 
 // O módulo complementar de uma rota (null = B.I. ou outra tela).
