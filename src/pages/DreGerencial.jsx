@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bar, CartesianGrid, Cell, ComposedChart, Legend, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, BarChart3, ChevronDown, ChevronRight, Lightbulb, Percent, Scale, Search, TrendingUp, Wallet, X } from "lucide-react";
+import { AlertTriangle, ArrowDownCircle, ArrowDownRight, ArrowUpCircle, ArrowUpRight, BarChart3, ChevronDown, ChevronRight, Download, FileSpreadsheet, Lightbulb, Percent, Scale, Search, TrendingUp, Wallet, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
-import { groupCompanies } from "../lib/groups.js";
+import { activeWorkspaceName, groupCompanies } from "../lib/groups.js";
+import { exportLedgerExcel, exportLedgerPdf } from "../lib/exportLoaders.js";
+import { slug } from "../lib/demonstrativoExport.js";
+import Avatar from "../components/Avatar.jsx";
 import { CARTAO, MES_CURTO, MES_LONGO, NAVY, ROSA, VERDE, brlCompacto, dec, eixo, moneyFull, pct } from "../lib/fmtNotas.js";
 import { comparativoReceita, fetchGestaoClickDre, lancamentosDe, montarDre } from "../lib/gestaoClickDre.js";
 
@@ -60,7 +63,8 @@ const lojaCurta = (nome) => {
 const num = (v) => (Math.abs(v) < 0.005 ? "—" : Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
 
-// Painel lateral: os lançamentos por trás de um valor da DRE (clique no valor). Mesma lista que o Gestão Click mostra, já filtrada pela linha e pelo mês.
+// Janela de lançamentos por trás de um valor da DRE (clique no valor). Mesmo modelo do "Diário da conta" dos demonstrativos (LedgerModal): janela sobreposta no centro,
+// totais em cartões, busca, tabela e rodapé; com os botões de PDF e Excel.
 function PainelLancamentos({ painel, dados, ehConsolidado, onClose }) {
   const [busca, setBusca] = useState("");
   const [ordem, setOrdem] = useState("data"); // "data" | "valor"
@@ -72,68 +76,114 @@ function PainelLancamentos({ painel, dados, ehConsolidado, onClose }) {
   const { linhas, semDetalhe } = useMemo(() => lancamentosDe({ ...dados, mes: painel.mes, alvo: painel.alvo }), [dados, painel]);
   const filtradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    const l = linhas.filter((x) => !q || `${x.descricao} ${x.plano} ${x.loja}`.toLowerCase().includes(q));
+    const l = linhas.filter((x) => !q || `${x.descricao} ${x.plano} ${x.loja} ${x.dia}`.toLowerCase().includes(q));
     return l.sort((a, b) => (ordem === "valor" ? Math.abs(b.valor) - Math.abs(a.valor) : a.mes - b.mes || a.dia.localeCompare(b.dia)));
   }, [linhas, busca, ordem]);
   const total = filtradas.reduce((s, x) => s + x.valor, 0);
+  const maior = filtradas.reduce((m, x) => (Math.abs(x.valor) > Math.abs(m?.valor || 0) ? x : m), null);
   const mostraPlano = painel.alvo.tipo === "pag" && (painel.alvo.nomes || []).length > 1;
-  const th = "px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-ink-400";
+  const periodo = painel.mes ? `${MES_LONGO[painel.mes - 1]} de ${dados.ano}` : `${MES_LONGO[dados.mesDe - 1]} a ${MES_LONGO[dados.mesAte - 1]} de ${dados.ano}`;
+  const negativo = total < 0;
+  const th = "whitespace-nowrap px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide";
+
+  function baixar(formato) {
+    const mm = (n) => String(n).padStart(2, "0");
+    const exp = {
+      label: painel.titulo,
+      companyName: activeWorkspaceName(),
+      classificacaoLabel: `${periodo}${ehConsolidado ? " · todas as lojas" : ""}`,
+      totalLabel: `${filtradas.length} lançamento${filtradas.length === 1 ? "" : "s"} · Total ${moneyFull(total)}`,
+      creditoPositivo: true,
+      showCompany: ehConsolidado,
+      rows: filtradas.map((x) => ({ data: `${dados.ano}-${mm(x.mes)}-${x.dia.slice(0, 2)}`, historico: x.descricao, counterpartText: [x.plano, x.situacao].filter(Boolean).join(" · "), debito: x.valor < 0 ? Math.abs(x.valor) : 0, credito: x.valor > 0 ? x.valor : 0, companyName: lojaCurta(x.loja) })),
+      fileLabel: `lancamentos_${slug(painel.titulo)}`,
+    };
+    if (formato === "excel") exportLedgerExcel(exp);
+    else exportLedgerPdf(exp);
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <aside className="relative flex h-full w-full max-w-[860px] flex-col bg-surface-card shadow-2xl">
-        <div className="flex items-start justify-between gap-3 border-b border-line p-4">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-accent-600">Lançamentos</p>
-            <h2 className="truncate text-[17px] font-semibold text-ink-900">{painel.titulo}</h2>
-            <p className="text-[12px] text-ink-400">{painel.mes ? `${MES_LONGO[painel.mes - 1]} de ${dados.ano}` : `${MES_LONGO[dados.mesDe - 1]} a ${MES_LONGO[dados.mesAte - 1]} de ${dados.ano}`}{ehConsolidado ? " · todas as lojas" : ""}</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8 backdrop-blur-[2px]" onClick={onClose}>
+      <div className="flex h-full max-h-[820px] w-full max-w-6xl flex-col rounded-2xl bg-surface-card shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-4 border-b border-line p-6">
+          <div className="flex items-center gap-3.5">
+            <Avatar name={painel.titulo} size={44} />
+            <div>
+              <span className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Lançamentos</span>
+              <h2 className="mt-0.5 text-[19px] font-semibold text-ink-900">{painel.titulo}</h2>
+              <p className="mt-0.5 text-[13px] text-ink-400">{periodo}{ehConsolidado ? " · todas as lojas" : ""} · {linhas.length} lançamentos</p>
+            </div>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-ink-400 hover:bg-surface-muted hover:text-ink-900" aria-label="Fechar"><X size={18} /></button>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-2.5">
-          <div className="flex min-w-[200px] flex-1 items-center gap-2 rounded-lg border border-line bg-surface-card px-2.5">
-            <Search size={14} className="text-ink-400" />
-            <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar descrição" className="w-full bg-transparent py-1.5 text-[12.5px] text-ink-800 outline-none" />
+          <div className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={() => baixar("pdf")} disabled={!filtradas.length} title="Baixar PDF" className="flex h-8 items-center gap-1.5 rounded-md border border-line-strong px-3 text-[12px] font-medium text-ink-600 hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"><Download size={14} /> Baixar PDF</button>
+            <button type="button" onClick={() => baixar("excel")} disabled={!filtradas.length} title="Baixar Excel" className="flex h-8 items-center gap-1.5 rounded-md border border-line-strong px-3 text-[12px] font-medium text-ink-600 hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"><FileSpreadsheet size={14} /> Excel</button>
+            <button type="button" onClick={onClose} aria-label="Fechar" className="flex h-8 w-8 items-center justify-center rounded-md text-ink-400 hover:bg-surface-muted hover:text-ink-900"><X size={18} /></button>
           </div>
-          <p className="text-[12.5px] text-ink-500">{filtradas.length} lançamento(s) · <b className={`tabular-nums ${total < 0 ? "text-rose-600" : "text-ink-900"}`}>{moneyFull(total)}</b></p>
         </div>
-        <div className="min-h-0 flex-1 overflow-auto">
-          {semDetalhe && !linhas.length ? (
-            <p className="p-6 text-[13px] text-ink-500">Este mês ainda não tem o detalhe dos lançamentos. Ele chega no próximo envio da Central.</p>
-          ) : !linhas.length ? (
-            <p className="p-6 text-[13px] text-ink-500">Nenhum lançamento neste recorte.</p>
-          ) : (
-            <table className="w-full border-collapse text-[12.5px]">
-              <thead className="sticky top-0 bg-surface-card">
-                <tr>
-                  {ehConsolidado && <th className={th}>Loja</th>}
-                  <th className={th}>Data</th>
-                  <th className={th}>Descrição</th>
-                  {mostraPlano && <th className={th}>Plano de contas</th>}
-                  <th className={th}>Situação</th>
-                  <th className={`${th} cursor-pointer text-right`} onClick={() => setOrdem((o) => (o === "valor" ? "data" : "valor"))} title="Clique para ordenar por valor / data">Valor {ordem === "valor" ? "↓" : ""}</th>
+
+        <div className="grid grid-cols-2 gap-3 border-b border-line bg-surface-page px-6 py-4">
+          <div className="flex items-center gap-3 rounded-xl bg-surface-card p-3.5 shadow-sm">
+            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${negativo ? "bg-danger-50 text-danger-600" : "bg-success-50 text-success-600"}`}>{negativo ? <ArrowDownCircle size={18} strokeWidth={1.8} /> : <ArrowUpCircle size={18} strokeWidth={1.8} />}</span>
+            <div>
+              <p className="text-[11px] text-ink-400">{busca.trim() ? "Total da busca" : "Total do período"}</p>
+              <p className={`text-[16px] font-semibold ${negativo ? "text-danger-600" : "text-success-600"}`}>{moneyFull(total)}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-xl bg-surface-card p-3.5 shadow-sm">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-muted text-ink-500"><Search size={17} strokeWidth={1.8} /></span>
+            <div className="min-w-0">
+              <p className="text-[11px] text-ink-400">Maior lançamento</p>
+              <p className="truncate text-[14px] font-semibold text-ink-900" title={maior?.descricao}>{maior ? `${moneyFull(maior.valor)} · ${maior.descricao}` : "—"}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-b border-line px-6 py-2.5">
+          <div className="relative">
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-300" />
+            <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por descrição, valor, plano ou data..." className="w-full rounded-lg border border-line bg-surface-page py-2 pl-8 pr-3 text-[13px] text-ink-900 outline-none placeholder:text-ink-300 focus:border-accent-400" />
+          </div>
+          {busca.trim() && <p className="mt-1.5 text-[11px] text-ink-400">{filtradas.length} de {linhas.length} lançamentos</p>}
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-auto scrollbar-thin">
+          <table className="w-full min-w-[620px] text-[13px]">
+            <thead className="sticky top-0 bg-surface-card text-ink-400 shadow-[0_1px_0_var(--color-line)]">
+              <tr>
+                <th className={`${th} pl-6`}>Data</th>
+                {ehConsolidado && <th className={th}>Loja</th>}
+                <th className={`${th} w-full`}>Descrição</th>
+                <th className={th}>Situação</th>
+                <th className={`${th} cursor-pointer pr-6 text-right`} onClick={() => setOrdem((o) => (o === "valor" ? "data" : "valor"))} title="Clique para ordenar por valor / data">Valor {ordem === "valor" ? "↓" : ""}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtradas.map((x, i) => (
+                <tr key={i} className={`transition-colors hover:bg-accent-50/40 ${i % 2 ? "bg-surface-muted/70" : "bg-surface-card"}`}>
+                  <td className="whitespace-nowrap px-4 py-2 pl-6 align-top tabular-nums text-ink-600">{x.dia}</td>
+                  {ehConsolidado && <td className="whitespace-nowrap px-4 py-2 align-top text-[12px] text-ink-600">{lojaCurta(x.loja)}</td>}
+                  <td className="max-w-0 px-4 py-2 align-top text-ink-900">
+                    <p className="truncate" title={x.descricao}>{x.descricao}</p>
+                    {mostraPlano && x.plano && <p className="mt-0.5 truncate text-[11px] text-ink-400">{x.plano}</p>}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2 align-top text-ink-500">{x.situacao}</td>
+                  <td className={`whitespace-nowrap px-4 py-2 pr-6 align-top text-right tabular-nums ${x.valor < 0 ? "text-danger-600" : "text-success-600"}`}>{num(x.valor)}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {filtradas.map((x, i) => (
-                  <tr key={i} className="border-t border-line/60">
-                    {ehConsolidado && <td className="px-3 py-1.5 text-ink-600">{lojaCurta(x.loja)}</td>}
-                    <td className="whitespace-nowrap px-3 py-1.5 tabular-nums text-ink-600">{x.dia}</td>
-                    <td className="px-3 py-1.5 text-ink-800">{x.descricao}</td>
-                    {mostraPlano && <td className="px-3 py-1.5 text-ink-600">{x.plano}</td>}
-                    <td className="whitespace-nowrap px-3 py-1.5 text-ink-500">{x.situacao}</td>
-                    <td className={`whitespace-nowrap px-3 py-1.5 text-right tabular-nums ${x.valor < 0 ? "text-rose-600" : "text-ink-900"}`}>{num(x.valor)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+              ))}
+              {filtradas.length === 0 && (
+                <tr><td colSpan={ehConsolidado ? 5 : 4} className="px-6 py-10 text-center text-ink-400">{semDetalhe && !linhas.length ? "Este mês ainda não tem o detalhe dos lançamentos. Ele chega no próximo envio da Central." : linhas.length === 0 ? "Nenhum lançamento neste recorte." : "Nenhum lançamento encontrado para essa busca."}</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      </aside>
+
+        <div className="flex items-center justify-end gap-6 border-t border-line px-6 py-3 text-[12px]">
+          <span className="text-ink-400">Total: <span className={`font-semibold ${negativo ? "text-danger-600" : "text-success-600"}`}>{moneyFull(total)}</span> · {filtradas.length} lançamento{filtradas.length === 1 ? "" : "s"}</span>
+        </div>
+      </div>
     </div>
   );
 }
-
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------
 // Painel de ANÁLISE (clique num cartão ou numa barra de mês). Mesma ideia do Entradas x Saídas: cada número abre as comparações, a composição e uma leitura rápida.
@@ -210,29 +260,31 @@ function Gaveta({ titulo, sub, onClose, children, extra }) {
     return () => window.removeEventListener("keydown", fecha);
   }, [onClose]);
   return (
-    <div className="fixed inset-0 z-40 flex justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <aside className="relative flex h-full w-full max-w-[760px] flex-col bg-surface-card shadow-2xl">
-        <div className="flex items-start justify-between gap-3 border-b border-line p-4">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-accent-600">Análise</p>
-            <h2 className="truncate text-[18px] font-semibold text-ink-900">{titulo}</h2>
-            <p className="text-[12px] text-ink-400">{sub}</p>
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 px-4 py-8 backdrop-blur-[2px]" onClick={onClose}>
+      <div className="flex h-full max-h-[820px] w-full max-w-4xl flex-col rounded-2xl bg-surface-card shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-4 border-b border-line p-6">
+          <div className="flex items-center gap-3.5">
+            <Avatar name={titulo} size={44} />
+            <div className="min-w-0">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Análise</span>
+              <h2 className="mt-0.5 truncate text-[19px] font-semibold text-ink-900">{titulo}</h2>
+              <p className="mt-0.5 text-[13px] text-ink-400">{sub}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1">
             {extra}
-            <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-ink-400 hover:bg-surface-muted hover:text-ink-900" aria-label="Fechar"><X size={18} /></button>
+            <button type="button" onClick={onClose} aria-label="Fechar" className="flex h-8 w-8 items-center justify-center rounded-md text-ink-400 hover:bg-surface-muted hover:text-ink-900"><X size={18} /></button>
           </div>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-4">{children}</div>
-      </aside>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto bg-surface-page p-6 scrollbar-thin">{children}</div>
+      </div>
     </div>
   );
 }
 
 function Secao({ titulo, children }) {
   return (
-    <section className="rounded-2xl border border-line/70 p-3.5">
+    <section className="rounded-2xl border border-line/70 bg-surface-card p-4 shadow-sm">
       <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-400">{titulo}</p>
       {children}
     </section>
