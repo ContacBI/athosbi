@@ -322,8 +322,8 @@ export default function DreGerencial() {
                       <YAxis tickFormatter={eixo} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={52} />
                       <Tooltip formatter={(v) => (v == null ? "—" : moneyFull(v))} />
                       <Legend wrapperStyle={{ fontSize: 12 }} />
-                      <Bar dataKey={ano - 1} fill="#9db4d3" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-                      <Bar dataKey={ano} fill={NAVY} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                      <Bar dataKey={ano - 1} name={String(ano - 1)} fill="#9db4d3" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                      <Bar dataKey={ano} name={String(ano)} fill={NAVY} radius={[4, 4, 0, 0]} isAnimationActive={false} />
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
