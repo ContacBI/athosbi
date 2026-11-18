@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { BarChart3, ChevronDown, ChevronRight, Percent, Scale, Search, TrendingUp, Wallet, X } from "lucide-react";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, BarChart3, ChevronDown, ChevronRight, Percent, Scale, Search, TrendingUp, Wallet, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { groupCompanies } from "../lib/groups.js";
 import { CARTAO, MES_CURTO, MES_LONGO, NAVY, ROSA, VERDE, brlCompacto, dec, eixo, moneyFull } from "../lib/fmtNotas.js";
-import { fetchGestaoClickDre, lancamentosDe, montarDre } from "../lib/gestaoClickDre.js";
+import { comparativoReceita, fetchGestaoClickDre, lancamentosDe, montarDre } from "../lib/gestaoClickDre.js";
 
 function Esqueleto() {
   return (
@@ -16,7 +16,19 @@ function Esqueleto() {
   );
 }
 
-function Cartao({ rotulo, valor, sub, cor = VERDE, icone: Icone, negativo }) {
+// Selo de variação (A.H.%) contra o mesmo período do ano anterior
+function Variacao({ ah, titulo }) {
+  if (ah == null || !Number.isFinite(ah)) return null;
+  const subiu = ah >= 0;
+  return (
+    <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${subiu ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"}`} title={titulo}>
+      {subiu ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
+      {dec(Math.abs(ah))}%
+    </span>
+  );
+}
+
+function Cartao({ rotulo, valor, sub, cor = VERDE, icone: Icone, negativo, delta }) {
   return (
     <div className={`${CARTAO} relative flex min-w-0 flex-col justify-between overflow-hidden p-4`}>
       <span className="absolute inset-y-0 left-0 w-1 opacity-90" style={{ background: cor }} />
@@ -25,7 +37,12 @@ function Cartao({ rotulo, valor, sub, cor = VERDE, icone: Icone, negativo }) {
         {Icone && <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-500/10 text-accent-600"><Icone size={14} /></span>}
       </div>
       <p className={`mt-2 truncate text-[22px] font-bold leading-7 tabular-nums tracking-tight ${negativo ? "text-rose-600" : "text-ink-900"}`} title={moneyFull(valor)}>{brlCompacto(valor)}</p>
-      {sub && <p className="mt-1 truncate text-[11.5px] text-ink-400">{sub}</p>}
+      {(delta || sub) && (
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          {delta}
+          {sub && <span className="truncate text-[11.5px] text-ink-400">{sub}</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -164,6 +181,10 @@ export default function DreGerencial() {
   useEffect(() => { setMesAte(ultimoMes); setMesDe(1); }, [ano, ultimoMes]);
 
   const r = useMemo(() => (brutos && ano ? montarDre({ membros: membrosUso, brutos, ano, mesDe, mesAte }) : null), [membrosUso, brutos, ano, mesDe, mesAte]);
+  // comparativo de receita com o ano anterior (só receita: é o que foi validado contra a planilha de 2025)
+  const comp = useMemo(() => (brutos && ano ? comparativoReceita({ membros: membrosUso, brutos, ano, mesDe, mesAte }) : null), [membrosUso, brutos, ano, mesDe, mesAte]);
+  // por loja (grupo): DRE de cada uma pros alertas
+  const lojas = useMemo(() => (brutos && ano && grupo ? membros.map((m) => ({ membro: m, r: montarDre({ membros: [m], brutos, ano, mesDe, mesAte }) })) : []), [membros, brutos, ano, mesDe, mesAte, grupo]);
 
   if (erro) return <div className="p-6 text-[13px] text-rose-600">{erro}</div>;
   if (!brutos || !r) return <Esqueleto />;
@@ -263,11 +284,91 @@ export default function DreGerencial() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <Cartao rotulo="Receita bruta" valor={r.receita.t} sub="vendas concretizadas" icone={Wallet} cor={NAVY} />
+        <Cartao rotulo="Receita bruta" valor={r.receita.t} sub={comp?.temAnterior ? `${ano - 1}: ${brlCompacto(comp.totais.ant)}` : "vendas concretizadas"} delta={comp?.temAnterior ? <Variacao ah={comp.totais.ah} titulo={`vs. ${ano - 1} nos meses fechados dos dois anos`} /> : null} icone={Wallet} cor={NAVY} />
         <Cartao rotulo="Margem de contribuição" valor={r.margem.t} sub={margemPct == null ? "" : `${dec(margemPct)}% da receita`} icone={Percent} cor={VERDE} negativo={r.margem.t < 0} />
         <Cartao rotulo="Resultado operacional" valor={r.operacional.t} sub={r.receita.t ? `${dec((r.operacional.t / r.receita.t) * 100)}% da receita` : ""} icone={Scale} cor={VERDE} negativo={r.operacional.t < 0} />
         <Cartao rotulo="Resultado" valor={r.resultado.t} sub={resPct == null ? "" : `${dec(resPct)}% da receita`} icone={TrendingUp} cor={r.resultado.t < 0 ? ROSA : VERDE} negativo={r.resultado.t < 0} />
       </div>
+
+      {comp?.temAnterior && (() => {
+        const nomeLoja = (m) => lojaCurta(m.name);
+        const grafico2 = comp.porMes.map((x) => ({ mes: MES_CURTO[x.mes - 1] + (x.parcial ? "*" : ""), [ano]: x.atual, [ano - 1]: x.temAnt ? x.ant : null }));
+        const linhasLoja = [...comp.porLoja].sort((a, b) => b.atual - a.atual);
+        const comAh = comp.porLoja.filter((l) => l.ah != null);
+        const melhor = comAh.length > 1 ? comAh.reduce((a, b) => (b.ah > a.ah ? b : a)) : null;
+        const pior = comAh.length > 1 ? comAh.reduce((a, b) => (b.ah < a.ah ? b : a)) : null;
+        const alertas = [];
+        const lojasAlerta = ehConsolidado ? lojas : membrosUso.map((m) => ({ membro: m, r }));
+        const margemGrupo = r.receita.t ? (r.margem.t / r.receita.t) * 100 : null;
+        for (const l of lojasAlerta) {
+          const c = comp.porLoja.find((x) => x.membro.id === l.membro.id);
+          if (c && c.ah != null && c.ah < 0) alertas.push({ sev: "crit", loja: nomeLoja(l.membro), txt: `Queda de receita frente a ${ano - 1}`, val: `${dec(c.ah)}%` });
+          if (l.r.operacional.t < 0) alertas.push({ sev: "crit", loja: nomeLoja(l.membro), txt: `Resultado operacional negativo em ${ano}`, val: moneyFull(l.r.operacional.t) });
+          const mp = l.r.receita.t ? (l.r.margem.t / l.r.receita.t) * 100 : null;
+          if (ehConsolidado && mp != null && margemGrupo != null && margemGrupo - mp >= 5) alertas.push({ sev: "warn", loja: nomeLoja(l.membro), txt: `Margem de contribuição ${dec(margemGrupo - mp)} p.p. abaixo da média do grupo (${dec(margemGrupo)}%)`, val: `${dec(mp)}%` });
+        }
+        alertas.sort((a, b) => (a.sev === b.sev ? a.loja.localeCompare(b.loja) : a.sev === "crit" ? -1 : 1));
+        const rotuloMeses = comp.mesesComparados.length === 1 ? MES_LONGO[comp.mesesComparados[0] - 1] : `${MES_CURTO[comp.mesesComparados[0] - 1]} a ${MES_CURTO[comp.mesesComparados[comp.mesesComparados.length - 1] - 1]}`;
+        return (
+          <>
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+              <div className={`${CARTAO} p-4 xl:col-span-3`}>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">Receita bruta {ano} x {ano - 1}, mês a mês</p>
+                <div className="mt-2 h-60">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={grafico2} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(120,130,150,.18)" vertical={false} />
+                      <XAxis dataKey="mes" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis tickFormatter={eixo} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={52} />
+                      <Tooltip formatter={(v) => (v == null ? "—" : moneyFull(v))} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey={ano - 1} fill="#9db4d3" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                      <Bar dataKey={ano} fill={NAVY} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="mt-1 text-[11.5px] text-ink-400">Variação calculada só nos meses fechados dos dois anos ({rotuloMeses}){comp.mesesFora.length ? `; ${comp.mesesFora.map((m) => MES_LONGO[m - 1]).join(", ")} fica de fora (mês em andamento ou sem dado em ${ano - 1})` : ""}. Só a receita foi validada contra a planilha de {ano - 1}; as despesas de {ano - 1} ainda não.</p>
+              </div>
+              <div className={`${CARTAO} flex flex-col gap-3 p-4 xl:col-span-2`}>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">{ehConsolidado ? "Receita por loja" : "Receita"} · {rotuloMeses}</p>
+                <table className="w-full border-collapse text-[12.5px]">
+                  <thead><tr className="text-[11px] uppercase tracking-wider text-ink-400"><th className="py-1 text-left font-semibold">{ehConsolidado ? "Loja" : ""}</th><th className="py-1 text-right font-semibold">{ano - 1}</th><th className="py-1 text-right font-semibold">{ano}</th><th className="py-1 text-right font-semibold">A.H.</th></tr></thead>
+                  <tbody>
+                    {ehConsolidado && linhasLoja.map((l) => (
+                      <tr key={l.membro.id} className="border-t border-line/60"><td className="py-1.5 text-ink-800">{nomeLoja(l.membro)}</td><td className="py-1.5 text-right tabular-nums text-ink-500">{num(l.ant)}</td><td className="py-1.5 text-right tabular-nums text-ink-900">{num(l.atual)}</td><td className="py-1.5 text-right"><Variacao ah={l.ah} /></td></tr>
+                    ))}
+                    <tr className="border-t-2 border-line font-semibold"><td className="py-1.5 text-ink-900">{ehConsolidado ? "Total" : nomeLoja(membrosUso[0])}</td><td className="py-1.5 text-right tabular-nums text-ink-600">{num(comp.totais.ant)}</td><td className="py-1.5 text-right tabular-nums text-ink-900">{num(comp.totais.atual)}</td><td className="py-1.5 text-right"><Variacao ah={comp.totais.ah} /></td></tr>
+                  </tbody>
+                </table>
+                {melhor && pior && ehConsolidado && (
+                  <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div className="rounded-xl bg-emerald-500/10 p-2.5"><p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">Maior crescimento</p><p className="text-[13px] font-semibold text-ink-900">{nomeLoja(melhor.membro)} <span className="text-emerald-600">{melhor.ah >= 0 ? "+" : ""}{dec(melhor.ah)}%</span></p></div>
+                    <div className="rounded-xl bg-rose-500/10 p-2.5"><p className="text-[11px] font-semibold uppercase tracking-wider text-rose-700">Menor crescimento</p><p className="text-[13px] font-semibold text-ink-900">{nomeLoja(pior.membro)} <span className="text-rose-600">{pior.ah >= 0 ? "+" : ""}{dec(pior.ah)}%</span></p></div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className={`${CARTAO} p-4`}>
+              <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-ink-400"><AlertTriangle size={13} /> Alertas do período</p>
+              <p className="mt-0.5 text-[11.5px] text-ink-400">Queda de receita frente a {ano - 1}, resultado operacional negativo{ehConsolidado ? " ou margem abaixo da média do grupo" : ""}.</p>
+              {alertas.length === 0 ? (
+                <p className="mt-2 text-[12.5px] text-emerald-600">Nenhum alerta neste período.</p>
+              ) : (
+                <ul className="mt-2 divide-y divide-line/60">
+                  {alertas.map((a, i) => (
+                    <li key={i} className="flex flex-wrap items-center gap-3 py-1.5 text-[12.5px]">
+                      <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${a.sev === "crit" ? "bg-rose-500/15 text-rose-600" : "bg-amber-500/15 text-amber-600"}`}>{a.sev === "crit" ? "!" : "⚠"}</span>
+                      <span className="w-24 shrink-0 font-medium text-ink-900">{a.loja}</span>
+                      <span className="min-w-0 flex-1 text-ink-600">{a.txt}</span>
+                      <span className={`tabular-nums font-semibold ${a.sev === "crit" ? "text-rose-600" : "text-amber-600"}`}>{a.val}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </>
+        );
+      })()}
 
       <div className={`${CARTAO} p-4`}>
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-400">Receita bruta x resultado, mês a mês</p>

@@ -161,3 +161,33 @@ export function lancamentosDe({ membros, brutos, ano, mesDe, mesAte, mes, alvo }
   }
   return { linhas: out, semDetalhe };
 }
+
+/**
+ * Comparativo de RECEITA com o ano anterior (a receita de 2025 foi validada contra a planilha: 60 de 60 loja-meses; as despesas de 2025 NÃO foram, por isso só receita).
+ * Só compara meses COMPARÁVEIS: dentro do período, com dado nos dois anos e sem ser mês em andamento (um mês parcial contra um mês fechado enganaria).
+ * Devolve: porMes (barras, todos os meses do período), totais (só meses comparáveis), porLoja (idem), mesesComparados, mesesFora.
+ */
+export function comparativoReceita({ membros, brutos, ano, mesDe, mesAte }) {
+  const mesesDe = (m, a) => (brutos?.[m.id] || []).find((i) => i.ano === a)?.dados?.meses || {};
+  const dados = membros.map((m) => ({ membro: m, atual: mesesDe(m, ano), ant: mesesDe(m, ano - 1) }));
+  const noPeriodo = Array.from({ length: mesAte - mesDe + 1 }, (_, k) => mesDe + k);
+  const receita = (x, mes) => (x?.[mes] ? Number(x[mes].receita) || 0 : null);
+  const parcial = (mes) => dados.some((d) => d.atual[mes]?.parcial);
+  const comparaveis = noPeriodo.filter((mes) => dados.every((d) => d.atual[mes] && d.ant[mes]) && !parcial(mes));
+  const soma = (lista, ano_, mes) => lista.reduce((s, d) => s + (receita(ano_ === "ant" ? d.ant : d.atual, mes) || 0), 0);
+  const porMes = noPeriodo.map((mes) => ({ mes, atual: soma(dados, "atual", mes), ant: soma(dados, "ant", mes), parcial: parcial(mes), temAnt: dados.some((d) => d.ant[mes]) }));
+  const ah = (a, b) => (b ? ((a - b) / Math.abs(b)) * 100 : null);
+  const totalDe = (lista) => {
+    const atual = comparaveis.reduce((s, mes) => s + soma(lista, "atual", mes), 0);
+    const ant = comparaveis.reduce((s, mes) => s + soma(lista, "ant", mes), 0);
+    return { atual, ant, ah: ah(atual, ant) };
+  };
+  return {
+    temAnterior: comparaveis.length > 0,
+    mesesComparados: comparaveis,
+    mesesFora: noPeriodo.filter((mes) => !comparaveis.includes(mes)),
+    porMes,
+    totais: totalDe(dados),
+    porLoja: dados.map((d) => ({ membro: d.membro, ...totalDe([d]) })),
+  };
+}
