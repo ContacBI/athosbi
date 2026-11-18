@@ -75,7 +75,7 @@ export async function minhaFicha() {
   return data || null;
 }
 
-const MODULOS_VALIDOS = ["orcamento", "carga-tributaria", "analise-desempenho", "entradas-saidas"];
+const MODULOS_VALIDOS = ["orcamento", "carga-tributaria", "analise-desempenho", "entradas-saidas", "dre-gerencial"];
 
 export async function saveAccessPerson({ email, nome = "", telefone = "", observacao = "", modulos = [] }) {
   const cleanEmail = String(email || "").trim().toLowerCase();

@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeftRight, Gauge, LayoutGrid, Percent, Target, X } from "lucide-react";
+import { ArrowLeftRight, BarChart3, Gauge, LayoutGrid, Percent, Target, X } from "lucide-react";
 
 // Módulos da empresa aberta (menu lateral): o B.I Contábil (resumo, demonstrativos, indicadores, gráficos) e os módulos complementares.
 // Pra acrescentar um módulo novo é só uma linha aqui + a rota em App.jsx.
@@ -11,7 +11,7 @@ const MODULOS = [
     icone: LayoutGrid,
     to: "/empresa",
     // tudo que não é um dos módulos complementares abaixo é o B.I
-    ativo: (path) => !path.startsWith("/empresa/orcamento") && !path.startsWith("/empresa/carga-tributaria") && !path.startsWith("/empresa/analise-desempenho") && !path.startsWith("/empresa/entradas-saidas"),
+    ativo: (path) => !path.startsWith("/empresa/orcamento") && !path.startsWith("/empresa/carga-tributaria") && !path.startsWith("/empresa/analise-desempenho") && !path.startsWith("/empresa/entradas-saidas") && !path.startsWith("/empresa/dre-gerencial"),
   },
   {
     id: "orcamento",
@@ -46,6 +46,14 @@ const MODULOS = [
     icone: ArrowLeftRight,
     to: "/empresa/entradas-saidas",
     ativo: (path) => path.startsWith("/empresa/entradas-saidas"),
+  },
+  {
+    id: "dre-gerencial",
+    nome: "DRE Gerencial",
+    descricao: "Vendas e despesas do Gestão Click",
+    icone: BarChart3,
+    to: "/empresa/dre-gerencial",
+    ativo: (path) => path.startsWith("/empresa/dre-gerencial"),
   },
 ];
 

@@ -23,6 +23,7 @@ const CHAVES: Record<string, string> = {
   dominio_balancete: "company_codigo,lote,parte",
   dominio_carga: "company_id,ano",
   dominio_notas: "company_id,ano",
+  gestaoclick_dre: "company_id,ano",
   dominio_fiscal: "cnpj",
   dominio_dfc_modelo: "company_codigo,cnpj",
   dominio_pedidos: "id",

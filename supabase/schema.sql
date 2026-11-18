@@ -1074,7 +1074,7 @@ create table if not exists public.acesso_pessoas (
 alter table public.acesso_pessoas add column if not exists modulos text[] not null default '{}';
 alter table public.acesso_pessoas drop constraint if exists acesso_pessoas_modulos_validos;
 alter table public.acesso_pessoas add constraint acesso_pessoas_modulos_validos
-  check (modulos <@ array['orcamento', 'carga-tributaria', 'analise-desempenho', 'entradas-saidas']::text[]);
+  check (modulos <@ array['orcamento', 'carga-tributaria', 'analise-desempenho', 'entradas-saidas', 'dre-gerencial']::text[]);
 alter table public.acesso_pessoas enable row level security;
 
 -- Equipe (admin/colaborador) vê todas as fichas; a pessoa vê a própria.
@@ -1188,6 +1188,22 @@ create table if not exists public.dominio_notas (
 alter table public.dominio_notas enable row level security;
 drop policy if exists "dominio_notas_read_scoped" on public.dominio_notas;
 create policy "dominio_notas_read_scoped" on public.dominio_notas for select to authenticated
+  using (is_portal_admin() or is_colaborador() or company_id = any (allowed_company_ids()));
+
+-- DRE gerencial por loja (grupo Anjos), vinda do Gestão Click: a Central manda o que foi VALIDADO; o módulo "DRE Gerencial" lê.
+create table if not exists public.gestaoclick_dre (
+  company_id text not null,
+  company_codigo text not null,
+  cnpj text not null,
+  ano integer not null check (ano >= 2000 and ano <= 2100),
+  dados jsonb not null,
+  assinatura text,
+  synced_at timestamptz not null default now(),
+  primary key (company_id, ano)
+);
+alter table public.gestaoclick_dre enable row level security;
+drop policy if exists "gestaoclick_dre_read_scoped" on public.gestaoclick_dre;
+create policy "gestaoclick_dre_read_scoped" on public.gestaoclick_dre for select to authenticated
   using (is_portal_admin() or is_colaborador() or company_id = any (allowed_company_ids()));
 
 create table if not exists public.dominio_dfc_modelo (

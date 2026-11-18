@@ -30,6 +30,7 @@ export const MODULOS_COMPLEMENTARES = [
   { id: "carga-tributaria", nome: "Carga tributária", rota: "/empresa/carga-tributaria", descricao: "Impostos do fiscal ÷ faturamento" },
   { id: "analise-desempenho", nome: "Análise de desempenho", rota: "/empresa/analise-desempenho", descricao: "O que mais pesa no faturamento", precisaDeDados: true },
   { id: "entradas-saidas", nome: "Entradas x Saídas", rota: "/empresa/entradas-saidas", descricao: "Notas fiscais por acumulador" },
+  { id: "dre-gerencial", nome: "DRE Gerencial", rota: "/empresa/dre-gerencial", descricao: "Vendas e despesas do Gestão Click" },
 ];
 
 export function modulosLiberados(state) {
