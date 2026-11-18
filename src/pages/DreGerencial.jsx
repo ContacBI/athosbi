@@ -263,6 +263,15 @@ export default function DreGerencial() {
             <select value={ano || ""} onChange={(e) => setAno(Number(e.target.value))} className={select} aria-label="Ano">
               {anos.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
+            <div className="flex items-center rounded-lg bg-surface-muted p-0.5 text-[11.5px]" role="group" aria-label="Atalhos de período">
+              {[["Ano", 1, ultimoMes], ["1º sem", 1, 6], ["2º sem", 7, 12], ["1º tri", 1, 3], ["2º tri", 4, 6], ["3º tri", 7, 9], ["4º tri", 10, 12]].map(([nome, de, ate]) => {
+                const ativo = mesDe === de && mesAte === ate;
+                const temDado = de <= ultimoMes; // período sem nenhum mês com dado fica desligado
+                return (
+                  <button key={nome} type="button" disabled={!temDado} onClick={() => { setMesDe(de); setMesAte(ate); }} title={temDado ? `${MES_LONGO[de - 1]} a ${MES_LONGO[ate - 1]}` : "Sem dados neste período"} className={`rounded-md px-2 py-1 font-medium transition-colors ${ativo ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-900"} ${temDado ? "" : "cursor-not-allowed opacity-40"}`}>{nome}</button>
+                );
+              })}
+            </div>
             <div className="flex items-center gap-1.5 rounded-lg border border-line bg-surface-card px-1.5">
               <select value={mesDe} onChange={(e) => { const v = Number(e.target.value); setMesDe(v); if (v > mesAte) setMesAte(v); }} className="bg-transparent py-1.5 text-[12.5px] text-ink-800 outline-none" aria-label="Mês inicial">
                 {MES_CURTO.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
