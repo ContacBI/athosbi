@@ -127,3 +127,37 @@ export function montarDre({ membros, brutos, ano, mesDe, mesAte }) {
     temDados: meses.some((m) => m.lojas > 0),
   };
 }
+
+/**
+ * Lançamentos por trás de um valor da DRE (clique no valor). `alvo`:
+ *  { tipo: "receita" }                 -> vendas concretizadas;
+ *  { tipo: "invest" }                  -> rendimentos de aplicação (e eventuais pagamentos do mesmo plano);
+ *  { tipo: "pag", nomes: [planos...] } -> pagamentos desses planos (nomes como aparecem na DRE; o alias de "Empréstimos Bancários" vale).
+ * `mes`: um mês (1..12) ou null = todos do período. Devolve linhas { loja, mes, dia, descricao, plano, situacao, valor }.
+ */
+export function lancamentosDe({ membros, brutos, ano, mesDe, mesAte, mes, alvo }) {
+  const quer = alvo.tipo === "pag" ? new Set((alvo.nomes || []).map(norm)) : null;
+  const out = [];
+  let semDetalhe = false;
+  for (const membro of membros) {
+    const linhaAno = (brutos?.[membro.id] || []).find((item) => item.ano === ano);
+    for (const [mesTxt, m] of Object.entries(linhaAno?.dados?.meses || {})) {
+      const mm = Number(mesTxt);
+      if (mes ? mm !== mes : mm < mesDe || mm > mesAte) continue;
+      if (!m.lanc) { semDetalhe = true; continue; }
+      const base = { loja: membro.name, mes: mm };
+      if (alvo.tipo === "receita") {
+        for (const [dia, cliente, situacao, valor] of m.lanc.v || []) if (situacao === "Concretizada") out.push({ ...base, dia, descricao: cliente, plano: "", situacao, valor });
+      } else if (alvo.tipo === "invest") {
+        for (const [dia, descricao, valor] of m.lanc.a || []) out.push({ ...base, dia, descricao, plano: INVESTIMENTO, situacao: "", valor });
+        for (const [dia, descricao, plano, situacao, valor] of m.lanc.p || []) if (norm(plano) === norm(INVESTIMENTO)) out.push({ ...base, dia, descricao, plano, situacao, valor });
+      } else {
+        for (const [dia, descricao, plano, situacao, valor] of m.lanc.p || []) {
+          const chave = norm(plano);
+          if (quer.has(ALIAS[chave] ? norm(ALIAS[chave]) : chave)) out.push({ ...base, dia, descricao, plano, situacao, valor });
+        }
+      }
+    }
+  }
+  return { linhas: out, semDetalhe };
+}

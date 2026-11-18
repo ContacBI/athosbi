@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { BarChart3, ChevronDown, ChevronRight, Percent, Scale, TrendingUp, Wallet } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronRight, Percent, Scale, Search, TrendingUp, Wallet, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { groupCompanies } from "../lib/groups.js";
 import { CARTAO, MES_CURTO, MES_LONGO, NAVY, ROSA, VERDE, brlCompacto, dec, eixo, moneyFull } from "../lib/fmtNotas.js";
-import { fetchGestaoClickDre, montarDre } from "../lib/gestaoClickDre.js";
+import { fetchGestaoClickDre, lancamentosDe, montarDre } from "../lib/gestaoClickDre.js";
 
 function Esqueleto() {
   return (
@@ -32,6 +32,81 @@ function Cartao({ rotulo, valor, sub, cor = VERDE, icone: Icone, negativo }) {
 
 const num = (v) => (Math.abs(v) < 0.005 ? "—" : Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
+
+// Painel lateral: os lançamentos por trás de um valor da DRE (clique no valor). Mesma lista que o Gestão Click mostra, já filtrada pela linha e pelo mês.
+function PainelLancamentos({ painel, dados, ehConsolidado, onClose }) {
+  const [busca, setBusca] = useState("");
+  const [ordem, setOrdem] = useState("data"); // "data" | "valor"
+  useEffect(() => {
+    const fecha = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", fecha);
+    return () => window.removeEventListener("keydown", fecha);
+  }, [onClose]);
+  const { linhas, semDetalhe } = useMemo(() => lancamentosDe({ ...dados, mes: painel.mes, alvo: painel.alvo }), [dados, painel]);
+  const filtradas = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    const l = linhas.filter((x) => !q || `${x.descricao} ${x.plano} ${x.loja}`.toLowerCase().includes(q));
+    return l.sort((a, b) => (ordem === "valor" ? Math.abs(b.valor) - Math.abs(a.valor) : a.mes - b.mes || a.dia.localeCompare(b.dia)));
+  }, [linhas, busca, ordem]);
+  const total = filtradas.reduce((s, x) => s + x.valor, 0);
+  const mostraPlano = painel.alvo.tipo === "pag" && (painel.alvo.nomes || []).length > 1;
+  const th = "px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-ink-400";
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <aside className="relative flex h-full w-full max-w-[860px] flex-col bg-surface-card shadow-2xl">
+        <div className="flex items-start justify-between gap-3 border-b border-line p-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-accent-600">Lançamentos</p>
+            <h2 className="truncate text-[17px] font-semibold text-ink-900">{painel.titulo}</h2>
+            <p className="text-[12px] text-ink-400">{painel.mes ? `${MES_LONGO[painel.mes - 1]} de ${dados.ano}` : `${MES_LONGO[dados.mesDe - 1]} a ${MES_LONGO[dados.mesAte - 1]} de ${dados.ano}`}{ehConsolidado ? " · todas as lojas" : ""}</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-ink-400 hover:bg-surface-muted hover:text-ink-900" aria-label="Fechar"><X size={18} /></button>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-2.5">
+          <div className="flex min-w-[200px] flex-1 items-center gap-2 rounded-lg border border-line bg-surface-card px-2.5">
+            <Search size={14} className="text-ink-400" />
+            <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar descrição" className="w-full bg-transparent py-1.5 text-[12.5px] text-ink-800 outline-none" />
+          </div>
+          <p className="text-[12.5px] text-ink-500">{filtradas.length} lançamento(s) · <b className={`tabular-nums ${total < 0 ? "text-rose-600" : "text-ink-900"}`}>{moneyFull(total)}</b></p>
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto">
+          {semDetalhe && !linhas.length ? (
+            <p className="p-6 text-[13px] text-ink-500">Este mês ainda não tem o detalhe dos lançamentos. Ele chega no próximo envio da Central.</p>
+          ) : !linhas.length ? (
+            <p className="p-6 text-[13px] text-ink-500">Nenhum lançamento neste recorte.</p>
+          ) : (
+            <table className="w-full border-collapse text-[12.5px]">
+              <thead className="sticky top-0 bg-surface-card">
+                <tr>
+                  {ehConsolidado && <th className={th}>Loja</th>}
+                  <th className={th}>Data</th>
+                  <th className={th}>Descrição</th>
+                  {mostraPlano && <th className={th}>Plano de contas</th>}
+                  <th className={th}>Situação</th>
+                  <th className={`${th} cursor-pointer text-right`} onClick={() => setOrdem((o) => (o === "valor" ? "data" : "valor"))} title="Clique para ordenar por valor / data">Valor {ordem === "valor" ? "↓" : ""}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtradas.map((x, i) => (
+                  <tr key={i} className="border-t border-line/60">
+                    {ehConsolidado && <td className="px-3 py-1.5 text-ink-600">{x.loja.replace(/^ANJOS /i, "").replace(/ (COLCHOES|COMERCIO).*$/i, "")}</td>}
+                    <td className="whitespace-nowrap px-3 py-1.5 tabular-nums text-ink-600">{x.dia}</td>
+                    <td className="px-3 py-1.5 text-ink-800">{x.descricao}</td>
+                    {mostraPlano && <td className="px-3 py-1.5 text-ink-600">{x.plano}</td>}
+                    <td className="whitespace-nowrap px-3 py-1.5 text-ink-500">{x.situacao}</td>
+                    <td className={`whitespace-nowrap px-3 py-1.5 text-right tabular-nums ${x.valor < 0 ? "text-rose-600" : "text-ink-900"}`}>{num(x.valor)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </aside>
+    </div>
+  );
+}
+
 export default function DreGerencial() {
   const state = useAppState();
   const company = state.companies.find((item) => item.id === state.activeCompanyId);
@@ -45,6 +120,7 @@ export default function DreGerencial() {
   const [mesAte, setMesAte] = useState(12);
   const [foco, setFoco] = useState("todas");
   const [abertos, setAbertos] = useState({});
+  const [painel, setPainel] = useState(null); // { alvo, titulo, mes } — lançamentos abertos ao clicar num valor
 
   useEffect(() => {
     if (!membros.length) return undefined;
@@ -100,7 +176,8 @@ export default function DreGerencial() {
   const resPct = r.receita.t ? (r.resultado.t / r.receita.t) * 100 : null;
   const grafico = meses.map((m) => ({ mes: MES_CURTO[m - 1], receita: r.receita.v[m - 1], resultado: r.resultado.v[m - 1], parcial: r.meses[m - 1]?.parcial }));
 
-  const Linha = ({ nome, v, t, nivel = 0, destaque, negrito, aberto, onClick, cor }) => (
+  const abre = (alvo, titulo, mes) => (e) => { e.stopPropagation(); setPainel({ alvo, titulo, mes }); };
+  const Linha = ({ nome, v, t, nivel = 0, destaque, negrito, aberto, onClick, cor, alvo }) => (
     <tr className={`${destaque ? "bg-surface-muted/70" : ""} ${onClick ? "cursor-pointer hover:bg-surface-muted/50" : ""}`} onClick={onClick}>
       <td className={`sticky left-0 z-10 whitespace-nowrap border-b border-line/60 px-3 py-1.5 ${destaque ? "bg-surface-muted" : "bg-surface-card"} ${negrito ? "font-semibold text-ink-900" : "text-ink-700"}`} style={{ paddingLeft: 12 + nivel * 18 }}>
         <span className="inline-flex items-center gap-1.5">
@@ -108,18 +185,21 @@ export default function DreGerencial() {
           {nome}
         </span>
       </td>
-      {meses.map((m) => (
-        <td key={m} className={`border-b border-line/60 px-3 py-1.5 text-right tabular-nums ${negrito ? "font-semibold" : ""} ${v[m - 1] < 0 ? "text-rose-600" : cor || "text-ink-800"}`}>{num(v[m - 1])}</td>
-      ))}
-      <td className={`border-b border-line/60 px-3 py-1.5 text-right font-semibold tabular-nums ${t < 0 ? "text-rose-600" : cor || "text-ink-900"}`}>{num(t)}</td>
+      {meses.map((m) => {
+        const clica = alvo && Math.abs(v[m - 1]) >= 0.005;
+        return (
+          <td key={m} onClick={clica ? abre(alvo, nome, m) : undefined} title={clica ? "Ver os lançamentos" : undefined} className={`border-b border-line/60 px-3 py-1.5 text-right tabular-nums ${negrito ? "font-semibold" : ""} ${v[m - 1] < 0 ? "text-rose-600" : cor || "text-ink-800"} ${clica ? "cursor-pointer hover:bg-accent-500/10 hover:underline" : ""}`}>{num(v[m - 1])}</td>
+        );
+      })}
+      <td onClick={alvo && Math.abs(t) >= 0.005 ? abre(alvo, nome, null) : undefined} title={alvo && Math.abs(t) >= 0.005 ? "Ver os lançamentos do período" : undefined} className={`border-b border-line/60 px-3 py-1.5 text-right font-semibold tabular-nums ${t < 0 ? "text-rose-600" : cor || "text-ink-900"} ${alvo && Math.abs(t) >= 0.005 ? "cursor-pointer hover:bg-accent-500/10 hover:underline" : ""}`}>{num(t)}</td>
     </tr>
   );
   const Bloco = ({ g }) => {
     const aberto = abertos[g.id];
     return (
       <>
-        <Linha nome={g.nome} v={g.v} t={g.t} negrito aberto={aberto} onClick={g.linhas.length ? () => setAbertos((a) => ({ ...a, [g.id]: !a[g.id] })) : undefined} />
-        {aberto && g.linhas.map((l) => <Linha key={l.nome} nome={l.nome} v={l.v} t={l.t} nivel={1} />)}
+        <Linha nome={g.nome} v={g.v} t={g.t} negrito aberto={aberto} alvo={{ tipo: "pag", nomes: g.linhas.map((l) => l.nome) }} onClick={g.linhas.length ? () => setAbertos((a) => ({ ...a, [g.id]: !a[g.id] })) : undefined} />
+        {aberto && g.linhas.map((l) => <Linha key={l.nome} nome={l.nome} v={l.v} t={l.t} nivel={1} alvo={{ tipo: "pag", nomes: [l.nome] }} />)}
       </>
     );
   };
@@ -130,8 +210,8 @@ export default function DreGerencial() {
     for (const l of itens) l.v.forEach((x, i) => { v[i] += x; });
     return (
       <>
-        <Linha nome={titulo} v={v} t={itens.reduce((s, l) => s + l.t, 0)} negrito aberto={aberto} onClick={() => setAbertos((a) => ({ ...a, [id]: !a[id] }))} />
-        {aberto && itens.map((l) => <Linha key={l.nome} nome={l.nome} v={l.v} t={l.t} nivel={1} />)}
+        <Linha nome={titulo} v={v} t={itens.reduce((s, l) => s + l.t, 0)} negrito aberto={aberto} alvo={{ tipo: "pag", nomes: itens.map((l) => l.nome) }} onClick={() => setAbertos((a) => ({ ...a, [id]: !a[id] }))} />
+        {aberto && itens.map((l) => <Linha key={l.nome} nome={l.nome} v={l.v} t={l.t} nivel={1} alvo={{ tipo: "pag", nomes: [l.nome] }} />)}
       </>
     );
   };
@@ -206,12 +286,12 @@ export default function DreGerencial() {
             </tr>
           </thead>
           <tbody>
-            <Linha nome="Receita bruta" v={r.receita.v} t={r.receita.t} negrito destaque />
+            <Linha nome="Receita bruta" v={r.receita.v} t={r.receita.t} negrito destaque alvo={{ tipo: "receita" }} />
             <Bloco g={r.variaveis} />
             <Linha nome="Margem de contribuição" v={r.margem.v} t={r.margem.t} negrito destaque />
             <Bloco g={r.fixas} />
             <Linha nome="Resultado operacional" v={r.operacional.v} t={r.operacional.t} negrito destaque />
-            <Linha nome="Investimento (rendimento de aplicações)" v={r.investimento.v} t={r.investimento.t} />
+            <Linha nome="Investimento (rendimento de aplicações)" v={r.investimento.v} t={r.investimento.t} alvo={{ tipo: "invest" }} />
             <Bloco g={r.financiamento} />
             <Bloco g={r.outras} />
             <Linha nome="Resultado" v={r.resultado.v} t={r.resultado.t} negrito destaque />
@@ -229,8 +309,9 @@ export default function DreGerencial() {
       </div>
       <p className="text-[11.5px] leading-5 text-ink-400">
         Receita bruta = vendas concretizadas (canceladas e em aberto ficam de fora). Despesas = pagamentos do fluxo de caixa agrupados pelo plano de contas, em negativo. Este módulo mostra só dados validados na Central;
-        {parciais.length > 0 ? " * mês em andamento." : ""} Clique nas linhas com seta para abrir o detalhe por plano de contas.
+        {parciais.length > 0 ? " * mês em andamento." : ""} Clique nas linhas com seta para abrir o detalhe por plano de contas e <b>em qualquer valor</b> para ver os lançamentos.
       </p>
+      {painel && <PainelLancamentos painel={painel} dados={{ membros: membrosUso, brutos, ano, mesDe, mesAte }} ehConsolidado={ehConsolidado} onClose={() => setPainel(null)} />}
     </div>
   );
 }
