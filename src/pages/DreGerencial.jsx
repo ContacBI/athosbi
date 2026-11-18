@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, BarChart3, ChevronDown, ChevronRight, Percent, Scale, Search, TrendingUp, Wallet, X } from "lucide-react";
+import { Bar, CartesianGrid, Cell, ComposedChart, Legend, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, BarChart3, ChevronDown, ChevronRight, Lightbulb, Percent, Scale, Search, TrendingUp, Wallet, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { groupCompanies } from "../lib/groups.js";
-import { CARTAO, MES_CURTO, MES_LONGO, NAVY, ROSA, VERDE, brlCompacto, dec, eixo, moneyFull } from "../lib/fmtNotas.js";
+import { CARTAO, MES_CURTO, MES_LONGO, NAVY, ROSA, VERDE, brlCompacto, dec, eixo, moneyFull, pct } from "../lib/fmtNotas.js";
 import { comparativoReceita, fetchGestaoClickDre, lancamentosDe, montarDre } from "../lib/gestaoClickDre.js";
 
 function Esqueleto() {
@@ -28,13 +28,13 @@ function Variacao({ ah, titulo }) {
   );
 }
 
-function Cartao({ rotulo, valor, sub, cor = VERDE, icone: Icone, negativo, delta }) {
+function Cartao({ rotulo, valor, sub, cor = VERDE, icone: Icone, negativo, delta, onClick }) {
   return (
-    <div className={`${CARTAO} relative flex min-w-0 flex-col justify-between overflow-hidden p-4`}>
+    <div onClick={onClick} onKeyDown={onClick ? (e) => (e.key === "Enter" || e.key === " ") && onClick() : undefined} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} title={onClick ? "Clique para ver a análise" : undefined} className={`${CARTAO} group relative flex min-w-0 flex-col justify-between overflow-hidden p-4 ${onClick ? "cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:border-accent-500/40" : ""}`}>
       <span className="absolute inset-y-0 left-0 w-1 opacity-90" style={{ background: cor }} />
       <div className="flex items-start justify-between gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">{rotulo}</p>
-        {Icone && <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-500/10 text-accent-600"><Icone size={14} /></span>}
+        <span className="flex items-center gap-1.5">{onClick && <ChevronRight size={14} className="-translate-x-1 text-accent-600 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />}{Icone && <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-500/10 text-accent-600"><Icone size={14} /></span>}</span>
       </div>
       <p className={`mt-2 truncate text-[22px] font-bold leading-7 tabular-nums tracking-tight ${negativo ? "text-rose-600" : "text-ink-900"}`} title={moneyFull(valor)}>{brlCompacto(valor)}</p>
       {(delta || sub) && (
@@ -134,6 +134,228 @@ function PainelLancamentos({ painel, dados, ehConsolidado, onClose }) {
   );
 }
 
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+// Painel de ANÁLISE (clique num cartão ou numa barra de mês). Mesma ideia do Entradas x Saídas: cada número abre as comparações, a composição e uma leitura rápida.
+const KPI_DEF = {
+  receita: { nome: "Receita bruta", pegar: (r) => r.receita },
+  margem: { nome: "Margem de contribuição", pegar: (r) => r.margem },
+  operacional: { nome: "Resultado operacional", pegar: (r) => r.operacional },
+  resultado: { nome: "Resultado", pegar: (r) => r.resultado },
+};
+const maiorTotal = (linhas, n, i) => linhas.filter((l) => (i == null ? l.t : l.v[i]) < 0).sort((a, b) => (i == null ? a.t - b.t : a.v[i] - b.v[i])).slice(0, n);
+const todasLinhas = (r, grupos) => grupos.flatMap((g) => r[g].linhas);
+
+function leituraKpi(tipo, ctx) {
+  const { r, comp, lojas, ehConsolidado, ano, meses } = ctx;
+  const f = KPI_DEF[tipo].pegar(r);
+  const vals = meses.filter((m) => r.meses[m - 1].lojas > 0).map((m) => ({ m, v: f.v[m - 1], rec: r.receita.v[m - 1] }));
+  const out = [];
+  if (!vals.length) return out;
+  const melhor = vals.reduce((a, b) => (b.v > a.v ? b : a));
+  const pior = vals.reduce((a, b) => (b.v < a.v ? b : a));
+  if (tipo === "receita") {
+    if (comp?.temAnterior) out.push(`A receita ${comp.totais.ah >= 0 ? "subiu" : "caiu"} ${dec(Math.abs(comp.totais.ah))}% frente a ${ano - 1} nos meses fechados dos dois anos (${moneyFull(comp.totais.atual)} contra ${moneyFull(comp.totais.ant)}).`);
+    if (vals.length > 1) out.push(`O melhor mês foi ${MES_LONGO[melhor.m - 1]} (${moneyFull(melhor.v)}) e o mais fraco, ${MES_LONGO[pior.m - 1]} (${moneyFull(pior.v)}).`);
+    if (ehConsolidado && lojas.length > 1) {
+      const lider = [...lojas].sort((a, b) => b.r.receita.t - a.r.receita.t)[0];
+      out.push(`${lojaCurta(lider.membro.name)} responde por ${pct(lider.r.receita.t, r.receita.t)} da receita do grupo.`);
+    }
+  } else if (tipo === "margem") {
+    out.push(`A margem de contribuição foi de ${pct(f.t, r.receita.t)} da receita (${moneyFull(f.t)}); os custos variáveis levaram ${pct(-r.variaveis.t, r.receita.t)}.`);
+    const compras = r.variaveis.linhas.find((l) => l.nome === "Compras");
+    if (compras) out.push(`Só as compras equivalem a ${pct(-compras.t, r.receita.t)} da receita.`);
+    const pcts = vals.filter((x) => x.rec > 0).map((x) => ({ m: x.m, p: (x.v / x.rec) * 100 }));
+    if (pcts.length > 1) {
+      const a = pcts.reduce((x, y) => (y.p > x.p ? y : x));
+      const b = pcts.reduce((x, y) => (y.p < x.p ? y : x));
+      out.push(`A margem ficou entre ${dec(b.p)}% (${MES_LONGO[b.m - 1]}) e ${dec(a.p)}% (${MES_LONGO[a.m - 1]}).`);
+    }
+  } else if (tipo === "operacional") {
+    out.push(`As despesas fixas consumiram ${pct(-r.fixas.t, r.receita.t)} da receita (${moneyFull(-r.fixas.t)}); o resultado operacional foi de ${moneyFull(f.t)}.`);
+    const top = maiorTotal(r.fixas.linhas, 3);
+    if (top.length) out.push(`As maiores despesas fixas: ${top.map((l) => `${l.nome} (${moneyFull(-l.t)})`).join(", ")}.`);
+    const neg = vals.filter((x) => x.v < 0).length;
+    out.push(neg ? `${neg} de ${vals.length} meses fecharam com resultado operacional negativo.` : "Nenhum mês do período fechou com resultado operacional negativo.");
+  } else {
+    out.push(`O resultado foi de ${moneyFull(f.t)} (${pct(f.t, r.receita.t)} da receita).`);
+    const neg = vals.filter((x) => x.v < 0).length;
+    out.push(neg ? `${neg} de ${vals.length} meses fecharam negativos; o pior foi ${MES_LONGO[pior.m - 1]} (${moneyFull(pior.v)}).` : "Todos os meses do período fecharam positivos.");
+    if (r.financiamento.t) out.push(`Retiradas de sócios e empréstimos levaram ${moneyFull(-r.financiamento.t)} (${pct(-r.financiamento.t, r.receita.t)} da receita).`);
+    const nc = r.fora.naoClass.reduce((s, l) => s + l.t, 0);
+    if (nc) out.push(`Há ${moneyFull(-nc)} em despesas não classificadas fora da DRE; com elas o resultado seria ${moneyFull(r.resultadoAposNaoClass.t)}.`);
+  }
+  return out;
+}
+
+function leituraMes(m, ctx) {
+  const { r, comp, ano, mesDe } = ctx;
+  const i = m - 1;
+  const out = [];
+  const rec = r.receita.v[i];
+  const dm = comp?.porMes.find((x) => x.mes === m);
+  if (dm?.temAnt && !dm.parcial && dm.ant) out.push(`A receita de ${MES_LONGO[i]} ${dm.atual >= dm.ant ? "superou" : "ficou abaixo de"} ${ano - 1} em ${dec(Math.abs(((dm.atual - dm.ant) / dm.ant) * 100))}% (${moneyFull(dm.atual)} contra ${moneyFull(dm.ant)}).`);
+  if (dm?.parcial) out.push("Mês em andamento: os números ainda mudam até o fechamento.");
+  if (m - 1 >= mesDe && r.meses[m - 2]?.lojas > 0 && r.receita.v[m - 2]) out.push(`Frente a ${MES_LONGO[m - 2]}, a receita ${rec >= r.receita.v[m - 2] ? "subiu" : "caiu"} ${dec(Math.abs(((rec - r.receita.v[m - 2]) / r.receita.v[m - 2]) * 100))}%.`);
+  if (rec) out.push(`Margem de contribuição de ${pct(r.margem.v[i], rec)} e resultado de ${moneyFull(r.resultado.v[i])} (${pct(r.resultado.v[i], rec)} da receita).`);
+  const top = maiorTotal(todasLinhas(r, ["variaveis", "fixas", "financiamento", "outras"]), 3, i);
+  if (top.length) out.push(`Maiores saídas do mês: ${top.map((l) => `${l.nome} (${moneyFull(-l.v[i])})`).join(", ")}.`);
+  return out;
+}
+
+function Gaveta({ titulo, sub, onClose, children, extra }) {
+  useEffect(() => {
+    const fecha = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", fecha);
+    return () => window.removeEventListener("keydown", fecha);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-40 flex justify-end">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <aside className="relative flex h-full w-full max-w-[760px] flex-col bg-surface-card shadow-2xl">
+        <div className="flex items-start justify-between gap-3 border-b border-line p-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-accent-600">Análise</p>
+            <h2 className="truncate text-[18px] font-semibold text-ink-900">{titulo}</h2>
+            <p className="text-[12px] text-ink-400">{sub}</p>
+          </div>
+          <div className="flex items-center gap-1">
+            {extra}
+            <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-ink-400 hover:bg-surface-muted hover:text-ink-900" aria-label="Fechar"><X size={18} /></button>
+          </div>
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-4">{children}</div>
+      </aside>
+    </div>
+  );
+}
+
+function Secao({ titulo, children }) {
+  return (
+    <section className="rounded-2xl border border-line/70 p-3.5">
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-400">{titulo}</p>
+      {children}
+    </section>
+  );
+}
+
+function Leitura({ frases }) {
+  if (!frases.length) return null;
+  return (
+    <section className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3.5">
+      <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-amber-700"><Lightbulb size={13} /> Leitura rápida</p>
+      <ul className="flex list-disc flex-col gap-1 pl-4 text-[12.5px] leading-5 text-ink-700">{frases.map((f, i) => <li key={i}>{f}</li>)}</ul>
+    </section>
+  );
+}
+
+function BarraLinha({ rotulo, valor, total, max, onClick, sub, cor }) {
+  const w = max ? Math.min(100, (Math.abs(valor) / max) * 100) : 0;
+  return (
+    <div onClick={onClick} className={`grid grid-cols-[minmax(110px,1.2fr)_minmax(80px,2fr)_auto] items-center gap-3 rounded-lg px-1.5 py-1 text-[12.5px] ${onClick ? "cursor-pointer hover:bg-surface-muted" : ""}`}>
+      <span className="truncate text-ink-800" title={rotulo}>{rotulo}{sub ? <span className="ml-1 text-ink-400">{sub}</span> : null}</span>
+      <span className="h-2 overflow-hidden rounded bg-surface-muted"><i className="block h-full rounded" style={{ width: `${w}%`, background: cor || (valor < 0 ? ROSA : VERDE) }} /></span>
+      <span className={`text-right tabular-nums ${valor < 0 ? "text-rose-600" : "text-ink-900"}`}>{num(valor)}{total ? <span className="ml-1.5 text-ink-400">{pct(valor, total)}</span> : null}</span>
+    </div>
+  );
+}
+
+function PainelAnalise({ alvo, ctx, onClose, onAbrir, onLanc, onFoco }) {
+  const { r, comp, lojas, ehConsolidado, ano, mesDe, mesAte, meses } = ctx;
+  if (alvo.tipo === "mes") {
+    const m = alvo.mes;
+    const i = m - 1;
+    const prox = (d) => { const n = m + d; if (n >= mesDe && n <= mesAte) onAbrir({ tipo: "mes", mes: n }); };
+    const linhas = todasLinhas(r, ["variaveis", "fixas", "financiamento", "outras"]);
+    const top = maiorTotal(linhas, 8, i);
+    const maxTop = top.length ? Math.abs(top[0].v[i]) : 0;
+    const dm = comp?.porMes.find((x) => x.mes === m);
+    const quatro = [["Receita bruta", r.receita.v[i]], ["Margem de contribuição", r.margem.v[i]], ["Resultado operacional", r.operacional.v[i]], ["Resultado", r.resultado.v[i]]];
+    return (
+      <Gaveta titulo={`${MES_LONGO[i][0].toUpperCase()}${MES_LONGO[i].slice(1)} de ${ano}`} sub={ehConsolidado ? "Consolidado do grupo" : "Empresa"} onClose={onClose}
+        extra={<><button type="button" onClick={() => prox(-1)} disabled={m <= mesDe} className="rounded-lg p-1.5 text-ink-500 hover:bg-surface-muted disabled:opacity-30" aria-label="Mês anterior">‹</button><button type="button" onClick={() => prox(1)} disabled={m >= mesAte} className="rounded-lg p-1.5 text-ink-500 hover:bg-surface-muted disabled:opacity-30" aria-label="Próximo mês">›</button></>}>
+        <div className="grid grid-cols-2 gap-3">
+          {quatro.map(([nome, v]) => (
+            <div key={nome} className="rounded-xl border border-line/70 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">{nome}</p>
+              <p className={`text-[20px] font-bold tabular-nums ${v < 0 ? "text-rose-600" : "text-ink-900"}`}>{brlCompacto(v)}</p>
+              <p className="text-[11.5px] text-ink-400">{nome === "Receita bruta" ? (dm?.temAnt && !dm.parcial && dm.ant ? <>{ano - 1}: {brlCompacto(dm.ant)} <Variacao ah={((dm.atual - dm.ant) / dm.ant) * 100} /></> : "vendas concretizadas") : `${pct(v, r.receita.v[i])} da receita`}</p>
+            </div>
+          ))}
+        </div>
+        {ehConsolidado && lojas.length > 1 && (
+          <Secao titulo="Por loja neste mês (clique para focar a loja)">
+            {[...lojas].sort((a, b) => b.r.receita.v[i] - a.r.receita.v[i]).map((l) => (
+              <BarraLinha key={l.membro.id} rotulo={lojaCurta(l.membro.name)} valor={l.r.receita.v[i]} total={r.receita.v[i]} max={Math.max(...lojas.map((x) => x.r.receita.v[i]), 1)} cor={NAVY} onClick={() => onFoco(l.membro.id)} sub={`· resultado ${brlCompacto(l.r.resultado.v[i])}`} />
+            ))}
+          </Secao>
+        )}
+        <Secao titulo="Maiores saídas do mês (clique para ver os lançamentos)">
+          {top.length === 0 ? <p className="text-[12.5px] text-ink-400">Sem saídas neste mês.</p> : top.map((l) => <BarraLinha key={l.nome} rotulo={l.nome} valor={l.v[i]} max={maxTop} total={r.receita.v[i]} onClick={() => onLanc({ tipo: "pag", nomes: [l.nome] }, l.nome, m)} />)}
+        </Secao>
+        <Leitura frases={leituraMes(m, ctx)} />
+      </Gaveta>
+    );
+  }
+
+  const def = KPI_DEF[alvo.kpi];
+  const f = def.pegar(r);
+  const dados = meses.map((m) => {
+    const pm = comp?.porMes.find((x) => x.mes === m);
+    return { m, mes: MES_CURTO[m - 1], valor: f.v[m - 1], [ano - 1]: alvo.kpi === "receita" && pm?.temAnt ? pm.ant : null };
+  });
+  const passos = [["Receita bruta", r.receita.t, "receita"], ["(−) Custos variáveis", r.variaveis.t], ["(=) Margem de contribuição", r.margem.t, "margem"], ["(−) Custos e despesas fixas", r.fixas.t], ["(=) Resultado operacional", r.operacional.t, "operacional"], ["(+) Rendimento de aplicações", r.investimento.t], ["(−) Financiamento", r.financiamento.t], ["(−) Outras receitas/despesas", r.outras.t], ["(=) Resultado", r.resultado.t, "resultado"]];
+  const ate = { receita: 1, margem: 3, operacional: 5, resultado: 9 }[alvo.kpi];
+  const gruposDoKpi = { margem: ["variaveis"], operacional: ["variaveis", "fixas"], resultado: ["variaveis", "fixas", "financiamento", "outras"] }[alvo.kpi];
+  const top = gruposDoKpi ? maiorTotal(todasLinhas(r, gruposDoKpi), 8) : [];
+  const maxTop = top.length ? Math.abs(top[0].t) : 0;
+  const porLoja = ehConsolidado && lojas.length > 1 ? [...lojas].map((l) => ({ l, v: def.pegar(l.r).t })).sort((a, b) => b.v - a.v) : [];
+  const maxLoja = Math.max(...porLoja.map((x) => Math.abs(x.v)), 1);
+  return (
+    <Gaveta titulo={def.nome} sub={`${mesDe === mesAte ? MES_LONGO[mesDe - 1] : `${MES_LONGO[mesDe - 1]} a ${MES_LONGO[mesAte - 1]}`} de ${ano}${ehConsolidado ? " · consolidado" : ""}`} onClose={onClose}>
+      <div className="flex flex-wrap items-end gap-3">
+        <p className={`text-[28px] font-bold leading-8 tabular-nums ${f.t < 0 ? "text-rose-600" : "text-ink-900"}`}>{moneyFull(f.t)}</p>
+        {alvo.kpi === "receita" && comp?.temAnterior && <span className="flex items-center gap-2 pb-1 text-[12px] text-ink-400"><Variacao ah={comp.totais.ah} /> vs. {ano - 1} ({brlCompacto(comp.totais.ant)})</span>}
+        {alvo.kpi !== "receita" && r.receita.t ? <span className="pb-1 text-[12px] text-ink-400">{pct(f.t, r.receita.t)} da receita</span> : null}
+      </div>
+      <Secao titulo="Mês a mês — clique numa barra para abrir o mês">
+        <div className="h-52">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={dados} margin={{ top: 6, right: 6, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(120,130,150,.18)" vertical={false} />
+              <XAxis dataKey="mes" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={eixo} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={48} />
+              <ReferenceLine y={0} stroke="rgba(120,130,150,.5)" />
+              <Tooltip formatter={(v) => (v == null ? "—" : moneyFull(v))} />
+              {alvo.kpi === "receita" && <Bar dataKey={ano - 1} name={String(ano - 1)} fill="#9db4d3" radius={[4, 4, 0, 0]} isAnimationActive={false} />}
+              <Bar dataKey="valor" name={def.nome} radius={[4, 4, 0, 0]} isAnimationActive={false} cursor="pointer" onClick={(d) => d?.m && onAbrir({ tipo: "mes", mes: d.m })}>
+                {dados.map((d) => <Cell key={d.m} fill={alvo.kpi === "receita" ? NAVY : d.valor < 0 ? ROSA : VERDE} />)}
+              </Bar>
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </Secao>
+      {porLoja.length > 0 && (
+        <Secao titulo="Por loja (clique para focar a loja)">
+          {porLoja.map(({ l, v }) => <BarraLinha key={l.membro.id} rotulo={lojaCurta(l.membro.name)} valor={v} max={maxLoja} total={alvo.kpi === "receita" ? f.t : l.r.receita.t} cor={alvo.kpi === "receita" ? NAVY : undefined} onClick={() => onFoco(l.membro.id)} />)}
+        </Secao>
+      )}
+      {ate > 1 && (
+        <Secao titulo="Como chega nesse número">
+          {passos.slice(0, ate).map(([nome, v, destaque]) => <BarraLinha key={nome} rotulo={nome} valor={v} total={r.receita.t} max={Math.max(...passos.slice(0, ate).map((p) => Math.abs(p[1])), 1)} cor={destaque ? NAVY : undefined} />)}
+        </Secao>
+      )}
+      {top.length > 0 && (
+        <Secao titulo="O que mais pesa (clique para ver os lançamentos)">
+          {top.map((l) => <BarraLinha key={l.nome} rotulo={l.nome} valor={l.t} max={maxTop} total={r.receita.t} onClick={() => onLanc({ tipo: "pag", nomes: [l.nome] }, l.nome, null)} />)}
+        </Secao>
+      )}
+      {alvo.kpi === "receita" && <button type="button" onClick={() => onLanc({ tipo: "receita" }, "Receita bruta", null)} className="self-start rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-medium text-ink-700 hover:border-accent-500/50">Ver as vendas do período</button>}
+      <Leitura frases={leituraKpi(alvo.kpi, ctx)} />
+    </Gaveta>
+  );
+}
+
 export default function DreGerencial() {
   const state = useAppState();
   const company = state.companies.find((item) => item.id === state.activeCompanyId);
@@ -147,6 +369,7 @@ export default function DreGerencial() {
   const [mesAte, setMesAte] = useState(12);
   const [foco, setFoco] = useState("todas");
   const [abertos, setAbertos] = useState({});
+  const [analise, setAnalise] = useState(null); // { tipo: "kpi", kpi } | { tipo: "mes", mes } — painel de análise
   const [painel, setPainel] = useState(null); // { alvo, titulo, mes } — lançamentos abertos ao clicar num valor
 
   useEffect(() => {
@@ -205,7 +428,7 @@ export default function DreGerencial() {
   const periodoRotulo = mesDe === mesAte ? `${MES_LONGO[mesDe - 1]} de ${ano}` : `${MES_LONGO[mesDe - 1]} a ${MES_LONGO[mesAte - 1]} de ${ano}`;
   const margemPct = r.receita.t ? (r.margem.t / r.receita.t) * 100 : null;
   const resPct = r.receita.t ? (r.resultado.t / r.receita.t) * 100 : null;
-  const grafico = meses.map((m) => ({ mes: MES_CURTO[m - 1], receita: r.receita.v[m - 1], resultado: r.resultado.v[m - 1], parcial: r.meses[m - 1]?.parcial }));
+  const grafico = meses.map((m) => ({ m, mes: MES_CURTO[m - 1], receita: r.receita.v[m - 1], resultado: r.resultado.v[m - 1], parcial: r.meses[m - 1]?.parcial }));
 
   const abre = (alvo, titulo, mes) => (e) => { e.stopPropagation(); setPainel({ alvo, titulo, mes }); };
   const Linha = ({ nome, v, t, nivel = 0, destaque, negrito, aberto, onClick, cor, alvo }) => (
@@ -293,15 +516,15 @@ export default function DreGerencial() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <Cartao rotulo="Receita bruta" valor={r.receita.t} sub={comp?.temAnterior ? `${ano - 1}: ${brlCompacto(comp.totais.ant)}` : "vendas concretizadas"} delta={comp?.temAnterior ? <Variacao ah={comp.totais.ah} titulo={`vs. ${ano - 1} nos meses fechados dos dois anos`} /> : null} icone={Wallet} cor={NAVY} />
-        <Cartao rotulo="Margem de contribuição" valor={r.margem.t} sub={margemPct == null ? "" : `${dec(margemPct)}% da receita`} icone={Percent} cor={VERDE} negativo={r.margem.t < 0} />
-        <Cartao rotulo="Resultado operacional" valor={r.operacional.t} sub={r.receita.t ? `${dec((r.operacional.t / r.receita.t) * 100)}% da receita` : ""} icone={Scale} cor={VERDE} negativo={r.operacional.t < 0} />
-        <Cartao rotulo="Resultado" valor={r.resultado.t} sub={resPct == null ? "" : `${dec(resPct)}% da receita`} icone={TrendingUp} cor={r.resultado.t < 0 ? ROSA : VERDE} negativo={r.resultado.t < 0} />
+        <Cartao onClick={() => setAnalise({ tipo: "kpi", kpi: "receita" })} rotulo="Receita bruta" valor={r.receita.t} sub={comp?.temAnterior ? `${ano - 1}: ${brlCompacto(comp.totais.ant)}` : "vendas concretizadas"} delta={comp?.temAnterior ? <Variacao ah={comp.totais.ah} titulo={`vs. ${ano - 1} nos meses fechados dos dois anos`} /> : null} icone={Wallet} cor={NAVY} />
+        <Cartao onClick={() => setAnalise({ tipo: "kpi", kpi: "margem" })} rotulo="Margem de contribuição" valor={r.margem.t} sub={margemPct == null ? "" : `${dec(margemPct)}% da receita`} icone={Percent} cor={VERDE} negativo={r.margem.t < 0} />
+        <Cartao onClick={() => setAnalise({ tipo: "kpi", kpi: "operacional" })} rotulo="Resultado operacional" valor={r.operacional.t} sub={r.receita.t ? `${dec((r.operacional.t / r.receita.t) * 100)}% da receita` : ""} icone={Scale} cor={VERDE} negativo={r.operacional.t < 0} />
+        <Cartao onClick={() => setAnalise({ tipo: "kpi", kpi: "resultado" })} rotulo="Resultado" valor={r.resultado.t} sub={resPct == null ? "" : `${dec(resPct)}% da receita`} icone={TrendingUp} cor={r.resultado.t < 0 ? ROSA : VERDE} negativo={r.resultado.t < 0} />
       </div>
 
       {comp?.temAnterior && (() => {
         const nomeLoja = (m) => lojaCurta(m.name);
-        const grafico2 = comp.porMes.map((x) => ({ mes: MES_CURTO[x.mes - 1] + (x.parcial ? "*" : ""), [ano]: x.atual, [ano - 1]: x.temAnt ? x.ant : null }));
+        const grafico2 = comp.porMes.map((x) => ({ m: x.mes, mes: MES_CURTO[x.mes - 1] + (x.parcial ? "*" : ""), [ano]: x.atual, [ano - 1]: x.temAnt ? x.ant : null }));
         const linhasLoja = [...comp.porLoja].sort((a, b) => b.atual - a.atual);
         const comAh = comp.porLoja.filter((l) => l.ah != null);
         const melhor = comAh.length > 1 ? comAh.reduce((a, b) => (b.ah > a.ah ? b : a)) : null;
@@ -311,10 +534,10 @@ export default function DreGerencial() {
         const margemGrupo = r.receita.t ? (r.margem.t / r.receita.t) * 100 : null;
         for (const l of lojasAlerta) {
           const c = comp.porLoja.find((x) => x.membro.id === l.membro.id);
-          if (c && c.ah != null && c.ah < 0) alertas.push({ sev: "crit", loja: nomeLoja(l.membro), txt: `Queda de receita frente a ${ano - 1}`, val: `${dec(c.ah)}%` });
-          if (l.r.operacional.t < 0) alertas.push({ sev: "crit", loja: nomeLoja(l.membro), txt: `Resultado operacional negativo em ${ano}`, val: moneyFull(l.r.operacional.t) });
+          if (c && c.ah != null && c.ah < 0) alertas.push({ sev: "crit", loja: nomeLoja(l.membro), id: l.membro.id, txt: `Queda de receita frente a ${ano - 1}`, val: `${dec(c.ah)}%` });
+          if (l.r.operacional.t < 0) alertas.push({ sev: "crit", loja: nomeLoja(l.membro), id: l.membro.id, txt: `Resultado operacional negativo em ${ano}`, val: moneyFull(l.r.operacional.t) });
           const mp = l.r.receita.t ? (l.r.margem.t / l.r.receita.t) * 100 : null;
-          if (ehConsolidado && mp != null && margemGrupo != null && margemGrupo - mp >= 5) alertas.push({ sev: "warn", loja: nomeLoja(l.membro), txt: `Margem de contribuição ${dec(margemGrupo - mp)} p.p. abaixo da média do grupo (${dec(margemGrupo)}%)`, val: `${dec(mp)}%` });
+          if (ehConsolidado && mp != null && margemGrupo != null && margemGrupo - mp >= 5) alertas.push({ sev: "warn", loja: nomeLoja(l.membro), id: l.membro.id, txt: `Margem de contribuição ${dec(margemGrupo - mp)} p.p. abaixo da média do grupo (${dec(margemGrupo)}%)`, val: `${dec(mp)}%` });
         }
         alertas.sort((a, b) => (a.sev === b.sev ? a.loja.localeCompare(b.loja) : a.sev === "crit" ? -1 : 1));
         const rotuloMeses = comp.mesesComparados.length === 1 ? MES_LONGO[comp.mesesComparados[0] - 1] : `${MES_CURTO[comp.mesesComparados[0] - 1]} a ${MES_CURTO[comp.mesesComparados[comp.mesesComparados.length - 1] - 1]}`;
@@ -332,7 +555,7 @@ export default function DreGerencial() {
                       <Tooltip formatter={(v) => (v == null ? "—" : moneyFull(v))} />
                       <Legend wrapperStyle={{ fontSize: 12 }} />
                       <Bar dataKey={ano - 1} name={String(ano - 1)} fill="#9db4d3" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-                      <Bar dataKey={ano} name={String(ano)} fill={NAVY} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                      <Bar dataKey={ano} name={String(ano)} fill={NAVY} radius={[4, 4, 0, 0]} isAnimationActive={false} cursor="pointer" onClick={(d) => d?.m && setAnalise({ tipo: "mes", mes: d.m })} />
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
@@ -344,15 +567,15 @@ export default function DreGerencial() {
                   <thead><tr className="text-[11px] uppercase tracking-wider text-ink-400"><th className="py-1 text-left font-semibold">{ehConsolidado ? "Loja" : ""}</th><th className="py-1 text-right font-semibold">{ano - 1}</th><th className="py-1 text-right font-semibold">{ano}</th><th className="py-1 text-right font-semibold">A.H.</th></tr></thead>
                   <tbody>
                     {ehConsolidado && linhasLoja.map((l) => (
-                      <tr key={l.membro.id} className="border-t border-line/60"><td className="py-1.5 text-ink-800">{nomeLoja(l.membro)}</td><td className="py-1.5 text-right tabular-nums text-ink-500">{num(l.ant)}</td><td className="py-1.5 text-right tabular-nums text-ink-900">{num(l.atual)}</td><td className="py-1.5 text-right"><Variacao ah={l.ah} /></td></tr>
+                      <tr key={l.membro.id} onClick={() => setFoco(l.membro.id)} title="Clique para focar a loja" className="cursor-pointer border-t border-line/60 hover:bg-surface-muted/60"><td className="py-1.5 text-ink-800">{nomeLoja(l.membro)}</td><td className="py-1.5 text-right tabular-nums text-ink-500">{num(l.ant)}</td><td className="py-1.5 text-right tabular-nums text-ink-900">{num(l.atual)}</td><td className="py-1.5 text-right"><Variacao ah={l.ah} /></td></tr>
                     ))}
                     <tr className="border-t-2 border-line font-semibold"><td className="py-1.5 text-ink-900">{ehConsolidado ? "Total" : nomeLoja(membrosUso[0])}</td><td className="py-1.5 text-right tabular-nums text-ink-600">{num(comp.totais.ant)}</td><td className="py-1.5 text-right tabular-nums text-ink-900">{num(comp.totais.atual)}</td><td className="py-1.5 text-right"><Variacao ah={comp.totais.ah} /></td></tr>
                   </tbody>
                 </table>
                 {melhor && pior && ehConsolidado && (
                   <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <div className="rounded-xl bg-emerald-500/10 p-2.5"><p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">Maior crescimento</p><p className="text-[13px] font-semibold text-ink-900">{nomeLoja(melhor.membro)} <span className="text-emerald-600">{melhor.ah >= 0 ? "+" : ""}{dec(melhor.ah)}%</span></p></div>
-                    <div className="rounded-xl bg-rose-500/10 p-2.5"><p className="text-[11px] font-semibold uppercase tracking-wider text-rose-700">Menor crescimento</p><p className="text-[13px] font-semibold text-ink-900">{nomeLoja(pior.membro)} <span className="text-rose-600">{pior.ah >= 0 ? "+" : ""}{dec(pior.ah)}%</span></p></div>
+                    <div onClick={() => setFoco(melhor.membro.id)} className="cursor-pointer rounded-xl bg-emerald-500/10 p-2.5 hover:brightness-95" title="Clique para focar a loja"><p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">Maior crescimento</p><p className="text-[13px] font-semibold text-ink-900">{nomeLoja(melhor.membro)} <span className="text-emerald-600">{melhor.ah >= 0 ? "+" : ""}{dec(melhor.ah)}%</span></p></div>
+                    <div onClick={() => setFoco(pior.membro.id)} className="cursor-pointer rounded-xl bg-rose-500/10 p-2.5 hover:brightness-95" title="Clique para focar a loja"><p className="text-[11px] font-semibold uppercase tracking-wider text-rose-700">Menor crescimento</p><p className="text-[13px] font-semibold text-ink-900">{nomeLoja(pior.membro)} <span className="text-rose-600">{pior.ah >= 0 ? "+" : ""}{dec(pior.ah)}%</span></p></div>
                   </div>
                 )}
               </div>
@@ -365,7 +588,7 @@ export default function DreGerencial() {
               ) : (
                 <ul className="mt-2 divide-y divide-line/60">
                   {alertas.map((a, i) => (
-                    <li key={i} className="flex flex-wrap items-center gap-3 py-1.5 text-[12.5px]">
+                    <li key={i} onClick={ehConsolidado ? () => setFoco(a.id) : undefined} className={`flex flex-wrap items-center gap-3 py-1.5 text-[12.5px] ${ehConsolidado ? "cursor-pointer hover:bg-surface-muted/60" : ""}`}>
                       <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${a.sev === "crit" ? "bg-rose-500/15 text-rose-600" : "bg-amber-500/15 text-amber-600"}`}>{a.sev === "crit" ? "!" : "⚠"}</span>
                       <span className="w-24 shrink-0 font-medium text-ink-900">{a.loja}</span>
                       <span className="min-w-0 flex-1 text-ink-600">{a.txt}</span>
@@ -389,7 +612,7 @@ export default function DreGerencial() {
               <YAxis tickFormatter={eixo} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={52} />
               <Tooltip formatter={(v) => moneyFull(v)} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="receita" name="Receita bruta" fill={NAVY} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+              <Bar dataKey="receita" name="Receita bruta" fill={NAVY} radius={[4, 4, 0, 0]} isAnimationActive={false} cursor="pointer" onClick={(d) => d?.m && setAnalise({ tipo: "mes", mes: d.m })} />
               <Line type="monotone" dataKey="resultado" name="Resultado" stroke={VERDE} strokeWidth={2.5} dot={{ r: 3 }} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
@@ -431,6 +654,16 @@ export default function DreGerencial() {
         Receita bruta = vendas concretizadas (canceladas e em aberto ficam de fora). Despesas = pagamentos do fluxo de caixa agrupados pelo plano de contas, em negativo. Este módulo mostra só dados validados na Central;
         {parciais.length > 0 ? " * mês em andamento." : ""} Clique nas linhas com seta para abrir o detalhe por plano de contas e <b>em qualquer valor</b> para ver os lançamentos.
       </p>
+      {analise && (
+        <PainelAnalise
+          alvo={analise}
+          ctx={{ r, comp, lojas, ehConsolidado, ano, mesDe, mesAte, meses }}
+          onClose={() => setAnalise(null)}
+          onAbrir={setAnalise}
+          onLanc={(alvo, titulo, mes) => setPainel({ alvo, titulo, mes })}
+          onFoco={(id) => { setFoco(id); setAnalise(null); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+        />
+      )}
       {painel && <PainelLancamentos painel={painel} dados={{ membros: membrosUso, brutos, ano, mesDe, mesAte }} ehConsolidado={ehConsolidado} onClose={() => setPainel(null)} />}
     </div>
   );
