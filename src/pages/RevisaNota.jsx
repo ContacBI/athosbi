@@ -5,7 +5,7 @@ import { groupCompanies } from "../lib/groups.js";
 import { inteiro, moneyFull, pct } from "../lib/fmtNotas.js";
 import {
   PORTAL_REVISA_NOTA, alvoDoProduto, codigosPossiveis, fetchPedidos, fetchRevisaNota, filtrarClientes, filtrarProdutos, ncmFormatado, opcoesDoProduto, pedidoAberto, pedidosDoAlvo, perfilDoCliente,
-  resumoDeClientes, resumoDeProdutos, rotuloDaDecisao, situacaoDoProduto,
+  resumoDeClientes, resumoDeProdutos, rotuloDaDecisao, rotuloDaReducao, situacaoDoProduto,
 } from "../lib/revisaNota.js";
 import { CartaoDePedido, FormNovoProduto, FormPerfil, JanelaDeAlteracao } from "../components/RevisaNotaPedidos.jsx";
 
