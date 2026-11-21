@@ -168,7 +168,7 @@ export function JanelaDeAlteracao({ produto, opcoes, lista, companyId, onFechar,
   const [outroCst, setOutroCst] = useState(d && !d.anexo && d.cClassTrib !== "000001" ? d.cst || "" : "");
   const [outroClass, setOutroClass] = useState(d && !d.anexo && d.cClassTrib !== "000001" ? d.cClassTrib || "" : "");
   const [codigoSel, setCodigoSel] = useState(d?.anexo ? d.cClassTrib || "" : "");
-  const [status, setStatus] = useState(d?.status === "duvida" ? "duvida" : "decidido");
+  const status = "decidido"; // todo pedido vai para o escritório conferir: não há mais "Em dúvida" do lado do cliente
   const [obs, setObs] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
@@ -205,7 +205,7 @@ export function JanelaDeAlteracao({ produto, opcoes, lista, companyId, onFechar,
       return { ...base, cst, cClassTrib: cc, tratamento: "código informado pelo cliente" };
     }
     if (itemEscolhido) return { ...base, anexo: itemEscolhido.anexo, item: String(itemEscolhido.item), itemTexto: itemEscolhido.descricao, tratamento: itemEscolhido.rotulo || "", ncmLei: itemEscolhido.ncmLei || "", cst: codigoAtual?.cst || "", cClassTrib: codigoAtual?.cClassTrib || "" };
-    if (status === "decidido") return { erro: "Escolha o item do anexo ou a tributação integral, ou marque “Em dúvida”." };
+    if (status === "decidido") return { erro: "Escolha o item do anexo, a tributação integral ou informe outro código." };
     return base;
   }
 
@@ -326,14 +326,6 @@ export function JanelaDeAlteracao({ produto, opcoes, lista, companyId, onFechar,
               </div>
             )}
 
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">Situação</p>
-              <div className="mt-1.5 inline-flex rounded-xl bg-surface-muted p-1 text-[12.5px]">
-                {[["decidido", "Decidido"], ["duvida", "Em dúvida (perguntar ao escritório)"]].map(([id, nome]) => (
-                  <button key={id} type="button" onClick={() => setStatus(id)} className={`rounded-lg px-3.5 py-1.5 font-medium transition-colors ${status === id ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-800"}`}>{nome}</button>
-                ))}
-              </div>
-            </div>
             <label className="block">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">Observação (explique o motivo do pedido)</span>
               <textarea rows={4} value={obs} onChange={(e) => setObs(e.target.value)} maxLength={500} placeholder="Ex.: o produto é vendido para hospitais públicos; tem registro na Anvisa…" className={`${campo} mt-1.5 resize-none`} />
