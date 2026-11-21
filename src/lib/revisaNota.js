@@ -223,3 +223,42 @@ export function resumoDoPedido(pedido) {
   if (p.anexo) return `Anexo ${p.anexo} · item ${p.item}${p.cClassTrib ? ` · ${p.cClassTrib}` : ""}`;
   return p.cClassTrib === "000001" ? "Tributação integral" : p.cClassTrib || "";
 }
+
+// ---------------------------------------------------------------------------------------------------------------------------------------
+// Andamento do pedido e avisos de mensagem nova (aba Cadastro).
+// ---------------------------------------------------------------------------------------------------------------------------------------
+/** As três etapas do pedido (Enviado → Em análise → Aprovado/Recusado), cada uma com o horário quando se sabe. */
+export function etapasDoPedido(pedido) {
+  const doEscritorio = (pedido?.observacoes || []).filter((o) => o.autor === "escritorio");
+  const final = pedido?.status === "cadastrado" || pedido?.status === "recusado";
+  const analise = pedido?.status === "enviado" ? null : doEscritorio[0]?.criado_em || (pedido?.status === "em_analise" ? pedido.atualizado_em : null);
+  return [
+    { id: "enviado", nome: "Enviado", quando: pedido?.criado_em || null, estado: "feito" },
+    { id: "analise", nome: "Em análise", quando: analise, estado: pedido?.status === "enviado" ? "pendente" : "feito" },
+    { id: "final", nome: pedido?.status === "recusado" ? "Recusado" : "Aprovado", quando: final ? pedido.atualizado_em : null, estado: !final ? "pendente" : pedido.status === "recusado" ? "recusado" : "feito" },
+  ];
+}
+
+/** O que o cliente já viu de um pedido: a última mensagem do escritório e a situação naquele momento. */
+export function marcaDeLeitura(pedido) {
+  const doEscritorio = (pedido?.observacoes || []).filter((o) => o.autor === "escritorio");
+  return { t: doEscritorio.length ? doEscritorio[doEscritorio.length - 1].criado_em : "", s: pedido?.status || "enviado" };
+}
+
+/** O pedido tem novidade do escritório (mensagem nova ou situação diferente) desde a última vez que o cliente viu? */
+export function temNovidade(pedido, lida) {
+  const visto = lida || { t: "", s: "enviado" };
+  const atual = marcaDeLeitura(pedido);
+  return atual.t > (visto.t || "") || atual.s !== visto.s;
+}
+
+/** Texto curto do que mudou, para o aviso. */
+export function textoDaNovidade(pedido, lida) {
+  const visto = lida || { t: "", s: "enviado" };
+  const atual = marcaDeLeitura(pedido);
+  if (atual.t > (visto.t || "")) return "O escritório respondeu";
+  if (atual.s === "cadastrado") return "Pedido aprovado";
+  if (atual.s === "recusado") return "Pedido recusado";
+  if (atual.s === "em_analise") return "Pedido em análise";
+  return "Pedido atualizado";
+}

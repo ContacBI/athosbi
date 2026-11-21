@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, MessageSquare, Send, X } from "lucide-react";
-import { STATUS_DE_PEDIDO, TIPOS_DE_PEDIDO, alvoDoProduto, criarPedido, ncmFormatado, observarPedido, resumoDoPedido, rotuloDaReducao } from "../lib/revisaNota.js";
+import { STATUS_DE_PEDIDO, TIPOS_DE_PEDIDO, alvoDoProduto, criarPedido, etapasDoPedido, ncmFormatado, observarPedido, resumoDoPedido, rotuloDaReducao } from "../lib/revisaNota.js";
 
 // Pedidos do Revisa Nota (produto novo, mudança de classificação, perfil de comprador) e a conversa de observações de cada um. O cliente pede e conversa aqui; o escritório responde pelo
 // app dele e a resposta aparece na hora. Tudo em Athos (tabelas revisa_nota_pedidos e revisa_nota_observacoes).
@@ -22,6 +22,31 @@ const quando = (iso) => {
 export function SeloDoStatus({ status }) {
   const s = STATUS_DE_PEDIDO[status] || STATUS_DE_PEDIDO.enviado;
   return <span className={`inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${TONS[s.tom]}`}>{s.nome}</span>;
+}
+
+/** Situação do pedido em três etapas (Enviado → Em análise → Aprovado/Recusado), com o horário de cada uma. */
+export function LinhaDoTempo({ pedido }) {
+  const etapas = etapasDoPedido(pedido);
+  const cor = (e) => (e.estado === "feito" ? "bg-emerald-500" : e.estado === "recusado" ? "bg-rose-500" : "bg-ink-200");
+  return (
+    <div>
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-400">Situação</p>
+      <ol className="grid grid-cols-3">
+        {etapas.map((e, i) => (
+          <li key={e.id} className="flex flex-col items-center text-center">
+            <div className="flex w-full items-center">
+              <span className={`h-0.5 flex-1 ${i === 0 ? "bg-transparent" : cor(e)}`} />
+              <span className={`h-3 w-3 shrink-0 rounded-full ${cor(e)}`} />
+              <span className={`h-0.5 flex-1 ${i === etapas.length - 1 ? "bg-transparent" : cor(etapas[i + 1])}`} />
+            </div>
+            <p className={`mt-1.5 text-[12px] font-semibold ${e.estado === "pendente" ? "text-ink-400" : "text-ink-900"}`}>{e.nome}</p>
+            <p className="text-[10.5px] text-ink-400">{e.quando ? quando(e.quando) : e.estado === "pendente" ? "—" : ""}</p>
+          </li>
+        ))}
+      </ol>
+      {pedido.resposta && <p className="mt-2 text-[12.5px] font-medium text-accent-600">{pedido.resposta}</p>}
+    </div>
+  );
 }
 
 /** A conversa de um pedido: balões (escritório de um lado, cliente do outro) e a caixa para escrever. */
@@ -88,10 +113,8 @@ export function CartaoDePedido({ pedido, onMudou, aberto: abertoInicial = false,
       </button>
       {aberto && (
         <div className="border-t border-line px-4 pb-4 pt-3">
-          <p className="text-[13px] text-ink-700"><span className="text-ink-400">Pedido:</span> {resumoDoPedido(pedido)}{proposta.observacao ? ` — ${proposta.observacao}` : ""}</p>
-          {pedido.resposta && (
-            <p className="mt-2 rounded-lg bg-accent-500/10 px-3 py-2 text-[12.5px] text-ink-800"><b>Resposta do escritório:</b> {pedido.resposta}</p>
-          )}
+          <LinhaDoTempo pedido={pedido} />
+          <p className="mt-3 text-[13px] text-ink-700"><span className="text-ink-400">Pedido:</span> {resumoDoPedido(pedido)}{proposta.observacao ? ` — ${proposta.observacao}` : ""}</p>
           <Conversa pedido={pedido} onMudou={onMudou} />
         </div>
       )}

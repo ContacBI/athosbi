@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Download, PackageCheck, Plus, Search, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Bell, Check, Download, PackageCheck, Search, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { groupCompanies } from "../lib/groups.js";
 import { inteiro, moneyFull, pct } from "../lib/fmtNotas.js";
 import {
   alvoDoProduto, codigosPossiveis, fetchPedidos, fetchRevisaNota, filtrarClientes, filtrarProdutos, ncmFormatado, opcoesDoProduto, pedidoAberto, pedidosDoAlvo, perfilDoCliente,
-  resumoDeClientes, resumoDeProdutos, rotuloDaDecisao, rotuloDaReducao, situacaoDoProduto,
+  marcaDeLeitura, resumoDeClientes, resumoDeProdutos, rotuloDaDecisao, rotuloDaReducao, situacaoDoProduto, temNovidade, textoDaNovidade,
 } from "../lib/revisaNota.js";
 import ResumoProdutos from "../components/RevisaNotaResumo.jsx";
 import ConsultaLei from "../components/RevisaNotaLei.jsx";
-import { CartaoDePedido, FormNovoProduto, FormPerfil, JanelaDeAlteracao } from "../components/RevisaNotaPedidos.jsx";
+import { CartaoDePedido, FormPerfil, JanelaDeAlteracao } from "../components/RevisaNotaPedidos.jsx";
+import CentralDePedidos from "../components/RevisaNotaConversas.jsx";
 
 // Revisa Nota (Ferramentas, só Micromedical por enquanto): abre como o B.I. — as abas do Revisa Nota em cima (Produtos, Resumo de produtos, Cadastro, Clientes e Consulta LC 214). A
 // classificação é decidida pelo escritório; o cliente pede cadastro, mudança de classificação e perfil de comprador aqui mesmo e conversa com o escritório em cada pedido.
@@ -603,39 +604,20 @@ function Clientes({ lista, companyId, pedidos, recarregarPedidos }) {
   );
 }
 
-// Aba Cadastro: pedir um produto novo e acompanhar todos os pedidos (de produto e de comprador) com a conversa de cada um.
-function Cadastro({ companyId, pedidos, recarregarPedidos }) {
-  const [filtro, setFiltro] = useState("abertos");
-  const [novo, setNovo] = useState(false);
-  const abertos = pedidos.filter(pedidoAberto).length;
-  const lista = pedidos.filter((p) => (filtro === "abertos" ? pedidoAberto(p) : true));
-  return (
-    <>
-      <section className="rounded-2xl border border-line bg-surface-card p-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-[15px] font-semibold text-ink-900">Cadastrar produto novo</h2>
-            <p className="mt-0.5 text-[12.5px] text-ink-500">Envie o produto para o escritório classificar. A conversa fica no pedido, logo abaixo.</p>
-          </div>
-          {!novo && <button type="button" onClick={() => setNovo(true)} className="flex items-center gap-1.5 rounded-xl bg-accent-500 px-4 py-2 text-[13px] font-semibold text-white hover:bg-accent-600"><Plus size={14} /> Cadastrar produto</button>}
-        </div>
-        {novo && <div className="mt-4 border-t border-line pt-4"><FormNovoProduto companyId={companyId} onCancelar={() => setNovo(false)} onCriado={async () => { setNovo(false); await recarregarPedidos(); }} /></div>}
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-[15px] font-semibold text-ink-900">Seus pedidos</h2>
-          <div className="inline-flex rounded-xl bg-surface-muted p-1 text-[12.5px]">
-            {[["abertos", `Em andamento${abertos ? ` (${abertos})` : ""}`], ["todos", `Todos (${pedidos.length})`]].map(([id, nome]) => (
-              <button key={id} type="button" onClick={() => setFiltro(id)} className={`rounded-lg px-3.5 py-1.5 font-medium transition-colors ${filtro === id ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-800"}`}>{nome}</button>
-            ))}
-          </div>
-        </div>
-        {lista.map((p) => <CartaoDePedido key={p.id} pedido={p} onMudou={recarregarPedidos} />)}
-        {!lista.length && <p className="rounded-2xl border border-dashed border-line px-4 py-10 text-center text-[13px] text-ink-400">{filtro === "abertos" ? "Nenhum pedido em andamento." : "Nenhum pedido ainda."}</p>}
-      </section>
-    </>
-  );
+// O que o cliente já leu de cada pedido (guardado neste navegador): serve para a bolinha de "mensagem nova" e para o aviso quando o escritório responde.
+const chaveLidas = (companyId) => `athos-revisa-lidas:${companyId}`;
+function lerLidas(companyId) {
+  try {
+    const bruto = localStorage.getItem(chaveLidas(companyId));
+    return bruto ? JSON.parse(bruto) : null;
+  } catch {
+    return null;
+  }
+}
+function gravarLidas(companyId, lidas) {
+  try {
+    localStorage.setItem(chaveLidas(companyId), JSON.stringify(lidas));
+  } catch { /* sem armazenamento: o aviso só não lembra entre visitas */ }
 }
 
 const ABAS = [
@@ -657,6 +639,10 @@ export default function RevisaNota() {
   const [aba, setAba] = useState("produtos");
   const [escolhida, setEscolhida] = useState(0);
   const [pedidos, setPedidos] = useState([]);
+  const [lidas, setLidas] = useState(null);
+  const [avisos, setAvisos] = useState([]);
+  const [abrirId, setAbrirId] = useState(null);
+  const jaAvisados = useRef(new Set());
 
   useEffect(() => {
     if (!membros.length) return undefined;
@@ -707,6 +693,49 @@ export default function RevisaNota() {
     return () => clearInterval(t);
   }, [companyId, recarregarPedidos]);
 
+  // carrega o que já foi lido ao trocar de empresa; na primeira visita tudo o que já existe conta como lido (só o que chegar depois avisa)
+  useEffect(() => {
+    setLidas(null);
+    jaAvisados.current = new Set();
+  }, [companyId]);
+  useEffect(() => {
+    if (!companyId) return;
+    if (lidas === null) {
+      const guardadas = lerLidas(companyId);
+      if (guardadas) {
+        setLidas(guardadas);
+      } else if (pedidos.length) {
+        const inicial = Object.fromEntries(pedidos.map((p) => [p.id, marcaDeLeitura(p)]));
+        gravarLidas(companyId, inicial);
+        setLidas(inicial);
+      }
+    }
+  }, [companyId, lidas, pedidos]);
+  const naoLidas = useMemo(() => new Set(lidas ? pedidos.filter((p) => temNovidade(p, lidas[p.id])).map((p) => p.id) : []), [pedidos, lidas]);
+  const aoLer = useCallback((pedido) => {
+    setLidas((atual) => {
+      const base = atual || {};
+      const marca = marcaDeLeitura(pedido);
+      if (base[pedido.id] && base[pedido.id].t === marca.t && base[pedido.id].s === marca.s) return atual;
+      const novo = { ...base, [pedido.id]: marca };
+      gravarLidas(companyId, novo);
+      return novo;
+    });
+  }, [companyId]);
+  // aviso na tela quando chega novidade do escritório (uma vez por novidade)
+  useEffect(() => {
+    if (!lidas) return;
+    const novos = pedidos.filter((p) => temNovidade(p, lidas[p.id]) && !jaAvisados.current.has(`${p.id}|${marcaDeLeitura(p).t}|${p.status}`));
+    if (!novos.length) return;
+    novos.forEach((p) => jaAvisados.current.add(`${p.id}|${marcaDeLeitura(p).t}|${p.status}`));
+    setAvisos((atuais) => [...atuais, ...novos.map((p) => ({ id: `${p.id}-${Date.now()}`, pedidoId: p.id, titulo: p.descricao || p.alvo, texto: textoDaNovidade(p, lidas[p.id]) }))]);
+  }, [pedidos, lidas]);
+  useEffect(() => {
+    if (!avisos.length) return undefined;
+    const t = setTimeout(() => setAvisos((atuais) => atuais.slice(1)), 9000);
+    return () => clearTimeout(t);
+  }, [avisos]);
+
   if (!membros.length) return <p className="p-6 text-[13px] text-ink-400">Abra uma empresa ou um grupo para ver o Revisa Nota.</p>;
   if (erro) return <p className="p-6 text-[13px] text-danger-600">{erro}</p>;
   if (!conjuntos) return <Esqueleto />;
@@ -719,11 +748,22 @@ export default function RevisaNota() {
         {ABAS.map((a) => (
           <button key={a.id} type="button" onClick={() => setAba(a.id)} className={`bi-aba flex shrink-0 items-center gap-1.5 border-b-2 py-3 text-[13px] transition-colors ${aba === a.id ? "border-accent-500 font-medium text-ink-900" : "border-transparent text-ink-500 hover:text-ink-800"}`}>
             {a.nome}
-            {a.id === "cadastro" && abertos > 0 && <span className="rounded-full bg-accent-500 px-1.5 text-[10.5px] font-semibold text-white">{abertos}</span>}
+            {a.id === "cadastro" && naoLidas.size > 0 && <span className="flex items-center gap-1 rounded-full bg-accent-500 px-1.5 text-[10.5px] font-semibold text-white" title="Mensagens novas do escritório"><Bell size={10} />{naoLidas.size}</span>}
+            {a.id === "cadastro" && naoLidas.size === 0 && abertos > 0 && <span className="rounded-full bg-surface-muted px-1.5 text-[10.5px] font-semibold text-ink-500" title="Pedidos em andamento">{abertos}</span>}
           </button>
         ))}
       </nav>
 
+      {avisos.length > 0 && (
+        <div className="fixed right-4 top-16 z-[70] flex w-[min(92vw,340px)] flex-col gap-2" role="status" aria-live="polite">
+          {avisos.slice(-3).map((a) => (
+            <button key={a.id} type="button" onClick={() => { setAba("cadastro"); setAbrirId(a.pedidoId); setAvisos((atuais) => atuais.filter((x) => x.id !== a.id)); }} className="flex items-start gap-2.5 rounded-xl border border-accent-500/40 bg-surface-card px-3.5 py-3 text-left shadow-lg">
+              <Bell size={16} className="mt-0.5 shrink-0 text-accent-500" />
+              <span className="min-w-0"><b className="block text-[12.5px] text-ink-900">{a.texto}</b><span className="block truncate text-[12px] text-ink-500">{a.titulo}</span><span className="text-[11px] font-medium text-accent-600">Clique para abrir a conversa</span></span>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="flex flex-col gap-4 p-4 md:p-6">
         {!atual ? (
           <div className="rounded-2xl border border-line bg-surface-card p-6">
@@ -745,7 +785,7 @@ export default function RevisaNota() {
 
             {aba === "produtos" && (atual.produtos ? <Produtos lista={atual.produtos} companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} atualizadoEm={atual.atualizadoEm ? dataHora(atual.atualizadoEm) : ""} /> : <p className="text-[13px] text-ink-400">A lista de produtos ainda não foi enviada.</p>)}
             {aba === "resumo" && <ResumoProdutos resumos={atual.resumos} empresa={atual.empresa} />}
-            {aba === "cadastro" && <Cadastro companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} />}
+            {aba === "cadastro" && <CentralDePedidos pedidos={pedidos} companyId={companyId} recarregar={recarregarPedidos} naoLidas={naoLidas} aoLer={aoLer} abrirId={abrirId} aoAbrir={() => setAbrirId(null)} />}
             {aba === "clientes" && (atual.clientes ? <Clientes lista={atual.clientes} companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} /> : <p className="text-[13px] text-ink-400">A lista de clientes ainda não foi enviada.</p>)}
             {aba === "lei" && <ConsultaLei lei={atual.lei} produtos={atual.produtos?.produtos} empresa={atual.empresa} />}
           </>

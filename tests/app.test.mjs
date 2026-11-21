@@ -1340,6 +1340,21 @@ check("enquadrar devolve o item da lei com o tratamento do anexo", enq.length > 
 const par = lc.parecenca(idxLei, "CATETER BALAO PARA DILATACAO", "Dilatador para implante de cateter duplo lumen");
 check("parecença dá nota e palavras em comum entre produto e item", par.score > 0 && par.palavras.includes("cateter"), par);
 
+section("Andamento do pedido e avisos de mensagem nova");
+const rn2 = await src("lib/revisaNota.js");
+const pedBase = { id: "p1", status: "enviado", criado_em: "2026-11-21T10:00:00Z", atualizado_em: "2026-11-21T10:00:00Z", observacoes: [] };
+check("pedido novo: só a etapa Enviado está feita", rn2.etapasDoPedido(pedBase).map((e) => e.estado).join() === "feito,pendente,pendente", null);
+const pedRecusado = { ...pedBase, status: "recusado", atualizado_em: "2026-11-21T12:00:00Z", observacoes: [{ autor: "escritorio", criado_em: "2026-11-21T11:00:00Z" }] };
+const etRec = rn2.etapasDoPedido(pedRecusado);
+check("pedido recusado: análise na hora da 1ª resposta e etapa final Recusado em vermelho", etRec[1].quando === "2026-11-21T11:00:00Z" && etRec[2].nome === "Recusado" && etRec[2].estado === "recusado" && etRec[2].quando === "2026-11-21T12:00:00Z", etRec);
+check("pedido aprovado: etapa final Aprovado", rn2.etapasDoPedido({ ...pedBase, status: "cadastrado" })[2].nome === "Aprovado", null);
+const vistoInicial = rn2.marcaDeLeitura(pedBase);
+check("sem mensagem nova do escritório não há novidade", rn2.temNovidade(pedBase, vistoInicial) === false, null);
+const comResposta = { ...pedBase, status: "em_analise", observacoes: [{ autor: "cliente", criado_em: "2026-11-21T10:05:00Z" }, { autor: "escritorio", criado_em: "2026-11-21T10:30:00Z" }] };
+check("resposta do escritório vira novidade e o texto diz isso", rn2.temNovidade(comResposta, vistoInicial) === true && rn2.textoDaNovidade(comResposta, vistoInicial) === "O escritório respondeu", null);
+check("mensagem do próprio cliente não é novidade", rn2.temNovidade({ ...pedBase, observacoes: [{ autor: "cliente", criado_em: "2026-11-21T10:05:00Z" }] }, vistoInicial) === false, null);
+check("depois de ver, deixa de ser novidade; mudar a situação volta a ser", rn2.temNovidade(comResposta, rn2.marcaDeLeitura(comResposta)) === false && rn2.temNovidade({ ...comResposta, status: "cadastrado" }, rn2.marcaDeLeitura(comResposta)) === true, null);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
