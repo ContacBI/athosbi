@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, Check, Download, PackageCheck, Plus, Search, X } from "lucide-react";
+import { Check, Download, PackageCheck, Plus, Search, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { groupCompanies } from "../lib/groups.js";
 import { inteiro, moneyFull, pct } from "../lib/fmtNotas.js";
 import {
-  PORTAL_REVISA_NOTA, alvoDoProduto, codigosPossiveis, fetchPedidos, fetchRevisaNota, filtrarClientes, filtrarProdutos, ncmFormatado, opcoesDoProduto, pedidoAberto, pedidosDoAlvo, perfilDoCliente,
+  alvoDoProduto, codigosPossiveis, fetchPedidos, fetchRevisaNota, filtrarClientes, filtrarProdutos, ncmFormatado, opcoesDoProduto, pedidoAberto, pedidosDoAlvo, perfilDoCliente,
   resumoDeClientes, resumoDeProdutos, rotuloDaDecisao, rotuloDaReducao, situacaoDoProduto,
 } from "../lib/revisaNota.js";
 import { CartaoDePedido, FormNovoProduto, FormPerfil, JanelaDeAlteracao } from "../components/RevisaNotaPedidos.jsx";
@@ -646,8 +646,7 @@ function EmPreparacao({ titulo }) {
   return (
     <section className="rounded-2xl border border-dashed border-line px-6 py-12 text-center">
       <p className="text-[15px] font-semibold text-ink-900">{titulo}</p>
-      <p className="mx-auto mt-1.5 max-w-md text-[13px] text-ink-500">Esta aba ainda está sendo trazida do portal do Revisa Nota para cá. Enquanto isso, ela continua disponível no portal.</p>
-      <a href={PORTAL_REVISA_NOTA} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-line-strong px-4 py-2 text-[13px] font-medium text-ink-700 hover:bg-surface-muted">Abrir no portal <ArrowUpRight size={14} /></a>
+      <p className="mx-auto mt-1.5 max-w-md text-[13px] text-ink-500">Esta aba ainda está sendo preparada aqui no B.I.</p>
     </section>
   );
 }
@@ -736,7 +735,6 @@ export default function RevisaNota() {
             {a.id === "cadastro" && abertos > 0 && <span className="rounded-full bg-accent-500 px-1.5 text-[10.5px] font-semibold text-white">{abertos}</span>}
           </button>
         ))}
-        <a href={PORTAL_REVISA_NOTA} target="_blank" rel="noreferrer" className="ml-auto flex shrink-0 items-center gap-1 text-[12px] text-ink-400 hover:text-ink-700">Portal do Revisa Nota <ArrowUpRight size={12} /></a>
       </nav>
 
       <div className="flex flex-col gap-4 p-4 md:p-6">
