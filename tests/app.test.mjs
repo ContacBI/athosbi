@@ -1132,6 +1132,26 @@ check(
   null
 );
 
+// Senha nova (recuperação e convite, lib/senha.js): força, regras e as mensagens do Supabase em português.
+const senhaLib = await src("lib/senha.js");
+check(
+  "Senha nova: força, regras (mínimo, iguais; letras e números é conselho) e mensagens do Supabase traduzidas",
+  senhaLib.forcaDaSenha("").nivel === 0 &&
+    senhaLib.forcaDaSenha("abc").nivel === 1 &&
+    senhaLib.forcaDaSenha("athos2026").nivel === 2 &&
+    senhaLib.forcaDaSenha("Athos-Hub-2026!").nivel === 3 &&
+    senhaLib.senhaPronta("abcdefgh", "abcdefgh") &&
+    !senhaLib.senhaPronta("abc12", "abc12") &&
+    !senhaLib.senhaPronta("athos2026", "athos2027") &&
+    senhaLib.regrasDaSenha("athos2026", "athos2026").every((regra) => regra.ok) &&
+    /espere um minuto/.test(senhaLib.mensagemDoErroDeSenha({ status: 429, message: "For security purposes, you can only request this after 42 seconds." })) &&
+    /diferente da anterior/.test(senhaLib.mensagemDoErroDeSenha({ message: "New password should be different from the old password." })) &&
+    /não vale mais/.test(senhaLib.mensagemDoErroDeSenha({ message: "Email link is invalid or has expired" })) &&
+    /e-mail/.test(senhaLib.mensagemDoErroDeSenha({ message: "Email address \"x\" is invalid" })) &&
+    /não vale mais/.test(senhaLib.mensagemDoErroDeSenha({ message: "Token has expired or is invalid" })),
+  null
+);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);

@@ -11,7 +11,7 @@ import ConfirmAccess from "./pages/ConfirmAccess.jsx";
 import { supabase } from "./lib/supabaseClient.js";
 import { ligarRegistroDeUso, mudouDeTela } from "./lib/uso.js";
 import { EH_TESTE } from "./lib/ambiente.js";
-import { aplicarTemaDoHub, biDentroDoHub, hubLigado, querPortalAtual } from "./lib/hub.js";
+import { aplicarTemaDoHub, biDentroDoHub, hubLigado, querPortalAtual, loginNovo } from "./lib/hub.js";
 import { entrarNoModo, modoDaRota, modoGuardado, usaModos } from "./lib/modoEquipe.js";
 import Empresas from "./pages/Empresas.jsx";
 import CompanyHome from "./pages/CompanyHome.jsx";
@@ -37,6 +37,7 @@ import Carregando from "./components/Carregando.jsx";
 // que qualquer sessão vê.
 const PainelTab = lazy(() => import("./pages/PainelTab.jsx"));
 const SharedPresentation = lazy(() => import("./pages/SharedPresentation.jsx"));
+const NovaSenhaHub = lazy(() => import("./hub/NovaSenhaHub.jsx"));
 const Celular = lazy(() => import("./pages/Celular.jsx"));
 const PersonalizarHub = lazy(() => import("./pages/PersonalizarHub.jsx"));
 const Demonstrativos = lazy(() => import("./pages/Demonstrativos.jsx"));
@@ -425,6 +426,13 @@ function AppConteudo() {
   // checagem de pathname. Comparação crua de window.location porque isso
   // roda antes do <BrowserRouter> existir.
   if (window.location.pathname === "/confirmar-acesso") {
+    // No teste, a senha nova no visual do hub (uma tela só, ver NovaSenhaHub.jsx).
+    if (loginNovo())
+      return (
+        <Suspense fallback={<Carregando escuro texto="Abrindo…" />}>
+          <NovaSenhaHub />
+        </Suspense>
+      );
     return <ConfirmAccess />;
   }
   // Apresentação compartilhada por link (/p/<código>): aberta por quem não

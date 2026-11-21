@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { KeyRound } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
+import { loginNovo } from "../lib/hub.js";
+
+const NovaSenhaHub = lazy(() => import("../hub/NovaSenhaHub.jsx"));
 
 // Pra onde o link de convite (supabase/functions/invite-user) e o de
 // "esqueci minha senha" (Login.jsx) mandam a pessoa DEPOIS de ela confirmar
@@ -10,6 +13,17 @@ import { supabase } from "../lib/supabaseClient.js";
 // escolher a senha pra usar dali em diante. supabase.auth.updateUser roda
 // em cima dessa sessão temporária.
 export default function SetPassword() {
+  // No teste, a mesma tela da senha nova do hub (já conectado: o link do modelo antigo do e-mail entra com a sessão).
+  if (loginNovo())
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-surface-page" />}>
+        <NovaSenhaHub jaConectado />
+      </Suspense>
+    );
+  return <SetPasswordAtual />;
+}
+
+function SetPasswordAtual() {
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
