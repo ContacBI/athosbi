@@ -8,8 +8,6 @@ import { useTheme } from "../lib/theme.js";
 import AthosMark from "../components/AthosMark.jsx";
 import Mosaico from "./Mosaico.jsx";
 
-const DESTAQUES = ["Números fechados e conferidos pelo escritório", "Carga tributária, faturamento e resultado", "Comparativos e análises para acompanhar o seu negócio"];
-
 function Campo({ icone: Icone, rotulo, children }) {
   return (
     <label className="block">
@@ -30,31 +28,26 @@ export default function LoginHub() {
 
   return (
     <div className="hub relative grid min-h-screen overflow-hidden lg:grid-cols-[1.1fr_1fr]">
-      {/* Lado da marca — sempre no azul-noite da Athos */}
-      <aside className="relative hidden overflow-hidden bg-[#081d33] px-14 py-12 text-white lg:flex lg:flex-col">
+      {/* Lado da marca — sempre no azul-noite da Athos. Só a marca, grande e
+          no centro (pedido do Izaias: sem o título e os tópicos de antes). */}
+      <aside className="relative hidden items-center justify-center overflow-hidden bg-[#081d33] px-10 text-white lg:flex">
         <div className="absolute inset-0" style={{ background: "radial-gradient(700px circle at 100% 110%, rgba(232,105,31,0.42), transparent 60%), radial-gradient(600px circle at -10% -10%, rgba(47,111,237,0.32), transparent 60%)" }} />
-        <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.9) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.9) 1px, transparent 1px)", backgroundSize: "56px 56px", maskImage: "radial-gradient(ellipse at 30% 30%, black, transparent 75%)" }} />
-        <div className="relative flex items-center gap-2.5">
-          <AthosMark size={32} />
-          <span className="hub-display text-[20px] font-bold">
-            Athos<span className="ml-1 align-top text-[10px] font-bold uppercase tracking-[0.2em] text-[#f4a96f]">hub</span>
+        <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.9) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.9) 1px, transparent 1px)", backgroundSize: "56px 56px", maskImage: "radial-gradient(ellipse at 50% 45%, black, transparent 75%)" }} />
+        <Mosaico colunas={6} linhas={4} degraus={4} className="pointer-events-none absolute -bottom-20 right-8 w-[48%] opacity-40 [--hub-ladrilho:rgba(255,255,255,0.05)] [--hub-ladrilho-borda:rgba(255,255,255,0.07)] [--hub-ladrilho-aceso:rgba(242,138,66,0.35)]" />
+        <div className="relative flex flex-col items-center text-center">
+          <span className="relative flex">
+            <span className="absolute inset-[-30%] rounded-full bg-[#e8691f]/25 blur-3xl" aria-hidden="true" />
+            <AthosMark size={108} className="relative" />
           </span>
-        </div>
-        <div className="relative my-auto max-w-[540px] py-12">
-          <h1 className="hub-display text-[54px] font-extrabold leading-[1.02]">
-            Clareza para <span className="hub-italico">decidir</span>
-            <span className="hub-pontuacao">.</span>
+          <h1 className="hub-display mt-10 font-extrabold leading-none tracking-[-0.02em]" style={{ fontSize: "clamp(42px, 4.6vw, 72px)" }}>
+            Athos Consultoria
           </h1>
-          <ul className="mt-9 space-y-4">
-            {DESTAQUES.map((texto) => (
-              <li key={texto} className="flex items-center gap-3.5 text-[16px] text-white/80">
-                <span className="h-2.5 w-2.5 shrink-0 rounded-[3px] bg-[#f28a42]" />
-                {texto}
-              </li>
-            ))}
-          </ul>
+          <div className="mt-8 flex items-center gap-4" aria-label="Hub B.I.">
+            <span className="h-px w-14 bg-gradient-to-r from-transparent to-[#f28a42]" />
+            <span className="rounded-full bg-gradient-to-r from-[#e8691f] to-[#f28a42] px-8 py-3 text-[24px] font-extrabold uppercase leading-none tracking-[0.24em] text-white shadow-[0_18px_44px_-14px_rgba(232,105,31,0.9)]">Hub B.I.</span>
+            <span className="h-px w-14 bg-gradient-to-l from-transparent to-[#f28a42]" />
+          </div>
         </div>
-        <Mosaico colunas={6} linhas={4} degraus={4} className="pointer-events-auto relative -mb-24 ml-auto w-[78%] opacity-90 [--hub-ladrilho:rgba(255,255,255,0.05)] [--hub-ladrilho-borda:rgba(255,255,255,0.07)] [--hub-ladrilho-aceso:rgba(242,138,66,0.35)]" />
       </aside>
 
       {/* Formulário */}
@@ -63,7 +56,8 @@ export default function LoginHub() {
         <div className="relative flex items-center justify-between">
           <span className="flex items-center gap-2.5 lg:invisible">
             <AthosMark size={28} />
-            <span className="hub-display text-[18px] font-bold">Athos</span>
+            <span className="hub-display text-[17px] font-bold">Athos Consultoria</span>
+            <span className="rounded-full bg-gradient-to-r from-[#e8691f] to-[#f28a42] px-2.5 py-1 text-[10.5px] font-extrabold uppercase tracking-[0.18em] text-white">Hub B.I.</span>
           </span>
           <button
             type="button"
