@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, Check, PackageCheck, Plus, Search, X } from "lucide-react";
+import { ArrowUpRight, Check, Download, PackageCheck, Plus, Search, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { groupCompanies } from "../lib/groups.js";
 import { inteiro, moneyFull, pct } from "../lib/fmtNotas.js";
 import {
-  PORTAL_REVISA_NOTA, SITUACOES, alvoDoProduto, codigosPossiveis, fetchPedidos, fetchRevisaNota, filtrarClientes, filtrarProdutos, ncmFormatado, opcoesDoProduto, pedidoAberto, pedidosDoAlvo, perfilDoCliente,
-  resumoDaClassificacao, resumoDeClientes, resumoDeProdutos, rotuloDaDecisao, situacaoDoProduto,
+  PORTAL_REVISA_NOTA, alvoDoProduto, codigosPossiveis, fetchPedidos, fetchRevisaNota, filtrarClientes, filtrarProdutos, ncmFormatado, opcoesDoProduto, pedidoAberto, pedidosDoAlvo, perfilDoCliente,
+  resumoDeClientes, resumoDeProdutos, rotuloDaDecisao, situacaoDoProduto,
 } from "../lib/revisaNota.js";
 import { CartaoDePedido, FormNovoProduto, FormPerfil, JanelaDeAlteracao } from "../components/RevisaNotaPedidos.jsx";
 
@@ -299,67 +299,220 @@ function DetalheCliente({ cliente, companyId, pedidos, recarregarPedidos, onClos
   );
 }
 
-function Produtos({ lista, companyId, pedidos, recarregarPedidos }) {
+// Itens possíveis do NCM agrupados por anexo, como no Revisa Nota: [anexo, [itens], [% distintos]].
+function gruposDoProduto(produto, lei) {
+  const mapa = new Map();
+  for (const o of opcoesDoProduto(produto, lei)) {
+    if (!mapa.has(o.anexo)) mapa.set(o.anexo, { itens: [], pcts: [] });
+    const g = mapa.get(o.anexo);
+    g.itens.push(String(o.item));
+    const r = rotuloDaReducao(o.reducao, o.rotulo);
+    if (r && !g.pcts.includes(r)) g.pcts.push(r);
+  }
+  return [...mapa.entries()].map(([anexo, g]) => [anexo, g.itens, g.pcts]);
+}
+
+const CONDICIONAL_FILTRO = [["todos", "Todos"], ["Sim", "Sim"], ["Não", "Não"], ["Depende", "Depende"]];
+
+function Produtos({ lista, companyId, pedidos, recarregarPedidos, atualizadoEm }) {
   const [busca, setBusca] = useState("");
   const [situacao, setSituacao] = useState("todos");
-  const [tratamento, setTratamento] = useState("todos");
+  const [ncmSel, setNcmSel] = useState("");
+  const [lcFiltro, setLcFiltro] = useState("todos");
+  const [cond, setCond] = useState("todos");
+  const [painel, setPainel] = useState(false);
+  const [baixar, setBaixar] = useState(false);
+  const [compacta, setCompacta] = useState(() => {
+    try { return localStorage.getItem("athos-revisa-densidade") === "compacta"; } catch { return false; }
+  });
   const [limite, setLimite] = useState(LIMITE);
   const [aberto, setAberto] = useState(null);
   const produtos = lista.produtos;
-  const lei = lista.lei || {};
+  const lei = useMemo(() => lista.lei || {}, [lista.lei]);
   const resumo = useMemo(() => resumoDeProdutos(produtos), [produtos]);
-  const tratamentos = useMemo(() => [...new Set(produtos.map((p) => p.decisao?.tratamento).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR")), [produtos]);
-  const filtrados = useMemo(() => filtrarProdutos(produtos, { busca, situacao, tratamento }), [produtos, busca, situacao, tratamento]);
+  const gruposPor = useMemo(() => new Map(produtos.map((p) => [`${p.emp}|${p.codigo}`, gruposDoProduto(p, lei)])), [produtos, lei]);
+  const ncms = useMemo(() => {
+    const m = {};
+    produtos.forEach((p) => { m[p.ncm] = (m[p.ncm] || 0) + 1; });
+    return Object.entries(m).sort((a, b) => b[1] - a[1]);
+  }, [produtos]);
+  const emAnexo = useMemo(() => produtos.filter((p) => p.lc).length, [produtos]);
+  const contCond = useMemo(() => {
+    const c = { Sim: 0, "Não": 0, Depende: 0 };
+    produtos.forEach((p) => { if (p.cond in c) c[p.cond] += 1; });
+    return c;
+  }, [produtos]);
+  const filtrados = useMemo(
+    () => filtrarProdutos(produtos, { busca, situacao }).filter((p) => (!ncmSel || p.ncm === ncmSel) && (lcFiltro === "todos" || (lcFiltro === "anexo" ? p.lc : !p.lc)) && (cond === "todos" || p.cond === cond)),
+    [produtos, busca, situacao, ncmSel, lcFiltro, cond],
+  );
   const mostrados = filtrados.slice(0, limite);
   const mostrarFilial = Object.keys(lista.estabs || {}).length > 1;
-  const escolher = (id) => { setSituacao(id); setLimite(LIMITE); };
+  const nAtivos = (ncmSel ? 1 : 0) + (lcFiltro !== "todos" ? 1 : 0) + (cond !== "todos" ? 1 : 0);
+  const limpar = () => { setNcmSel(""); setLcFiltro("todos"); setSituacao("todos"); setCond("todos"); setLimite(LIMITE); };
+  const chips = [
+    ncmSel && [`NCM ${ncmFormatado(ncmSel)}`, () => setNcmSel("")],
+    lcFiltro !== "todos" && [lcFiltro === "anexo" ? "Em anexo LC 214" : "Fora dos anexos", () => setLcFiltro("todos")],
+    situacao !== "todos" && [{ pendente: "Pendentes", duvida: "Em análise", decidido: "Decididas" }[situacao], () => setSituacao("todos")],
+    cond !== "todos" && [`Condicional: ${cond.toLowerCase()}`, () => setCond("todos")],
+  ].filter(Boolean);
+  const total = resumo.total;
+  const escolherSituacao = (id) => { setSituacao(id); setLimite(LIMITE); };
+  const alternarDensidade = () => setCompacta((c) => {
+    const n = !c;
+    try { localStorage.setItem("athos-revisa-densidade", n ? "compacta" : "confortavel"); } catch { /* sem armazenamento: só não lembra */ }
+    return n;
+  });
+  const baixarCsv = () => {
+    setBaixar(false);
+    const linhas = [["Código", "Descrição", "NCM", "LC 214", "Anexo", "Itens", "Condicional", "Valor vendido", "Última venda", "Decisão"]];
+    filtrados.forEach((p) => {
+      const g = gruposPor.get(`${p.emp}|${p.codigo}`) || [];
+      linhas.push([p.codigo, p.descricao, ncmFormatado(p.ncm), p.lc ? "sim" : "não", g.map(([a]) => a).join(" / "), g.map(([a, it]) => `${a}: ${it.join(", ")}`).join(" | "), p.cond || "", String(Number(p.valor) || 0).replace(".", ","), dia(p.ultima), rotuloDaDecisao(p)]);
+    });
+    const texto = linhas.map((l) => l.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(";")).join("\r\n");
+    const url = URL.createObjectURL(new Blob(["﻿", texto], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "revisa-nota-produtos.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const pad = compacta ? "py-1.5" : "py-2.5";
+  const botaoFiltro = (ativo) => `rounded-md border px-2.5 py-1 text-[12px] font-medium transition-colors ${ativo ? "border-accent-500 bg-accent-500/10 text-accent-700" : "border-line text-ink-600 hover:bg-surface-muted"}`;
 
   return (
     <>
-      <ResumoEmFaixas
-        titulo="Produtos vendidos"
-        total={resumo.total}
-        ativo={situacao}
-        onEscolher={escolher}
-        itens={SITUACOES.map((s) => ({ id: s.id, nome: s.nome, qtd: resumo[s.id].qtd, valor: resumo[s.id].valor, cor: s.id === "decidido" ? "bg-emerald-500" : s.id === "duvida" ? "bg-amber-500" : "bg-ink-300" }))}
-      />
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">{lista.empresa || ""}</p>
+        <h2 className="mt-1 text-[30px] font-bold leading-tight text-ink-900">Produtos <em className="font-serif font-semibold italic text-accent-500">vendidos</em>.</h2>
+        <p className="mt-2 text-[12px] text-ink-500"><span className="font-medium text-emerald-500">● ao vivo</span>{atualizadoEm ? ` · atualizado em ${atualizadoEm}` : ""}</p>
+      </div>
 
-      <section className="rounded-2xl border border-line bg-surface-card shadow-sm">
-        <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
-          <div className="relative min-w-[260px] flex-1">
-            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-300" />
-            <input value={busca} onChange={(e) => { setBusca(e.target.value); setLimite(LIMITE); }} placeholder="Buscar por código, descrição ou NCM…" className="w-full rounded-lg border border-line bg-surface-page py-2 pl-8 pr-3 text-[13px] text-ink-900 outline-none placeholder:text-ink-300 focus:border-accent-400" />
-          </div>
-          {tratamentos.length > 0 && (
-            <select value={tratamento} onChange={(e) => { setTratamento(e.target.value); setLimite(LIMITE); }} aria-label="Tratamento" className="rounded-lg border border-line bg-surface-card px-2.5 py-2 text-[12.5px] text-ink-700 outline-none focus:border-accent-500">
-              <option value="todos">Todos os tratamentos</option>
-              {tratamentos.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          )}
-          <p className="ml-auto text-[12px] text-ink-500">{inteiro(filtrados.length)} produto{filtrados.length === 1 ? "" : "s"} · {abreviado(filtrados.reduce((s, p) => s + (Number(p.valor) || 0), 0))}{lista.de ? ` · ${dia(lista.de)} a ${dia(lista.ate)}` : ""}</p>
+      <section className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+        <div>
+          <p className="text-[12px] text-ink-500">Classificados</p>
+          <p className="mt-0.5 text-[40px] font-bold leading-none tabular-nums text-ink-900">{inteiro(resumo.decidido.qtd)}<small className="ml-1 text-[16px] font-normal text-ink-400">/ {inteiro(total.qtd)}</small></p>
         </div>
+        <div className="min-w-[280px] flex-1">
+          <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-surface-muted" aria-hidden="true">
+            <span className="bg-emerald-500" style={{ width: `${total.qtd ? (resumo.decidido.qtd / total.qtd) * 100 : 0}%` }} />
+            <span className="bg-amber-500" style={{ width: `${total.qtd ? (resumo.duvida.qtd / total.qtd) * 100 : 0}%` }} />
+          </div>
+          <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1">
+            {[["decidido", "decididas", "bg-emerald-500"], ["duvida", "em análise", "bg-amber-500"], ["pendente", "pendentes", "bg-ink-300"]].map(([k, t, cor]) => (
+              <button key={k} type="button" onClick={() => escolherSituacao(situacao === k ? "todos" : k)} title={`Mostrar só: ${t}`} className={`flex items-center gap-1.5 text-[12px] ${situacao === k ? "text-ink-900" : "text-ink-500"} hover:text-ink-900`}>
+                <i className={`h-1.5 w-1.5 rounded-full ${cor}`} />
+                <b className="tabular-nums text-ink-900">{inteiro(resumo[k].qtd)}</b> {t}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-[12px] text-ink-500">Vendido no período</p>
+          <p className="mt-0.5 text-[26px] font-bold leading-none tabular-nums text-ink-900">{moneyFull(total.valor)}</p>
+          <p className="mt-1 text-[11px] text-ink-400">{inteiro(ncms.length)} NCMs</p>
+        </div>
+      </section>
+
+      <div className="relative flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[260px] flex-1">
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-300" />
+          <input value={busca} onChange={(e) => { setBusca(e.target.value); setLimite(LIMITE); }} placeholder="Buscar por código, descrição ou NCM…" className="w-full rounded-lg border border-line bg-surface-card py-2.5 pl-8 pr-3 text-[13px] text-ink-900 outline-none placeholder:text-ink-300 focus:border-accent-400" />
+        </div>
+        <div className="flex overflow-hidden rounded-lg border border-line bg-surface-card" role="group" aria-label="Situação">
+          {[["todos", "Todas"], ["pendente", "Pendentes"], ["duvida", "Em análise"], ["decidido", "Decididas"]].map(([k, t]) => (
+            <button key={k} type="button" onClick={() => escolherSituacao(k)} className={`px-3 py-2 text-[12.5px] font-medium transition-colors ${situacao === k ? "bg-surface-muted text-ink-900" : "text-ink-500 hover:text-ink-900"}`}>
+              {t} {k !== "todos" && <b className="ml-0.5 tabular-nums text-ink-400">{inteiro(resumo[k].qtd)}</b>}
+            </button>
+          ))}
+        </div>
+        <button type="button" onClick={() => { setPainel(!painel); setBaixar(false); }} aria-expanded={painel} className="rounded-lg border border-line bg-surface-card px-3 py-2 text-[12.5px] font-medium text-ink-700 hover:bg-surface-muted">
+          Mais filtros {nAtivos > 0 && <b className="ml-1 rounded-full bg-accent-500 px-1.5 text-[11px] text-white">{nAtivos}</b>}
+        </button>
+        <button type="button" onClick={alternarDensidade} title={compacta ? "Linhas compactas (clique para confortável)" : "Linhas confortáveis (clique para compactar)"} aria-label="Densidade das linhas" className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface-card text-ink-600 hover:bg-surface-muted">{compacta ? "☰" : "≡"}</button>
+        <button type="button" onClick={() => { setBaixar(!baixar); setPainel(false); }} title="Baixar a lista" aria-label="Baixar a lista" aria-expanded={baixar} className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-500 text-white hover:bg-accent-600"><Download size={15} /></button>
+        {baixar && (
+          <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-lg border border-line bg-surface-card shadow-lg" role="menu">
+            <button type="button" role="menuitem" onClick={baixarCsv} className="block w-full px-3 py-2 text-left text-[12.5px] text-ink-800 hover:bg-surface-muted">Planilha (.csv)</button>
+          </div>
+        )}
+        {painel && (
+          <div className="absolute right-0 top-full z-20 mt-1 w-full max-w-[460px] rounded-xl border border-line bg-surface-card p-4 shadow-lg">
+            <div className="space-y-4">
+              <div>
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-400">NCM</p>
+                <select value={ncmSel} onChange={(e) => { setNcmSel(e.target.value); setLimite(LIMITE); }} className="w-full rounded-lg border border-line bg-surface-card px-2.5 py-2 text-[12.5px] text-ink-800 outline-none focus:border-accent-500">
+                  <option value="">Todos os NCMs ({ncms.length})</option>
+                  {ncms.map(([n, q]) => <option key={n} value={n}>{ncmFormatado(n)} · {q} produto(s)</option>)}
+                </select>
+              </div>
+              <div>
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-400">NCM na LC 214</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[["todos", "Todos", produtos.length], ["anexo", "Em anexo", emAnexo], ["fora", "Fora dos anexos", produtos.length - emAnexo]].map(([k, t, q]) => (
+                    <button key={k} type="button" onClick={() => { setLcFiltro(k); setLimite(LIMITE); }} className={botaoFiltro(lcFiltro === k)}>{t} <b className="ml-0.5 tabular-nums">{inteiro(q)}</b></button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-400" title="O código deste produto pode mudar por uma condição (em geral, quem compra)?">Código muda conforme o comprador?</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {CONDICIONAL_FILTRO.map(([k, t]) => (
+                    <button key={k} type="button" onClick={() => { setCond(k); setLimite(LIMITE); }} className={botaoFiltro(cond === k)}>{t} {k !== "todos" && <b className="ml-0.5 tabular-nums">{contCond[k]}</b>}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
+              <button type="button" onClick={limpar} className="text-[12.5px] font-medium text-ink-500 hover:text-ink-900">Limpar tudo</button>
+              <button type="button" onClick={() => setPainel(false)} className="rounded-lg bg-accent-500 px-3 py-1.5 text-[12.5px] font-semibold text-white hover:bg-accent-600">Ver {inteiro(filtrados.length)} produtos</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {chips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {chips.map(([rot, tirar]) => (
+            <button key={rot} type="button" onClick={tirar} title="Tirar este filtro" className="rounded-full border border-accent-500/40 bg-accent-500/10 px-2.5 py-0.5 text-[12px] font-medium text-accent-700">{rot} <span aria-hidden="true">✕</span></button>
+          ))}
+          <button type="button" onClick={limpar} className="text-[12px] font-medium text-ink-500 hover:text-ink-900">Limpar tudo</button>
+          <span className="text-[12px] text-ink-400">{inteiro(filtrados.length)} de {inteiro(produtos.length)} produtos</span>
+        </div>
+      )}
+
+      <div className="overflow-hidden rounded-xl border border-line bg-surface-card">
         <div className="max-h-[680px] overflow-auto scrollbar-thin">
           <table className="w-full min-w-[1180px] text-[13px]">
             <Cabecalho colunas={[["Código"], ["Descrição"], ["NCM"], ["LC"], ["Anexo"], ["Item"], ["%"], ["Condicional"], ["Valor vendido", true], ["Última venda"], ["Decisão"]]} />
             <tbody className="divide-y divide-line/60">
               {mostrados.map((p) => {
-                const r = resumoDaClassificacao(p, lei);
+                const grupos = gruposPor.get(`${p.emp}|${p.codigo}`) || [];
                 const sit = situacaoDoProduto(p);
-                const itens = r.itens.length > 7 ? `${r.itens.slice(0, 7).join(", ")}…` : r.itens.join(", ");
                 const abertos = pedidosDoAlvo(pedidos, alvoDoProduto(p)).filter(pedidoAberto).length;
+                const duvida = p.decisao?.status === "duvida";
                 return (
                   <tr key={`${p.emp}|${p.codigo}`} onClick={() => setAberto(p)} className="cursor-pointer align-middle transition-colors hover:bg-accent-50/40">
-                    <td className="whitespace-nowrap px-4 py-2.5"><p className="font-semibold text-ink-900">{p.codigo}</p>{mostrarFilial && <p className="text-[10.5px] uppercase tracking-wide text-ink-400">{lista.estabs?.[p.emp]}</p>}</td>
-                    <td className="max-w-[360px] px-4 py-2.5 text-ink-900"><p className="line-clamp-2" title={p.descricao}>{p.descricao}</p>{abertos > 0 && <span className="mt-0.5 inline-block rounded bg-sky-500/10 px-1.5 text-[10.5px] font-semibold text-sky-600">pedido em andamento</span>}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 font-semibold tabular-nums text-ink-800">{ncmFormatado(p.ncm)}</td>
-                    <td className="px-4 py-2.5 text-center">{r.lc ? <Check size={15} className="mx-auto text-emerald-500" /> : <X size={15} className="mx-auto text-rose-500" />}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-ink-700">{r.anexos.length ? r.anexos.join(" · ") : <span className="text-ink-300">fora dos anexos</span>}</td>
-                    <td className="max-w-[150px] px-4 py-2.5 tabular-nums text-ink-700">{itens || <span className="text-ink-300">fora dos anexos</span>}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-[12px] font-medium text-emerald-600">{r.pct.length ? r.pct.join(" / ") : <span className="font-normal text-ink-300">0%</span>}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5">{p.cond && p.cond !== "—" ? <Selo tom={TOM_CONDICIONAL[p.cond] || "cinza"}>{p.cond}</Selo> : <span className="text-ink-300">—</span>}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums text-ink-900">{moneyFull(p.valor)}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-ink-600">{dia(p.ultima)}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5"><span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-ink-900"><span className={`h-1.5 w-1.5 rounded-full ${sit === "decidido" ? "bg-emerald-500" : sit === "duvida" ? "bg-amber-500" : "bg-ink-300"}`} />{rotuloDaDecisao(p)}</span></td>
+                    <td className={`whitespace-nowrap px-4 ${pad}`}><p className="font-semibold text-ink-900">{p.codigo}</p>{mostrarFilial && <p className="text-[10.5px] uppercase tracking-wide text-ink-400">{lista.estabs?.[p.emp]}</p>}</td>
+                    <td className={`max-w-[360px] px-4 ${pad} text-ink-900`}><p className="line-clamp-2" title={p.descricao}>{p.descricao}</p></td>
+                    <td className={`whitespace-nowrap px-4 ${pad} font-semibold tabular-nums text-ink-800`}>{ncmFormatado(p.ncm)}</td>
+                    <td className={`px-4 ${pad} text-center`}>{p.lc ? <Check size={15} className="mx-auto text-emerald-500" /> : <X size={15} className="mx-auto text-rose-500" />}</td>
+                    <td className={`whitespace-nowrap px-4 ${pad} text-ink-700`}>{grupos.length ? grupos.map(([anx]) => <div key={anx}>{anx}</div>) : <span className="text-ink-300">fora dos anexos</span>}</td>
+                    <td className={`max-w-[170px] px-4 ${pad} tabular-nums text-ink-700`}>
+                      {grupos.length ? grupos.map(([anx, its]) => <div key={anx}>{its.slice(0, 8).join(", ")}{its.length > 8 ? ` +${its.length - 8}` : ""}</div>) : <span className="text-ink-300">fora dos anexos</span>}
+                    </td>
+                    <td className={`whitespace-nowrap px-4 ${pad} text-[12px] font-medium text-emerald-600`}>
+                      {grupos.length ? grupos.map(([anx, , pcts]) => <div key={anx} title={pcts.join(" / ")}>{pcts[0] || <span className="font-normal text-ink-300">—</span>}</div>) : <span className="font-normal text-ink-400">0%</span>}
+                    </td>
+                    <td className={`whitespace-nowrap px-4 ${pad}`}>{p.cond && p.cond !== "—" ? <Selo tom={TOM_CONDICIONAL[p.cond] || "cinza"}>{p.cond}</Selo> : <span className="text-ink-300">—</span>}</td>
+                    <td className={`whitespace-nowrap px-4 ${pad} text-right font-semibold tabular-nums text-ink-900`}>{moneyFull(p.valor)}</td>
+                    <td className={`whitespace-nowrap px-4 ${pad} tabular-nums text-ink-600`}>{dia(p.ultima)}</td>
+                    <td className={`px-4 ${pad}`} title="Clique para ver o produto e pedir a alteração da classificação">
+                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[12.5px] font-semibold text-ink-900"><span className={`h-1.5 w-1.5 rounded-full ${sit === "decidido" ? "bg-emerald-500" : sit === "duvida" ? "bg-amber-500" : "bg-ink-300"}`} />{rotuloDaDecisao(p)}{duvida && p.decisao?.observacao && <span className="text-amber-500" aria-label="Tem observação">!</span>}</span>
+                      {duvida && p.decisao?.observacao && <small className="block max-w-[200px] truncate text-[11px] font-normal text-ink-400" title={p.decisao.observacao}>{p.decisao.observacao}</small>}
+                      {abertos > 0 && <small className="block text-[11px] font-medium text-sky-600">alteração pedida</small>}
+                    </td>
                   </tr>
                 );
               })}
@@ -369,10 +522,10 @@ function Produtos({ lista, companyId, pedidos, recarregarPedidos }) {
         </div>
         {filtrados.length > limite && (
           <div className="border-t border-line px-4 py-3 text-center">
-            <button type="button" onClick={() => setLimite((l) => l + LIMITE)} className="rounded-lg border border-line-strong px-4 py-1.5 text-[12.5px] font-medium text-ink-600 hover:bg-surface-muted">Mostrar mais {Math.min(LIMITE, filtrados.length - limite)} de {inteiro(filtrados.length - limite)}</button>
+            <button type="button" onClick={() => setLimite((l) => l + LIMITE)} className="rounded-lg border border-line-strong px-4 py-1.5 text-[12.5px] font-medium text-ink-600 hover:bg-surface-muted">Mostrar mais ({inteiro(filtrados.length - limite)} restantes)</button>
           </div>
         )}
-      </section>
+      </div>
       {aberto && <DetalheProduto produto={aberto} lista={lista} companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} onClose={() => setAberto(null)} />}
     </>
   );
@@ -593,7 +746,7 @@ export default function RevisaNota() {
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12.5px] text-ink-500">
+            <div className={`${aba === "produtos" && conjuntos.length === 1 ? "hidden" : "flex"} flex-wrap items-center gap-x-3 gap-y-1.5 text-[12.5px] text-ink-500`}>
               <PackageCheck size={15} className="text-accent-600" />
               {conjuntos.length > 1 ? (
                 conjuntos.map((c, i) => (
@@ -605,7 +758,7 @@ export default function RevisaNota() {
               {atual.atualizadoEm && <span>· atualizado em {dataHora(atual.atualizadoEm)}</span>}
             </div>
 
-            {aba === "produtos" && (atual.produtos ? <Produtos lista={atual.produtos} companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} /> : <p className="text-[13px] text-ink-400">A lista de produtos ainda não foi enviada.</p>)}
+            {aba === "produtos" && (atual.produtos ? <Produtos lista={atual.produtos} companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} atualizadoEm={atual.atualizadoEm ? dataHora(atual.atualizadoEm) : ""} /> : <p className="text-[13px] text-ink-400">A lista de produtos ainda não foi enviada.</p>)}
             {aba === "resumo" && <EmPreparacao titulo="Resumo de produtos" />}
             {aba === "cadastro" && <Cadastro companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} />}
             {aba === "clientes" && (atual.clientes ? <Clientes lista={atual.clientes} companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} /> : <p className="text-[13px] text-ink-400">A lista de clientes ainda não foi enviada.</p>)}
