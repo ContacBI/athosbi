@@ -520,10 +520,13 @@ setCompanyState();
 section("Módulos por pessoa");
 const { modulosLiberados, moduloDaRota, MODULOS_COMPLEMENTARES } = await src("lib/modulos.js");
 check(
-  "Equipe vê todos os módulos",
+  "Equipe vê todos os módulos (a DRE Gerencial só nas empresas do Gestão Click)",
   MODULOS_COMPLEMENTARES.length >= 4 &&
-    modulosLiberados({ isAdmin: true }).length === MODULOS_COMPLEMENTARES.length &&
-    modulosLiberados({ isColaborador: true }).length === MODULOS_COMPLEMENTARES.length,
+    // a DRE Gerencial só vale pra empresa do Gestão Click (soCodigos): fora dela, a equipe vê as outras
+    modulosLiberados({ isAdmin: true }).length === MODULOS_COMPLEMENTARES.filter((modulo) => !modulo.soCodigos).length &&
+    modulosLiberados({ isColaborador: true }).length === MODULOS_COMPLEMENTARES.filter((modulo) => !modulo.soCodigos).length &&
+    modulosLiberados({ isAdmin: true, activeCompanyId: "gc", companies: [{ id: "gc", codigo: "0120" }] }).includes("dre-gerencial") &&
+    !modulosLiberados({ isAdmin: true, activeCompanyId: "x", companies: [{ id: "x", codigo: "999" }] }).includes("dre-gerencial"),
   modulosLiberados({ isAdmin: true })
 );
 check("Cliente sem ficha (ou ainda carregando) → só o B.I., sem menu", modulosLiberados({ modulosCliente: null }).length === 0 && modulosLiberados({ modulosCliente: [] }).length === 0, null);
@@ -869,7 +872,7 @@ const clienteIntacto = !state.visaoCliente && state.modoEquipe === null && state
 Object.assign(state, antesDosModos);
 check(
   "Equipe no portal vê como o cliente (sem edição, todos os módulos); no console volta a editar; cliente nunca muda",
-  !equipeNoPortal.isAdmin && equipeNoPortal.visaoCliente && equipeNoPortal.modulos === 4 && equipeNoPortal.modo === "portal" && equipeNoConsole.isAdmin && !equipeNoConsole.visaoCliente && equipeNoConsole.modulos === null && equipeNoConsole.modo === "console" && clienteIntacto,
+  !equipeNoPortal.isAdmin && equipeNoPortal.visaoCliente && equipeNoPortal.modulos === MODULOS_COMPLEMENTARES.length && equipeNoPortal.modo === "portal" && equipeNoConsole.isAdmin && !equipeNoConsole.visaoCliente && equipeNoConsole.modulos === null && equipeNoConsole.modo === "console" && clienteIntacto,
   { equipeNoPortal, equipeNoConsole, clienteIntacto }
 );
 const unidades = await src("lib/unidades.js");
