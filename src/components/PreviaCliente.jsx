@@ -129,7 +129,7 @@ export default function PreviaCliente({ secao, nomeAlvo, abasVistas, ferramentas
 
       <p className="mt-2.5 text-[11px] leading-snug text-ink-400">
         {semConfiguracao ? "Ainda sem configuração: o cliente vê tudo até você marcar e salvar. " : ""}
-        Início, Serviços e Conteúdos aparecem sempre; a Reforma Tributária segue o acesso próprio dela. Clique nas abas da maquete para ver os itens de cada uma.
+        O Início aparece sempre; as demais áreas você mostra ou esconde em cada seção. Clique nas abas da maquete para ver os itens de cada uma.
       </p>
     </aside>
   );
