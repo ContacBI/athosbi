@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, PackageCheck, Search, Users } from "lucide-react";
+import { ArrowUpRight, Check, PackageCheck, Search, Users, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { groupCompanies } from "../lib/groups.js";
 import { CARTAO, inteiro, moneyFull, pct } from "../lib/fmtNotas.js";
-import { PERFIS, PORTAL_REVISA_NOTA, SITUACOES, fetchRevisaNota, filtrarClientes, filtrarProdutos, perfilDoCliente, resumoDeClientes, resumoDeProdutos, situacaoDoProduto } from "../lib/revisaNota.js";
+import { PERFIS, PORTAL_REVISA_NOTA, SITUACOES, codigosPossiveis, fetchRevisaNota, filtrarClientes, filtrarProdutos, ncmFormatado, opcoesDoProduto, perfilDoCliente, resumoDaClassificacao, resumoDeClientes, resumoDeProdutos, rotuloDaDecisao, situacaoDoProduto } from "../lib/revisaNota.js";
 
 // Revisa Nota (Ferramentas, só Micromedical por enquanto): a classificação dos produtos para IBS/CBS decidida pelo escritório e o perfil confirmado dos compradores. Só leitura —
 // pedir cadastro novo ou mudança continua no portal do Revisa Nota (botão no topo).
@@ -68,16 +68,150 @@ function Cabecalho({ colunas }) {
   );
 }
 
+const TOM_CONDICIONAL = { Sim: "ambar", "Não": "cinza", Depende: "laranja" };
+const TEXTO_CONDICIONAL = {
+  Sim: "O anexo tem mais de um código na tabela oficial: o código da nota pode mudar conforme uma condição, em geral quem compra (órgão público, SUS/CEBAS).",
+  "Não": "Um código só para qualquer comprador.",
+  Depende: "O NCM cai em anexos diferentes: o código depende de qual item da lei descreve o produto.",
+  "—": "O NCM não está em nenhum anexo da LC 214 (em regra, tributação integral).",
+};
+
+function Secao({ titulo, children, direita }) {
+  return (
+    <section className="rounded-xl border border-line bg-surface-card">
+      <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-2.5">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">{titulo}</h3>
+        {direita}
+      </div>
+      <div className="p-4">{children}</div>
+    </section>
+  );
+}
+
+function Dado({ rotulo, children }) {
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-wide text-ink-400">{rotulo}</p>
+      <p className="mt-0.5 text-[13.5px] text-ink-900">{children || "—"}</p>
+    </div>
+  );
+}
+
+// Detalhe de um produto: a decisão do escritório, a sugestão completa da lei, os outros itens/códigos que poderiam entrar e o que significa o "Condicional".
+function DetalheProduto({ produto, lista, onClose }) {
+  const lei = lista.lei || {};
+  const d = produto.decisao;
+  const sit = situacaoDoProduto(produto);
+  const opcoes = opcoesDoProduto(produto, lei);
+  const codigos = codigosPossiveis(produto, lei);
+  const decididoK = d?.status === "decidido" && d.anexo ? `${d.anexo}|${d.item}` : "";
+  const estab = lista.estabs?.[produto.emp];
+
+  useEffect(() => {
+    const fecha = (event) => event.key === "Escape" && onClose();
+    window.addEventListener("keydown", fecha);
+    return () => window.removeEventListener("keydown", fecha);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6 backdrop-blur-[2px]" onClick={onClose}>
+      <div className="flex h-full max-h-[860px] w-full max-w-5xl flex-col rounded-2xl bg-surface-card shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-4">
+          <div className="min-w-0">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Produto · {produto.codigo}{estab ? ` · ${estab}` : ""}</span>
+            <h2 className="mt-0.5 text-[18px] font-semibold text-ink-900">{produto.descricao}</h2>
+            <p className="mt-0.5 text-[12.5px] text-ink-400">NCM {ncmFormatado(produto.ncm)} · {moneyFull(produto.valor)} em {inteiro(produto.notas)} nota{produto.notas === 1 ? "" : "s"}{produto.ultima ? ` · última venda ${dia(produto.ultima)}` : ""}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fechar" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-400 hover:bg-surface-muted hover:text-ink-900"><X size={18} /></button>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto bg-surface-page p-5">
+          <Secao titulo="Decisão do escritório" direita={<Selo tom={TOM_SITUACAO[sit]}>{NOME_SITUACAO[sit]}</Selo>}>
+            {d ? (
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <Dado rotulo="Classificação">{d.anexo ? `Anexo ${d.anexo} · item ${d.item}` : d.status === "duvida" ? "Em dúvida" : "Tributação integral"}</Dado>
+                <Dado rotulo="Tratamento">{d.tratamento}</Dado>
+                <Dado rotulo="Código na nota (cClassTrib)">{d.cClassTrib ? `${d.cClassTrib}${d.cst ? ` · CST ${d.cst}` : ""}` : ""}</Dado>
+                <Dado rotulo="Decidido em">{d.decididoEm ? dia(d.decididoEm) : ""}</Dado>
+                {d.itemTexto && <div className="col-span-2 md:col-span-4"><Dado rotulo="Item da lei">{d.itemTexto}</Dado></div>}
+                {d.ncmCorreto && <Dado rotulo="NCM corrigido pelo escritório">{ncmFormatado(d.ncmCorreto)}</Dado>}
+                {d.observacao && <div className="col-span-2 md:col-span-4"><Dado rotulo="Observação do escritório">{d.observacao}</Dado></div>}
+              </div>
+            ) : (
+              <p className="text-[13px] text-ink-500">Ainda sem decisão do escritório para este produto.</p>
+            )}
+          </Secao>
+
+          <Secao titulo={`Sugestão da lei (LC 214) · ${opcoes.length} ${opcoes.length === 1 ? "item possível" : "itens possíveis"}`}>
+            {!opcoes.length ? (
+              <p className="text-[13px] text-ink-500">O NCM {ncmFormatado(produto.ncm)} não aparece em nenhum anexo da LC 214. Em regra, é tributação integral — o escritório confere o NCM e o cadastro.</p>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {opcoes.map((o) => {
+                  const sugerido = produto.sug?.k === o.k;
+                  return (
+                    <div key={o.k} className={`rounded-lg border p-3 ${o.k === decididoK ? "border-emerald-500/50 bg-emerald-500/5" : "border-line"}`}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[13px] font-semibold text-ink-900">Anexo {o.anexo} · item {o.item}</span>
+                        {o.rotulo && <Selo tom="laranja">{o.reducao != null ? `${o.reducao === 100 ? "100% · alíq. zero" : `${o.reducao}%`}` : o.rotulo}</Selo>}
+                        {sugerido && <Selo tom="azul">Sugerido{produto.sug?.c ? ` · confiança ${produto.sug.c}` : ""}</Selo>}
+                        {o.k === decididoK && <Selo tom="verde">Decidido pelo escritório</Selo>}
+                      </div>
+                      <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-600">{o.descricao}</p>
+                      {o.codigos?.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {o.codigos.map((c) => (
+                            <span key={c.cClassTrib} title={c.nome} className={`rounded-md border px-2 py-0.5 text-[11.5px] tabular-nums ${d?.cClassTrib === c.cClassTrib ? "border-emerald-500/60 text-emerald-600" : "border-line text-ink-600"}`}>{c.cClassTrib}<span className="ml-1 text-ink-400">{c.nome}</span></span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Secao>
+
+          <Secao titulo="Códigos de cClassTrib que podem entrar">
+            {codigos.length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-[13px]">
+                  <thead><tr className="text-left text-[11px] uppercase tracking-wide text-ink-400"><th className="py-1.5 pr-4">Código</th><th className="py-1.5 pr-4">Descrição (tabela oficial)</th><th className="py-1.5">Anexo</th></tr></thead>
+                  <tbody>
+                    {codigos.map((c) => (
+                      <tr key={c.cClassTrib} className="border-t border-line">
+                        <td className="whitespace-nowrap py-1.5 pr-4 tabular-nums font-medium text-ink-900">{c.cClassTrib}{d?.cClassTrib === c.cClassTrib && <Check size={13} className="ml-1.5 inline text-emerald-500" />}</td>
+                        <td className="py-1.5 pr-4 text-ink-700">{c.nome}</td>
+                        <td className="whitespace-nowrap py-1.5 text-ink-500">{c.anexos.join(", ")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-[13px] text-ink-500">Fora dos anexos, o produto usa o código de tributação integral (000001).</p>
+            )}
+            {produto.cond && <p className="mt-3 rounded-lg bg-surface-muted px-3 py-2 text-[12.5px] text-ink-600"><b className="text-ink-800">Condicional: {produto.cond}.</b> {TEXTO_CONDICIONAL[produto.cond] || ""}</p>}
+          </Secao>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Produtos({ lista }) {
   const [busca, setBusca] = useState("");
   const [situacao, setSituacao] = useState("todos");
   const [tratamento, setTratamento] = useState("todos");
   const [limite, setLimite] = useState(LIMITE);
+  const [aberto, setAberto] = useState(null);
   const produtos = lista.produtos;
+  const lei = lista.lei || {};
   const resumo = useMemo(() => resumoDeProdutos(produtos), [produtos]);
   const tratamentos = useMemo(() => [...new Set(produtos.map((p) => p.decisao?.tratamento).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR")), [produtos]);
   const filtrados = useMemo(() => filtrarProdutos(produtos, { busca, situacao, tratamento }), [produtos, busca, situacao, tratamento]);
   const mostrados = filtrados.slice(0, limite);
+  const mostrarFilial = Object.keys(lista.estabs || {}).length > 1;
   const escolher = (id) => { setSituacao((atual) => (atual === id ? "todos" : id)); setLimite(LIMITE); };
 
   return (
@@ -107,31 +241,34 @@ function Produtos({ lista }) {
             </select>
           )}
         </div>
-        <p className="border-b border-line px-4 py-2 text-[12px] text-ink-500">{inteiro(filtrados.length)} produto{filtrados.length === 1 ? "" : "s"} · {moneyFull(filtrados.reduce((s, p) => s + (Number(p.valor) || 0), 0))} vendidos{lista.de ? ` (de ${dia(lista.de)} até ${dia(lista.ate)})` : ""}</p>
-        <div className="max-h-[640px] overflow-auto scrollbar-thin">
-          <table className="w-full min-w-[980px] text-[13px]">
-            <Cabecalho colunas={[["Código"], ["Produto"], ["NCM"], ["Vendas", true], ["Classificação (LC 214)"], ["Código na nota"], ["Situação"]]} />
+        <p className="border-b border-line px-4 py-2 text-[12px] text-ink-500">{inteiro(filtrados.length)} produto{filtrados.length === 1 ? "" : "s"} · {moneyFull(filtrados.reduce((s, p) => s + (Number(p.valor) || 0), 0))} vendidos{lista.de ? ` (de ${dia(lista.de)} até ${dia(lista.ate)})` : ""} · clique numa linha para ver a sugestão completa</p>
+        <div className="max-h-[680px] overflow-auto scrollbar-thin">
+          <table className="w-full min-w-[1180px] text-[13px]">
+            <Cabecalho colunas={[["Código"], ["Descrição"], ["NCM"], ["LC"], ["Anexo"], ["Item"], ["%"], ["Condicional"], ["Valor vendido", true], ["Última venda"], ["Decisão"]]} />
             <tbody>
               {mostrados.map((p, i) => {
-                const d = p.decisao;
+                const r = resumoDaClassificacao(p, lei);
                 const sit = situacaoDoProduto(p);
+                const itens = r.itens.length > 7 ? `${r.itens.slice(0, 7).join(", ")}…` : r.itens.join(", ");
                 return (
-                  <tr key={`${p.emp}|${p.codigo}`} className={`align-top ${i % 2 ? "bg-surface-muted/50" : ""}`}>
-                    <td className="whitespace-nowrap px-4 py-2 tabular-nums text-ink-600">{p.codigo}</td>
-                    <td className="max-w-[340px] px-4 py-2 text-ink-900"><p className="truncate" title={p.descricao}>{p.descricao}</p></td>
-                    <td className="whitespace-nowrap px-4 py-2 tabular-nums text-ink-600">{p.ncm}</td>
-                    <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums text-ink-900">{moneyFull(p.valor)}<p className="text-[11px] text-ink-400">{inteiro(p.notas)} nota{p.notas === 1 ? "" : "s"}</p></td>
-                    <td className="max-w-[300px] px-4 py-2 text-ink-700">
-                      {d?.anexo ? <p>Anexo {d.anexo}{d.item ? ` · item ${d.item}` : ""}</p> : <p className="text-ink-300">—</p>}
-                      {d?.tratamento && <p className="text-[11.5px] text-ink-500">{d.tratamento}</p>}
-                      {d?.observacao && <p className="mt-0.5 truncate text-[11.5px] text-ink-400" title={d.observacao}>{d.observacao}</p>}
+                  <tr key={`${p.emp}|${p.codigo}`} onClick={() => setAberto(p)} className={`cursor-pointer align-middle transition-colors hover:bg-accent-50/40 ${i % 2 ? "bg-surface-muted/50" : ""}`}>
+                    <td className="whitespace-nowrap px-4 py-2.5"><p className="font-semibold text-ink-900">{p.codigo}</p>{mostrarFilial && <p className="text-[10.5px] uppercase tracking-wide text-ink-400">{lista.estabs?.[p.emp]}</p>}</td>
+                    <td className="max-w-[360px] px-4 py-2.5 text-ink-900"><p className="line-clamp-2" title={p.descricao}>{p.descricao}</p></td>
+                    <td className="whitespace-nowrap px-4 py-2.5 font-semibold tabular-nums text-ink-800">{ncmFormatado(p.ncm)}</td>
+                    <td className="px-4 py-2.5 text-center">{r.lc ? <Check size={15} className="mx-auto text-emerald-500" /> : <X size={15} className="mx-auto text-rose-500" />}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-ink-700">{r.anexos.length ? r.anexos.join(" · ") : <span className="text-ink-300">fora dos anexos</span>}</td>
+                    <td className="max-w-[150px] px-4 py-2.5 tabular-nums text-ink-700">{itens || <span className="text-ink-300">fora dos anexos</span>}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-[12px] font-medium text-emerald-600">{r.pct.length ? r.pct.join(" / ") : <span className="font-normal text-ink-300">0%</span>}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5">{p.cond && p.cond !== "—" ? <Selo tom={TOM_CONDICIONAL[p.cond] || "cinza"}>{p.cond}</Selo> : <span className="text-ink-300">—</span>}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums text-ink-900">{moneyFull(p.valor)}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-ink-600">{dia(p.ultima)}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5">
+                      <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-ink-900"><span className={`h-1.5 w-1.5 rounded-full ${sit === "decidido" ? "bg-emerald-500" : sit === "duvida" ? "bg-amber-500" : "bg-ink-300"}`} />{rotuloDaDecisao(p)}</span>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-2 tabular-nums text-ink-700">{d?.cClassTrib || "—"}</td>
-                    <td className="whitespace-nowrap px-4 py-2"><Selo tom={TOM_SITUACAO[sit]}>{NOME_SITUACAO[sit]}</Selo></td>
                   </tr>
                 );
               })}
-              {!mostrados.length && <tr><td colSpan={7} className="px-4 py-10 text-center text-ink-400">Nenhum produto com esses filtros.</td></tr>}
+              {!mostrados.length && <tr><td colSpan={11} className="px-4 py-10 text-center text-ink-400">Nenhum produto com esses filtros.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -141,6 +278,7 @@ function Produtos({ lista }) {
           </div>
         )}
       </div>
+      {aberto && <DetalheProduto produto={aberto} lista={lista} onClose={() => setAberto(null)} />}
     </>
   );
 }

@@ -1313,6 +1313,17 @@ const empRevisa = [{ id: "m", codigo: "305", cnpj: "07.326.871/0001-49" }, { id:
 const idsRevisa = (alvo, grupo) => modAcesso.modulosAplicaveisAoAlvo(alvo, grupo, empRevisa).map((m) => m.id);
 check("Revisa Nota só aparece para a empresa/grupo com a raiz de CNPJ da Micromedical", idsRevisa({ id: "m" }, false).includes("revisa-nota") && !idsRevisa({ id: "o" }, false).includes("revisa-nota") && idsRevisa({ companyIds: ["o", "m"] }, true).includes("revisa-nota"), null);
 
+section("Revisa Nota: classificação no jeito do app do escritório");
+const leiRn = { "XII|5": { anexo: "XII", item: "5", descricao: "Artigos de prótese", rotulo: "alíquota zero", reducao: 100, codigos: [{ cClassTrib: "200004", nome: "Dispositivos médicos (Anexo XII)" }] }, "IV|62": { anexo: "IV", item: "62", descricao: "Cateteres", rotulo: "redução de 60%", reducao: 60, codigos: [{ cClassTrib: "200030", nome: "Redução 60%" }, { cClassTrib: "200005", nome: "Órgão público" }] } };
+const pend = { lc: true, cand: ["IV|62", "XII|5"], sug: { k: "IV|62", c: "alta" }, decisao: null };
+const feito = { lc: true, cand: ["XII|5"], decisao: { status: "decidido", anexo: "XII", item: "5", cClassTrib: "200004" } };
+const integral = { lc: false, cand: [], decisao: { status: "decidido", anexo: "", cClassTrib: "000001" } };
+check("pendente mostra os anexos e itens possíveis e as reduções da lei", (() => { const r = rn.resumoDaClassificacao(pend, leiRn); return r.anexos.join() === "IV,XII" && r.itens.join() === "62,5" && r.pct.join("/") === "60%/100% · alíq. zero" && r.decidido === false; })(), rn.resumoDaClassificacao(pend, leiRn));
+check("decidido mostra só o anexo/item decidido e o % dele", (() => { const r = rn.resumoDaClassificacao(feito, leiRn); return r.anexos.join() === "XII" && r.itens.join() === "5" && r.pct[0] === "100% · alíq. zero" && r.decidido === true; })(), null);
+check("rótulo da decisão: anexo · item, integral, em dúvida, pendente", rn.rotuloDaDecisao(feito) === "Anexo XII · 5" && rn.rotuloDaDecisao(integral) === "Integral" && rn.rotuloDaDecisao({ decisao: { status: "duvida" } }) === "Em dúvida" && rn.rotuloDaDecisao({}) === "Pendente", null);
+check("códigos possíveis juntam os dos itens sem repetir, com o anexo de origem", (() => { const c = rn.codigosPossiveis(pend, leiRn); return c.length === 3 && c.find((x) => x.cClassTrib === "200005").anexos.join() === "IV"; })(), null);
+check("NCM formatado e opções do produto com os dados do dicionário", rn.ncmFormatado("90213930") === "9021.39.30" && rn.opcoesDoProduto(pend, leiRn)[0].descricao === "Cateteres", null);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
