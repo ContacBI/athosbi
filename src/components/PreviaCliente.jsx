@@ -30,7 +30,7 @@ function Cartao({ titulo, indice, dica }) {
   );
 }
 
-export default function PreviaCliente({ secao, nomeAlvo, abasVistas, ferramentasVistas, ferramentasPelaFicha, veBi, nomeWidget, semConfiguracao, textoFixa, areasOcultas }) {
+export default function PreviaCliente({ secao, nomeAlvo, abasVistas, ferramentasVistas, ferramentasPelaFicha, veBi, nomeWidget, semConfiguracao, textoFixa, areasOcultas, rotuloPerfil }) {
   const [abaEscolhida, setAbaEscolhida] = useState(null);
   const [subEscolhida, setSubEscolhida] = useState(null);
 
@@ -46,7 +46,7 @@ export default function PreviaCliente({ secao, nomeAlvo, abasVistas, ferramentas
   return (
     <aside className="hidden w-[460px] shrink-0 flex-col overflow-y-auto border-l border-line bg-surface-muted/40 p-4 xl:flex">
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-accent-600">A tela do cliente</p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-accent-600">A tela do cliente{rotuloPerfil ? ` · ${rotuloPerfil}` : ""}</p>
         <span className="flex items-center gap-1 text-[10.5px] text-ink-400"><Lock size={11} /> prévia — não salva nada</span>
       </div>
 

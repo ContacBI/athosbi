@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff, Trash2, UserPlus, Users, Wrench, X } from "lucide-react";
+import { Eye, EyeOff, Plus, Trash2, UserPlus, Users, Wrench, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import PreviaCliente from "./PreviaCliente.jsx";
 import { grantAccess, inviteUser, listAccessGrants, listAccessPeople, revokeAccess } from "../lib/access.js";
@@ -25,6 +25,10 @@ const SECOES = [
   { id: "conteudos", nome: "Conteúdos", fixa: "Guias da DRE, do balanço, do fluxo de caixa e dos indicadores. Não há itens para marcar, só mostrar ou esconder do menu." },
   { id: "ferramentas", nome: "Ferramentas", icone: Wrench },
 ];
+
+// Perfis no formato que vai pro cadastro (conjuntos viram listas ordenadas); também serve pra saber se algo mudou.
+const perfilParaSalvar = (p) => ({ id: p.id, nome: p.nome, modo: "marcados", visiveis: [...p.visiveis].sort(), modulos: [...p.modulos].sort(), areasOcultas: [...p.areasOcultas].sort() });
+const serializarPerfis = (lista) => JSON.stringify(lista.map(perfilParaSalvar));
 
 function Caixa({ marcado, onChange, disabled, children, recuo = 0, forte = false }) {
   return (
@@ -59,6 +63,14 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
   const [modulos, setModulos] = useState(() => new Set(baseV?.modulos || []));
   const [areasOcultas, setAreasOcultas] = useState(() => new Set((baseV?.areasOcultas || []).filter((id) => AREAS_OCULTAVEIS.includes(id))));
   const areasIniciais = useRef(areasOcultas);
+  // Perfis de acesso (lib/visibilidade.js › configDaPessoa): `perfilAtivo` null = editando o padrão; senão o id do perfil. As caixas sempre editam o que está "vivo" (visiveis/modulos/areasOcultas);
+  // ao trocar de perfil, o que estava na tela é guardado (padraoGuardado ou o próprio perfil) e o do perfil escolhido é carregado.
+  const [perfis, setPerfis] = useState(() => (baseV?.perfis || []).map((p) => ({ id: p.id, nome: p.nome || "Perfil", visiveis: new Set(p.visiveis || []), modulos: new Set(p.modulos || []), areasOcultas: new Set((p.areasOcultas || []).filter((id) => AREAS_OCULTAVEIS.includes(id))) })));
+  const perfisIniciais = useRef(serializarPerfis(perfis));
+  const [perfilAtivo, setPerfilAtivo] = useState(null);
+  const [padraoGuardado, setPadraoGuardado] = useState(null);
+  const [perfilPorPessoa, setPerfilPorPessoa] = useState(() => ({ ...(baseV?.perfilPorPessoa || {}) }));
+  const pessoasIniciais = useRef(JSON.stringify(baseV?.perfilPorPessoa || {}));
   // Como tudo abriu — pra só gravar o que a pessoa mexeu de verdade (ver salvar).
   const visiveisIniciais = useRef(visiveis);
   const modulosIniciais = useRef(modulos);
@@ -138,25 +150,75 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
     }
   }
 
+  const vivo = () => ({ visiveis, modulos, areasOcultas });
+  const mudouPadrao = (conj) => conj.visiveis.size !== visiveisIniciais.current.size || [...conj.visiveis].some((k) => !visiveisIniciais.current.has(k)) || conj.modulos.size !== modulosIniciais.current.size || [...conj.modulos].some((k) => !modulosIniciais.current.has(k));
+  const carregar = (conjuntos) => {
+    setVisiveis(conjuntos.visiveis);
+    setModulos(conjuntos.modulos);
+    setAreasOcultas(conjuntos.areasOcultas);
+  };
+  const guardarAtual = (lista) => (perfilAtivo === null ? lista : lista.map((p) => (p.id === perfilAtivo ? { ...p, ...vivo() } : p)));
+  function trocarPerfil(novoId) {
+    if (novoId === perfilAtivo) return;
+    if (perfilAtivo === null) setPadraoGuardado(vivo());
+    else setPerfis((atual) => guardarAtual(atual));
+    carregar(novoId === null ? padraoGuardado : perfis.find((p) => p.id === novoId));
+    setPerfilAtivo(novoId);
+  }
+  function novoPerfil() {
+    const padraoAgora = perfilAtivo === null ? vivo() : padraoGuardado;
+    // padrão ainda sem configuração (o cliente vê tudo): o perfil novo nasce com tudo marcado; senão, copia o padrão
+    const tudo = { visiveis: new Set(todasAsChaves(item)), modulos: new Set(aplicaveis.map((m) => m.id)), areasOcultas: new Set() };
+    const base = semConfigEfetiva && !mudouPadrao(padraoAgora) ? tudo : { visiveis: new Set(padraoAgora.visiveis), modulos: new Set(padraoAgora.modulos), areasOcultas: new Set(padraoAgora.areasOcultas) };
+    const novo = { id: `perfil_${Date.now().toString(36)}`, nome: `Perfil ${perfis.length + 1}`, ...base };
+    if (perfilAtivo === null) setPadraoGuardado(vivo());
+    setPerfis((atual) => [...guardarAtual(atual), novo]);
+    carregar(base);
+    setPerfilAtivo(novo.id);
+  }
+  function excluirPerfil() {
+    const atual = perfis.find((p) => p.id === perfilAtivo);
+    if (!atual || !window.confirm(`Excluir o perfil “${atual.nome}”? As pessoas dele voltam ao padrão.`)) return;
+    setPerfis((lista) => lista.filter((p) => p.id !== perfilAtivo));
+    setPerfilPorPessoa((mapa) => Object.fromEntries(Object.entries(mapa).filter(([, id]) => id !== perfilAtivo)));
+    carregar(padraoGuardado);
+    setPerfilAtivo(null);
+  }
+  const renomearPerfil = (nome) => setPerfis((lista) => lista.map((p) => (p.id === perfilAtivo ? { ...p, nome } : p)));
+
   // Grava só o que mudou: um grupo/empresa ainda sem configuração continua
   // assim (o cliente vê tudo; os módulos seguem a ficha de cada pessoa) se
   // ninguém mexeu naquela parte — antes, "Salvar alterações" depois de só
   // dar acesso a alguém gravava tudo desmarcado e o cliente perdia o B.I.
   function salvar() {
     const mudou = (inicial, atual) => inicial.size !== atual.size || [...atual].some((chave) => !inicial.has(chave));
-    const mexeuNoBi = mudou(visiveisIniciais.current, visiveis);
-    const mexeuNosModulos = mudou(modulosIniciais.current, modulos);
+    // o que vale como padrão: o que está na tela, ou o guardado se um perfil estava aberto
+    const padrao = perfilAtivo === null ? vivo() : padraoGuardado;
+    const perfisFinal = guardarAtual(perfis);
+    const mapaFinal = Object.fromEntries(Object.entries(perfilPorPessoa).filter(([, id]) => perfisFinal.some((p) => p.id === id)));
+    const mexeuNoBi = mudou(visiveisIniciais.current, padrao.visiveis);
+    const mexeuNosModulos = mudou(modulosIniciais.current, padrao.modulos);
+    const mexeuNasAreas = mudou(areasIniciais.current, padrao.areasOcultas);
+    const mexeuNosPerfis = serializarPerfis(perfisFinal) !== perfisIniciais.current || JSON.stringify(mapaFinal) !== pessoasIniciais.current;
     const visibilidade = { ...(configAnterior || {}) };
-    // empresa que herdava do grupo e mexeu em qualquer parte: grava a configuração própria COMPLETA (B.I. e módulos), senão a parte que não mexeu perderia a herança
-    const mexeuNasAreas = mudou(areasIniciais.current, areasOcultas);
-    const herdeiraQueMexeu = Boolean(heranca) && (mexeuNoBi || mexeuNosModulos || mexeuNasAreas);
+    // empresa que herdava do grupo e mexeu em qualquer parte: grava a configuração própria COMPLETA (B.I., módulos, áreas e perfis), senão a parte que não mexeu perderia a herança
+    const herdeiraQueMexeu = Boolean(heranca) && (mexeuNoBi || mexeuNosModulos || mexeuNasAreas || mexeuNosPerfis);
     if (!naoConfigurado || mexeuNoBi || herdeiraQueMexeu) {
-      Object.assign(visibilidade, { modo: "marcados", visiveis: [...visiveis] });
+      Object.assign(visibilidade, { modo: "marcados", visiveis: [...padrao.visiveis] });
       delete visibilidade.ocultos;
     }
-    if (configuradoProprio || mexeuNosModulos || (herdeiraQueMexeu && configurado)) visibilidade.modulos = [...modulos];
-    if (mexeuNasAreas || herdeiraQueMexeu || Array.isArray(configAnterior?.areasOcultas)) visibilidade.areasOcultas = [...areasOcultas];
-    if (naoConfigurado && !mexeuNoBi && !configuradoProprio && !mexeuNosModulos && !mexeuNasAreas) {
+    if (configuradoProprio || mexeuNosModulos || (herdeiraQueMexeu && configurado)) visibilidade.modulos = [...padrao.modulos];
+    if (mexeuNasAreas || herdeiraQueMexeu || Array.isArray(configAnterior?.areasOcultas)) visibilidade.areasOcultas = [...padrao.areasOcultas];
+    if (mexeuNosPerfis || herdeiraQueMexeu) {
+      if (perfisFinal.length) {
+        visibilidade.perfis = perfisFinal.map(perfilParaSalvar);
+        visibilidade.perfilPorPessoa = mapaFinal;
+      } else {
+        delete visibilidade.perfis;
+        delete visibilidade.perfilPorPessoa;
+      }
+    }
+    if (naoConfigurado && !mexeuNoBi && !configuradoProprio && !mexeuNosModulos && !mexeuNasAreas && !mexeuNosPerfis) {
       onClose();
       return;
     }
@@ -175,9 +237,9 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
 
   // ---- "Como o cliente vê": o menu do site com o que está marcado agora (mesmas regras de lib/visibilidade.js e lib/modulos.js)
   const mudou = (inicial, atual) => inicial.size !== atual.size || [...atual].some((chave) => !inicial.has(chave));
-  const biLivre = semConfigEfetiva && !mudou(visiveisIniciais.current, visiveis); // ainda sem configuração e sem mexer: o cliente vê tudo
+  const biLivre = perfilAtivo === null && semConfigEfetiva && !mudou(visiveisIniciais.current, visiveis); // ainda sem configuração e sem mexer: o cliente vê tudo
   const veBi = (chave) => biLivre || visiveis.has(chave);
-  const modulosLivre = !configurado && !mudou(modulosIniciais.current, modulos); // sem lista da empresa: vale a ficha de cada pessoa
+  const modulosLivre = perfilAtivo === null && !configurado && !mudou(modulosIniciais.current, modulos); // sem lista da empresa: vale a ficha de cada pessoa
   const veModulo = (id) => modulosLivre || modulos.has(id);
   const abasVistas = abas.filter((aba) => veBi(kAba(aba.id))).map((aba) => ({
     ...aba,
@@ -210,6 +272,28 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
           <div className="min-w-0 flex-1 overflow-y-auto p-6">
             {erro && <p className="mb-3 rounded-lg bg-danger-500/10 px-3 py-2 text-[12.5px] text-danger-700">{erro}</p>}
 
+            {secao !== "pessoas" && (
+              <div className="mb-4 rounded-xl border border-line bg-surface-muted/40 p-3">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-ink-400">Quem você está configurando</p>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <button type="button" onClick={() => trocarPerfil(null)} className={`rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors ${perfilAtivo === null ? "border-accent-500 bg-accent-500 text-white" : "border-line text-ink-600 hover:bg-surface-card"}`}>Padrão (todos)</button>
+                  {perfis.map((p) => (
+                    <button key={p.id} type="button" onClick={() => trocarPerfil(p.id)} className={`rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors ${perfilAtivo === p.id ? "border-accent-500 bg-accent-500 text-white" : "border-line text-ink-600 hover:bg-surface-card"}`}>{p.nome}</button>
+                  ))}
+                  <button type="button" onClick={novoPerfil} className="flex items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1 text-[12.5px] font-medium text-accent-600 hover:bg-surface-card"><Plus size={13} /> Novo perfil</button>
+                </div>
+                {perfilAtivo !== null ? (
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                    <input value={perfis.find((p) => p.id === perfilAtivo)?.nome || ""} onChange={(e) => renomearPerfil(e.target.value)} aria-label="Nome do perfil" className="w-56 rounded-lg border border-line bg-surface-card px-3 py-1.5 text-[13px] outline-none focus:border-accent-500" />
+                    <button type="button" onClick={excluirPerfil} className="flex items-center gap-1 rounded-lg border border-line-strong px-2.5 py-1.5 text-[12px] text-ink-600 hover:bg-surface-card hover:text-danger-600"><Trash2 size={13} /> Excluir perfil</button>
+                    <span className="text-[11.5px] text-ink-400">O que você marcar abaixo vale só para as pessoas deste perfil. Escolha quem é de cada perfil em “Quem tem acesso”.</span>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-[11.5px] text-ink-400">{perfis.length ? "O padrão vale para quem não tem perfil." : "Para que pessoas da mesma empresa vejam telas diferentes, crie um perfil e escolha quem é de cada um em “Quem tem acesso”."}</p>
+                )}
+              </div>
+            )}
+
             {secao === "pessoas" && (
               <div>
                 <h3 className="text-[14px] font-semibold text-ink-900">Quem tem acesso</h3>
@@ -228,6 +312,12 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
                         <p className="truncate text-[13px] font-medium text-ink-900">{fichas.get(g.email)?.nome || "Sem nome"}</p>
                         <p className="truncate text-[12px] text-ink-400">{g.email}</p>
                       </div>
+                      {perfis.length > 0 && (
+                        <select value={perfilPorPessoa[g.email.toLowerCase()] || ""} onChange={(e) => setPerfilPorPessoa((mapa) => { const novo = { ...mapa }; if (e.target.value) novo[g.email.toLowerCase()] = e.target.value; else delete novo[g.email.toLowerCase()]; return novo; })} aria-label={`Perfil de ${g.email}`} className="rounded-lg border border-line bg-surface-card px-2.5 py-1.5 text-[12.5px] text-ink-700 outline-none focus:border-accent-500">
+                          <option value="">Padrão</option>
+                          {perfis.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                        </select>
+                      )}
                       <button type="button" onClick={() => tirarAcesso(g)} disabled={trabalhando} title="Tirar o acesso" className="flex h-7 w-7 items-center justify-center rounded-md border border-line-strong text-ink-500 hover:bg-surface-muted hover:text-danger-600 disabled:opacity-40"><Trash2 size={13} /></button>
                     </div>
                   ))}
@@ -309,7 +399,7 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
           </div>
 
           {secao !== "pessoas" && (
-            <PreviaCliente secao={secao} nomeAlvo={item.name} abasVistas={abasVistas} ferramentasVistas={ferramentasVistas} ferramentasPelaFicha={modulosLivre} veBi={veBi} nomeWidget={nomeWidget} semConfiguracao={biLivre || modulosLivre} textoFixa={SECOES.find((x) => x.id === secao)?.fixa || null} areasOcultas={areasOcultas} />
+            <PreviaCliente secao={secao} nomeAlvo={item.name} abasVistas={abasVistas} ferramentasVistas={ferramentasVistas} ferramentasPelaFicha={modulosLivre} veBi={veBi} nomeWidget={nomeWidget} semConfiguracao={biLivre || modulosLivre} textoFixa={SECOES.find((x) => x.id === secao)?.fixa || null} areasOcultas={areasOcultas} rotuloPerfil={perfilAtivo ? perfis.find((p) => p.id === perfilAtivo)?.nome : null} />
           )}
         </div>
 
