@@ -7,7 +7,7 @@ import { saveVisibilidadeEmpresa } from "../lib/companies.js";
 import { saveVisibilidadeGrupo } from "../lib/groups.js";
 import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
 import { MODULOS_COMPLEMENTARES, modulosAplicaveisAoAlvo } from "../lib/modulos.js";
-import { BLOCOS_ENTRADAS_SAIDAS, abasDoAlvo, configHerdada, kAba, kItem, kSubaba, todasAsChaves } from "../lib/visibilidade.js";
+import { BLOCOS_ENTRADAS_SAIDAS, AREAS_OCULTAVEIS, abasDoAlvo, configHerdada, kAba, kItem, kSubaba, todasAsChaves } from "../lib/visibilidade.js";
 
 // "Acesso dos clientes" de uma empresa ou grupo (pedido do Izaias, 28/10/2026): numa tela só, QUEM tem acesso e O QUE cada módulo mostra pra eles.
 // Tudo começa DESMARCADO (29/10/2026): a equipe marca o que o cliente deve ver (aba inteira, subaba ou item), com "Marcar todos" pra agilizar. A configuração vale pra todas as pessoas daquela empresa/grupo
@@ -20,9 +20,9 @@ const SECOES = [
   { id: "pessoas", nome: "Quem tem acesso", icone: Users },
   { id: "inicio", nome: "Início", fixa: "A página inicial do site. Aparece sempre para o cliente, com os atalhos para o que ele tem liberado." },
   { id: "bi", nome: "Meu B.I." },
-  { id: "reforma", nome: "Reforma Tributária", fixa: "Informativo sobre a Reforma Tributária. Tem acesso próprio (Reforma Tributária, no console), independente do que está marcado aqui." },
-  { id: "servicos", nome: "Serviços", fixa: "Área ainda sem conteúdo no site. Aparece no menu do cliente, mas não há nada para marcar aqui por enquanto." },
-  { id: "conteudos", nome: "Conteúdos", fixa: "Guias da DRE, do balanço, do fluxo de caixa e dos indicadores. Aparece sempre para o cliente; por enquanto não dá para esconder por empresa." },
+  { id: "reforma", nome: "Reforma Tributária", fixa: "Informativo sobre a Reforma Tributária. O acesso ao módulo de cadastro dela é próprio (Reforma Tributária, no console); aqui você só decide se o item aparece no menu do cliente." },
+  { id: "servicos", nome: "Serviços", fixa: "Área ainda sem conteúdo no site; não há itens para marcar, só mostrar ou esconder do menu." },
+  { id: "conteudos", nome: "Conteúdos", fixa: "Guias da DRE, do balanço, do fluxo de caixa e dos indicadores. Não há itens para marcar, só mostrar ou esconder do menu." },
   { id: "ferramentas", nome: "Ferramentas", icone: Wrench },
 ];
 
@@ -57,6 +57,8 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
   const configuradoProprio = Array.isArray(item.visibilidade?.modulos);
   const configurado = Array.isArray(baseV?.modulos);
   const [modulos, setModulos] = useState(() => new Set(baseV?.modulos || []));
+  const [areasOcultas, setAreasOcultas] = useState(() => new Set((baseV?.areasOcultas || []).filter((id) => AREAS_OCULTAVEIS.includes(id))));
+  const areasIniciais = useRef(areasOcultas);
   // Como tudo abriu — pra só gravar o que a pessoa mexeu de verdade (ver salvar).
   const visiveisIniciais = useRef(visiveis);
   const modulosIniciais = useRef(modulos);
@@ -146,13 +148,15 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
     const mexeuNosModulos = mudou(modulosIniciais.current, modulos);
     const visibilidade = { ...(configAnterior || {}) };
     // empresa que herdava do grupo e mexeu em qualquer parte: grava a configuração própria COMPLETA (B.I. e módulos), senão a parte que não mexeu perderia a herança
-    const herdeiraQueMexeu = Boolean(heranca) && (mexeuNoBi || mexeuNosModulos);
+    const mexeuNasAreas = mudou(areasIniciais.current, areasOcultas);
+    const herdeiraQueMexeu = Boolean(heranca) && (mexeuNoBi || mexeuNosModulos || mexeuNasAreas);
     if (!naoConfigurado || mexeuNoBi || herdeiraQueMexeu) {
       Object.assign(visibilidade, { modo: "marcados", visiveis: [...visiveis] });
       delete visibilidade.ocultos;
     }
     if (configuradoProprio || mexeuNosModulos || (herdeiraQueMexeu && configurado)) visibilidade.modulos = [...modulos];
-    if (naoConfigurado && !mexeuNoBi && !configuradoProprio && !mexeuNosModulos) {
+    if (mexeuNasAreas || herdeiraQueMexeu || Array.isArray(configAnterior?.areasOcultas)) visibilidade.areasOcultas = [...areasOcultas];
+    if (naoConfigurado && !mexeuNoBi && !configuradoProprio && !mexeuNosModulos && !mexeuNasAreas) {
       onClose();
       return;
     }
@@ -161,6 +165,11 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
     onClose();
   }
 
+  const ToggleArea = ({ id, nome }) => (
+    <div className="mt-3 max-w-xl rounded-xl border border-line p-1.5">
+      <Caixa forte marcado={!areasOcultas.has(id)} onChange={(v) => setAreasOcultas((atual) => { const novo = new Set(atual); if (v) novo.delete(id); else novo.add(id); return novo; })}>Mostrar “{nome}” no menu do cliente</Caixa>
+    </div>
+  );
   const aplicaveis = useMemo(() => modulosAplicaveisAoAlvo(item, ehGrupo, companies), [item, ehGrupo, companies]);
   const abaTotal = abas.length;
 
@@ -229,6 +238,7 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
             {secao === "bi" && (
               <div>
                 <h3 className="text-[14px] font-semibold text-ink-900">Meu B.I.</h3>
+                <ToggleArea id="bi" nome="Meu B.I." />
                 <p className="mt-1 text-[12.5px] text-ink-400">As abas e itens do B.I {ehGrupo ? "deste grupo" : "desta empresa"}. Marque o que o cliente deve ver: uma aba inteira, uma subaba ou só alguns itens (por exemplo, indicadores específicos).</p>
                 {semConfigEfetiva && <p className="mt-3 rounded-lg bg-warning-500/10 px-3 py-2 text-[12px] text-warning-800">Ainda não configurado: hoje o cliente vê tudo. Ao salvar, ele passa a ver só o que estiver marcado aqui.</p>}
                 <div className="mt-3 flex gap-2">
@@ -268,12 +278,14 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
               <div>
                 <h3 className="text-[14px] font-semibold text-ink-900">{SECOES.find((x) => x.id === secao).nome}</h3>
                 <p className="mt-2 max-w-xl rounded-xl border border-line bg-surface-muted/50 px-4 py-3 text-[12.5px] leading-relaxed text-ink-600">{SECOES.find((x) => x.id === secao).fixa}</p>
+                {AREAS_OCULTAVEIS.includes(secao) && <ToggleArea id={secao} nome={SECOES.find((x) => x.id === secao).nome} />}
               </div>
             )}
 
             {secao === "ferramentas" && (
               <div>
                 <h3 className="text-[14px] font-semibold text-ink-900">Ferramentas</h3>
+                <ToggleArea id="ferramentas" nome="Ferramentas" />
                 <p className="mt-1 text-[12.5px] text-ink-400">Os módulos da área Ferramentas do site. Marque os que o cliente {ehGrupo ? "do grupo" : "da empresa"} vê. Os que são só de algumas empresas (como o DRE Gerencial do Gestão Click) só aparecem aqui para elas.</p>
                 {!configurado && <p className="mt-3 rounded-lg bg-warning-500/10 px-3 py-2 text-[12px] text-warning-800">Ainda sem lista: hoje valem as fichas de cada pessoa. Ao salvar, esta lista passa a valer para todos {ehGrupo ? "do grupo" : "da empresa"}.</p>}
                 <div className="mt-3 flex gap-2">
@@ -297,7 +309,7 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
           </div>
 
           {secao !== "pessoas" && (
-            <PreviaCliente secao={secao} nomeAlvo={item.name} abasVistas={abasVistas} ferramentasVistas={ferramentasVistas} ferramentasPelaFicha={modulosLivre} veBi={veBi} nomeWidget={nomeWidget} semConfiguracao={biLivre || modulosLivre} textoFixa={SECOES.find((x) => x.id === secao)?.fixa || null} />
+            <PreviaCliente secao={secao} nomeAlvo={item.name} abasVistas={abasVistas} ferramentasVistas={ferramentasVistas} ferramentasPelaFicha={modulosLivre} veBi={veBi} nomeWidget={nomeWidget} semConfiguracao={biLivre || modulosLivre} textoFixa={SECOES.find((x) => x.id === secao)?.fixa || null} areasOcultas={areasOcultas} />
           )}
         </div>
 

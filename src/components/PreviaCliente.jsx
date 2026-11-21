@@ -30,7 +30,7 @@ function Cartao({ titulo, indice, dica }) {
   );
 }
 
-export default function PreviaCliente({ secao, nomeAlvo, abasVistas, ferramentasVistas, ferramentasPelaFicha, veBi, nomeWidget, semConfiguracao, textoFixa }) {
+export default function PreviaCliente({ secao, nomeAlvo, abasVistas, ferramentasVistas, ferramentasPelaFicha, veBi, nomeWidget, semConfiguracao, textoFixa, areasOcultas }) {
   const [abaEscolhida, setAbaEscolhida] = useState(null);
   const [subEscolhida, setSubEscolhida] = useState(null);
 
@@ -38,9 +38,10 @@ export default function PreviaCliente({ secao, nomeAlvo, abasVistas, ferramentas
   const sub = aba ? aba.subs.find((s) => s.id === subEscolhida) || aba.subs[0] || null : null;
   const itens = aba ? (sub ? sub.widgets || [] : aba.subs.length ? [] : aba.widgets || []).filter((w) => veBi(kItem(aba.id, sub?.id, w.id))) : [];
 
-  const menu = MENU.filter((m) => (m.id === "bi" ? abasVistas.length > 0 : m.id === "ferramentas" ? ferramentasVistas.length > 0 : true));
+  const menu = MENU.filter((m) => !areasOcultas.has(m.id) && (m.id === "bi" ? abasVistas.length > 0 : m.id === "ferramentas" ? ferramentasVistas.length > 0 : true));
   const ativo = MENU.some((m) => m.id === secao) ? secao : "bi";
-  const fixa = MENU.some((m) => m.id === secao) && secao !== "bi" && secao !== "ferramentas";
+  const oculta = areasOcultas.has(secao);
+  const fixa = !oculta && MENU.some((m) => m.id === secao) && secao !== "bi" && secao !== "ferramentas";
 
   return (
     <aside className="hidden w-[460px] shrink-0 flex-col overflow-y-auto border-l border-line bg-surface-muted/40 p-4 xl:flex">
@@ -69,9 +70,10 @@ export default function PreviaCliente({ secao, nomeAlvo, abasVistas, ferramentas
           <p className="truncate text-[10.5px] font-semibold text-slate-700">{nomeAlvo}</p>
         </div>
 
+        {oculta && <EmptyTela texto="Esta área está escondida do menu do cliente: ele não a vê nem abre pelo endereço." />}
         {fixa && <EmptyTela texto={textoFixa || ""} />}
 
-        {!fixa && secao !== "ferramentas" && (
+        {!oculta && !fixa && secao !== "ferramentas" && (
           <div className="min-h-[300px]">
             {!aba && <EmptyTela texto="O cliente não vê nenhuma aba do B.I. Marque ao menos uma à esquerda." />}
             {aba && (
@@ -102,7 +104,7 @@ export default function PreviaCliente({ secao, nomeAlvo, abasVistas, ferramentas
           </div>
         )}
 
-        {!fixa && secao === "ferramentas" && (
+        {!oculta && !fixa && secao === "ferramentas" && (
           <div className="min-h-[300px] p-3">
             {ferramentasVistas.length === 0 && !ferramentasPelaFicha ? (
               <EmptyTela texto="O cliente não vê nenhuma ferramenta. Marque as que ele deve ter à esquerda." />
