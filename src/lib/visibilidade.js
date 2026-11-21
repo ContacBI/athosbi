@@ -18,6 +18,14 @@ export const BLOCOS_ENTRADAS_SAIDAS = [
   { id: "es:grafico", nome: "Gráfico mês a mês" },
 ];
 
+/**
+ * A equipe vê TUDO (pedido do Izaias, 21/11/2026): no console e também no portal do hub, onde a tela só imita o cliente nos controles de edição. O que o cliente não vê só
+ * some quando a equipe liga "Ver como cliente" (clienteSimulado) ou olha como UMA pessoa (pessoaVista).
+ */
+export function equipeVeTudo(st = state) {
+  return Boolean(st.isAdmin || st.isColaborador || (st.modoEquipe === "portal" && !st.pessoaVista && !st.clienteSimulado && (st.realIsAdmin || st.realIsColaborador)));
+}
+
 /** Se a visibilidade já foi configurada de verdade (modo "marcados", lista antiga de ocultos ou lista de módulos). */
 export const temConfiguracao = (v) => Boolean(v && (v.modo === "marcados" || Array.isArray(v.ocultos) || Array.isArray(v.modulos)));
 
@@ -47,7 +55,7 @@ export function visibilidadeAtiva() {
  *  - sem configuração: aparece tudo (pra não tirar a tela de quem já usa antes de configurar).
  */
 export function oculto(chave) {
-  if (state.isAdmin || state.isColaborador) return false;
+  if (equipeVeTudo()) return false;
   return ocultoNaConfiguracao(visibilidadeAtiva(), chave);
 }
 
@@ -78,7 +86,7 @@ export function todasAsChaves(alvo) {
  */
 export const AREAS_OCULTAVEIS = ["bi", "reforma", "servicos", "conteudos", "ferramentas"];
 export function areaOculta(id) {
-  if (state.isAdmin || state.isColaborador) return false;
+  if (equipeVeTudo()) return false;
   return (visibilidadeAtiva()?.areasOcultas || []).includes(id);
 }
 

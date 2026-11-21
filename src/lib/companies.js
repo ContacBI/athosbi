@@ -1542,9 +1542,16 @@ export async function saveNotasConfig(config) {
 // Escolha de acumuladores de VÁRIAS empresas de uma vez (Entradas x Saídas, no consolidado do grupo): mudancas = [{ id, config }]. Só grava nas empresas em que a
 // pessoa pode escrever; devolve quantas foram puladas. Espera o Supabase confirmar e desfaz tudo se falhar.
 export async function saveNotasConfigEmpresas(mudancas) {
+  // No portal do hub a equipe tem isAdmin/isColaborador desligados só na tela: vale o que ela é de verdade (a RLS do banco continua decidindo).
+  const admin = Boolean(state.isAdmin || state.realIsAdmin);
+  const colaborador = Boolean(state.isColaborador || state.realIsColaborador);
+  const email = String(state.userEmail || "").toLowerCase();
   const permitidas = mudancas.filter((m) => {
     const company = state.companies.find((item) => item.id === m.id);
-    return company && canWriteCompany(company);
+    if (!company) return false;
+    if (admin) return true;
+    if (!colaborador) return false;
+    return (company.responsaveis || []).some((item) => String(item).toLowerCase() === email);
   });
   const puladas = mudancas.length - permitidas.length;
   if (!permitidas.length) return { salvas: 0, puladas };

@@ -2,6 +2,7 @@ import { Eye, EyeOff, PencilLine } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAppState } from "../data/useStore.js";
 import { alternarVisaoCliente } from "../lib/visaoCliente.js";
+import { setData } from "../data/useStore.js";
 import { entrarNoModo, usaModos } from "../lib/modoEquipe.js";
 
 function useAlternar() {
@@ -39,10 +40,16 @@ export function VisaoClienteOlho({ className = "" }) {
 export function ModoDaTela({ className = "" }) {
   const state = useAppState();
   if (state.modoEquipe === "portal") {
+    const simulando = Boolean(state.clienteSimulado) || Boolean(state.pessoaVista);
     return (
-      <span title={state.pessoaVista ? `Vendo exatamente o que ${state.pessoaVista.nome || state.pessoaVista.email} vê` : undefined} className={`flex h-8 items-center gap-1 rounded-md border border-accent-500/50 bg-accent-500/15 pl-2.5 pr-1 text-[12px] font-semibold text-accent-700 ${className}`}>
-        <Eye size={14} strokeWidth={1.8} /> {state.pessoaVista ? `Como ${String(state.pessoaVista.nome || state.pessoaVista.email).split(/[ @]/)[0]}` : "Visão do cliente"}
-        <button type="button" onClick={() => entrarNoModo("console")} title="Editar esta empresa/grupo (modo do console)" className="ml-1.5 flex h-6 items-center gap-1 rounded bg-accent-500 px-2 text-[11.5px] font-semibold text-white hover:bg-accent-600">
+      <span title={state.pessoaVista ? `Vendo exatamente o que ${state.pessoaVista.nome || state.pessoaVista.email} vê` : simulando ? "Vendo o que o cliente vê" : "Você vê tudo (a equipe); o que o cliente não vê aparece sem restrição"} className={`flex h-8 items-center gap-1 rounded-md border border-accent-500/50 bg-accent-500/15 pl-2.5 pr-1 text-[12px] font-semibold text-accent-700 ${className}`}>
+        <Eye size={14} strokeWidth={1.8} /> {state.pessoaVista ? `Como ${String(state.pessoaVista.nome || state.pessoaVista.email).split(/[ @]/)[0]}` : simulando ? "Visão do cliente" : "Visão da equipe"}
+        {!state.pessoaVista && (
+          <button type="button" onClick={() => setData({ clienteSimulado: !state.clienteSimulado })} title={simulando ? "Voltar a ver tudo (visão da equipe)" : "Ver como o cliente vê (esconde o que a equipe ocultou)"} className="ml-1.5 flex h-6 items-center gap-1 rounded border border-accent-500/50 px-2 text-[11.5px] font-semibold text-accent-700 hover:bg-accent-500/15">
+            {simulando ? <EyeOff size={12} /> : <Eye size={12} />} {simulando ? "Ver tudo" : "Ver como cliente"}
+          </button>
+        )}
+        <button type="button" onClick={() => entrarNoModo("console")} title="Editar esta empresa/grupo (modo do console)" className="ml-1 flex h-6 items-center gap-1 rounded bg-accent-500 px-2 text-[11.5px] font-semibold text-white hover:bg-accent-600">
           <PencilLine size={12} /> Editar
         </button>
       </span>

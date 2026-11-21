@@ -22,6 +22,7 @@ import { limiteDoCliente, ultimoDiaDoMes } from "../lib/fechamento.js";
 import ThemeToggle from "./ThemeToggle.jsx";
 import { biDentroDoHub, hubLigado } from "../lib/hub.js";
 import { usaModos } from "../lib/modoEquipe.js";
+import { equipeVeTudo } from "../lib/visibilidade.js";
 import { ferramentasDaTela } from "../lib/modulos.js";
 import { lembrarGrupoContexto } from "../lib/unidades.js";
 import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
@@ -437,7 +438,8 @@ function PendingMappingsBanner({ company }) {
   const location = useLocation();
   const hasData = appState.accounts.length > 0;
   const missing = useMemo(() => (hasData ? missingMappingAccounts() : []), [hasData, appState.accounts, appState.mappings, appState.periodStart, appState.companies]);
-  if (!missing.length) return null;
+  // Aviso de trabalho da equipe: o cliente (ou a equipe vendo como cliente) não vê.
+  if (!missing.length || !equipeVeTudo(appState)) return null;
 
   const label = `${missing.length} conta${missing.length === 1 ? "" : "s"} sem De/Para`;
   const exemplos = missing

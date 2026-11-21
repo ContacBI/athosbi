@@ -482,6 +482,7 @@ export default function EntradasSaidas() {
             {verAcumuladores ? <ChevronDown size={16} /> : <ChevronRight size={16} />} Acumuladores: escolher o que entra na conta
             <span className="ml-1 text-[11.5px] font-normal text-ink-400">(só a equipe vê esta parte)</span>
           </button>
+          {aviso && <p className="mt-2 rounded-lg bg-warning-500/10 px-3 py-2 text-[12px] text-warning-800">{aviso}</p>}
           {verAcumuladores && (
             <>
               <div className="mb-3 mt-4 flex flex-wrap items-center justify-between gap-2">

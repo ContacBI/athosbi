@@ -1237,6 +1237,12 @@ check("consolidado junta acumuladores de mesmo nome e lembra de qual empresa/có
 const rNf2 = nfs.montarEntradasSaidas({ membros: [{ id: "a", notasConfig: { flags: { E: { 1040: true } } } }, { id: "b" }], brutos: brutosNf, ano: 2026, mesDe: 1, mesAte: 12, ehGrupo: true });
 check("escolha marcada só numa empresa vira 'parcial' e só ela entra na conta", rNf2.linhas.E[0].conta === "parcial" && rNf2.totais.E.v === 100, rNf2.totais.E);
 
+section("Equipe vê tudo (inclusive no portal do hub)");
+const portalEquipe = { isAdmin: false, isColaborador: false, realIsAdmin: true, realIsColaborador: false, modoEquipe: "portal", pessoaVista: null, clienteSimulado: false };
+check("equipe no portal do hub vê tudo", visib.equipeVeTudo(portalEquipe) === true, null);
+check("equipe simulando o cliente ou vendo como uma pessoa NÃO vê tudo", visib.equipeVeTudo({ ...portalEquipe, clienteSimulado: true }) === false && visib.equipeVeTudo({ ...portalEquipe, pessoaVista: { email: "a@b" } }) === false, null);
+check("cliente de verdade nunca vê tudo; admin no console vê", visib.equipeVeTudo({ isAdmin: false, isColaborador: false, realIsAdmin: false, realIsColaborador: false, modoEquipe: null }) === false && visib.equipeVeTudo({ isAdmin: true }) === true, null);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
