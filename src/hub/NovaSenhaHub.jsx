@@ -121,7 +121,7 @@ export default function NovaSenhaHub({ jaConectado = false }) {
   async function salvar(event) {
     event.preventDefault();
     if (!senhaPronta(senha, confirmacao)) {
-      const falta = regras.find((regra) => regra.id !== "mistura" && !regra.ok);
+      const falta = regras.find((regra) => !regra.ok);
       setErro(`Falta: ${falta.texto.toLowerCase()}.`);
       return;
     }
@@ -163,14 +163,14 @@ export default function NovaSenhaHub({ jaConectado = false }) {
 
           <form onSubmit={salvar} className="mt-9 space-y-5">
             <Campo icone={Lock} rotulo="Senha nova">
-              <input type={verSenha ? "text" : "password"} required autoFocus autoComplete="new-password" value={senha} onChange={(event) => setSenha(event.target.value)} placeholder="••••••••" className={classeDoInput} />
+              <input type={verSenha ? "text" : "password"} required autoFocus autoComplete="new-password" value={senha} onChange={(event) => { setSenha(event.target.value); setErro(""); }} placeholder="••••••••" className={classeDoInput} />
               <button type="button" onClick={() => setVerSenha((v) => !v)} aria-label={verSenha ? "Esconder a senha" : "Mostrar a senha"} className="text-[var(--hub-texto-3)] hover:text-[var(--hub-texto)]">
                 {verSenha ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
             </Campo>
             <Medidor senha={senha} />
             <Campo icone={ShieldCheck} rotulo="Repita a senha">
-              <input type={verSenha ? "text" : "password"} required autoComplete="new-password" value={confirmacao} onChange={(event) => setConfirmacao(event.target.value)} placeholder="••••••••" className={classeDoInput} />
+              <input type={verSenha ? "text" : "password"} required autoComplete="new-password" value={confirmacao} onChange={(event) => { setConfirmacao(event.target.value); setErro(""); }} placeholder="••••••••" className={classeDoInput} />
             </Campo>
 
             <ul className="space-y-1.5">
@@ -178,7 +178,6 @@ export default function NovaSenhaHub({ jaConectado = false }) {
                 <li key={regra.id} className={`flex items-center gap-2 text-[13px] transition-colors ${regra.ok ? "text-[#1d9e75]" : "text-[var(--hub-texto-3)]"}`}>
                   <span className={`flex h-[18px] w-[18px] items-center justify-center rounded-full border transition-colors ${regra.ok ? "border-[#1d9e75] bg-[#1d9e75] text-white" : "border-[var(--hub-borda-forte)]"}`}>{regra.ok && <Check size={11} strokeWidth={3} />}</span>
                   {regra.texto}
-                  {regra.id === "mistura" && <span className="text-[11.5px] text-[var(--hub-texto-3)]">(recomendado)</span>}
                 </li>
               ))}
             </ul>

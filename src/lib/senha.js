@@ -1,7 +1,7 @@
 // Regras e textos da senha nova (recuperação e convite, ver hub/NovaSenhaHub.jsx)
 // — puro, sem Supabase, pra dar pra testar.
 
-export const TAMANHO_MINIMO = 8;
+export const TAMANHO_MINIMO = 6;
 
 // Força de 0 a 3 a partir do tamanho e da variedade de caracteres.
 export function forcaDaSenha(senha) {
@@ -10,22 +10,22 @@ export function forcaDaSenha(senha) {
   const tipos = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter((re) => re.test(texto)).length;
   let nivel = 1;
   if (texto.length >= TAMANHO_MINIMO && tipos >= 2) nivel = 2;
-  if (texto.length >= 12 && tipos >= 3) nivel = 3;
+  if (texto.length >= 10 && tipos >= 3) nivel = 3;
   return { nivel, rotulo: ["", "Fraca", "Boa", "Forte"][nivel] };
 }
 
-// O que a tela confere enquanto a pessoa digita.
+// O que a tela confere enquanto a pessoa digita — as três obrigatórias
+// (pedido do Izaias: pelo menos 6 caracteres e pelo menos 1 número).
 export function regrasDaSenha(senha, confirmacao) {
   const texto = String(senha || "");
   return [
     { id: "tamanho", texto: `Pelo menos ${TAMANHO_MINIMO} caracteres`, ok: texto.length >= TAMANHO_MINIMO },
-    { id: "mistura", texto: "Letras e números", ok: /[A-Za-z]/.test(texto) && /\d/.test(texto) },
+    { id: "numero", texto: "Pelo menos 1 número", ok: /\d/.test(texto) },
     { id: "iguais", texto: "As duas senhas iguais", ok: texto.length > 0 && texto === String(confirmacao || "") },
   ];
 }
 
-// Pode salvar: tamanho mínimo e as duas iguais (letras e números é conselho, não trava).
-export const senhaPronta = (senha, confirmacao) => regrasDaSenha(senha, confirmacao).filter((regra) => regra.id !== "mistura").every((regra) => regra.ok);
+export const senhaPronta = (senha, confirmacao) => regrasDaSenha(senha, confirmacao).every((regra) => regra.ok);
 
 // As mensagens do Supabase (em inglês) em português, do jeito que a pessoa entende.
 export function mensagemDoErroDeSenha(error) {
