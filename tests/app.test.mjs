@@ -1213,6 +1213,18 @@ check("empresa do Gestão Click (120) vê o DRE Gerencial entre os módulos", id
 check("empresa fora do Gestão Click não tem o DRE Gerencial pra configurar", !idsDe({ id: "b" }, false).includes("dre-gerencial"), idsDe({ id: "b" }, false));
 check("grupo com uma empresa do Gestão Click também tem", idsDe({ companyIds: ["a", "b"] }, true).includes("dre-gerencial") && !idsDe({ companyIds: ["b"] }, true).includes("dre-gerencial"), null);
 
+section("Visibilidade: empresa herda a do grupo");
+const visib = await src("lib/visibilidade.js");
+const gruposVis = [
+  { id: "g1", companyIds: ["e1", "e2"], updatedAt: "2026-11-01T10:00:00Z", visibilidade: { modo: "marcados", visiveis: ["bi:tab:a"], modulos: [] } },
+  { id: "g2", companyIds: ["e1"], updatedAt: "2026-11-10T10:00:00Z", visibilidade: { modo: "marcados", visiveis: ["bi:tab:b"] } },
+  { id: "g3", companyIds: ["e3"], visibilidade: null },
+];
+check("empresa sem configuração herda a do grupo configurado", visib.configHerdada({ id: "e2" }, gruposVis)?.grupo.id === "g1", visib.configHerdada({ id: "e2" }, gruposVis));
+check("em mais de um grupo configurado vale o mais recente", visib.configHerdada({ id: "e1" }, gruposVis)?.grupo.id === "g2" && visib.configHerdada({ id: "e1" }, gruposVis)?.varios === true, null);
+check("empresa com configuração própria não herda", visib.configHerdada({ id: "e2", visibilidade: { modo: "marcados", visiveis: [] } }, gruposVis) === null && visib.configHerdada({ id: "e2", visibilidade: { modulos: [] } }, gruposVis) === null, null);
+check("grupo sem configuração, ou empresa sem grupo, não herda nada", visib.configHerdada({ id: "e3" }, gruposVis) === null && visib.configHerdada({ id: "x" }, gruposVis) === null, null);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
