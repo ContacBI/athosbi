@@ -1269,6 +1269,20 @@ check("pessoa com perfil recebe a configuração do perfil", visib.configDaPesso
 check("pessoa sem perfil, ou com perfil que não existe mais, fica no padrão", visib.configDaPessoa(vPerfis, "joao@cliente.com") === vPerfis && visib.configDaPessoa(vPerfis, "sumiu@cliente.com") === vPerfis && visib.configDaPessoa(null, "a@b") === null, null);
 check("só perfis já conta como configuração (a empresa não herda do grupo por cima)", visib.temConfiguracao({ perfis: [{ id: "p1" }] }) === true && visib.temConfiguracao({ perfis: [] }) === false, null);
 
+section("Tipos de acesso: modelos pré-preenchidos");
+const tipos = await src("lib/tiposDeAcesso.js");
+const abasModelo = [
+  { id: "t1", name: "Resumo" }, { id: "t2", name: "Demonstrativos" }, { id: "t3", name: "Indicadores" }, { id: "t4", name: "Gráficos" }, { id: "t5", name: "Outra coisa" },
+];
+const chavesModelo = ["bi:tab:t1", "bi:tab:t2", "bi:sub:t2:s1", "bi:w:t2:s1:dre", "bi:tab:t3", "bi:tab:t4", "bi:tab:t5", "bi:w:t5:_:x", "es:kpis"];
+const ctxModelo = { abas: abasModelo, chaves: chavesModelo, modulosAplicaveis: ["orcamento", "entradas-saidas", "analise-desempenho"], blocos: ["es:kpis"] };
+const fin = tipos.conjuntosDoModelo("financeiro", ctxModelo);
+check("Financeiro leva demonstrativos (com subabas e itens), indicadores e resumo, e não a aba que não combina", fin.visiveis.has("bi:tab:t2") && fin.visiveis.has("bi:sub:t2:s1") && fin.visiveis.has("bi:w:t2:s1:dre") && fin.visiveis.has("bi:tab:t3") && !fin.visiveis.has("bi:tab:t5"), [...fin.visiveis]);
+check("módulos do modelo só os que a empresa tem; entradas x saídas traz os blocos", fin.modulos.has("entradas-saidas") && !fin.modulos.has("carga-tributaria") && fin.visiveis.has("es:kpis"), [...fin.modulos]);
+const mkt = tipos.conjuntosDoModelo("marketing", ctxModelo);
+check("Marketing: resumo e gráficos, sem demonstrativos", mkt.visiveis.has("bi:tab:t1") && mkt.visiveis.has("bi:tab:t4") && !mkt.visiveis.has("bi:tab:t2") && !mkt.modulos.has("entradas-saidas"), [...mkt.visiveis]);
+check("empresa sem nenhuma aba que combine: o modelo libera todas (não nasce vazio)", tipos.conjuntosDoModelo("marketing", { ...ctxModelo, abas: [{ id: "t5", name: "Outra coisa" }] }).visiveis.has("bi:tab:t5"), null);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
