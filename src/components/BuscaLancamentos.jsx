@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, X } from "lucide-react";
+import { FileSpreadsheet, Search, X } from "lucide-react";
 import { filteredJournal } from "../data/calculations.js";
 import { money } from "../lib/format.js";
+import { exportBuscaLancamentosExcel } from "../lib/exportLoaders.js";
+import { activeWorkspaceName } from "../lib/groups.js";
+import { slug } from "../lib/demonstrativoExport.js";
 import { buscarLancamentos, normalizarBusca } from "../lib/buscaLancamentos.js";
 
 // "Buscar lançamento": uma consulta de lançamentos como a da Domínio, em cima do razão que já está carregado no período da tela. Acha pelo valor (exato ou faixa),
@@ -36,6 +39,34 @@ export default function BuscaLancamentos({ onClose, onAbrir }) {
   const { resultado, valorInvalido } = useMemo(() => buscarLancamentos(indice, { historico, valor, conta, de, ate, lado }), [indice, historico, valor, conta, de, ate, lado]);
   const mostrados = resultado.lista.slice(0, LIMITE);
   const filtrando = Boolean(historico.trim() || valor.trim() || conta.trim() || de || ate || lado !== "todos");
+
+  // Excel com TODOS os achados (não só os 300 da tela), dizendo na planilha o que foi procurado.
+  function baixarExcel() {
+    const partes = [
+      historico.trim() && `Histórico: ${historico.trim()}`,
+      valor.trim() && `Valor: ${valor.trim()}`,
+      conta.trim() && `Conta: ${conta.trim()}`,
+      de && `De ${formatDate(de)}`,
+      ate && `Até ${formatDate(ate)}`,
+      lado !== "todos" && (lado === "debito" ? "Só débito" : "Só crédito"),
+    ].filter(Boolean);
+    const nomeEmpresa = activeWorkspaceName();
+    exportBuscaLancamentosExcel({
+      empresa: nomeEmpresa,
+      filtros: `Filtros: ${partes.join(" · ") || "nenhum"}`,
+      mostrarEmpresa: multiEmpresa,
+      fileLabel: `lancamentos_${slug(nomeEmpresa || "empresa")}`,
+      rows: resultado.lista.map((entry) => ({
+        data: entry.data,
+        companyName: entry.companyName,
+        codigo: String(entry.classificacao || "").split("::").pop(),
+        conta: entry.descricao_conta || entry.categoria_gerencial || "",
+        historico: entry.historico,
+        debito: entry.debito,
+        credito: entry.credito,
+      })),
+    });
+  }
 
   useEffect(() => {
     primeiro.current?.focus();
@@ -93,7 +124,14 @@ export default function BuscaLancamentos({ onClose, onAbrir }) {
             {filtrando ? <><b className="text-ink-900">{resultado.lista.length.toLocaleString("pt-BR")}</b> lançamento{resultado.lista.length === 1 ? "" : "s"} encontrado{resultado.lista.length === 1 ? "" : "s"}</> : "Preencha um filtro para buscar"}
             {resultado.lista.length > LIMITE && <> · mostrando os {LIMITE} primeiros (refine a busca)</>}
           </span>
-          {filtrando && resultado.lista.length > 0 && <span>Débito {money(resultado.debito)} · Crédito {money(resultado.credito)}</span>}
+          {filtrando && resultado.lista.length > 0 && (
+            <span className="flex items-center gap-3">
+              <span>Débito {money(resultado.debito)} · Crédito {money(resultado.credito)}</span>
+              <button type="button" onClick={baixarExcel} title={`Baixar os ${resultado.lista.length.toLocaleString("pt-BR")} lançamentos encontrados em Excel`} className="flex h-8 items-center gap-1.5 rounded-md border border-line-strong px-3 text-[12px] font-medium text-ink-600 hover:bg-surface-muted">
+                <FileSpreadsheet size={14} /> Excel
+              </button>
+            </span>
+          )}
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto scrollbar-thin">

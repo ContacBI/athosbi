@@ -21,3 +21,4 @@ export const downloadZip = lazy(() => import("./zipExport.js"), "downloadZip");
 export const exportDomSnapshotPdf = lazy(() => import("./domSnapshotPdf.js"), "exportDomSnapshotPdf");
 export const exportLedgerPdf = lazy(() => import("./ledgerPdf.js"), "exportLedgerPdf");
 export const exportLedgerExcel = lazy(() => import("./ledgerExcel.js"), "exportLedgerExcel");
+export const exportBuscaLancamentosExcel = lazy(() => import("./buscaLancamentosExcel.js"), "exportBuscaLancamentosExcel");
