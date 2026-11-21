@@ -520,11 +520,11 @@ setCompanyState();
 section("Módulos por pessoa");
 const { modulosLiberados, moduloDaRota, MODULOS_COMPLEMENTARES } = await src("lib/modulos.js");
 check(
-  "Equipe vê todos os módulos (a DRE Gerencial só nas empresas do Gestão Click)",
+  "Equipe vê todos os módulos (a DRE Gerencial só nas empresas do Gestão Click; o Revisa Nota só na Micromedical)",
   MODULOS_COMPLEMENTARES.length >= 4 &&
     // a DRE Gerencial só vale pra empresa do Gestão Click (soCodigos): fora dela, a equipe vê as outras
-    modulosLiberados({ isAdmin: true }).length === MODULOS_COMPLEMENTARES.filter((modulo) => !modulo.soCodigos).length &&
-    modulosLiberados({ isColaborador: true }).length === MODULOS_COMPLEMENTARES.filter((modulo) => !modulo.soCodigos).length &&
+    modulosLiberados({ isAdmin: true }).length === MODULOS_COMPLEMENTARES.filter((modulo) => !modulo.soCodigos && !modulo.soCnpjRaiz).length &&
+    modulosLiberados({ isColaborador: true }).length === MODULOS_COMPLEMENTARES.filter((modulo) => !modulo.soCodigos && !modulo.soCnpjRaiz).length &&
     modulosLiberados({ isAdmin: true, activeCompanyId: "gc", companies: [{ id: "gc", codigo: "0120" }] }).includes("dre-gerencial") &&
     !modulosLiberados({ isAdmin: true, activeCompanyId: "x", companies: [{ id: "x", codigo: "999" }] }).includes("dre-gerencial"),
   modulosLiberados({ isAdmin: true })
@@ -1292,6 +1292,26 @@ const herdeira = { id: "e2", codigo: "11", dashboardTabs: [{ id: "t1", name: "Re
 const grupoHerdado = { id: "g1", companyIds: ["e2"], visibilidade: { modo: "marcados", visiveis: ["bi:tab:t1"], modulos: [] } };
 const volHerdeira = tipos.visibilidadeComTipo({ item: herdeira, ehGrupo: false, email: "b@x.com", tipoId: "comercial", companies: [herdeira], groups: [grupoHerdado] });
 check("empresa que herdava do grupo leva a cópia do padrão do grupo junto com o tipo (não perde a herança)", volHerdeira.modo === "marcados" && volHerdeira.visiveis[0] === "bi:tab:t1" && volHerdeira.perfilPorPessoa["b@x.com"] === "comercial", volHerdeira);
+
+section("Revisa Nota (ferramenta só da Micromedical)");
+const rn = await src("lib/revisaNota.js");
+const prods = [
+  { emp: 332, codigo: "A1", descricao: "CATETER BALAO", ncm: "90181990", valor: 100, notas: 2, decisao: { status: "decidido", tratamento: "redução de 60%", anexo: "IV" } },
+  { emp: 332, codigo: "B2", descricao: "Eletrodo de estimulação", ncm: "90189099", valor: 300, notas: 5, decisao: { status: "duvida", tratamento: "" } },
+  { emp: 333, codigo: "C3", descricao: "Fio guia", ncm: "90213930", valor: 50, notas: 1, decisao: null },
+];
+const resP = rn.resumoDeProdutos(prods);
+check("resumo de produtos conta quantidade e valor por situação", resP.total.qtd === 3 && resP.decidido.qtd === 1 && resP.duvida.valor === 300 && resP.pendente.qtd === 1, resP);
+check("filtro de produtos: busca sem acento, situação e ordem pelo maior valor", rn.filtrarProdutos(prods, { busca: "estimulacao" }).length === 1 && rn.filtrarProdutos(prods, { situacao: "decidido" })[0].codigo === "A1" && rn.filtrarProdutos(prods)[0].codigo === "B2", null);
+const clis = [
+  { chave: "1", nome: "HOSPITAL X LTDA", doc: "12345678000100", uf: "PR", valor: 500, perfil: { tipo: "privado" } },
+  { chave: "2", nome: "Prefeitura de Londrina", doc: "***.123.456-**", uf: "PR", valor: 900, perfil: { tipo: "publico" } },
+  { chave: "3", nome: "Clínica Y", doc: "99999999000199", uf: "SP", valor: 10, perfil: null },
+];
+check("clientes: resumo por perfil (sem perfil = não confirmado) e filtros", rn.resumoDeClientes(clis).sem.qtd === 1 && rn.resumoDeClientes(clis).publico.valor === 900 && rn.filtrarClientes(clis, { perfil: "sem" })[0].chave === "3" && rn.filtrarClientes(clis, { busca: "londrina" })[0].chave === "2" && rn.filtrarClientes(clis, { uf: "SP" }).length === 1, null);
+const empRevisa = [{ id: "m", codigo: "305", cnpj: "07.326.871/0001-49" }, { id: "o", codigo: "9", cnpj: "11111111000111" }];
+const idsRevisa = (alvo, grupo) => modAcesso.modulosAplicaveisAoAlvo(alvo, grupo, empRevisa).map((m) => m.id);
+check("Revisa Nota só aparece para a empresa/grupo com a raiz de CNPJ da Micromedical", idsRevisa({ id: "m" }, false).includes("revisa-nota") && !idsRevisa({ id: "o" }, false).includes("revisa-nota") && idsRevisa({ companyIds: ["o", "m"] }, true).includes("revisa-nota"), null);
 
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {

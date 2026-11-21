@@ -1222,6 +1222,22 @@ drop policy if exists "gestaoclick_dre_read_scoped" on public.gestaoclick_dre;
 create policy "gestaoclick_dre_read_scoped" on public.gestaoclick_dre for select to authenticated
   using (is_portal_admin() or is_colaborador() or company_id = any (allowed_company_ids()));
 
+-- Revisa Nota (conferidor de NF-e IBS/CBS): produtos com a classificação decidida e compradores com o perfil, vindos do app do escritório (função revisa-nota). Uma linha por empresa
+-- do portal com aquela raiz de CNPJ e por tipo; o módulo "Revisa Nota" (Ferramentas) só lê.
+create table if not exists public.revisa_nota (
+  company_id text not null,
+  tipo text not null check (tipo in ('produtos', 'clientes')),
+  cnpj_raiz text not null,
+  dados jsonb not null,
+  assinatura text,
+  synced_at timestamptz not null default now(),
+  primary key (company_id, tipo)
+);
+alter table public.revisa_nota enable row level security;
+drop policy if exists "revisa_nota_read_scoped" on public.revisa_nota;
+create policy "revisa_nota_read_scoped" on public.revisa_nota for select to authenticated
+  using (is_portal_admin() or is_colaborador() or company_id = any (allowed_company_ids()));
+
 create table if not exists public.dominio_dfc_modelo (
   company_codigo text not null,
   cnpj text not null,
