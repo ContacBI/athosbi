@@ -4,6 +4,9 @@ import { useAppState } from "../../data/useStore.js";
 import { listAccessGrants, grantAccess, revokeAccess, inviteUser, listAccessPeople, saveAccessPerson, deleteAccessPerson } from "../../lib/access.js";
 import { hasAnyResponsibility } from "../../lib/colaboradores.js";
 import { MODULOS_COMPLEMENTARES } from "../../lib/modulos.js";
+import { saveVisibilidadeEmpresa } from "../../lib/companies.js";
+import { saveVisibilidadeGrupo } from "../../lib/groups.js";
+import { tipoAtual, visibilidadeComTipo } from "../../lib/tiposDeAcesso.js";
 import PageHeader from "../../components/PageHeader.jsx";
 import AccessModal from "../../components/AccessModal.jsx";
 import Avatar from "../../components/Avatar.jsx";
@@ -101,7 +104,7 @@ export default function AcessosAdmin() {
   // Criar ou editar: grava a ficha, cria as concessões novas, tira as que
   // foram desmarcadas (só editando) e, se pedido, manda o convite — um só,
   // mesmo com várias empresas/grupos.
-  async function handleSave({ email, nome, telefone, observacao, modulos, companyIds, groupIds, convidar }) {
+  async function handleSave({ email, nome, telefone, observacao, modulos, companyIds, groupIds, tipos = {}, convidar }) {
     setSaving(true);
     setError("");
     setNotice("");
@@ -119,6 +122,22 @@ export default function AcessosAdmin() {
       } catch (fichaErr) {
         console.error("Falha ao salvar a ficha da pessoa:", fichaErr);
         avisos.push("o nome/contato e os módulos não foram salvos agora (tente editar de novo)");
+      }
+      // Tipo de acesso em cada empresa/grupo: só grava onde mudou (a configuração mora no cadastro da empresa/grupo, ver lib/tiposDeAcesso.js)
+      try {
+        for (const item of querido) {
+          const ehGrupo = item.scopeType === "group";
+          const alvo = ehGrupo ? state.groups.find((g) => g.id === item.scopeId) : state.companies.find((c) => c.id === item.scopeId);
+          if (!alvo) continue;
+          const escolhido = tipos[`${item.scopeType}:${item.scopeId}`] || "";
+          if (escolhido === tipoAtual(alvo, ehGrupo, email, state.groups)) continue;
+          const visibilidade = visibilidadeComTipo({ item: alvo, ehGrupo, email, tipoId: escolhido, companies: state.companies, groups: state.groups });
+          if (ehGrupo) saveVisibilidadeGrupo(alvo.id, visibilidade);
+          else saveVisibilidadeEmpresa(alvo.id, visibilidade);
+        }
+      } catch (tipoErr) {
+        console.error("Falha ao salvar o tipo de acesso:", tipoErr);
+        avisos.push("o tipo de acesso não foi salvo agora (abra o Acesso dos clientes da empresa para escolher)");
       }
       if (convidar) {
         try {

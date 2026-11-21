@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { Activity, ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, CircleAlert, Info, RefreshCw, Search, TriangleAlert } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { selectCompany } from "../lib/companies.js";
+import { abrirEmOutraAba, enderecoDeAbertura } from "../lib/abrirEmOutraAba.js";
 import { listAdmins, listColaboradores } from "../lib/colaboradores.js";
 import { analyzeCompanyJournal, cachedJournalStats, monthLabel, resumosGuardados } from "../lib/carteira.js";
 import { agendarSaude, useSaude } from "../equipe/useSaude.js";
@@ -132,7 +133,8 @@ export default function Carteira({ dentroDoConsole = false }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [issueFilter, setIssueFilter] = useState("");
-  const [owner, setOwner] = useState("");
+  // `?responsavel=minhas` (a Visão geral do console mostra só as da pessoa): já abre filtrada.
+  const [owner, setOwner] = useState(() => (new URLSearchParams(window.location.search).get("responsavel") === "minhas" ? "__mine" : ""));
   const [expanded, setExpanded] = useState(null);
   const [names, setNames] = useState({});
   const [analysis, setAnalysis] = useState(null); // { done, total, current, errors }
@@ -188,6 +190,8 @@ export default function Carteira({ dentroDoConsole = false }) {
       navigate(action.path);
       return;
     }
+    // No console, o B.I. abre em outra aba (o console fica aqui) — se o navegador bloquear, abre aqui mesmo.
+    if (dentroDoConsole && abrirEmOutraAba(enderecoDeAbertura({ tipo: "empresa", id: company.id }, { destino: action.path }))) return;
     selectCompany(company.id);
     navigate(action.path);
   }

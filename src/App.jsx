@@ -11,7 +11,7 @@ import ConfirmAccess from "./pages/ConfirmAccess.jsx";
 import { supabase } from "./lib/supabaseClient.js";
 import { ligarRegistroDeUso, mudouDeTela } from "./lib/uso.js";
 import { EH_TESTE } from "./lib/ambiente.js";
-import { aplicarTemaDoHub, biDentroDoHub, hubLigado, querPortalAtual } from "./lib/hub.js";
+import { aplicarTemaDoHub, biDentroDoHub, hubLigado, querPortalAtual, loginNovo } from "./lib/hub.js";
 import { entrarNoModo, modoDaRota, modoGuardado, usaModos } from "./lib/modoEquipe.js";
 import Empresas from "./pages/Empresas.jsx";
 import CompanyHome from "./pages/CompanyHome.jsx";
@@ -37,6 +37,7 @@ import Carregando from "./components/Carregando.jsx";
 // que qualquer sessão vê.
 const PainelTab = lazy(() => import("./pages/PainelTab.jsx"));
 const SharedPresentation = lazy(() => import("./pages/SharedPresentation.jsx"));
+const NovaSenhaHub = lazy(() => import("./hub/NovaSenhaHub.jsx"));
 const Celular = lazy(() => import("./pages/Celular.jsx"));
 const PersonalizarHub = lazy(() => import("./pages/PersonalizarHub.jsx"));
 const Demonstrativos = lazy(() => import("./pages/Demonstrativos.jsx"));
@@ -51,6 +52,8 @@ const Orcamento = lazy(() => import("./pages/Orcamento.jsx"));
 const CargaTributaria = lazy(() => import("./pages/CargaTributaria.jsx"));
 const AnaliseDesempenho = lazy(() => import("./pages/AnaliseDesempenho.jsx"));
 const EntradasSaidas = lazy(() => import("./pages/EntradasSaidas.jsx"));
+const DreGerencial = lazy(() => import("./pages/DreGerencial.jsx"));
+const RevisaNota = lazy(() => import("./pages/RevisaNota.jsx"));
 const CompaniesAdmin = lazy(() => import("./pages/parametros/CompaniesAdmin.jsx"));
 const GruposAdmin = lazy(() => import("./pages/parametros/GruposAdmin.jsx"));
 const DeParaAdmin = lazy(() => import("./pages/parametros/DeParaAdmin.jsx"));
@@ -80,6 +83,7 @@ const ConsoleLayout = lazy(() => import("./equipe/ConsoleLayout.jsx"));
 const ConsoleVisaoGeral = lazy(() => import("./equipe/ConsoleVisaoGeral.jsx"));
 const ConsoleClientes = lazy(() => import("./equipe/ConsoleClientes.jsx"));
 const ConsoleCliente = lazy(() => import("./equipe/ConsoleCliente.jsx"));
+const AbrirNaAba = lazy(() => import("./equipe/AbrirNaAba.jsx"));
 const ReformaSimulacao = lazy(() => import("./pages/reforma/ReformaSimulacao.jsx"));
 const ReformaPainel = lazy(() => import("./pages/reforma/ReformaPainel.jsx"));
 const ReformaEmpresa = lazy(() => import("./pages/reforma/ReformaEmpresa.jsx"));
@@ -223,8 +227,8 @@ function AuthedApp() {
     bootedForUserRef.current = session.user.id;
     Promise.all([
       loadPlan(),
-      // No console da equipe não reabre a última empresa/grupo (nem baixa o razão dela) — ver loadCompanies.
-      loadCompanies({ semAbrir: window.location.pathname.startsWith("/equipe") }),
+      // No console da equipe (e na aba que ele abre, /abrir) não reabre a última empresa/grupo (nem baixa o razão dela) — ver loadCompanies.
+      loadCompanies({ semAbrir: /^\/(equipe|abrir)(\/|$)/.test(window.location.pathname) }),
       loadRepresentantes(),
       loadIndicatorOverrides(),
       isPortalAdmin(),
@@ -337,6 +341,8 @@ function AuthedApp() {
           <Route path="carteira" element={<Carteira dentroDoConsole />} />
           {rotasDeCadastro()}
         </Route>
+        {/* A aba nova que o console abre pro B.I. (lib/abrirEmOutraAba.js). */}
+        <Route path="abrir" element={<AbrirNaAba />} />
         <Route path="reforma" element={<ReformaHome />} />
         <Route path="reforma/painel" element={<ReformaPainel />} />
         <Route path="reforma/empresa/:id" element={<ReformaEmpresa />} />
@@ -368,6 +374,8 @@ function AuthedApp() {
             <Route path="carga-tributaria" element={<CargaTributaria />} />
             <Route path="analise-desempenho" element={<AnaliseDesempenho />} />
             <Route path="entradas-saidas" element={<EntradasSaidas />} />
+            <Route path="dre-gerencial" element={<DreGerencial />} />
+            <Route path="revisa-nota" element={<RevisaNota />} />
             <Route path="apresentacoes/:deckId" element={<Apresentacoes />} />
           </Route>
         </Route>
@@ -423,6 +431,13 @@ function AppConteudo() {
   // checagem de pathname. Comparação crua de window.location porque isso
   // roda antes do <BrowserRouter> existir.
   if (window.location.pathname === "/confirmar-acesso") {
+    // No teste, a senha nova no visual do hub (uma tela só, ver NovaSenhaHub.jsx).
+    if (loginNovo())
+      return (
+        <Suspense fallback={<Carregando escuro texto="Abrindo…" />}>
+          <NovaSenhaHub />
+        </Suspense>
+      );
     return <ConfirmAccess />;
   }
   // Apresentação compartilhada por link (/p/<código>): aberta por quem não

@@ -9,7 +9,7 @@ import { MarcaAnimada } from "./Carregando.jsx";
 //
 // `progress` (0..1, ou null quando não dá pra medir) só vale na fase
 // "loading"; em "calculating" a barra fica cheia e pulsando.
-export default function WorkspaceLoading({ name, isGroup, phase = "loading", progress = null, onCancel }) {
+export default function WorkspaceLoading({ name, isGroup, phase = "loading", progress = null, onCancel, cancelLabel = "Voltar pra lista" }) {
   const calculating = phase === "calculating" || (progress !== null && progress >= 1);
   const percent = progress === null ? null : Math.round(Math.min(1, Math.max(0, progress)) * 100);
   return (
@@ -40,7 +40,7 @@ export default function WorkspaceLoading({ name, isGroup, phase = "loading", pro
         </p>
         {onCancel && (
           <button type="button" onClick={onCancel} className="text-[12px] text-ink-400 underline decoration-line-strong underline-offset-2 hover:text-ink-700">
-            Voltar pra lista
+            {cancelLabel}
           </button>
         )}
       </div>

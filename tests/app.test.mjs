@@ -5,11 +5,11 @@
 // feita à mão a partir das operações da empresa-exemplo.
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { buildEmpresaExemplo, COMPANY_ID, PERIOD } from "./fixtures/empresaExemplo.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const src = (file) => import(path.join(ROOT, "src", file));
+const src = (file) => import(pathToFileURL(path.join(ROOT, "src", file)).href);
 
 const { state } = await src("data/store.js");
 const { parseCsv } = await src("importers/csv.js");
@@ -520,10 +520,13 @@ setCompanyState();
 section("Módulos por pessoa");
 const { modulosLiberados, moduloDaRota, MODULOS_COMPLEMENTARES } = await src("lib/modulos.js");
 check(
-  "Equipe vê todos os módulos",
+  "Equipe vê todos os módulos (a DRE Gerencial só nas empresas do Gestão Click; o Revisa Nota só na Micromedical)",
   MODULOS_COMPLEMENTARES.length >= 4 &&
-    modulosLiberados({ isAdmin: true }).length === MODULOS_COMPLEMENTARES.length &&
-    modulosLiberados({ isColaborador: true }).length === MODULOS_COMPLEMENTARES.length,
+    // a DRE Gerencial só vale pra empresa do Gestão Click (soCodigos): fora dela, a equipe vê as outras
+    modulosLiberados({ isAdmin: true }).length === MODULOS_COMPLEMENTARES.filter((modulo) => !modulo.soCodigos && !modulo.soCnpjRaiz).length &&
+    modulosLiberados({ isColaborador: true }).length === MODULOS_COMPLEMENTARES.filter((modulo) => !modulo.soCodigos && !modulo.soCnpjRaiz).length &&
+    modulosLiberados({ isAdmin: true, activeCompanyId: "gc", companies: [{ id: "gc", codigo: "0120" }] }).includes("dre-gerencial") &&
+    !modulosLiberados({ isAdmin: true, activeCompanyId: "x", companies: [{ id: "x", codigo: "999" }] }).includes("dre-gerencial"),
   modulosLiberados({ isAdmin: true })
 );
 check("Cliente sem ficha (ou ainda carregando) → só o B.I., sem menu", modulosLiberados({ modulosCliente: null }).length === 0 && modulosLiberados({ modulosCliente: [] }).length === 0, null);
@@ -854,7 +857,8 @@ check(
     modoEquipe.modoDaRota("/hub/reforma") === "portal" &&
     modoEquipe.modoDaRota("/empresa/painel/x", "console") === "console" &&
     modoEquipe.modoDaRota("/empresa", "portal") === "portal" &&
-    modoEquipe.modoDaRota("/equipes", "portal") === "portal",
+    modoEquipe.modoDaRota("/equipes", "portal") === "portal" &&
+    modoEquipe.modoDaRota("/abrir", "portal") === "console",
   null
 );
 const antesDosModos = { userEmail: state.userEmail, isAdmin: state.isAdmin, isColaborador: state.isColaborador, realIsAdmin: state.realIsAdmin, realIsColaborador: state.realIsColaborador, visaoCliente: state.visaoCliente, modoEquipe: state.modoEquipe, modulosCliente: state.modulosCliente };
@@ -869,7 +873,7 @@ const clienteIntacto = !state.visaoCliente && state.modoEquipe === null && state
 Object.assign(state, antesDosModos);
 check(
   "Equipe no portal vê como o cliente (sem edição, todos os módulos); no console volta a editar; cliente nunca muda",
-  !equipeNoPortal.isAdmin && equipeNoPortal.visaoCliente && equipeNoPortal.modulos === 4 && equipeNoPortal.modo === "portal" && equipeNoConsole.isAdmin && !equipeNoConsole.visaoCliente && equipeNoConsole.modulos === null && equipeNoConsole.modo === "console" && clienteIntacto,
+  !equipeNoPortal.isAdmin && equipeNoPortal.visaoCliente && equipeNoPortal.modulos === MODULOS_COMPLEMENTARES.length && equipeNoPortal.modo === "portal" && equipeNoConsole.isAdmin && !equipeNoConsole.visaoCliente && equipeNoConsole.modulos === null && equipeNoConsole.modo === "console" && clienteIntacto,
   { equipeNoPortal, equipeNoConsole, clienteIntacto }
 );
 const unidades = await src("lib/unidades.js");
@@ -957,7 +961,7 @@ check(
     nomeCurto({ name: "QUAENT LTDA (2025)" }) === "QUAENT (2025)",
   null
 );
-const { baseDeTeste } = await import(path.join(ROOT, "scripts/gerar-base-de-teste.mjs"));
+const { baseDeTeste } = await import(pathToFileURL(path.join(ROOT, "scripts/gerar-base-de-teste.mjs")).href);
 const base = baseDeTeste();
 const fechaPartidas = base.companies.every((empresa) => Math.abs(empresa.journal.reduce((soma, entry) => soma + entry.debito - entry.credito, 0)) < 0.05);
 check(
@@ -966,7 +970,7 @@ check(
   null
 );
 
-const robo = await import(path.join(ROOT, "scripts/copiar-oficial-para-teste.mjs"));
+const robo = await import(pathToFileURL(path.join(ROOT, "scripts/copiar-oficial-para-teste.mjs")).href);
 const recusa = (oficial, teste) => {
   try {
     robo.conferirEnderecos(oficial, teste);
@@ -1128,6 +1132,228 @@ check(
   exportVisual.nomeDaAba("A/B: C*D", usadas) === "A B  C D" && exportVisual.nomeDaAba("X".repeat(40), usadas).length === 31 && exportVisual.nomeDaAba("X".repeat(40), usadas).endsWith(" 2"),
   null
 );
+
+// Console: a Visão geral só com as empresas de quem está logado; o B.I. abre em outra aba (/abrir).
+check(
+  "Console: as empresas de um responsável (e-mail sem diferença de maiúsculas), nenhuma sem e-mail",
+  unidades.empresasDoResponsavel([{ id: "a", responsaveis: ["Ana@Athos.com"] }, { id: "b", responsaveis: ["bia@athos.com"] }, { id: "c" }], " ana@athos.com").map((c) => c.id).join() === "a" &&
+    unidades.empresasDoResponsavel([{ id: "a", responsaveis: ["ana@athos.com"] }], "").length === 0,
+  null
+);
+const abertura = await src("lib/abrirEmOutraAba.js");
+const urlGrupo = abertura.enderecoDeAbertura({ tipo: "grupo", id: "g1" }, { destino: "/empresa/personalizar" });
+const urlPessoa = abertura.enderecoDeAbertura({ tipo: "empresa", id: "e1" }, { pessoa: { email: "cliente@empresa.com", empresas: ["e1"], grupos: [] } });
+const pedidoGrupo = abertura.lerAbertura(urlGrupo.split("?")[1]);
+const pedidoPessoa = abertura.lerAbertura(urlPessoa.split("?")[1]);
+const pedidoRepetido = abertura.lerAbertura(urlPessoa.split("?")[1]);
+const pedidoTorto = abertura.lerAbertura("?tipo=empresa&id=e2&destino=https://fora.com&modo=x");
+check(
+  "Console › outra aba: o endereço leva grupo/empresa, destino e modo; o \"ver como\" uma pessoa vai fora do endereço e vale uma vez só; destino de fora vira o painel",
+  urlGrupo.startsWith("/abrir?") &&
+    pedidoGrupo.tipo === "grupo" && pedidoGrupo.id === "g1" && pedidoGrupo.destino === "/empresa/personalizar" && pedidoGrupo.modo === "console" && pedidoGrupo.pessoa === null &&
+    !urlPessoa.includes("cliente") && pedidoPessoa.modo === "portal" && pedidoPessoa.pessoa?.email === "cliente@empresa.com" &&
+    pedidoRepetido.pessoa === null &&
+    pedidoTorto.destino === "/empresa" && pedidoTorto.modo === "console" &&
+    abertura.lerAbertura("?tipo=grupo") === null &&
+    abertura.destinoValido("/empresa/de-para") === "/empresa/de-para" && abertura.destinoValido("/empresa/../parametros") === "/empresa",
+  { urlGrupo, urlPessoa, pedidoGrupo, pedidoPessoa, pedidoTorto }
+);
+
+// Senha nova (recuperação e convite, lib/senha.js): força, regras e as mensagens do Supabase em português.
+const senhaLib = await src("lib/senha.js");
+check(
+  "Senha nova: força, regras (mínimo de 6, pelo menos 1 número, iguais) e mensagens do Supabase traduzidas",
+  senhaLib.forcaDaSenha("").nivel === 0 &&
+    senhaLib.forcaDaSenha("abc").nivel === 1 &&
+    senhaLib.forcaDaSenha("athos2026").nivel === 2 &&
+    senhaLib.forcaDaSenha("Athos-Hub-2026!").nivel === 3 &&
+    senhaLib.senhaPronta("abc123", "abc123") &&
+    !senhaLib.senhaPronta("abcdefgh", "abcdefgh") &&
+    !senhaLib.senhaPronta("ab12", "ab12") &&
+    !senhaLib.senhaPronta("athos2026", "athos2027") &&
+    senhaLib.regrasDaSenha("athos2026", "athos2026").every((regra) => regra.ok) &&
+    /espere um minuto/.test(senhaLib.mensagemDoErroDeSenha({ status: 429, message: "For security purposes, you can only request this after 42 seconds." })) &&
+    /diferente da anterior/.test(senhaLib.mensagemDoErroDeSenha({ message: "New password should be different from the old password." })) &&
+    /não vale mais/.test(senhaLib.mensagemDoErroDeSenha({ message: "Email link is invalid or has expired" })) &&
+    /e-mail/.test(senhaLib.mensagemDoErroDeSenha({ message: "Email address \"x\" is invalid" })) &&
+    /não vale mais/.test(senhaLib.mensagemDoErroDeSenha({ message: "Token has expired or is invalid" })),
+  null
+);
+
+section("Cadastro pelo código da Domínio");
+const domEmp = await src("lib/dominioEmpresas.js");
+const listaDominio = [
+  { codigo: "1", nome: "TERMOPLEX TECNOLOGIA DA INFORMACAO LTDA", cnpj: "13240423000120", cidade: "", uf: "PR", situacao: "A" },
+  { codigo: "2", nome: "D.MARCAL - SERVICOS AUTOMOTIVOS LTDA.", cnpj: "04294715000155", cidade: "LONDRINA", uf: "PR", situacao: "A" },
+  { codigo: "3", nome: "SANTOS & PERES PECAS E SERV AUTOMOTIVOS LTDA", cnpj: "08629914000128", cidade: "LONDRINA", uf: "PR", situacao: "I" },
+  { codigo: "120", nome: "ANJOS CATUAI COLCHOES E SOFAS LTDA", cnpj: "31923481000130", cidade: "LONDRINA", uf: "PR", situacao: "A" },
+  { codigo: "1205", nome: "ANJOS CATUAI COLCHOES E SOFAS LTDA", cnpj: "31923481000211", cidade: "LONDRINA", uf: "PR", situacao: "I" },
+  { codigo: "305", nome: "MICROMEDICAL IMPLANTES", cnpj: "", cidade: "SAO PAULO", uf: "SP", situacao: "A" },
+];
+check("código com zeros à esquerda acha a empresa (0002 → 2)", domEmp.acharPorCodigo(listaDominio, "0002")?.nome.startsWith("D.MARCAL"), domEmp.acharPorCodigo(listaDominio, "0002"));
+check("código inexistente não acha ninguém", domEmp.acharPorCodigo(listaDominio, "999") === null && domEmp.acharPorCodigo(listaDominio, "") === null, null);
+check("CNPJ acha só quem tem aquele CNPJ", domEmp.acharPorCnpj(listaDominio, "31.923.481/0001-30").length === 1 && domEmp.acharPorCnpj(listaDominio, "123").length === 0, null);
+check("sugestão por código: o exato vem antes dos que só começam com ele", domEmp.sugerirEmpresas(listaDominio, "120").map((e) => e.codigo).join(",") === "120,1205", domEmp.sugerirEmpresas(listaDominio, "120"));
+check("sugestão por nome ignora acento e caixa, ativas antes das inativas", domEmp.sugerirEmpresas(listaDominio, "catuaí").map((e) => e.codigo).join(",") === "120,1205", domEmp.sugerirEmpresas(listaDominio, "catuaí"));
+check("sugestão por parte do CNPJ (a partir de 4 dígitos)", domEmp.sugerirEmpresas(listaDominio, "13240423")[0]?.codigo === "1", domEmp.sugerirEmpresas(listaDominio, "13240423"));
+check("sem texto, sem sugestão", domEmp.sugerirEmpresas(listaDominio, "  ").length === 0, null);
+check("conferência: código e CNPJ batem", domEmp.conferirComDominio(listaDominio, { codigo: "120", cnpj: "31.923.481/0001-30" }).tipo === "ok", null);
+check("conferência: CNPJ ainda não digitado não é erro", domEmp.conferirComDominio(listaDominio, { codigo: "120", cnpj: "" }).tipo === "ok", null);
+check("conferência: mesmo código com outro CNPJ avisa (a Central recusaria)", domEmp.conferirComDominio(listaDominio, { codigo: "001", cnpj: "22.579.911/0001-58" }).tipo === "cnpj-diferente", domEmp.conferirComDominio(listaDominio, { codigo: "001", cnpj: "22579911000158" }));
+check("conferência: código que a Domínio não tem", domEmp.conferirComDominio(listaDominio, { codigo: "9999", cnpj: "" }).tipo === "codigo-inexistente", null);
+check("conferência: sem lista ainda / sem código", domEmp.conferirComDominio([], { codigo: "1", cnpj: "" }).tipo === "sem-lista" && domEmp.conferirComDominio(listaDominio, { codigo: " ", cnpj: "" }).tipo === "vazio", null);
+const jaNoPortal = [{ id: "a", codigo: "0120", cnpj: "31.923.481/0001-30" }, { id: "b", codigo: "305", cnpj: "" }];
+check("duplicado no portal: mesmo código (com zeros) ou mesmo CNPJ, fora a empresa que está sendo editada", domEmp.jaCadastradas(jaNoPortal, { codigo: "120", cnpj: "", idAtual: "x" }).length === 1 && domEmp.jaCadastradas(jaNoPortal, { codigo: "120", cnpj: "", idAtual: "a" }).length === 0 && domEmp.jaCadastradas(jaNoPortal, { codigo: "", cnpj: "31923481000130", idAtual: "x" }).length === 1, null);
+
+section("Acesso dos clientes: módulos que valem pra empresa/grupo");
+const modAcesso = await src("lib/modulos.js");
+const empresasAcesso = [{ id: "a", codigo: "0120" }, { id: "b", codigo: "351" }];
+const idsDe = (alvo, grupo) => modAcesso.modulosAplicaveisAoAlvo(alvo, grupo, empresasAcesso).map((m) => m.id);
+check("empresa do Gestão Click (120) vê o DRE Gerencial entre os módulos", idsDe({ id: "a" }, false).includes("dre-gerencial"), idsDe({ id: "a" }, false));
+check("empresa fora do Gestão Click não tem o DRE Gerencial pra configurar", !idsDe({ id: "b" }, false).includes("dre-gerencial"), idsDe({ id: "b" }, false));
+check("grupo com uma empresa do Gestão Click também tem", idsDe({ companyIds: ["a", "b"] }, true).includes("dre-gerencial") && !idsDe({ companyIds: ["b"] }, true).includes("dre-gerencial"), null);
+
+section("Visibilidade: empresa herda a do grupo");
+const visib = await src("lib/visibilidade.js");
+const gruposVis = [
+  { id: "g1", companyIds: ["e1", "e2"], updatedAt: "2026-11-01T10:00:00Z", visibilidade: { modo: "marcados", visiveis: ["bi:tab:a"], modulos: [] } },
+  { id: "g2", companyIds: ["e1"], updatedAt: "2026-11-10T10:00:00Z", visibilidade: { modo: "marcados", visiveis: ["bi:tab:b"] } },
+  { id: "g3", companyIds: ["e3"], visibilidade: null },
+];
+check("empresa sem configuração herda a do grupo configurado", visib.configHerdada({ id: "e2" }, gruposVis)?.grupo.id === "g1", visib.configHerdada({ id: "e2" }, gruposVis));
+check("em mais de um grupo configurado vale o mais recente", visib.configHerdada({ id: "e1" }, gruposVis)?.grupo.id === "g2" && visib.configHerdada({ id: "e1" }, gruposVis)?.varios === true, null);
+check("empresa com configuração própria não herda", visib.configHerdada({ id: "e2", visibilidade: { modo: "marcados", visiveis: [] } }, gruposVis) === null && visib.configHerdada({ id: "e2", visibilidade: { modulos: [] } }, gruposVis) === null, null);
+check("grupo sem configuração, ou empresa sem grupo, não herda nada", visib.configHerdada({ id: "e3" }, gruposVis) === null && visib.configHerdada({ id: "x" }, gruposVis) === null, null);
+
+section("Entradas x Saídas: acumuladores do consolidado");
+const nfs = await src("lib/notasFiscais.js");
+const brutosNf = {
+  a: [{ ano: 2026, dados: { linhas: [{ m: "2026-01", t: "E", a: 1040, n: "AQUI. SERV. C/ TODAS RET. A PRAZO", notas: 2, vcon: 100, vprod: 100, itens: 2 }] } }],
+  b: [{ ano: 2026, dados: { linhas: [{ m: "2026-01", t: "E", a: 2040, n: "Aqui. Serv. c/ todas ret. a prazo", notas: 3, vcon: 50, vprod: 50, itens: 3 }] } }],
+};
+const rNf = nfs.montarEntradasSaidas({ membros: [{ id: "a" }, { id: "b" }], brutos: brutosNf, ano: 2026, mesDe: 1, mesAte: 12, ehGrupo: true });
+const linhaNf = rNf.linhas.E[0];
+check("consolidado junta acumuladores de mesmo nome e lembra de qual empresa/código vem cada um", rNf.linhas.E.length === 1 && [...linhaNf.porEmpresa.a].join() === "1040" && [...linhaNf.porEmpresa.b].join() === "2040", linhaNf);
+const rNf2 = nfs.montarEntradasSaidas({ membros: [{ id: "a", notasConfig: { flags: { E: { 1040: true } } } }, { id: "b" }], brutos: brutosNf, ano: 2026, mesDe: 1, mesAte: 12, ehGrupo: true });
+check("escolha marcada só numa empresa vira 'parcial' e só ela entra na conta", rNf2.linhas.E[0].conta === "parcial" && rNf2.totais.E.v === 100, rNf2.totais.E);
+
+section("Equipe vê tudo (inclusive no portal do hub)");
+const portalEquipe = { isAdmin: false, isColaborador: false, realIsAdmin: true, realIsColaborador: false, modoEquipe: "portal", pessoaVista: null, clienteSimulado: false };
+check("equipe no portal do hub vê tudo", visib.equipeVeTudo(portalEquipe) === true, null);
+check("equipe simulando o cliente ou vendo como uma pessoa NÃO vê tudo", visib.equipeVeTudo({ ...portalEquipe, clienteSimulado: true }) === false && visib.equipeVeTudo({ ...portalEquipe, pessoaVista: { email: "a@b" } }) === false, null);
+check("cliente de verdade nunca vê tudo; admin no console vê", visib.equipeVeTudo({ isAdmin: false, isColaborador: false, realIsAdmin: false, realIsColaborador: false, modoEquipe: null }) === false && visib.equipeVeTudo({ isAdmin: true }) === true, null);
+
+section("Buscar lançamento");
+const bl = await src("lib/buscaLancamentos.js");
+const razaoBusca = [
+  { data: "2026-01-10", historico: "Pagamento ALUGUEL janeiro", classificacao: "2.1.1", descricao_conta: "Aluguéis a pagar", debito: 1234.56, credito: 0 },
+  { data: "2026-02-05", historico: "Recebimento cliente X", classificacao: "1.1.1", descricao_conta: "Caixa", debito: 0, credito: 1234.56 },
+  { data: "2026-03-01", historico: "Compra de material", classificacao: "3.1.1", descricao_conta: "Material", debito: 15000, credito: 0 },
+];
+const indiceBusca = razaoBusca.map((entry) => ({ entry, h: bl.normalizarBusca(entry.historico), c: bl.normalizarBusca(`${entry.classificacao} ${entry.descricao_conta}`) }));
+const acha = (f) => bl.buscarLancamentos(indiceBusca, f).resultado.lista.length;
+check("valor exato com vírgula e ponto de milhar acha os dois lados (débito e crédito)", acha({ valor: "1.234,56" }) === 2 && acha({ valor: "1234.56" }) === 2, null);
+check("valor exato respeita o lado escolhido", acha({ valor: "1234,56", lado: "debito" }) === 1 && acha({ valor: "1234,56", lado: "credito" }) === 1, null);
+check("faixa de valor (a, hífen e ..)", acha({ valor: "1000 a 2000" }) === 2 && acha({ valor: "10000-20000" }) === 1 && acha({ valor: "14000..16000" }) === 1, null);
+check("histórico: várias palavras, sem acento nem caixa", acha({ historico: "aluguel JANEIRO" }) === 1 && acha({ historico: "cliente aluguel" }) === 0, null);
+check("conta (nome ou código) e período", acha({ conta: "alugueis" }) === 1 && acha({ conta: "1.1.1" }) === 1 && acha({ de: "2026-02-01", ate: "2026-02-28" }) === 1, null);
+check("sem filtro não despeja o razão; valor ilegível avisa", acha({}) === 0 && bl.buscarLancamentos(indiceBusca, { valor: "abc" }).valorInvalido === true, null);
+
+section("Perfis de acesso por pessoa");
+const vPerfis = {
+  modo: "marcados", visiveis: ["bi:tab:a"], modulos: ["orcamento"], areasOcultas: [],
+  perfis: [{ id: "p1", nome: "Financeiro", visiveis: ["bi:tab:b"], modulos: [], areasOcultas: ["conteudos"] }],
+  perfilPorPessoa: { "ana@cliente.com": "p1", "sumiu@cliente.com": "p9" },
+};
+check("pessoa com perfil recebe a configuração do perfil", visib.configDaPessoa(vPerfis, "Ana@Cliente.com").visiveis[0] === "bi:tab:b" && visib.configDaPessoa(vPerfis, "ana@cliente.com").areasOcultas[0] === "conteudos", visib.configDaPessoa(vPerfis, "ana@cliente.com"));
+check("pessoa sem perfil, ou com perfil que não existe mais, fica no padrão", visib.configDaPessoa(vPerfis, "joao@cliente.com") === vPerfis && visib.configDaPessoa(vPerfis, "sumiu@cliente.com") === vPerfis && visib.configDaPessoa(null, "a@b") === null, null);
+check("só perfis já conta como configuração (a empresa não herda do grupo por cima)", visib.temConfiguracao({ perfis: [{ id: "p1" }] }) === true && visib.temConfiguracao({ perfis: [] }) === false, null);
+
+section("Tipos de acesso: modelos pré-preenchidos");
+const tipos = await src("lib/tiposDeAcesso.js");
+const abasModelo = [
+  { id: "t1", name: "Resumo" }, { id: "t2", name: "Demonstrativos" }, { id: "t3", name: "Indicadores" }, { id: "t4", name: "Gráficos" }, { id: "t5", name: "Outra coisa" },
+];
+const chavesModelo = ["bi:tab:t1", "bi:tab:t2", "bi:sub:t2:s1", "bi:w:t2:s1:dre", "bi:tab:t3", "bi:tab:t4", "bi:tab:t5", "bi:w:t5:_:x", "es:kpis"];
+const ctxModelo = { abas: abasModelo, chaves: chavesModelo, modulosAplicaveis: ["orcamento", "entradas-saidas", "analise-desempenho"], blocos: ["es:kpis"] };
+const fin = tipos.conjuntosDoModelo("financeiro", ctxModelo);
+check("Financeiro leva demonstrativos (com subabas e itens), indicadores e resumo, e não a aba que não combina", fin.visiveis.has("bi:tab:t2") && fin.visiveis.has("bi:sub:t2:s1") && fin.visiveis.has("bi:w:t2:s1:dre") && fin.visiveis.has("bi:tab:t3") && !fin.visiveis.has("bi:tab:t5"), [...fin.visiveis]);
+check("módulos do modelo só os que a empresa tem; entradas x saídas traz os blocos", fin.modulos.has("entradas-saidas") && !fin.modulos.has("carga-tributaria") && fin.visiveis.has("es:kpis"), [...fin.modulos]);
+const mkt = tipos.conjuntosDoModelo("marketing", ctxModelo);
+check("Marketing: resumo e gráficos, sem demonstrativos", mkt.visiveis.has("bi:tab:t1") && mkt.visiveis.has("bi:tab:t4") && !mkt.visiveis.has("bi:tab:t2") && !mkt.modulos.has("entradas-saidas"), [...mkt.visiveis]);
+check("empresa sem nenhuma aba que combine: o modelo libera todas (não nasce vazio)", tipos.conjuntosDoModelo("marketing", { ...ctxModelo, abas: [{ id: "t5", name: "Outra coisa" }] }).visiveis.has("bi:tab:t5"), null);
+
+section("Novo acesso: tipo de acesso por empresa");
+const empresaTipo = { id: "e1", codigo: "10", visibilidade: { modo: "marcados", visiveis: ["bi:tab:t1"], modulos: [] }, dashboardTabs: [{ id: "t1", name: "Resumo", widgets: [] }, { id: "t2", name: "Demonstrativos", widgets: [] }] };
+const novaVis = tipos.visibilidadeComTipo({ item: empresaTipo, ehGrupo: false, email: "Ana@x.com", tipoId: "financeiro", companies: [empresaTipo], groups: [] });
+check("dar um modelo à pessoa cria o tipo pré-preenchido e mantém o padrão da empresa", novaVis.perfis?.[0]?.id === "financeiro" && novaVis.perfis[0].visiveis.includes("bi:tab:t2") && novaVis.perfilPorPessoa["ana@x.com"] === "financeiro" && novaVis.visiveis[0] === "bi:tab:t1", novaVis);
+check("tipoAtual lê o tipo da pessoa; voltar ao padrão tira só a pessoa do tipo", tipos.tipoAtual({ visibilidade: novaVis }, false, "ana@x.com", []) === "financeiro" && tipos.visibilidadeComTipo({ item: { ...empresaTipo, visibilidade: novaVis }, ehGrupo: false, email: "ana@x.com", tipoId: "", companies: [], groups: [] }).perfilPorPessoa["ana@x.com"] === undefined, null);
+const herdeira = { id: "e2", codigo: "11", dashboardTabs: [{ id: "t1", name: "Resumo", widgets: [] }] };
+const grupoHerdado = { id: "g1", companyIds: ["e2"], visibilidade: { modo: "marcados", visiveis: ["bi:tab:t1"], modulos: [] } };
+const volHerdeira = tipos.visibilidadeComTipo({ item: herdeira, ehGrupo: false, email: "b@x.com", tipoId: "comercial", companies: [herdeira], groups: [grupoHerdado] });
+check("empresa que herdava do grupo leva a cópia do padrão do grupo junto com o tipo (não perde a herança)", volHerdeira.modo === "marcados" && volHerdeira.visiveis[0] === "bi:tab:t1" && volHerdeira.perfilPorPessoa["b@x.com"] === "comercial", volHerdeira);
+
+section("Revisa Nota (ferramenta só da Micromedical)");
+const rn = await src("lib/revisaNota.js");
+const prods = [
+  { emp: 332, codigo: "A1", descricao: "CATETER BALAO", ncm: "90181990", valor: 100, notas: 2, decisao: { status: "decidido", tratamento: "redução de 60%", anexo: "IV" } },
+  { emp: 332, codigo: "B2", descricao: "Eletrodo de estimulação", ncm: "90189099", valor: 300, notas: 5, decisao: { status: "duvida", tratamento: "" } },
+  { emp: 333, codigo: "C3", descricao: "Fio guia", ncm: "90213930", valor: 50, notas: 1, decisao: null },
+];
+const resP = rn.resumoDeProdutos(prods);
+check("resumo de produtos conta quantidade e valor por situação", resP.total.qtd === 3 && resP.decidido.qtd === 1 && resP.duvida.valor === 300 && resP.pendente.qtd === 1, resP);
+check("filtro de produtos: busca sem acento, situação e ordem pelo maior valor", rn.filtrarProdutos(prods, { busca: "estimulacao" }).length === 1 && rn.filtrarProdutos(prods, { situacao: "decidido" })[0].codigo === "A1" && rn.filtrarProdutos(prods)[0].codigo === "B2", null);
+const clis = [
+  { chave: "1", nome: "HOSPITAL X LTDA", doc: "12345678000100", uf: "PR", valor: 500, perfil: { tipo: "privado" } },
+  { chave: "2", nome: "Prefeitura de Londrina", doc: "***.123.456-**", uf: "PR", valor: 900, perfil: { tipo: "publico" } },
+  { chave: "3", nome: "Clínica Y", doc: "99999999000199", uf: "SP", valor: 10, perfil: null },
+];
+check("clientes: resumo por perfil (sem perfil = não confirmado) e filtros", rn.resumoDeClientes(clis).sem.qtd === 1 && rn.resumoDeClientes(clis).publico.valor === 900 && rn.filtrarClientes(clis, { perfil: "sem" })[0].chave === "3" && rn.filtrarClientes(clis, { busca: "londrina" })[0].chave === "2" && rn.filtrarClientes(clis, { uf: "SP" }).length === 1, null);
+const empRevisa = [{ id: "m", codigo: "305", cnpj: "07.326.871/0001-49" }, { id: "o", codigo: "9", cnpj: "11111111000111" }];
+const idsRevisa = (alvo, grupo) => modAcesso.modulosAplicaveisAoAlvo(alvo, grupo, empRevisa).map((m) => m.id);
+check("Revisa Nota só aparece para a empresa/grupo com a raiz de CNPJ da Micromedical", idsRevisa({ id: "m" }, false).includes("revisa-nota") && !idsRevisa({ id: "o" }, false).includes("revisa-nota") && idsRevisa({ companyIds: ["o", "m"] }, true).includes("revisa-nota"), null);
+
+section("Revisa Nota: classificação no jeito do app do escritório");
+const leiRn = { "XII|5": { anexo: "XII", item: "5", descricao: "Artigos de prótese", rotulo: "alíquota zero", reducao: 100, codigos: [{ cClassTrib: "200004", nome: "Dispositivos médicos (Anexo XII)" }] }, "IV|62": { anexo: "IV", item: "62", descricao: "Cateteres", rotulo: "redução de 60%", reducao: 60, codigos: [{ cClassTrib: "200030", nome: "Redução 60%" }, { cClassTrib: "200005", nome: "Órgão público" }] } };
+const pend = { lc: true, cand: ["IV|62", "XII|5"], sug: { k: "IV|62", c: "alta" }, decisao: null };
+const feito = { lc: true, cand: ["XII|5"], decisao: { status: "decidido", anexo: "XII", item: "5", cClassTrib: "200004" } };
+const integral = { lc: false, cand: [], decisao: { status: "decidido", anexo: "", cClassTrib: "000001" } };
+check("pendente mostra os anexos e itens possíveis e as reduções da lei", (() => { const r = rn.resumoDaClassificacao(pend, leiRn); return r.anexos.join() === "IV,XII" && r.itens.join() === "62,5" && r.pct.join("/") === "60%/100% · alíq. zero" && r.decidido === false; })(), rn.resumoDaClassificacao(pend, leiRn));
+check("decidido mostra só o anexo/item decidido e o % dele", (() => { const r = rn.resumoDaClassificacao(feito, leiRn); return r.anexos.join() === "XII" && r.itens.join() === "5" && r.pct[0] === "100% · alíq. zero" && r.decidido === true; })(), null);
+check("rótulo da decisão: anexo · item, integral, em dúvida, pendente", rn.rotuloDaDecisao(feito) === "Anexo XII · 5" && rn.rotuloDaDecisao(integral) === "Integral" && rn.rotuloDaDecisao({ decisao: { status: "duvida" } }) === "Em dúvida" && rn.rotuloDaDecisao({}) === "Pendente", null);
+check("códigos possíveis juntam os dos itens sem repetir, com o anexo de origem", (() => { const c = rn.codigosPossiveis(pend, leiRn); return c.length === 3 && c.find((x) => x.cClassTrib === "200005").anexos.join() === "IV"; })(), null);
+check("NCM formatado e opções do produto com os dados do dicionário", rn.ncmFormatado("90213930") === "9021.39.30" && rn.opcoesDoProduto(pend, leiRn)[0].descricao === "Cateteres", null);
+const manual = { lc: false, cand: [], decisao: { status: "decidido", anexo: "XII", item: "5", itemTexto: "Próteses", tratamento: "alíquota zero", cClassTrib: "200004", cst: "200" } };
+check("decisão manual fora dos itens do NCM entra nas opções (a decisão aparece completa)", (() => { const o = rn.opcoesDoProduto(manual, leiRn); return o.length === 1 && o[0].k === "XII|5" && o[0].decididoManual === true; })(), null);
+check("opções trazem a parecença com a descrição (confiança e palavras)", (() => { const o = rn.opcoesDoProduto({ cand: ["XII|5"], cp: { "XII|5": { c: "alta", p: ["protese"] } }, decisao: null }, leiRn)[0]; return o.confianca === "alta" && o.palavras[0] === "protese"; })(), null);
+
+section("Consulta da LC 214 (base da lei e itens por NCM)");
+const lc = await src("lib/lc214.js");
+const baseLei = JSON.parse(fs.readFileSync(path.join(ROOT, "tests/fixtures/lei-base.json"), "utf8"));
+const idxLei = lc.montarIndice(baseLei);
+check("a base da lei vira índice com os 14 anexos e centenas de itens", idxLei.anexos.length === 14 && idxLei.itens.length > 300, idxLei.anexos.length);
+const achados = lc.buscarItens(idxLei, "cateter", {});
+check("busca por palavra acha itens do Anexo IV sem depender de acento", achados.length > 0 && achados.every((i) => i.descricao.toLowerCase().includes("cateter")) && achados.some((i) => i.anexo === "IV"), achados.length);
+check("busca por NCM completo acha os itens que casam", lc.buscarItens(idxLei, "9018.39.29", {}).some((i) => i.anexo === "IV" && i.item === "62"), null);
+const enq = lc.enquadrar(idxLei, "90183929");
+check("enquadrar devolve o item da lei com o tratamento do anexo", enq.length > 0 && enq.every((e) => e.tratamento?.rotulo), enq.length);
+const par = lc.parecenca(idxLei, "CATETER BALAO PARA DILATACAO", "Dilatador para implante de cateter duplo lumen");
+check("parecença dá nota e palavras em comum entre produto e item", par.score > 0 && par.palavras.includes("cateter"), par);
+
+section("Andamento do pedido e avisos de mensagem nova");
+const rn2 = await src("lib/revisaNota.js");
+const pedBase = { id: "p1", status: "enviado", criado_em: "2026-11-21T10:00:00Z", atualizado_em: "2026-11-21T10:00:00Z", observacoes: [] };
+check("pedido novo: só a etapa Enviado está feita", rn2.etapasDoPedido(pedBase).map((e) => e.estado).join() === "feito,pendente,pendente", null);
+const pedRecusado = { ...pedBase, status: "recusado", atualizado_em: "2026-11-21T12:00:00Z", observacoes: [{ autor: "escritorio", criado_em: "2026-11-21T11:00:00Z" }] };
+const etRec = rn2.etapasDoPedido(pedRecusado);
+check("pedido recusado: análise na hora da 1ª resposta e etapa final Recusado em vermelho", etRec[1].quando === "2026-11-21T11:00:00Z" && etRec[2].nome === "Recusado" && etRec[2].estado === "recusado" && etRec[2].quando === "2026-11-21T12:00:00Z", etRec);
+check("pedido aprovado: etapa final Aprovado", rn2.etapasDoPedido({ ...pedBase, status: "cadastrado" })[2].nome === "Aprovado", null);
+const vistoInicial = rn2.marcaDeLeitura(pedBase);
+check("sem mensagem nova do escritório não há novidade", rn2.temNovidade(pedBase, vistoInicial) === false, null);
+const comResposta = { ...pedBase, status: "em_analise", observacoes: [{ autor: "cliente", criado_em: "2026-11-21T10:05:00Z" }, { autor: "escritorio", criado_em: "2026-11-21T10:30:00Z" }] };
+check("resposta do escritório vira novidade e o texto diz isso", rn2.temNovidade(comResposta, vistoInicial) === true && rn2.textoDaNovidade(comResposta, vistoInicial) === "O escritório respondeu", null);
+check("mensagem do próprio cliente não é novidade", rn2.temNovidade({ ...pedBase, observacoes: [{ autor: "cliente", criado_em: "2026-11-21T10:05:00Z" }] }, vistoInicial) === false, null);
+check("depois de ver, deixa de ser novidade; mudar a situação volta a ser", rn2.temNovidade(comResposta, rn2.marcaDeLeitura(comResposta)) === false && rn2.temNovidade({ ...comResposta, status: "cadastrado" }, rn2.marcaDeLeitura(comResposta)) === true, null);
 
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {

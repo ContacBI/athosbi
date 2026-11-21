@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownCircle, ArrowUpCircle, Download, FileSpreadsheet, Search, X } from "lucide-react";
 import { entriesForAccount, journalByCompanyAndDate, counterpartsForEntry } from "../data/calculations.js";
 import { useAppState } from "../data/useStore.js";
@@ -121,6 +121,11 @@ export default function LedgerModal({ row, onClose }) {
     if (!term) return entriesWithMeta;
     return entriesWithMeta.filter((item) => item.haystack.includes(term));
   }, [entriesWithMeta, search]);
+  // Vindo da "Buscar lançamento": rola o diário até o lançamento procurado e o destaca (row.destaque é o próprio lançamento do razão).
+  const destaqueRef = useRef(null);
+  useEffect(() => {
+    destaqueRef.current?.scrollIntoView({ block: "center" });
+  }, []);
   const label = row.nome_conta || row.categoria_gerencial;
   const isSemContrapartida = row.classificacao === SEM_CONTRAPARTIDA_CODE;
   // Linha somada entre empresas (ver mergeGroupRowsByName em calculations.js)
@@ -272,7 +277,7 @@ export default function LedgerModal({ row, onClose }) {
                         </td>
                       </tr>
                     )}
-                    <tr className={`transition-colors hover:bg-accent-50/40 ${index % 2 ? "bg-surface-muted/70" : "bg-surface-card"}`}>
+                    <tr ref={entry === row.destaque ? destaqueRef : undefined} className={`transition-colors hover:bg-accent-50/40 ${entry === row.destaque ? "bg-accent-100/70 ring-1 ring-inset ring-accent-400" : index % 2 ? "bg-surface-muted/70" : "bg-surface-card"}`}>
                       <td className="whitespace-nowrap px-6 py-2 align-top text-ink-600">{formatDate(entry.data)}</td>
                       {showCompany && <td className="max-w-[240px] truncate whitespace-nowrap px-4 py-2 align-top text-[12px] text-ink-600" title={entry.companyName || ""}>{entry.companyName || "—"}</td>}
                       <td className="max-w-0 px-4 py-2 align-top text-ink-900">

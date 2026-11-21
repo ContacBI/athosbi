@@ -56,7 +56,9 @@ export function montarEntradasSaidas({ membros, brutos, ano, mesDe, mesAte, base
       if (mesIdx + 1 < mesDe || mesIdx + 1 > mesAte || !tabela[l.t]) continue;
       const conta = considerado(config, l.t, l.a, l.n);
       const chave = ehGrupo ? norm(l.n).replace(/[^a-z0-9]+/g, " ").trim() : String(l.a);
-      const linha = tabela[l.t].get(chave) || { chave, codigo: l.a, nome: l.n, notas: 0, itens: 0, qtd: 0, vcon: 0, vprod: 0, sim: 0, nao: 0, vInc: 0 };
+      const linha = tabela[l.t].get(chave) || { chave, codigo: l.a, nome: l.n, notas: 0, itens: 0, qtd: 0, vcon: 0, vprod: 0, sim: 0, nao: 0, vInc: 0, porEmpresa: {} };
+      // no consolidado do grupo a linha junta acumuladores de empresas diferentes: guarda de quem (e com qual código) pra poder marcar/desmarcar em cada uma
+      (linha.porEmpresa[membro.id] || (linha.porEmpresa[membro.id] = new Set())).add(String(l.a));
       linha.notas += Number(l.notas) || 0;
       linha.itens += Number(l.itens) || 0;
       linha.qtd += l.qtd != null ? Number(l.qtd) || 0 : Number(l.itens) || 0;

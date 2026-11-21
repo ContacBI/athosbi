@@ -18,10 +18,51 @@ export const BLOCOS_ENTRADAS_SAIDAS = [
   { id: "es:grafico", nome: "Gráfico mês a mês" },
 ];
 
-/** Visibilidade configurada da empresa/grupo que está aberto agora. */
+/**
+ * A equipe vê TUDO (pedido do Izaias, 21/11/2026): no console e também no portal do hub, onde a tela só imita o cliente nos controles de edição. O que o cliente não vê só
+ * some quando a equipe liga "Ver como cliente" (clienteSimulado) ou olha como UMA pessoa (pessoaVista).
+ */
+export function equipeVeTudo(st = state) {
+  return Boolean(st.isAdmin || st.isColaborador || (st.modoEquipe === "portal" && !st.pessoaVista && !st.clienteSimulado && (st.realIsAdmin || st.realIsColaborador)));
+}
+
+/** Se a visibilidade já foi configurada de verdade (modo "marcados", lista antiga de ocultos ou lista de módulos). */
+export const temConfiguracao = (v) => Boolean(v && (v.modo === "marcados" || Array.isArray(v.ocultos) || Array.isArray(v.modulos) || (Array.isArray(v.perfis) && v.perfis.length)));
+
+/**
+ * Perfis de acesso (21/11/2026): numa mesma empresa/grupo, pessoas diferentes veem telas diferentes. `visibilidade.perfis` = [{ id, nome, visiveis, modulos, areasOcultas }] e
+ * `visibilidade.perfilPorPessoa` = { "email": perfilId }. Quem não tem perfil (ou tem um que sumiu) fica no padrão da própria `visibilidade`. Devolve a configuração que vale
+ * pra essa pessoa, no mesmo formato de sempre ({ modo: "marcados", visiveis, modulos, areasOcultas }).
+ */
+export function configDaPessoa(v, email) {
+  const id = v?.perfilPorPessoa?.[String(email || "").trim().toLowerCase()];
+  const perfil = id ? (v.perfis || []).find((p) => p.id === id) : null;
+  if (!perfil) return v;
+  return { modo: "marcados", visiveis: perfil.visiveis || [], modulos: perfil.modulos || [], areasOcultas: perfil.areasOcultas || [] };
+}
+
+/**
+ * Empresa sem configuração própria HERDA a do grupo a que pertence (21/11/2026): o que a equipe marcou no grupo vale também pra empresa aberta sozinha. Se ela estiver
+ * em mais de um grupo configurado, vale o de configuração mais recente. Devolve { grupo, visibilidade } ou null (empresa com configuração própria, ou sem grupo configurado).
+ */
+export function configHerdada(company, groups) {
+  if (!company || temConfiguracao(company.visibilidade)) return null;
+  const candidatos = (groups || []).filter((g) => (g.companyIds || []).includes(company.id) && temConfiguracao(g.visibilidade));
+  if (!candidatos.length) return null;
+  candidatos.sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+  return { grupo: candidatos[0], visibilidade: candidatos[0].visibilidade, varios: candidatos.length > 1 };
+}
+
+/** Visibilidade configurada da empresa/grupo que está aberto agora (a empresa sem configuração própria usa a do grupo dela). */
 export function visibilidadeAtiva() {
-  if (state.activeGroupId) return state.groups.find((group) => group.id === state.activeGroupId)?.visibilidade || null;
-  return state.companies.find((company) => company.id === state.activeCompanyId)?.visibilidade || null;
+  let v;
+  if (state.activeGroupId) v = state.groups.find((group) => group.id === state.activeGroupId)?.visibilidade || null;
+  else {
+    const company = state.companies.find((item) => item.id === state.activeCompanyId);
+    v = configHerdada(company, state.groups)?.visibilidade || company?.visibilidade || null;
+  }
+  // "ver como uma pessoa" (equipe) usa o e-mail dela; senão, o de quem está logado
+  return configDaPessoa(v, state.pessoaVista?.email || state.userEmail);
 }
 
 /**
@@ -31,7 +72,7 @@ export function visibilidadeAtiva() {
  *  - sem configuração: aparece tudo (pra não tirar a tela de quem já usa antes de configurar).
  */
 export function oculto(chave) {
-  if (state.isAdmin || state.isColaborador) return false;
+  if (equipeVeTudo()) return false;
   return ocultoNaConfiguracao(visibilidadeAtiva(), chave);
 }
 
@@ -54,6 +95,16 @@ export function todasAsChaves(alvo) {
   }
   BLOCOS_ENTRADAS_SAIDAS.forEach((b) => chaves.push(b.id));
   return [...new Set(chaves)];
+}
+
+/**
+ * Áreas do menu do site que a equipe escondeu do cliente desta empresa/grupo (`visibilidade.areasOcultas`: "bi", "reforma", "servicos", "conteudos", "ferramentas").
+ * Aqui o padrão é VISÍVEL (só some o que foi listado), então configurações antigas não perdem nenhuma área. O Início nunca some. A equipe vê tudo.
+ */
+export const AREAS_OCULTAVEIS = ["bi", "reforma", "servicos", "conteudos", "ferramentas"];
+export function areaOculta(id) {
+  if (equipeVeTudo()) return false;
+  return (visibilidadeAtiva()?.areasOcultas || []).includes(id);
 }
 
 /** Módulos que a empresa/grupo aberto libera pros clientes — null = não configurado (vale a ficha da pessoa). */

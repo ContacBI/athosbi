@@ -46,6 +46,8 @@ export const state = {
   realIsAdmin: false,
   realIsColaborador: false,
   visaoCliente: false,
+  // Equipe no portal do hub: false = vê tudo (o que o cliente não vê aparece marcado); true = simulando o cliente (botão "Ver como cliente").
+  clienteSimulado: false,
   // Equipe com o hub: "portal" (vê como o cliente) ou "console" (edita) — ver lib/modoEquipe.js. null = fora disso.
   modoEquipe: null,
   // B.I. dentro do hub: o menu do topo do hub aberto (a setinha do topo do B.I. alterna) — ver hub/HubLayout.jsx.

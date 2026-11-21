@@ -22,6 +22,7 @@ import { limiteDoCliente, ultimoDiaDoMes } from "../lib/fechamento.js";
 import ThemeToggle from "./ThemeToggle.jsx";
 import { biDentroDoHub, hubLigado } from "../lib/hub.js";
 import { usaModos } from "../lib/modoEquipe.js";
+import { equipeVeTudo } from "../lib/visibilidade.js";
 import { ferramentasDaTela } from "../lib/modulos.js";
 import { lembrarGrupoContexto } from "../lib/unidades.js";
 import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
@@ -437,7 +438,8 @@ function PendingMappingsBanner({ company }) {
   const location = useLocation();
   const hasData = appState.accounts.length > 0;
   const missing = useMemo(() => (hasData ? missingMappingAccounts() : []), [hasData, appState.accounts, appState.mappings, appState.periodStart, appState.companies]);
-  if (!missing.length) return null;
+  // Aviso de trabalho da equipe: o cliente (ou a equipe vendo como cliente) não vê.
+  if (!missing.length || !equipeVeTudo(appState)) return null;
 
   const label = `${missing.length} conta${missing.length === 1 ? "" : "s"} sem De/Para`;
   const exemplos = missing
@@ -529,7 +531,9 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
   // Módulos complementares (Orçamento, Carga tributária) são coisas separadas do B.I Contábil: sem as abas do B.I (Resumo, Demonstrativos…), e a
   // Carga tributária também sem os botões do B.I (período, relatórios, personalizar) -- ela tem o período e a personalização dela.
   const isCarga = location.pathname.startsWith("/empresa/carga-tributaria");
-  const isModulo = isCarga || location.pathname.startsWith("/empresa/orcamento") || location.pathname.startsWith("/empresa/analise-desempenho") || location.pathname.startsWith("/empresa/entradas-saidas");
+  const isModulo = isCarga || location.pathname.startsWith("/empresa/orcamento") || location.pathname.startsWith("/empresa/analise-desempenho") || location.pathname.startsWith("/empresa/entradas-saidas") || location.pathname.startsWith("/empresa/dre-gerencial") || location.pathname.startsWith("/empresa/revisa-nota");
+  // Revisa Nota é só leitura de produtos e clientes: sem modo da tela, fechamento, período, relatórios, personalizar e configurações.
+  const isRevisaNota = location.pathname.startsWith("/empresa/revisa-nota");
   const showNav = !isPersonalizar && !isDataArea && !isModulo && tabs.length > 0;
   const hasData = appState.accounts.length > 0 || appState.journal.length > 0;
 
@@ -631,10 +635,10 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
             </>
           )}
           {/* longe da lua (antes ficava colado nela e se clicava errado) */}
-          {usaModos(appState) ? <ModoDaTela className="shrink-0" /> : <VisaoClienteOlho className="shrink-0" />}
+          {!isRevisaNota && (usaModos(appState) ? <ModoDaTela className="shrink-0" /> : <VisaoClienteOlho className="shrink-0" />)}
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className={`${isRevisaNota ? "hidden" : "flex"} flex-wrap items-center justify-end gap-2`}>
           {hasData && !isCarga && company && canEdit && <FechamentoMenu company={company} />}
           {hasData && !isCarga && (
             <PeriodPicker

@@ -24,6 +24,15 @@ export function unidadesDaCarteira(companies = [], groups = [], { soCompletos = 
   return { grupos: grupos.sort(porNome), avulsas: avulsas.sort(porNome) };
 }
 
+// As empresas de UMA pessoa do escritório: onde o e-mail dela está como
+// responsável (a Visão geral do console mostra só essas — pedido do Izaias,
+// 21/11/2026). Num grupo, só as empresas dela entram.
+export function empresasDoResponsavel(companies = [], email = "") {
+  const alvo = String(email || "").trim().toLowerCase();
+  if (!alvo) return [];
+  return companies.filter((company) => (company.responsaveis || []).some((item) => String(item || "").trim().toLowerCase() === alvo));
+}
+
 // O que uma pessoa do cliente enxerga (equipe "vendo como" ela — ver
 // lib/modoEquipe.js): as empresas liberadas direto e as dos grupos dela, e os
 // grupos dela. Sem pessoa, tudo.

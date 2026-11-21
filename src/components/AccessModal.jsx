@@ -4,6 +4,7 @@ import { useAppState } from "../data/useStore.js";
 import { companiesResponsavel, groupsResponsavel } from "../lib/colaboradores.js";
 import SelectField from "./SelectField.jsx";
 import { MODULOS_COMPLEMENTARES } from "../lib/modulos.js";
+import { MODELOS_TIPO, tipoAtual, tiposDoAlvo } from "../lib/tiposDeAcesso.js";
 
 // Cadastro de uma pessoa de fora (cliente) em Acessos: a ficha (nome,
 // e-mail, telefone, observação) e o que ela enxerga — empresas E grupos ao
@@ -11,7 +12,7 @@ import { MODULOS_COMPLEMENTARES } from "../lib/modulos.js";
 // carteira". Serve pra criar (`person` vazio) e pra editar (`person` com o
 // que já existe — o e-mail não muda, é a identidade da pessoa). onSubmit
 // recebe { email, nome, telefone, observacao, modulos, companyIds,
-// groupIds, convidar } — quem chama decide o que criar/revogar (ver
+// groupIds, tipos, convidar } — quem chama decide o que criar/revogar (ver
 // AcessosAdmin.jsx). `modulos`: quais módulos além do B.I. a pessoa vê
 // (Orçamento, Carga tributária…); nenhum = só o B.I., sem menu lateral.
 
@@ -29,6 +30,15 @@ export default function AccessModal({ person = null, onClose, onSubmit, saving }
   const [companyIds, setCompanyIds] = useState(person?.companyIds || []);
   const [groupIds, setGroupIds] = useState(person?.groupIds || []);
   const [modulos, setModulos] = useState(person?.modulos || []);
+  // Tipo de acesso (Financeiro, Comercial…) em cada empresa/grupo escolhido: { "company:ID" | "group:ID": tipoId } — "" = padrão. Começa pelo que a pessoa já tem.
+  const [tipos, setTipos] = useState(() => {
+    const inicial = {};
+    if (person?.email) {
+      (person.companyIds || []).forEach((id) => { inicial[`company:${id}`] = tipoAtual(state.companies.find((c) => c.id === id), false, person.email, state.groups); });
+      (person.groupIds || []).forEach((id) => { inicial[`group:${id}`] = tipoAtual(state.groups.find((g) => g.id === id), true, person.email, state.groups); });
+    }
+    return inicial;
+  });
   // Pessoa nova recebe o convite; editando, só se pedir (ex.: perdeu o e-mail).
   const [convidar, setConvidar] = useState(!editando);
   const [error, setError] = useState("");
@@ -62,7 +72,7 @@ export default function AccessModal({ person = null, onClose, onSubmit, saving }
       return;
     }
     setError("");
-    onSubmit({ email: cleanEmail, nome: nome.trim(), telefone: telefone.trim(), observacao: observacao.trim(), modulos, companyIds, groupIds, convidar });
+    onSubmit({ email: cleanEmail, nome: nome.trim(), telefone: telefone.trim(), observacao: observacao.trim(), modulos, companyIds, groupIds, tipos, convidar });
   }
 
   return (
@@ -151,21 +161,56 @@ export default function AccessModal({ person = null, onClose, onSubmit, saving }
           </div>
         )}
 
-        <p className="mt-5 text-[11px] font-semibold uppercase tracking-wide text-ink-400">Módulos que a pessoa vê</p>
-        <p className="mt-0.5 text-[11.5px] text-ink-400">Sem nenhum extra marcado, ela fica só no B.I. e o menu lateral de módulos não aparece.</p>
-        <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-          <span className="flex items-center gap-2 rounded-md border border-line bg-surface-muted px-3 py-2 text-[12.5px] text-ink-500" title="O B.I. Contábil é sempre liberado">
-            <LayoutGrid size={14} strokeWidth={1.8} className="text-ink-400" />
-            B.I Contábil
-            <Lock size={11} className="ml-auto text-ink-300" />
-          </span>
-          {MODULOS_COMPLEMENTARES.map((modulo) => (
-            <label key={modulo.id} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-[12.5px] transition-colors ${modulos.includes(modulo.id) ? "border-accent-400 bg-accent-50 text-accent-700" : "border-line-strong text-ink-700 hover:bg-surface-muted"}`}>
-              <input type="checkbox" checked={modulos.includes(modulo.id)} onChange={() => toggleModulo(modulo.id)} className={`acesso-modulo-${modulo.id} accent-[var(--color-accent-500)]`} />
-              {modulo.nome}
-            </label>
-          ))}
-        </div>
+        {(companyIds.length > 0 || groupIds.length > 0) && (
+          <>
+            <p className="mt-5 text-[11px] font-semibold uppercase tracking-wide text-ink-400">Tipo de acesso em cada empresa/grupo</p>
+            <p className="mt-0.5 text-[11.5px] text-ink-400">O que a pessoa vê é definido dentro de cada empresa ou grupo (Acesso dos clientes). Aqui você só escolhe o tipo dela em cada uma: “Padrão” ou, por exemplo, Financeiro, Comercial e Marketing. Escolher um modelo que a empresa ainda não tem cria o tipo já pré-preenchido.</p>
+            <div className="mt-2 divide-y divide-line rounded-md border border-line">
+              {[...companyIds.map((id) => ({ chave: `company:${id}`, item: state.companies.find((c) => c.id === id), ehGrupo: false })), ...groupIds.map((id) => ({ chave: `group:${id}`, item: state.groups.find((g) => g.id === id), ehGrupo: true }))]
+                .filter((linha) => linha.item)
+                .map(({ chave, item, ehGrupo }) => {
+                  const criados = tiposDoAlvo(item, ehGrupo, state.groups);
+                  const faltam = MODELOS_TIPO.filter((m) => !criados.some((t) => t.id === m.id));
+                  return (
+                    <div key={chave} className="flex items-center gap-3 px-3 py-2">
+                      <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-[12.5px] text-ink-700">
+                        {ehGrupo ? <Network size={13} className="shrink-0 text-ink-400" /> : <Building2 size={13} className="shrink-0 text-ink-400" />}
+                        <span className="truncate">{item.name}</span>
+                      </span>
+                      <select value={tipos[chave] || ""} onChange={(event) => setTipos((atual) => ({ ...atual, [chave]: event.target.value }))} aria-label={`Tipo de acesso em ${item.name}`} className="rounded-md border border-line-strong bg-surface-card px-2.5 py-1.5 text-[12.5px] text-ink-800 outline-none focus:border-accent-500">
+                        <option value="">Padrão</option>
+                        {criados.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                        {tipos[chave] && !criados.some((t) => t.id === tipos[chave]) && !faltam.some((m) => m.id === tipos[chave]) && <option value={tipos[chave]}>{tipos[chave]}</option>}
+                        {faltam.length > 0 && (
+                          <optgroup label="Criar e usar">
+                            {faltam.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+                          </optgroup>
+                        )}
+                      </select>
+                    </div>
+                  );
+                })}
+            </div>
+          </>
+        )}
+
+        <details className="mt-4 rounded-md border border-line px-3 py-2">
+          <summary className="cursor-pointer text-[12px] font-medium text-ink-500">Módulos da ficha da pessoa (só valem onde a empresa/grupo ainda não tem configuração própria)</summary>
+          <p className="mt-1.5 text-[11.5px] text-ink-400">Sem nenhum extra marcado, ela fica só no B.I. e o menu lateral de módulos não aparece.</p>
+          <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+            <span className="flex items-center gap-2 rounded-md border border-line bg-surface-muted px-3 py-2 text-[12.5px] text-ink-500" title="O B.I. Contábil é sempre liberado">
+              <LayoutGrid size={14} strokeWidth={1.8} className="text-ink-400" />
+              B.I Contábil
+              <Lock size={11} className="ml-auto text-ink-300" />
+            </span>
+            {MODULOS_COMPLEMENTARES.map((modulo) => (
+              <label key={modulo.id} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-[12.5px] transition-colors ${modulos.includes(modulo.id) ? "border-accent-400 bg-accent-50 text-accent-700" : "border-line-strong text-ink-700 hover:bg-surface-muted"}`}>
+                <input type="checkbox" checked={modulos.includes(modulo.id)} onChange={() => toggleModulo(modulo.id)} className={`acesso-modulo-${modulo.id} accent-[var(--color-accent-500)]`} />
+                {modulo.nome}
+              </label>
+            ))}
+          </div>
+        </details>
 
         <label className="mt-4 flex items-start gap-2 text-[12.5px] text-ink-600">
           <input type="checkbox" checked={convidar} onChange={(event) => setConvidar(event.target.checked)} className="acesso-convidar mt-0.5 accent-[var(--color-accent-500)]" />
