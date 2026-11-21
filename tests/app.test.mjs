@@ -834,16 +834,14 @@ check(
   null
 );
 const { hubLigado, loginNovo } = await src("lib/hub.js");
-check("Login novo: todo mundo no site de teste, ninguém no oficial", loginNovo(true) && !loginNovo(false), null);
+check("Login novo: vale pra todo mundo, no teste e no oficial", loginNovo() === true, null);
 check(
-  "Hub novo: só no site de teste e só pros e-mails do dono (nem cliente, nem colaborador, nem no oficial)",
-  hubLigado({ userEmail: "IzaiasContac@gmail.com " }, true) &&
-    hubLigado({ userEmail: "izaiasspaulino@gmail.com" }, true) &&
-    !hubLigado({ userEmail: "izaiasspaulino@gmail.com" }, false) &&
-    !hubLigado({ userEmail: "izaiascontac@gmail.com" }, false) &&
-    !hubLigado({ userEmail: "contac@gmail.com", isAdmin: true }, true) &&
-    !hubLigado({ userEmail: "cliente@empresa.com" }, true) &&
-    !hubLigado({}, true),
+  "Hub novo: só pros e-mails do dono, em qualquer site (nem cliente, nem colaborador)",
+  hubLigado({ userEmail: "IzaiasContac@gmail.com " }) &&
+    hubLigado({ userEmail: "izaiasspaulino@gmail.com" }) &&
+    !hubLigado({ userEmail: "contac@gmail.com", isAdmin: true }) &&
+    !hubLigado({ userEmail: "cliente@empresa.com" }) &&
+    !hubLigado({}),
   null
 );
 const modoEquipe = await src("lib/modoEquipe.js");
