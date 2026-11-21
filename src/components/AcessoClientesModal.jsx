@@ -7,7 +7,7 @@ import { saveVisibilidadeEmpresa } from "../lib/companies.js";
 import { saveVisibilidadeGrupo } from "../lib/groups.js";
 import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
 import { MODULOS_COMPLEMENTARES, modulosAplicaveisAoAlvo } from "../lib/modulos.js";
-import { BLOCOS_ENTRADAS_SAIDAS, abasDoAlvo, kAba, kItem, kSubaba, todasAsChaves } from "../lib/visibilidade.js";
+import { BLOCOS_ENTRADAS_SAIDAS, abasDoAlvo, configHerdada, kAba, kItem, kSubaba, todasAsChaves } from "../lib/visibilidade.js";
 
 // "Acesso dos clientes" de uma empresa ou grupo (pedido do Izaias, 28/10/2026): numa tela só, QUEM tem acesso e O QUE cada módulo mostra pra eles.
 // Tudo começa DESMARCADO (29/10/2026): a equipe marca o que o cliente deve ver (aba inteira, subaba ou item), com "Marcar todos" pra agilizar. A configuração vale pra todas as pessoas daquela empresa/grupo
@@ -39,19 +39,24 @@ function Caixa({ marcado, onChange, disabled, children, recuo = 0, forte = false
 export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial = "pessoas" }) {
   const ehGrupo = tipo === "grupo";
   const scopeType = ehGrupo ? "group" : "company";
-  const { companies } = useAppState();
+  const { companies, groups } = useAppState();
   // `secaoInicial` pode vir como o id de um módulo (versão antiga do menu): agora todos moram em "Ferramentas".
   const [secao, setSecao] = useState(SECOES.some((s) => s.id === secaoInicial) ? secaoInicial : MODULOS_COMPLEMENTARES.some((m) => m.id === secaoInicial) ? "ferramentas" : "pessoas");
   const configAnterior = item.visibilidade;
   const naoConfigurado = configAnterior?.modo !== "marcados" && !Array.isArray(configAnterior?.ocultos);
+  // Empresa sem configuração própria herda a do grupo (lib/visibilidade.js): o que aparece marcado aqui já é o que o cliente vê. Só vira configuração própria se você mexer e salvar.
+  const heranca = ehGrupo ? null : configHerdada(item, groups);
+  const baseV = heranca ? heranca.visibilidade : configAnterior;
+  const semConfigEfetiva = naoConfigurado && !heranca;
   const [visiveis, setVisiveis] = useState(() => {
-    if (configAnterior?.modo === "marcados") return new Set(configAnterior.visiveis || []);
+    if (baseV?.modo === "marcados") return new Set(baseV.visiveis || []);
     // configuração antiga (lista de ocultos): converte pro que o cliente vê hoje, pra não mudar nada ao salvar
-    if (Array.isArray(configAnterior?.ocultos)) { const oc = new Set(configAnterior.ocultos); return new Set(todasAsChaves(item).filter((k) => !oc.has(k))); }
+    if (Array.isArray(baseV?.ocultos)) { const oc = new Set(baseV.ocultos); return new Set(todasAsChaves(item).filter((k) => !oc.has(k))); }
     return new Set(); // ainda não configurado: tudo desmarcado
   });
-  const configurado = Array.isArray(item.visibilidade?.modulos);
-  const [modulos, setModulos] = useState(() => new Set(item.visibilidade?.modulos || []));
+  const configuradoProprio = Array.isArray(item.visibilidade?.modulos);
+  const configurado = Array.isArray(baseV?.modulos);
+  const [modulos, setModulos] = useState(() => new Set(baseV?.modulos || []));
   // Como tudo abriu — pra só gravar o que a pessoa mexeu de verdade (ver salvar).
   const visiveisIniciais = useRef(visiveis);
   const modulosIniciais = useRef(modulos);
@@ -140,12 +145,14 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
     const mexeuNoBi = mudou(visiveisIniciais.current, visiveis);
     const mexeuNosModulos = mudou(modulosIniciais.current, modulos);
     const visibilidade = { ...(configAnterior || {}) };
-    if (!naoConfigurado || mexeuNoBi) {
+    // empresa que herdava do grupo e mexeu em qualquer parte: grava a configuração própria COMPLETA (B.I. e módulos), senão a parte que não mexeu perderia a herança
+    const herdeiraQueMexeu = Boolean(heranca) && (mexeuNoBi || mexeuNosModulos);
+    if (!naoConfigurado || mexeuNoBi || herdeiraQueMexeu) {
       Object.assign(visibilidade, { modo: "marcados", visiveis: [...visiveis] });
       delete visibilidade.ocultos;
     }
-    if (configurado || mexeuNosModulos) visibilidade.modulos = [...modulos];
-    if (naoConfigurado && !mexeuNoBi && !configurado && !mexeuNosModulos) {
+    if (configuradoProprio || mexeuNosModulos || (herdeiraQueMexeu && configurado)) visibilidade.modulos = [...modulos];
+    if (naoConfigurado && !mexeuNoBi && !configuradoProprio && !mexeuNosModulos) {
       onClose();
       return;
     }
@@ -159,7 +166,7 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
 
   // ---- "Como o cliente vê": o menu do site com o que está marcado agora (mesmas regras de lib/visibilidade.js e lib/modulos.js)
   const mudou = (inicial, atual) => inicial.size !== atual.size || [...atual].some((chave) => !inicial.has(chave));
-  const biLivre = naoConfigurado && !mudou(visiveisIniciais.current, visiveis); // ainda sem configuração e sem mexer: o cliente vê tudo
+  const biLivre = semConfigEfetiva && !mudou(visiveisIniciais.current, visiveis); // ainda sem configuração e sem mexer: o cliente vê tudo
   const veBi = (chave) => biLivre || visiveis.has(chave);
   const modulosLivre = !configurado && !mudou(modulosIniciais.current, modulos); // sem lista da empresa: vale a ficha de cada pessoa
   const veModulo = (id) => modulosLivre || modulos.has(id);
@@ -176,7 +183,7 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
           <div className="min-w-0">
             <span className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Acesso dos clientes</span>
             <h2 className="mt-1 truncate text-[18px] font-semibold text-ink-900">{item.name}</h2>
-            <p className="mt-0.5 text-[12px] text-ink-400">Vale para todas as pessoas {ehGrupo ? "que abrem este grupo" : "desta empresa"}. {naoConfigurado ? "Ainda sem configuração: hoje o cliente vê tudo — só muda o que você marcar e salvar." : "Marque o que o cliente vê; o que ficar desmarcado fica oculto."}</p>
+            <p className="mt-0.5 text-[12px] text-ink-400">Vale para todas as pessoas {ehGrupo ? "que abrem este grupo" : "desta empresa"}. {heranca ? `Esta empresa ainda não tem configuração própria: vale a do grupo ${heranca.grupo.name}${heranca.varios ? " (a mais recente entre os grupos dela)" : ""}. Se você mexer e salvar aqui, ela passa a ter a própria.` : naoConfigurado ? "Ainda sem configuração: hoje o cliente vê tudo — só muda o que você marcar e salvar." : "Marque o que o cliente vê; o que ficar desmarcado fica oculto."}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Fechar" className="rounded-md p-1 text-ink-400 hover:bg-surface-muted hover:text-ink-900"><X size={18} /></button>
         </div>
@@ -223,7 +230,7 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
               <div>
                 <h3 className="text-[14px] font-semibold text-ink-900">Meu B.I.</h3>
                 <p className="mt-1 text-[12.5px] text-ink-400">As abas e itens do B.I {ehGrupo ? "deste grupo" : "desta empresa"}. Marque o que o cliente deve ver: uma aba inteira, uma subaba ou só alguns itens (por exemplo, indicadores específicos).</p>
-                {naoConfigurado && <p className="mt-3 rounded-lg bg-warning-500/10 px-3 py-2 text-[12px] text-warning-800">Ainda não configurado: hoje o cliente vê tudo. Ao salvar, ele passa a ver só o que estiver marcado aqui.</p>}
+                {semConfigEfetiva && <p className="mt-3 rounded-lg bg-warning-500/10 px-3 py-2 text-[12px] text-warning-800">Ainda não configurado: hoje o cliente vê tudo. Ao salvar, ele passa a ver só o que estiver marcado aqui.</p>}
                 <div className="mt-3 flex gap-2">
                   <button type="button" onClick={() => marcarVarias(chavesBi, true)} className="rounded-lg border border-line px-2.5 py-1 text-[12px] text-ink-600 hover:bg-surface-muted">Marcar todos</button>
                   <button type="button" onClick={() => marcarVarias(chavesBi, false)} className="rounded-lg border border-line px-2.5 py-1 text-[12px] text-ink-600 hover:bg-surface-muted">Desmarcar todos</button>
