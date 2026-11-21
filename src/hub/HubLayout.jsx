@@ -3,7 +3,7 @@ import "@fontsource-variable/fraunces/wght-italic.css";
 import "./hub.css";
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { ArrowUpRight, Building2, Check, ChevronDown, CornerDownLeft, LayoutGrid, LogOut, Menu, Moon, Network, Search, Sun, Wrench, X } from "lucide-react";
+import { ArrowUpRight, Building2, Check, ChevronDown, CornerDownLeft, LayoutGrid, LogOut, Mail, MapPin, Menu, Moon, Network, Search, Smartphone, Sun, Wrench, X } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
 import { setData, useAppState } from "../data/useStore.js";
 import { useTheme } from "../lib/theme.js";
@@ -186,7 +186,7 @@ function Rodape({ irPara }) {
             <AthosMark size={28} />
             <span className="hub-display text-[18px] font-bold">Athos</span>
           </div>
-          <p className="mt-4 max-w-sm text-[14px] leading-relaxed text-[var(--hub-texto-3)]">Contabilidade, números e impostos da sua empresa explicados de um jeito simples, com a equipe da Athos Consultoria Empresarial do seu lado.</p>
+          <p className="mt-4 max-w-sm text-[14px] leading-relaxed text-[var(--hub-texto-2)]">A Athos é referência em consultoria em Londrina, oferecendo soluções financeiras, contábeis e tributárias, personalizadas para empresas de acordo com seu momento e objetivo.</p>
         </div>
         <div>
           <p className="hub-rotulo">No hub</p>
@@ -201,10 +201,22 @@ function Rodape({ irPara }) {
           </ul>
         </div>
         <div>
-          <p className="hub-rotulo">Escritório</p>
-          <ul className="mt-4 space-y-2.5 text-[14px]">
+          <p className="hub-rotulo">Encontre-nos</p>
+          <ul className="mt-4 space-y-3.5 text-[14px] text-[var(--hub-texto-2)]">
+            <li className="flex items-start gap-3">
+              <MapPin size={16} className="mt-0.5 shrink-0 text-[var(--hub-acento)]" />
+              <span>Rua da Lapa, nº 464, Boa Vista, Londrina-PR.<br />CEP: 86015-050</span>
+            </li>
+            <li className="flex items-center gap-3">
+              <Smartphone size={16} className="shrink-0 text-[var(--hub-acento)]" />
+              <a href="https://wa.me/5543984058677" target="_blank" rel="noreferrer" className="transition-colors hover:text-[var(--hub-acento)]">(43) 98405-8677</a>
+            </li>
+            <li className="flex items-center gap-3">
+              <Mail size={16} className="shrink-0 text-[var(--hub-acento)]" />
+              <a href="mailto:contato@athosconsultoriaempresarial.com" className="break-all transition-colors hover:text-[var(--hub-acento)]">contato@athosconsultoriaempresarial.com</a>
+            </li>
             <li>
-              <a href="https://athosconsultoriaempresarial.com" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[var(--hub-texto-2)] transition-colors hover:text-[var(--hub-acento)]">
+              <a href="https://athosconsultoriaempresarial.com" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[var(--hub-texto-3)] transition-colors hover:text-[var(--hub-acento)]">
                 athosconsultoriaempresarial.com <ArrowUpRight size={13} />
               </a>
             </li>
