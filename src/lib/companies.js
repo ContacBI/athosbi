@@ -1539,6 +1539,29 @@ export async function saveNotasConfig(config) {
   }
 }
 
+// Escolha de acumuladores de VÁRIAS empresas de uma vez (Entradas x Saídas, no consolidado do grupo): mudancas = [{ id, config }]. Só grava nas empresas em que a
+// pessoa pode escrever; devolve quantas foram puladas. Espera o Supabase confirmar e desfaz tudo se falhar.
+export async function saveNotasConfigEmpresas(mudancas) {
+  const permitidas = mudancas.filter((m) => {
+    const company = state.companies.find((item) => item.id === m.id);
+    return company && canWriteCompany(company);
+  });
+  const puladas = mudancas.length - permitidas.length;
+  if (!permitidas.length) return { salvas: 0, puladas };
+  const mapa = new Map(permitidas.map((m) => [m.id, m.config]));
+  const before = state.companies;
+  const agora = new Date().toISOString();
+  const companies = state.companies.map((item) => (mapa.has(item.id) ? { ...item, notasConfig: mapa.get(item.id), updatedAt: agora } : item));
+  setData({ companies });
+  try {
+    await writeStoredCompanies(companies);
+  } catch (error) {
+    setData({ companies: before });
+    throw error;
+  }
+  return { salvas: permitidas.length, puladas };
+}
+
 // Modelo de DFC da empresa "instituto" que veio da Domínio (lib/dfcInstituto.js): guarda na empresa a estrutura e as contas
 // ligadas a cada grupo, como estão na Domínio. Espera o Supabase confirmar e desfaz se falhar (mesmo contrato de applyBalancete).
 export async function applyDfcInstituto(modelo) {
