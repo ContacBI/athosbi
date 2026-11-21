@@ -27,7 +27,19 @@ export function equipeVeTudo(st = state) {
 }
 
 /** Se a visibilidade já foi configurada de verdade (modo "marcados", lista antiga de ocultos ou lista de módulos). */
-export const temConfiguracao = (v) => Boolean(v && (v.modo === "marcados" || Array.isArray(v.ocultos) || Array.isArray(v.modulos)));
+export const temConfiguracao = (v) => Boolean(v && (v.modo === "marcados" || Array.isArray(v.ocultos) || Array.isArray(v.modulos) || (Array.isArray(v.perfis) && v.perfis.length)));
+
+/**
+ * Perfis de acesso (21/11/2026): numa mesma empresa/grupo, pessoas diferentes veem telas diferentes. `visibilidade.perfis` = [{ id, nome, visiveis, modulos, areasOcultas }] e
+ * `visibilidade.perfilPorPessoa` = { "email": perfilId }. Quem não tem perfil (ou tem um que sumiu) fica no padrão da própria `visibilidade`. Devolve a configuração que vale
+ * pra essa pessoa, no mesmo formato de sempre ({ modo: "marcados", visiveis, modulos, areasOcultas }).
+ */
+export function configDaPessoa(v, email) {
+  const id = v?.perfilPorPessoa?.[String(email || "").trim().toLowerCase()];
+  const perfil = id ? (v.perfis || []).find((p) => p.id === id) : null;
+  if (!perfil) return v;
+  return { modo: "marcados", visiveis: perfil.visiveis || [], modulos: perfil.modulos || [], areasOcultas: perfil.areasOcultas || [] };
+}
 
 /**
  * Empresa sem configuração própria HERDA a do grupo a que pertence (21/11/2026): o que a equipe marcou no grupo vale também pra empresa aberta sozinha. Se ela estiver
@@ -43,9 +55,14 @@ export function configHerdada(company, groups) {
 
 /** Visibilidade configurada da empresa/grupo que está aberto agora (a empresa sem configuração própria usa a do grupo dela). */
 export function visibilidadeAtiva() {
-  if (state.activeGroupId) return state.groups.find((group) => group.id === state.activeGroupId)?.visibilidade || null;
-  const company = state.companies.find((item) => item.id === state.activeCompanyId);
-  return configHerdada(company, state.groups)?.visibilidade || company?.visibilidade || null;
+  let v;
+  if (state.activeGroupId) v = state.groups.find((group) => group.id === state.activeGroupId)?.visibilidade || null;
+  else {
+    const company = state.companies.find((item) => item.id === state.activeCompanyId);
+    v = configHerdada(company, state.groups)?.visibilidade || company?.visibilidade || null;
+  }
+  // "ver como uma pessoa" (equipe) usa o e-mail dela; senão, o de quem está logado
+  return configDaPessoa(v, state.pessoaVista?.email || state.userEmail);
 }
 
 /**

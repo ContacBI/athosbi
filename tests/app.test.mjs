@@ -1259,6 +1259,16 @@ check("histórico: várias palavras, sem acento nem caixa", acha({ historico: "a
 check("conta (nome ou código) e período", acha({ conta: "alugueis" }) === 1 && acha({ conta: "1.1.1" }) === 1 && acha({ de: "2026-02-01", ate: "2026-02-28" }) === 1, null);
 check("sem filtro não despeja o razão; valor ilegível avisa", acha({}) === 0 && bl.buscarLancamentos(indiceBusca, { valor: "abc" }).valorInvalido === true, null);
 
+section("Perfis de acesso por pessoa");
+const vPerfis = {
+  modo: "marcados", visiveis: ["bi:tab:a"], modulos: ["orcamento"], areasOcultas: [],
+  perfis: [{ id: "p1", nome: "Financeiro", visiveis: ["bi:tab:b"], modulos: [], areasOcultas: ["conteudos"] }],
+  perfilPorPessoa: { "ana@cliente.com": "p1", "sumiu@cliente.com": "p9" },
+};
+check("pessoa com perfil recebe a configuração do perfil", visib.configDaPessoa(vPerfis, "Ana@Cliente.com").visiveis[0] === "bi:tab:b" && visib.configDaPessoa(vPerfis, "ana@cliente.com").areasOcultas[0] === "conteudos", visib.configDaPessoa(vPerfis, "ana@cliente.com"));
+check("pessoa sem perfil, ou com perfil que não existe mais, fica no padrão", visib.configDaPessoa(vPerfis, "joao@cliente.com") === vPerfis && visib.configDaPessoa(vPerfis, "sumiu@cliente.com") === vPerfis && visib.configDaPessoa(null, "a@b") === null, null);
+check("só perfis já conta como configuração (a empresa não herda do grupo por cima)", visib.temConfiguracao({ perfis: [{ id: "p1" }] }) === true && visib.temConfiguracao({ perfis: [] }) === false, null);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
