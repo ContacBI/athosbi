@@ -1,16 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff, Trash2, UserPlus, Users, X } from "lucide-react";
+import { Eye, EyeOff, Trash2, UserPlus, Users, Wrench, X } from "lucide-react";
+import { useAppState } from "../data/useStore.js";
 import { grantAccess, inviteUser, listAccessGrants, listAccessPeople, revokeAccess } from "../lib/access.js";
 import { saveVisibilidadeEmpresa } from "../lib/companies.js";
 import { saveVisibilidadeGrupo } from "../lib/groups.js";
 import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
-import { MODULOS_COMPLEMENTARES } from "../lib/modulos.js";
+import { MODULOS_COMPLEMENTARES, modulosAplicaveisAoAlvo } from "../lib/modulos.js";
 import { BLOCOS_ENTRADAS_SAIDAS, abasDoAlvo, kAba, kItem, kSubaba, todasAsChaves } from "../lib/visibilidade.js";
 
 // "Acesso dos clientes" de uma empresa ou grupo (pedido do Izaias, 28/10/2026): numa tela só, QUEM tem acesso e O QUE cada módulo mostra pra eles.
 // Tudo começa DESMARCADO (29/10/2026): a equipe marca o que o cliente deve ver (aba inteira, subaba ou item), com "Marcar todos" pra agilizar. A configuração vale pra todas as pessoas daquela empresa/grupo
 // (lib/visibilidade.js). Ocultar é só da tela — a segurança de verdade continua sendo a lista de quem tem acesso.
-const SECOES = [{ id: "pessoas", nome: "Quem tem acesso", icone: Users }, { id: "bi", nome: "B.I Contábil" }, ...MODULOS_COMPLEMENTARES.map((m) => ({ id: m.id, nome: m.nome }))];
+//
+// As seções espelham o menu do site (30/11/2026 — pedido do Izaias): "Meu B.I." (as abas e subabas do B.I da empresa) e "Ferramentas" (os módulos; os que são só de
+// algumas empresas, como o DRE Gerencial do Gestão Click, só aparecem pra elas). À direita, "Como o cliente vê" mostra o menu como o cliente vai enxergar, ao vivo.
+// A equipe sempre vê tudo — pra conferir como o cliente, use o olhinho (visão do cliente) do topo.
+const SECOES = [{ id: "pessoas", nome: "Quem tem acesso", icone: Users }, { id: "bi", nome: "Meu B.I." }, { id: "ferramentas", nome: "Ferramentas", icone: Wrench }];
+// Áreas do menu do site que não têm o que escolher aqui (aparecem na prévia só pra mostrar o menu inteiro).
+const AREAS_FIXAS = [{ id: "inicio", nome: "Início" }, { id: "reforma", nome: "Reforma Tributária", nota: "acesso próprio" }, { id: "servicos", nome: "Serviços" }, { id: "conteudos", nome: "Conteúdos" }];
 
 function Caixa({ marcado, onChange, disabled, children, recuo = 0, forte = false }) {
   return (
@@ -25,7 +32,9 @@ function Caixa({ marcado, onChange, disabled, children, recuo = 0, forte = false
 export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial = "pessoas" }) {
   const ehGrupo = tipo === "grupo";
   const scopeType = ehGrupo ? "group" : "company";
-  const [secao, setSecao] = useState(secaoInicial);
+  const { companies } = useAppState();
+  // `secaoInicial` pode vir como o id de um módulo (versão antiga do menu): agora todos moram em "Ferramentas".
+  const [secao, setSecao] = useState(SECOES.some((s) => s.id === secaoInicial) ? secaoInicial : MODULOS_COMPLEMENTARES.some((m) => m.id === secaoInicial) ? "ferramentas" : "pessoas");
   const configAnterior = item.visibilidade;
   const naoConfigurado = configAnterior?.modo !== "marcados" && !Array.isArray(configAnterior?.ocultos);
   const [visiveis, setVisiveis] = useState(() => {
@@ -138,8 +147,28 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
     onClose();
   }
 
-  const moduloAtual = MODULOS_COMPLEMENTARES.find((m) => m.id === secao);
+  const aplicaveis = useMemo(() => modulosAplicaveisAoAlvo(item, ehGrupo, companies), [item, ehGrupo, companies]);
   const abaTotal = abas.length;
+
+  // ---- "Como o cliente vê": o menu do site com o que está marcado agora (mesmas regras de lib/visibilidade.js e lib/modulos.js)
+  const mudou = (inicial, atual) => inicial.size !== atual.size || [...atual].some((chave) => !inicial.has(chave));
+  const biLivre = naoConfigurado && !mudou(visiveisIniciais.current, visiveis); // ainda sem configuração e sem mexer: o cliente vê tudo
+  const veBi = (chave) => biLivre || visiveis.has(chave);
+  const modulosLivre = !configurado && !mudou(modulosIniciais.current, modulos); // sem lista da empresa: vale a ficha de cada pessoa
+  const veModulo = (id) => modulosLivre || modulos.has(id);
+  const abasVistas = abas.filter((aba) => veBi(kAba(aba.id))).map((aba) => ({
+    ...aba,
+    subs: (aba.subTabs || []).filter((sub) => veBi(kSubaba(aba.id, sub.id))),
+  }));
+  const ferramentasVistas = aplicaveis.filter((m) => veModulo(m.id));
+  const menuCliente = [
+    AREAS_FIXAS[0],
+    { id: "bi", nome: "Meu B.I.", vazio: !abasVistas.length },
+    AREAS_FIXAS[1],
+    AREAS_FIXAS[2],
+    AREAS_FIXAS[3],
+    { id: "ferramentas", nome: "Ferramentas", vazio: !ferramentasVistas.length },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-[2px]">
@@ -159,7 +188,6 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
               <button key={s.id} type="button" onClick={() => setSecao(s.id)} className={`mb-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] transition-colors ${secao === s.id ? "bg-surface-card font-semibold text-ink-900 shadow-sm" : "text-ink-600 hover:bg-surface-card/70"}`}>
                 {s.icone ? <s.icone size={14} /> : <Eye size={14} className="text-ink-400" />}
                 <span className="truncate">{s.nome}</span>
-                {s.id !== "pessoas" && s.id !== "bi" && !modulos.has(s.id) && <span className="ml-auto text-[10px] text-ink-400">fora</span>}
               </button>
             ))}
           </nav>
@@ -230,34 +258,65 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
               </div>
             )}
 
-            {moduloAtual && (
+            {secao === "ferramentas" && (
               <div>
-                <h3 className="text-[14px] font-semibold text-ink-900">{moduloAtual.nome}</h3>
-                <div className="mt-3 rounded-xl border border-line p-2">
-                  <Caixa forte marcado={modulos.has(moduloAtual.id)} onChange={(v) => setModulos((atual) => { const novo = new Set(atual); if (v) novo.add(moduloAtual.id); else novo.delete(moduloAtual.id); return novo; })}>Liberar este módulo para os clientes {ehGrupo ? "do grupo" : "da empresa"}</Caixa>
+                <h3 className="text-[14px] font-semibold text-ink-900">Ferramentas</h3>
+                <p className="mt-1 text-[12.5px] text-ink-400">Os módulos da área Ferramentas do site. Marque os que o cliente {ehGrupo ? "do grupo" : "da empresa"} vê. Os que são só de algumas empresas (como o DRE Gerencial do Gestão Click) só aparecem aqui para elas.</p>
+                {!configurado && <p className="mt-3 rounded-lg bg-warning-500/10 px-3 py-2 text-[12px] text-warning-800">Ainda sem lista: hoje valem as fichas de cada pessoa. Ao salvar, esta lista passa a valer para todos {ehGrupo ? "do grupo" : "da empresa"}.</p>}
+                <div className="mt-3 flex gap-2">
+                  <button type="button" onClick={() => setModulos(new Set(aplicaveis.map((m) => m.id)))} className="rounded-lg border border-line px-2.5 py-1 text-[12px] text-ink-600 hover:bg-surface-muted">Marcar todos</button>
+                  <button type="button" onClick={() => setModulos(new Set())} className="rounded-lg border border-line px-2.5 py-1 text-[12px] text-ink-600 hover:bg-surface-muted">Desmarcar todos</button>
                 </div>
-                {!configurado && <p className="mt-2 text-[11.5px] text-ink-400">Hoje valem as fichas de cada pessoa. Ao salvar, esta lista de módulos passa a valer para todos {ehGrupo ? "do grupo" : "da empresa"}.</p>}
-                {moduloAtual.id === "entradas-saidas" && (
-                  <div className="mt-4">
-                    <div className="mb-1 flex items-center justify-between">
-                      <p className="text-[12px] font-medium uppercase tracking-wide text-ink-400">Blocos da tela</p>
-                      <span className="flex gap-2 text-[12px]">
-                        <button type="button" onClick={() => marcarVarias(BLOCOS_ENTRADAS_SAIDAS.map((b) => b.id), true)} className="rounded-lg border border-line px-2 py-0.5 text-ink-600 hover:bg-surface-muted">Marcar todos</button>
-                        <button type="button" onClick={() => marcarVarias(BLOCOS_ENTRADAS_SAIDAS.map((b) => b.id), false)} className="rounded-lg border border-line px-2 py-0.5 text-ink-600 hover:bg-surface-muted">Desmarcar todos</button>
-                      </span>
-                    </div>
-                    <div className="rounded-xl border border-line p-2">
-                      {BLOCOS_ENTRADAS_SAIDAS.map((b) => (
-                        <Caixa key={b.id} marcado={visiveis.has(b.id)} disabled={!modulos.has("entradas-saidas")} onChange={(v) => marcarVisivel(b.id, v)}>{b.nome}</Caixa>
+                <div className="mt-4 flex flex-col gap-3">
+                  {aplicaveis.map((modulo) => (
+                    <div key={modulo.id} className="rounded-xl border border-line p-2">
+                      <Caixa forte marcado={modulos.has(modulo.id)} onChange={(v) => setModulos((atual) => { const novo = new Set(atual); if (v) novo.add(modulo.id); else novo.delete(modulo.id); return novo; })}>{modulo.nome}</Caixa>
+                      <p className="ml-[38px] pb-1 text-[11.5px] text-ink-400">{modulo.descricao}</p>
+                      {modulo.id === "entradas-saidas" && BLOCOS_ENTRADAS_SAIDAS.map((b) => (
+                        <Caixa key={b.id} recuo={1} marcado={visiveis.has(b.id)} disabled={!modulos.has("entradas-saidas")} onChange={(v) => marcarVisivel(b.id, v)}>{b.nome}</Caixa>
                       ))}
                     </div>
-                    <p className="mt-2 text-[11.5px] text-ink-400">A tabela de acumuladores é sempre só da equipe.</p>
-                  </div>
-                )}
-                {moduloAtual.id !== "entradas-saidas" && <p className="mt-4 text-[12px] text-ink-400">Por enquanto dá para liberar ou tirar o módulo inteiro. Os blocos internos deste módulo entram em seguida.</p>}
+                  ))}
+                </div>
+                {aplicaveis.some((m) => m.id === "entradas-saidas") && <p className="mt-2 text-[11.5px] text-ink-400">Em Entradas x Saídas, a tabela de acumuladores é sempre só da equipe.</p>}
               </div>
             )}
           </div>
+
+          {secao !== "pessoas" && (
+            <aside className="hidden w-[270px] shrink-0 overflow-y-auto border-l border-line bg-surface-muted/40 p-4 lg:block">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Como o cliente vê</p>
+              <p className="mt-1 text-[11.5px] leading-snug text-ink-400">O menu do site, com o que está marcado agora.</p>
+              <ul className="mt-3 flex flex-col gap-1.5">
+                {menuCliente.map((area) => (
+                  <li key={area.id} className="rounded-lg border border-line bg-surface-card px-3 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`text-[12.5px] font-semibold ${area.vazio ? "text-ink-400 line-through" : "text-ink-900"}`}>{area.nome}</span>
+                      {area.vazio && <span className="text-[10.5px] text-ink-400">oculto</span>}
+                      {area.nota && <span className="text-[10.5px] text-ink-400">{area.nota}</span>}
+                    </div>
+                    {area.id === "bi" && !area.vazio && (
+                      <ul className="mt-1.5 flex flex-col gap-0.5 border-l border-line pl-2.5">
+                        {abasVistas.map((aba) => (
+                          <li key={aba.id} className="text-[12px] text-ink-700">
+                            {aba.name}
+                            {aba.subs.length > 0 && <span className="text-ink-400"> · {aba.subs.map((sub) => sub.name).join(", ")}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {area.id === "ferramentas" && !area.vazio && (
+                      <ul className="mt-1.5 flex flex-col gap-0.5 border-l border-line pl-2.5">
+                        {ferramentasVistas.map((m) => <li key={m.id} className="text-[12px] text-ink-700">{m.nome}</li>)}
+                        {modulosLivre && <li className="text-[11px] text-ink-400">(conforme a ficha de cada pessoa)</li>}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {(biLivre || modulosLivre) && <p className="mt-3 text-[11px] leading-snug text-ink-400">Ainda sem configuração: o cliente vê tudo até você marcar e salvar.</p>}
+            </aside>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-line px-6 py-3">

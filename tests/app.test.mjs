@@ -1205,6 +1205,14 @@ check("conferência: sem lista ainda / sem código", domEmp.conferirComDominio([
 const jaNoPortal = [{ id: "a", codigo: "0120", cnpj: "31.923.481/0001-30" }, { id: "b", codigo: "305", cnpj: "" }];
 check("duplicado no portal: mesmo código (com zeros) ou mesmo CNPJ, fora a empresa que está sendo editada", domEmp.jaCadastradas(jaNoPortal, { codigo: "120", cnpj: "", idAtual: "x" }).length === 1 && domEmp.jaCadastradas(jaNoPortal, { codigo: "120", cnpj: "", idAtual: "a" }).length === 0 && domEmp.jaCadastradas(jaNoPortal, { codigo: "", cnpj: "31923481000130", idAtual: "x" }).length === 1, null);
 
+section("Acesso dos clientes: módulos que valem pra empresa/grupo");
+const modAcesso = await src("lib/modulos.js");
+const empresasAcesso = [{ id: "a", codigo: "0120" }, { id: "b", codigo: "351" }];
+const idsDe = (alvo, grupo) => modAcesso.modulosAplicaveisAoAlvo(alvo, grupo, empresasAcesso).map((m) => m.id);
+check("empresa do Gestão Click (120) vê o DRE Gerencial entre os módulos", idsDe({ id: "a" }, false).includes("dre-gerencial"), idsDe({ id: "a" }, false));
+check("empresa fora do Gestão Click não tem o DRE Gerencial pra configurar", !idsDe({ id: "b" }, false).includes("dre-gerencial"), idsDe({ id: "b" }, false));
+check("grupo com uma empresa do Gestão Click também tem", idsDe({ companyIds: ["a", "b"] }, true).includes("dre-gerencial") && !idsDe({ companyIds: ["b"] }, true).includes("dre-gerencial"), null);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
