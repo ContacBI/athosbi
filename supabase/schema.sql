@@ -1301,7 +1301,7 @@ returns uuid language plpgsql security definer set search_path = '' as $$
 declare
   novo uuid;
   raiz text;
-  email text := lower(coalesce(auth.jwt() ->> 'email', ''));
+  v_email text := lower(coalesce(auth.jwt() ->> 'email', ''));
   ncm_limpo text := regexp_replace(coalesce(p_ncm, ''), '\D', '', 'g');
 begin
   if auth.uid() is null then raise exception 'Entre para fazer o pedido'; end if;
@@ -1317,7 +1317,7 @@ begin
     raise exception 'Já existe um pedido aberto para este item: continue a conversa nele';
   end if;
   insert into public.revisa_nota_pedidos (company_id, cnpj_raiz, tipo, alvo, descricao, ncm, unidade, proposta, criado_por)
-  values (p_company, raiz, p_tipo, trim(p_alvo), left(coalesce(p_descricao, ''), 200), ncm_limpo, coalesce(nullif(trim(p_unidade), ''), 'UN'), p_proposta, email)
+  values (p_company, raiz, p_tipo, trim(p_alvo), left(coalesce(p_descricao, ''), 200), ncm_limpo, coalesce(nullif(trim(p_unidade), ''), 'UN'), p_proposta, v_email)
   returning id into novo;
   return novo;
 end;
@@ -1328,7 +1328,7 @@ returns uuid language plpgsql security definer set search_path = '' as $$
 declare
   comp text;
   novo uuid;
-  email text := lower(coalesce(auth.jwt() ->> 'email', ''));
+  v_email text := lower(coalesce(auth.jwt() ->> 'email', ''));
   texto text := trim(coalesce(p_texto, ''));
   quem text;
 begin
@@ -1337,9 +1337,9 @@ begin
   if comp is null then raise exception 'Pedido indisponível'; end if;
   if not (public.is_portal_admin() or public.is_colaborador() or comp = any (public.allowed_company_ids())) then raise exception 'Pedido indisponível'; end if;
   if length(texto) < 1 or length(texto) > 1000 then raise exception 'Escreva de 1 a 1000 caracteres'; end if;
-  select coalesce(nullif(trim(p.nome), ''), split_part(email, '@', 1)) into quem from public.acesso_pessoas p where lower(p.email) = email;
+  select coalesce(nullif(trim(p.nome), ''), split_part(v_email, '@', 1)) into quem from public.acesso_pessoas p where lower(p.email) = v_email;
   insert into public.revisa_nota_observacoes (pedido_id, company_id, autor, autor_nome, texto)
-  values (p_pedido, comp, case when public.is_portal_admin() or public.is_colaborador() then 'escritorio' else 'cliente' end, left(coalesce(quem, split_part(email, '@', 1)), 80), texto)
+  values (p_pedido, comp, case when public.is_portal_admin() or public.is_colaborador() then 'escritorio' else 'cliente' end, left(coalesce(quem, split_part(v_email, '@', 1)), 80), texto)
   returning id into novo;
   update public.revisa_nota_pedidos set atualizado_em = now() where id = p_pedido;
   return novo;
@@ -1368,7 +1368,7 @@ alter table public.acesso_pessoas add constraint acesso_pessoas_modulos_validos
 create or replace function public.modulo_liberado(p_company text, p_modulo text)
 returns boolean language plpgsql stable security definer set search_path = '' as $$
 declare
-  email text := lower(coalesce(auth.jwt() ->> 'email', ''));
+  v_email text := lower(coalesce(auth.jwt() ->> 'email', ''));
   emp jsonb;
   vis jsonb;
   perfil_id text;
@@ -1403,7 +1403,7 @@ begin
   end if;
 
   if vis is not null and jsonb_typeof(vis) = 'object' then
-    perfil_id := vis -> 'perfilPorPessoa' ->> email;
+    perfil_id := vis -> 'perfilPorPessoa' ->> v_email;
     if perfil_id is not null then
       select p into perfil from jsonb_array_elements(coalesce(vis -> 'perfis', '[]'::jsonb)) p where p ->> 'id' = perfil_id limit 1;
       if perfil is not null then
@@ -1414,7 +1414,7 @@ begin
     if jsonb_typeof(lista) = 'array' then return lista ? p_modulo; end if;
   end if;
 
-  return exists (select 1 from public.acesso_pessoas a where lower(a.email) = email and p_modulo = any (a.modulos));
+  return exists (select 1 from public.acesso_pessoas a where lower(a.email) = v_email and p_modulo = any (a.modulos));
 end;
 $$;
 revoke all on function public.modulo_liberado(text, text) from public, anon;
@@ -1437,7 +1437,7 @@ returns uuid language plpgsql security definer set search_path = '' as $$
 declare
   novo uuid;
   raiz text;
-  email text := lower(coalesce(auth.jwt() ->> 'email', ''));
+  v_email text := lower(coalesce(auth.jwt() ->> 'email', ''));
   ncm_limpo text := regexp_replace(coalesce(p_ncm, ''), '\D', '', 'g');
 begin
   if auth.uid() is null then raise exception 'Entre para fazer o pedido'; end if;
@@ -1453,7 +1453,7 @@ begin
     raise exception 'Já existe um pedido aberto para este item: continue a conversa nele';
   end if;
   insert into public.revisa_nota_pedidos (company_id, cnpj_raiz, tipo, alvo, descricao, ncm, unidade, proposta, criado_por)
-  values (p_company, raiz, p_tipo, trim(p_alvo), left(coalesce(p_descricao, ''), 200), ncm_limpo, coalesce(nullif(trim(p_unidade), ''), 'UN'), p_proposta, email)
+  values (p_company, raiz, p_tipo, trim(p_alvo), left(coalesce(p_descricao, ''), 200), ncm_limpo, coalesce(nullif(trim(p_unidade), ''), 'UN'), p_proposta, v_email)
   returning id into novo;
   return novo;
 end;
@@ -1464,7 +1464,7 @@ returns uuid language plpgsql security definer set search_path = '' as $$
 declare
   comp text;
   novo uuid;
-  email text := lower(coalesce(auth.jwt() ->> 'email', ''));
+  v_email text := lower(coalesce(auth.jwt() ->> 'email', ''));
   texto text := trim(coalesce(p_texto, ''));
   quem text;
 begin
@@ -1473,9 +1473,9 @@ begin
   if comp is null then raise exception 'Pedido indisponível'; end if;
   if not (public.is_portal_admin() or public.is_colaborador() or (comp = any (public.allowed_company_ids()) and public.modulo_liberado(comp, 'revisa-nota'))) then raise exception 'Pedido indisponível'; end if;
   if length(texto) < 1 or length(texto) > 1000 then raise exception 'Escreva de 1 a 1000 caracteres'; end if;
-  select coalesce(nullif(trim(p.nome), ''), split_part(email, '@', 1)) into quem from public.acesso_pessoas p where lower(p.email) = email;
+  select coalesce(nullif(trim(p.nome), ''), split_part(v_email, '@', 1)) into quem from public.acesso_pessoas p where lower(p.email) = v_email;
   insert into public.revisa_nota_observacoes (pedido_id, company_id, autor, autor_nome, texto)
-  values (p_pedido, comp, case when public.is_portal_admin() or public.is_colaborador() then 'escritorio' else 'cliente' end, left(coalesce(quem, split_part(email, '@', 1)), 80), texto)
+  values (p_pedido, comp, case when public.is_portal_admin() or public.is_colaborador() then 'escritorio' else 'cliente' end, left(coalesce(quem, split_part(v_email, '@', 1)), 80), texto)
   returning id into novo;
   update public.revisa_nota_pedidos set atualizado_em = now() where id = p_pedido;
   return novo;

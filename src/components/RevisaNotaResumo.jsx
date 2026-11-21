@@ -236,7 +236,7 @@ export default function ResumoProdutos({ resumos, empresa }) {
       </div>
 
       <div className="overflow-hidden rounded-xl border border-line bg-surface-card">
-        <div className="max-h-[680px] overflow-auto scrollbar-thin">
+        <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px] text-[13px]">
             <thead className="sticky top-0 z-[1] bg-surface-card shadow-[0_1px_0_var(--color-line)]">
               <tr>
