@@ -2,7 +2,6 @@ import { useMemo, useRef, useState } from "react";
 import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { BarChart3, Building2, Eye, FolderDown, Network, Pencil, Plus, RefreshCw, Search, ShieldCheck, Trash2 } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
-import { monthLabel } from "../lib/carteira.js";
 import { createCompany, deleteCompany, updateCompany } from "../lib/companies.js";
 import { createGroup, deleteGroup, updateGroup } from "../lib/groups.js";
 import { exportCompanyBackup } from "../lib/fullBackup.js";
@@ -12,31 +11,16 @@ import Avatar from "../components/Avatar.jsx";
 import CompanyModal from "../components/CompanyModal.jsx";
 import GroupModal from "../components/GroupModal.jsx";
 import AcessoClientesModal from "../components/AcessoClientesModal.jsx";
-import { COR_DO_STATUS, problemasDaEmpresa, statusDaUnidade, useSaude } from "./useSaude.js";
 import { nomeDaPessoa, useNomesDaEquipe } from "./useNomes.js";
-import { Cabecalho, Cartao, IconeDaUnidade, PontoDeStatus, SeloDeStatus } from "./pecas.jsx";
+import { Cabecalho, Cartao, IconeDaUnidade } from "./pecas.jsx";
 
 const norm = (valor) => String(valor || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-const ORDEM = { critico: 0, atencao: 1, ok: 2 };
-const ordem = (status) => ORDEM[status] ?? 3;
 const porNome = (a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR");
 
 const ABAS = [
   { id: "empresas", nome: "Empresas" },
   { id: "grupos", nome: "Grupos" },
 ];
-
-const FILTROS = [
-  { id: "todos", nome: "Todas" },
-  { id: "pendencias", nome: "Com pendência" },
-];
-
-function dadosAte(health) {
-  const m = health?.metrics;
-  if (!m) return "";
-  if (m.dataAte) return `até ${monthLabel(m.dataAte)}`;
-  return m.origem ? m.origem : "sem balancete";
-}
 
 const lancamentosDe = (company) => company.journalCount ?? (company.journal || []).length;
 
@@ -74,30 +58,7 @@ function BotaoIcone({ icone: Icone, titulo, onClick, perigo = false, ativo = fal
   );
 }
 
-// A saúde de uma empresa numa linha: o pior problema (e quantos mais), ou até quando vão os dados.
-function SaudeDaEmpresa({ health }) {
-  if (!health) return <span className="text-[12px] text-[var(--hub-texto-3)]">calculando…</span>;
-  const problemas = problemasDaEmpresa(health);
-  if (!problemas.length) {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-[12.5px] text-[var(--hub-texto-3)]">
-        <PontoDeStatus status="ok" />
-        Em dia{dadosAte(health) ? ` · ${dadosAte(health)}` : ""}
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex max-w-full items-center gap-1.5 text-[12.5px] font-semibold" style={{ color: COR_DO_STATUS[problemas[0].level] }} title={problemas.map((problema) => problema.title).join(" · ")}>
-      <PontoDeStatus status={problemas[0].level} />
-      <span className="truncate">
-        {problemas[0].title}
-        {problemas.length > 1 ? ` +${problemas.length - 1}` : ""}
-      </span>
-    </span>
-  );
-}
-
-function LinhaDaEmpresa({ company, health, grupos, nomes, podeEditar, admin, ocupado, acoes }) {
+function LinhaDaEmpresa({ company, grupos, nomes, podeEditar, admin, ocupado, acoes }) {
   const responsaveis = (company.responsaveis || []).map((email) => nomeDaPessoa(email, nomes));
   const detalhe = [company.cnpj || "CNPJ não informado", grupos.map((group) => group.name).join(", "), responsaveis.length ? `Responsáveis: ${responsaveis.join(", ")}` : "Sem responsável"].filter(Boolean).join(" · ");
   return (
@@ -114,9 +75,6 @@ function LinhaDaEmpresa({ company, health, grupos, nomes, podeEditar, admin, ocu
           </span>
         </span>
       </button>
-      <div className="min-w-0 flex-[0_1_210px] max-sm:flex-[1_1_100%]">
-        <SaudeDaEmpresa health={health} />
-      </div>
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
         <BotaoIcone icone={Eye} titulo="Ver como o cliente vê (abre em outra aba)" onClick={acoes.verComoCliente} />
         <BotaoIcone icone={BarChart3} titulo="Abrir o B.I. com a edição ligada (abre em outra aba)" onClick={acoes.abrirBi} />
@@ -129,9 +87,7 @@ function LinhaDaEmpresa({ company, health, grupos, nomes, podeEditar, admin, ocu
   );
 }
 
-function LinhaDoGrupo({ group, membros, healths, podeEditar, admin, acoes }) {
-  const status = statusDaUnidade(membros, healths);
-  const comPendencia = membros.filter((company) => ["critico", "atencao"].includes(healths[company.id]?.status)).length;
+function LinhaDoGrupo({ group, membros, podeEditar, admin, acoes }) {
   const lancamentos = membros.reduce((soma, company) => soma + lancamentosDe(company), 0);
   const detalhe = `${membros.length} ${membros.length === 1 ? "empresa" : "empresas"} · ${lancamentos.toLocaleString("pt-BR")} lançamentos${membros.length ? ` · ${membros.map((company) => company.name).join(", ")}` : ""}`;
   const sincronizado = Boolean(group.sincronizarVisao);
@@ -146,10 +102,6 @@ function LinhaDoGrupo({ group, membros, healths, podeEditar, admin, acoes }) {
           </span>
         </span>
       </button>
-      <div className="flex min-w-0 flex-[0_1_210px] items-center gap-2 max-sm:flex-[1_1_100%]">
-        {membros.length ? <SeloDeStatus status={status} /> : <span className="text-[12px] text-[var(--hub-texto-3)]">Sem empresas</span>}
-        {comPendencia > 0 && <span className="truncate text-[12px] text-[var(--hub-texto-3)]">{comPendencia === membros.length ? "todas com pendência" : `${comPendencia} de ${membros.length} com pendência`}</span>}
-      </div>
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
         <BotaoIcone icone={Eye} titulo="Ver como o cliente vê (abre em outra aba)" onClick={acoes.verComoCliente} />
         <BotaoIcone icone={BarChart3} titulo="Abrir o B.I. do grupo com a edição ligada (abre em outra aba)" onClick={acoes.abrirBi} />
@@ -180,8 +132,9 @@ function Vazio({ children }) {
 
 // Console › Grupos e empresas (pedido do Izaias, 21/11/2026): duas abas em
 // lista, com o cadastro de cada um — Empresas (código, CNPJ, grupo,
-// responsáveis, a saúde e os botões do cadastro) e Grupos (as empresas de
-// cada um, lançamentos, alinhar a visão). Clicar no nome abre a ficha aqui no
+// responsáveis e os botões do cadastro) e Grupos (as empresas de
+// cada um, lançamentos, alinhar a visão). Sem a saúde de cada um aqui — ela
+// fica na Visão geral e na Saúde da carteira. Clicar no nome abre a ficha aqui no
 // console; o B.I. abre em outra aba.
 export default function ConsoleClientes() {
   const state = useAppState();
@@ -194,14 +147,12 @@ export default function ConsoleClientes() {
   abrirRef.current = abrir;
   const [params, setParams] = useSearchParams();
   const aba = params.get("aba") === "grupos" ? "grupos" : "empresas";
-  const filtro = params.get("ver") === "pendencias" ? "pendencias" : "todos";
   const [termo, setTermo] = useState("");
   const [minhas, setMinhas] = useState(() => params.get("minhas") === "1");
   const [modalEmpresa, setModalEmpresa] = useState(undefined); // undefined = fechado, null = nova, objeto = editar
   const [modalGrupo, setModalGrupo] = useState(undefined);
   const [acesso, setAcesso] = useState(null); // { tipo, id }
   const [ocupado, setOcupado] = useState(null); // backup de uma empresa: { label, done, total }
-  const { healths } = useSaude(state.companies);
   const nomes = useNomesDaEquipe();
   const admin = Boolean(state.isAdmin);
   const eu = state.userEmail;
@@ -217,11 +168,9 @@ export default function ConsoleClientes() {
     const lista = state.companies
       .filter((company) => !busca || norm(`${company.name} ${company.codigo || ""} ${company.cnpj || ""}`).includes(busca))
       .filter((company) => !minhas || (company.responsaveis || []).includes(eu))
-      .filter((company) => filtro !== "pendencias" || ["critico", "atencao"].includes(healths[company.id]?.status))
       .sort(porNome);
-    if (filtro === "pendencias") lista.sort((a, b) => ordem(healths[a.id]?.status) - ordem(healths[b.id]?.status));
     return lista;
-  }, [state.companies, healths, termo, minhas, filtro, eu]);
+  }, [state.companies, termo, minhas, eu]);
 
   const grupos = useMemo(() => {
     const busca = norm(termo.trim());
@@ -230,11 +179,9 @@ export default function ConsoleClientes() {
       .map((group) => ({ group, membros: (group.companyIds || []).map((id) => porId.get(id)).filter(Boolean) }))
       .filter(({ group, membros }) => !busca || norm(group.name).includes(busca) || membros.some((company) => norm(`${company.name} ${company.codigo || ""} ${company.cnpj || ""}`).includes(busca)))
       .filter(({ membros }) => !minhas || membros.some((company) => (company.responsaveis || []).includes(eu)))
-      .filter(({ membros }) => filtro !== "pendencias" || ["critico", "atencao"].includes(statusDaUnidade(membros, healths)))
       .sort((a, b) => porNome(a.group, b.group));
-    if (filtro === "pendencias") lista.sort((a, b) => ordem(statusDaUnidade(a.membros, healths)) - ordem(statusDaUnidade(b.membros, healths)));
     return lista;
-  }, [state.companies, state.groups, healths, termo, minhas, filtro, eu]);
+  }, [state.companies, state.groups, termo, minhas, eu]);
 
   async function backup(company) {
     setOcupado({ label: `Gerando o backup de ${company.name}…`, done: 0, total: 0 });
@@ -257,7 +204,6 @@ export default function ConsoleClientes() {
           <LinhaDaEmpresa
             key={company.id}
             company={company}
-            health={healths[company.id]}
             grupos={state.groups.filter((group) => (group.companyIds || []).includes(company.id))}
             nomes={nomes}
             podeEditar={admin || (company.responsaveis || []).includes(eu)}
@@ -278,7 +224,7 @@ export default function ConsoleClientes() {
         );
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [empresas, healths, state.groups, nomes, admin, eu, Boolean(ocupado), navigate]
+    [empresas, state.groups, nomes, admin, eu, Boolean(ocupado), navigate]
   );
 
   const linhasDeGrupos = useMemo(
@@ -290,7 +236,6 @@ export default function ConsoleClientes() {
             key={group.id}
             group={group}
             membros={membros}
-            healths={healths}
             podeEditar={admin || isResponsavelForGroup(state, group.id)}
             admin={admin}
             acoes={{
@@ -309,7 +254,7 @@ export default function ConsoleClientes() {
         );
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [grupos, healths, admin, eu, state.companies, state.groups, navigate]
+    [grupos, admin, eu, state.companies, state.groups, navigate]
   );
 
   const emGrupo = new Set(state.groups.flatMap((group) => group.companyIds || [])).size;
@@ -353,20 +298,6 @@ export default function ConsoleClientes() {
         <div className="relative min-w-[240px] flex-1">
           <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--hub-texto-3)]" />
           <input value={termo} onChange={(event) => setTermo(event.target.value)} placeholder={aba === "grupos" ? "Buscar grupo ou empresa dentro dele" : "Buscar empresa — nome, código ou CNPJ"} className="h-12 w-full rounded-full border border-[var(--hub-borda-forte)] bg-[var(--hub-cartao)] pl-11 pr-4 text-[14px] text-[var(--hub-texto)] outline-none placeholder:text-[var(--hub-texto-3)] focus:border-[var(--hub-acento)]" />
-        </div>
-        <div className="flex rounded-full border border-[var(--hub-borda)] bg-[var(--hub-cartao)] p-1" role="tablist" aria-label="Filtrar">
-          {FILTROS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={filtro === item.id}
-              onClick={() => trocar({ ver: item.id === "todos" ? "" : item.id })}
-              className={`h-10 rounded-full px-4 text-[13px] font-semibold transition-colors ${filtro === item.id ? "bg-[var(--hub-texto)] text-[var(--hub-fundo)]" : "text-[var(--hub-texto-2)] hover:text-[var(--hub-texto)]"}`}
-            >
-              {item.nome}
-            </button>
-          ))}
         </div>
         <label className="flex h-12 cursor-pointer items-center gap-2 rounded-full border border-[var(--hub-borda)] bg-[var(--hub-cartao)] px-4 text-[13px] font-semibold text-[var(--hub-texto-2)]">
           <input type="checkbox" checked={minhas} onChange={(event) => setMinhas(event.target.checked)} className="h-4 w-4 accent-[#e8691f]" />

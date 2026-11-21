@@ -161,7 +161,7 @@ export default function ConsoleVisaoGeral() {
         <section className="min-w-0">
           <div className="mb-4 flex items-end justify-between gap-3">
             <h2 className="hub-display text-[22px] font-bold">Precisa de atenção</h2>
-            <button type="button" onClick={() => navigate(verTodas ? "/equipe/clientes?ver=pendencias" : "/equipe/clientes?ver=pendencias&minhas=1")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--hub-acento)] hover:underline">
+            <button type="button" onClick={() => navigate(verTodas ? "/equipe/carteira" : "/equipe/carteira?responsavel=minhas")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--hub-acento)] hover:underline">
               Ver todos <ArrowRight size={14} />
             </button>
           </div>
