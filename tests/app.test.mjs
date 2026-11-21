@@ -1323,6 +1323,9 @@ check("decidido mostra só o anexo/item decidido e o % dele", (() => { const r =
 check("rótulo da decisão: anexo · item, integral, em dúvida, pendente", rn.rotuloDaDecisao(feito) === "Anexo XII · 5" && rn.rotuloDaDecisao(integral) === "Integral" && rn.rotuloDaDecisao({ decisao: { status: "duvida" } }) === "Em dúvida" && rn.rotuloDaDecisao({}) === "Pendente", null);
 check("códigos possíveis juntam os dos itens sem repetir, com o anexo de origem", (() => { const c = rn.codigosPossiveis(pend, leiRn); return c.length === 3 && c.find((x) => x.cClassTrib === "200005").anexos.join() === "IV"; })(), null);
 check("NCM formatado e opções do produto com os dados do dicionário", rn.ncmFormatado("90213930") === "9021.39.30" && rn.opcoesDoProduto(pend, leiRn)[0].descricao === "Cateteres", null);
+const manual = { lc: false, cand: [], decisao: { status: "decidido", anexo: "XII", item: "5", itemTexto: "Próteses", tratamento: "alíquota zero", cClassTrib: "200004", cst: "200" } };
+check("decisão manual fora dos itens do NCM entra nas opções (a decisão aparece completa)", (() => { const o = rn.opcoesDoProduto(manual, leiRn); return o.length === 1 && o[0].k === "XII|5" && o[0].decididoManual === true; })(), null);
+check("opções trazem a parecença com a descrição (confiança e palavras)", (() => { const o = rn.opcoesDoProduto({ cand: ["XII|5"], cp: { "XII|5": { c: "alta", p: ["protese"] } }, decisao: null }, leiRn)[0]; return o.confianca === "alta" && o.palavras[0] === "protese"; })(), null);
 
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
