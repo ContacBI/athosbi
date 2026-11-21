@@ -1,5 +1,5 @@
 import { supabase } from "./supabaseClient.js";
-import { modulosDaEmpresa } from "./visibilidade.js";
+import { equipeVeTudo, modulosDaEmpresa } from "./visibilidade.js";
 
 // Dois módulos à parte, cada um com o seu cadastro e os seus acessos:
 //   B.I.  — a carteira do escritório. Cliente vê as empresas/grupos que
@@ -55,7 +55,7 @@ export const MODULOS_COMPLEMENTARES = [
 
 export function modulosLiberados(state) {
   const aplicaveis = MODULOS_COMPLEMENTARES.filter((modulo) => aplicavel(modulo, state));
-  if (state.isAdmin || state.isColaborador) return aplicaveis.map((modulo) => modulo.id);
+  if (state.isAdmin || state.isColaborador || equipeVeTudo(state)) return aplicaveis.map((modulo) => modulo.id);
   // empresa/grupo configurado (Parâmetros › Acesso dos clientes): a lista dele manda; senão vale a ficha da pessoa
   const daEmpresa = modulosDaEmpresa();
   const todos = aplicaveis.map((modulo) => modulo.id);
