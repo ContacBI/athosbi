@@ -37,6 +37,14 @@ function aplicavel(modulo, state) {
   return (state.companies || []).some((c) => ids.has(c.id) && modulo.soCodigos.includes(semZeros(c.codigo)));
 }
 
+// Os módulos que valem pra uma empresa/grupo específico (o do "Acesso dos clientes"), sem depender de qual está aberta: o DRE Gerencial, por exemplo, só existe
+// pras empresas do Gestão Click — nas demais nem aparece pra configurar.
+export function modulosAplicaveisAoAlvo(alvo, ehGrupo, companies) {
+  const ids = ehGrupo ? new Set(alvo?.companyIds || []) : new Set([alvo?.id]);
+  const codigos = (companies || []).filter((c) => ids.has(c.id)).map((c) => semZeros(c.codigo));
+  return MODULOS_COMPLEMENTARES.filter((modulo) => !modulo.soCodigos || codigos.some((codigo) => modulo.soCodigos.includes(codigo)));
+}
+
 export const MODULOS_COMPLEMENTARES = [
   { id: "orcamento", nome: "Orçamento", rota: "/empresa/orcamento", descricao: "Orçado x realizado, mês a mês", precisaDeDados: true },
   { id: "carga-tributaria", nome: "Carga tributária", rota: "/empresa/carga-tributaria", descricao: "Impostos do fiscal ÷ faturamento" },
