@@ -1327,6 +1327,19 @@ const manual = { lc: false, cand: [], decisao: { status: "decidido", anexo: "XII
 check("decisão manual fora dos itens do NCM entra nas opções (a decisão aparece completa)", (() => { const o = rn.opcoesDoProduto(manual, leiRn); return o.length === 1 && o[0].k === "XII|5" && o[0].decididoManual === true; })(), null);
 check("opções trazem a parecença com a descrição (confiança e palavras)", (() => { const o = rn.opcoesDoProduto({ cand: ["XII|5"], cp: { "XII|5": { c: "alta", p: ["protese"] } }, decisao: null }, leiRn)[0]; return o.confianca === "alta" && o.palavras[0] === "protese"; })(), null);
 
+section("Consulta da LC 214 (base da lei e itens por NCM)");
+const lc = await src("lib/lc214.js");
+const baseLei = JSON.parse(fs.readFileSync(path.join(ROOT, "tests/fixtures/lei-base.json"), "utf8"));
+const idxLei = lc.montarIndice(baseLei);
+check("a base da lei vira índice com os 14 anexos e centenas de itens", idxLei.anexos.length === 14 && idxLei.itens.length > 300, idxLei.anexos.length);
+const achados = lc.buscarItens(idxLei, "cateter", {});
+check("busca por palavra acha itens do Anexo IV sem depender de acento", achados.length > 0 && achados.every((i) => i.descricao.toLowerCase().includes("cateter")) && achados.some((i) => i.anexo === "IV"), achados.length);
+check("busca por NCM completo acha os itens que casam", lc.buscarItens(idxLei, "9018.39.29", {}).some((i) => i.anexo === "IV" && i.item === "62"), null);
+const enq = lc.enquadrar(idxLei, "90183929");
+check("enquadrar devolve o item da lei com o tratamento do anexo", enq.length > 0 && enq.every((e) => e.tratamento?.rotulo), enq.length);
+const par = lc.parecenca(idxLei, "CATETER BALAO PARA DILATACAO", "Dilatador para implante de cateter duplo lumen");
+check("parecença dá nota e palavras em comum entre produto e item", par.score > 0 && par.palavras.includes("cateter"), par);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);

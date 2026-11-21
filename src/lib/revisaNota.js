@@ -4,14 +4,14 @@ import { supabase } from "./supabaseClient.js";
 // (função revisa-nota → tabela revisa_nota, uma linha por empresa e por tipo). O portal só LÊ; cadastrar e pedir mudança continua no portal do Revisa Nota.
 export const PORTAL_REVISA_NOTA = "https://revisa-nota-piloto.vercel.app/";
 
-/** As listas de uma empresa: { produtos: { geradoEm, de, ate, produtos: [...] } | null, clientes: { ... } | null, atualizadoEm }. */
+/** As listas de uma empresa: { produtos: { geradoEm, de, ate, produtos: [...] } | null, clientes: { ... } | null, resumos: { ano, meses, ufs, totais, produtos } | null, lei: { versao, anexos, complementos } | null, atualizadoEm }. */
 export async function fetchRevisaNota(companyId) {
-  if (!companyId) return { produtos: null, clientes: null, atualizadoEm: null };
+  if (!companyId) return { produtos: null, clientes: null, resumos: null, lei: null, atualizadoEm: null };
   const { data, error } = await supabase.from("revisa_nota").select("tipo, dados, synced_at").eq("company_id", companyId);
   if (error) throw error;
   const por = Object.fromEntries((data || []).map((linha) => [linha.tipo, linha]));
   const datas = (data || []).map((linha) => linha.synced_at).filter(Boolean).sort();
-  return { produtos: por.produtos?.dados || null, clientes: por.clientes?.dados || null, atualizadoEm: datas.length ? datas[datas.length - 1] : null };
+  return { produtos: por.produtos?.dados || null, clientes: por.clientes?.dados || null, resumos: por.resumos?.dados || null, lei: por.lei?.dados || null, atualizadoEm: datas.length ? datas[datas.length - 1] : null };
 }
 
 const norm = (texto) => String(texto ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();

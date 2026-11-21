@@ -7,6 +7,8 @@ import {
   alvoDoProduto, codigosPossiveis, fetchPedidos, fetchRevisaNota, filtrarClientes, filtrarProdutos, ncmFormatado, opcoesDoProduto, pedidoAberto, pedidosDoAlvo, perfilDoCliente,
   resumoDeClientes, resumoDeProdutos, rotuloDaDecisao, rotuloDaReducao, situacaoDoProduto,
 } from "../lib/revisaNota.js";
+import ResumoProdutos from "../components/RevisaNotaResumo.jsx";
+import ConsultaLei from "../components/RevisaNotaLei.jsx";
 import { CartaoDePedido, FormNovoProduto, FormPerfil, JanelaDeAlteracao } from "../components/RevisaNotaPedidos.jsx";
 
 // Revisa Nota (Ferramentas, só Micromedical por enquanto): abre como o B.I. — as abas do Revisa Nota em cima (Produtos, Resumo de produtos, Cadastro, Clientes e Consulta LC 214). A
@@ -642,15 +644,6 @@ function Cadastro({ companyId, pedidos, recarregarPedidos }) {
   );
 }
 
-function EmPreparacao({ titulo }) {
-  return (
-    <section className="rounded-2xl border border-dashed border-line px-6 py-12 text-center">
-      <p className="text-[15px] font-semibold text-ink-900">{titulo}</p>
-      <p className="mx-auto mt-1.5 max-w-md text-[13px] text-ink-500">Esta aba ainda está sendo preparada aqui no B.I.</p>
-    </section>
-  );
-}
-
 const ABAS = [
   { id: "produtos", nome: "Produtos" },
   { id: "resumo", nome: "Resumo de produtos" },
@@ -757,10 +750,10 @@ export default function RevisaNota() {
             </div>
 
             {aba === "produtos" && (atual.produtos ? <Produtos lista={atual.produtos} companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} atualizadoEm={atual.atualizadoEm ? dataHora(atual.atualizadoEm) : ""} /> : <p className="text-[13px] text-ink-400">A lista de produtos ainda não foi enviada.</p>)}
-            {aba === "resumo" && <EmPreparacao titulo="Resumo de produtos" />}
+            {aba === "resumo" && <ResumoProdutos resumos={atual.resumos} empresa={atual.empresa} />}
             {aba === "cadastro" && <Cadastro companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} />}
             {aba === "clientes" && (atual.clientes ? <Clientes lista={atual.clientes} companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} /> : <p className="text-[13px] text-ink-400">A lista de clientes ainda não foi enviada.</p>)}
-            {aba === "lei" && <EmPreparacao titulo="Consulta LC 214" />}
+            {aba === "lei" && <ConsultaLei lei={atual.lei} produtos={atual.produtos?.produtos} empresa={atual.empresa} />}
           </>
         )}
       </div>
