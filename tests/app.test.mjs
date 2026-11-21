@@ -1283,6 +1283,16 @@ const mkt = tipos.conjuntosDoModelo("marketing", ctxModelo);
 check("Marketing: resumo e gráficos, sem demonstrativos", mkt.visiveis.has("bi:tab:t1") && mkt.visiveis.has("bi:tab:t4") && !mkt.visiveis.has("bi:tab:t2") && !mkt.modulos.has("entradas-saidas"), [...mkt.visiveis]);
 check("empresa sem nenhuma aba que combine: o modelo libera todas (não nasce vazio)", tipos.conjuntosDoModelo("marketing", { ...ctxModelo, abas: [{ id: "t5", name: "Outra coisa" }] }).visiveis.has("bi:tab:t5"), null);
 
+section("Novo acesso: tipo de acesso por empresa");
+const empresaTipo = { id: "e1", codigo: "10", visibilidade: { modo: "marcados", visiveis: ["bi:tab:t1"], modulos: [] }, dashboardTabs: [{ id: "t1", name: "Resumo", widgets: [] }, { id: "t2", name: "Demonstrativos", widgets: [] }] };
+const novaVis = tipos.visibilidadeComTipo({ item: empresaTipo, ehGrupo: false, email: "Ana@x.com", tipoId: "financeiro", companies: [empresaTipo], groups: [] });
+check("dar um modelo à pessoa cria o tipo pré-preenchido e mantém o padrão da empresa", novaVis.perfis?.[0]?.id === "financeiro" && novaVis.perfis[0].visiveis.includes("bi:tab:t2") && novaVis.perfilPorPessoa["ana@x.com"] === "financeiro" && novaVis.visiveis[0] === "bi:tab:t1", novaVis);
+check("tipoAtual lê o tipo da pessoa; voltar ao padrão tira só a pessoa do tipo", tipos.tipoAtual({ visibilidade: novaVis }, false, "ana@x.com", []) === "financeiro" && tipos.visibilidadeComTipo({ item: { ...empresaTipo, visibilidade: novaVis }, ehGrupo: false, email: "ana@x.com", tipoId: "", companies: [], groups: [] }).perfilPorPessoa["ana@x.com"] === undefined, null);
+const herdeira = { id: "e2", codigo: "11", dashboardTabs: [{ id: "t1", name: "Resumo", widgets: [] }] };
+const grupoHerdado = { id: "g1", companyIds: ["e2"], visibilidade: { modo: "marcados", visiveis: ["bi:tab:t1"], modulos: [] } };
+const volHerdeira = tipos.visibilidadeComTipo({ item: herdeira, ehGrupo: false, email: "b@x.com", tipoId: "comercial", companies: [herdeira], groups: [grupoHerdado] });
+check("empresa que herdava do grupo leva a cópia do padrão do grupo junto com o tipo (não perde a herança)", volHerdeira.modo === "marcados" && volHerdeira.visiveis[0] === "bi:tab:t1" && volHerdeira.perfilPorPessoa["b@x.com"] === "comercial", volHerdeira);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
