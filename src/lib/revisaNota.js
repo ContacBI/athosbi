@@ -262,3 +262,17 @@ export function textoDaNovidade(pedido, lida) {
   if (atual.s === "em_analise") return "Pedido em análise";
   return "Pedido atualizado";
 }
+
+/** A última novidade do escritório num pedido (resposta na conversa, aprovação ou recusa), para a lista do sininho; null se o escritório ainda não fez nada. */
+export function eventoDoPedido(pedido) {
+  const doEscritorio = (pedido?.observacoes || []).filter((o) => o.autor === "escritorio");
+  const ultima = doEscritorio[doEscritorio.length - 1] || null;
+  const final = pedido?.status === "cadastrado" || pedido?.status === "recusado";
+  if (final) {
+    const quando = !ultima || String(pedido.atualizado_em) >= String(ultima.criado_em) ? pedido.atualizado_em : ultima.criado_em;
+    return { quando, titulo: pedido.status === "cadastrado" ? "Pedido aprovado" : "Pedido recusado", texto: pedido.resposta || ultima?.texto || "" };
+  }
+  if (ultima) return { quando: ultima.criado_em, titulo: "O escritório respondeu", texto: ultima.texto };
+  if (pedido?.status === "em_analise") return { quando: pedido.atualizado_em, titulo: "Pedido em análise", texto: "" };
+  return null;
+}
