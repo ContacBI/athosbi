@@ -1190,6 +1190,22 @@ drop policy if exists "dominio_notas_read_scoped" on public.dominio_notas;
 create policy "dominio_notas_read_scoped" on public.dominio_notas for select to authenticated
   using (is_portal_admin() or is_colaborador() or company_id = any (allowed_company_ids()));
 
+-- Empresas cadastradas na Domínio (a Central manda 1x por dia, só leitura de bethadba.geempre): o cadastro de empresa do portal preenche nome e CNPJ pelo código.
+create table if not exists public.dominio_empresas (
+  codigo text primary key,
+  nome text not null,
+  cnpj text,
+  cidade text,
+  uf text,
+  situacao text not null default 'A' check (situacao in ('A', 'I')),
+  synced_at timestamptz not null default now()
+);
+create index if not exists dominio_empresas_cnpj_idx on public.dominio_empresas (cnpj);
+alter table public.dominio_empresas enable row level security;
+drop policy if exists "dominio_empresas_read_staff" on public.dominio_empresas;
+create policy "dominio_empresas_read_staff" on public.dominio_empresas for select to authenticated
+  using (is_portal_admin() or is_colaborador());
+
 -- DRE gerencial por loja (grupo Anjos), vinda do Gestão Click: a Central manda o que foi VALIDADO; o módulo "DRE Gerencial" lê.
 create table if not exists public.gestaoclick_dre (
   company_id text not null,

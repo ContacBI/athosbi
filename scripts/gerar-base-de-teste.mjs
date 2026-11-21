@@ -8,12 +8,12 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import JSZip from "jszip";
 import { buildEmpresaExemplo } from "../tests/fixtures/empresaExemplo.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const { parseCsv } = await import(path.join(ROOT, "src/importers/csv.js"));
+const { parseCsv } = await import(pathToFileURL(path.join(ROOT, "src/importers/csv.js")).href);
 const plano = parseCsv(fs.readFileSync(path.join(ROOT, "public/data/plano_gerencial_padrao.csv"), "utf8"));
 
 const EMPRESAS = [

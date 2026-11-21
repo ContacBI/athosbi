@@ -5,11 +5,11 @@
 // feita à mão a partir das operações da empresa-exemplo.
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { buildEmpresaExemplo, COMPANY_ID, PERIOD } from "./fixtures/empresaExemplo.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const src = (file) => import(path.join(ROOT, "src", file));
+const src = (file) => import(pathToFileURL(path.join(ROOT, "src", file)).href);
 
 const { state } = await src("data/store.js");
 const { parseCsv } = await src("importers/csv.js");
@@ -961,7 +961,7 @@ check(
     nomeCurto({ name: "QUAENT LTDA (2025)" }) === "QUAENT (2025)",
   null
 );
-const { baseDeTeste } = await import(path.join(ROOT, "scripts/gerar-base-de-teste.mjs"));
+const { baseDeTeste } = await import(pathToFileURL(path.join(ROOT, "scripts/gerar-base-de-teste.mjs")).href);
 const base = baseDeTeste();
 const fechaPartidas = base.companies.every((empresa) => Math.abs(empresa.journal.reduce((soma, entry) => soma + entry.debito - entry.credito, 0)) < 0.05);
 check(
@@ -970,7 +970,7 @@ check(
   null
 );
 
-const robo = await import(path.join(ROOT, "scripts/copiar-oficial-para-teste.mjs"));
+const robo = await import(pathToFileURL(path.join(ROOT, "scripts/copiar-oficial-para-teste.mjs")).href);
 const recusa = (oficial, teste) => {
   try {
     robo.conferirEnderecos(oficial, teste);
@@ -1179,6 +1179,31 @@ check(
     /não vale mais/.test(senhaLib.mensagemDoErroDeSenha({ message: "Token has expired or is invalid" })),
   null
 );
+
+section("Cadastro pelo código da Domínio");
+const domEmp = await src("lib/dominioEmpresas.js");
+const listaDominio = [
+  { codigo: "1", nome: "TERMOPLEX TECNOLOGIA DA INFORMACAO LTDA", cnpj: "13240423000120", cidade: "", uf: "PR", situacao: "A" },
+  { codigo: "2", nome: "D.MARCAL - SERVICOS AUTOMOTIVOS LTDA.", cnpj: "04294715000155", cidade: "LONDRINA", uf: "PR", situacao: "A" },
+  { codigo: "3", nome: "SANTOS & PERES PECAS E SERV AUTOMOTIVOS LTDA", cnpj: "08629914000128", cidade: "LONDRINA", uf: "PR", situacao: "I" },
+  { codigo: "120", nome: "ANJOS CATUAI COLCHOES E SOFAS LTDA", cnpj: "31923481000130", cidade: "LONDRINA", uf: "PR", situacao: "A" },
+  { codigo: "1205", nome: "ANJOS CATUAI COLCHOES E SOFAS LTDA", cnpj: "31923481000211", cidade: "LONDRINA", uf: "PR", situacao: "I" },
+  { codigo: "305", nome: "MICROMEDICAL IMPLANTES", cnpj: "", cidade: "SAO PAULO", uf: "SP", situacao: "A" },
+];
+check("código com zeros à esquerda acha a empresa (0002 → 2)", domEmp.acharPorCodigo(listaDominio, "0002")?.nome.startsWith("D.MARCAL"), domEmp.acharPorCodigo(listaDominio, "0002"));
+check("código inexistente não acha ninguém", domEmp.acharPorCodigo(listaDominio, "999") === null && domEmp.acharPorCodigo(listaDominio, "") === null, null);
+check("CNPJ acha só quem tem aquele CNPJ", domEmp.acharPorCnpj(listaDominio, "31.923.481/0001-30").length === 1 && domEmp.acharPorCnpj(listaDominio, "123").length === 0, null);
+check("sugestão por código: o exato vem antes dos que só começam com ele", domEmp.sugerirEmpresas(listaDominio, "120").map((e) => e.codigo).join(",") === "120,1205", domEmp.sugerirEmpresas(listaDominio, "120"));
+check("sugestão por nome ignora acento e caixa, ativas antes das inativas", domEmp.sugerirEmpresas(listaDominio, "catuaí").map((e) => e.codigo).join(",") === "120,1205", domEmp.sugerirEmpresas(listaDominio, "catuaí"));
+check("sugestão por parte do CNPJ (a partir de 4 dígitos)", domEmp.sugerirEmpresas(listaDominio, "13240423")[0]?.codigo === "1", domEmp.sugerirEmpresas(listaDominio, "13240423"));
+check("sem texto, sem sugestão", domEmp.sugerirEmpresas(listaDominio, "  ").length === 0, null);
+check("conferência: código e CNPJ batem", domEmp.conferirComDominio(listaDominio, { codigo: "120", cnpj: "31.923.481/0001-30" }).tipo === "ok", null);
+check("conferência: CNPJ ainda não digitado não é erro", domEmp.conferirComDominio(listaDominio, { codigo: "120", cnpj: "" }).tipo === "ok", null);
+check("conferência: mesmo código com outro CNPJ avisa (a Central recusaria)", domEmp.conferirComDominio(listaDominio, { codigo: "001", cnpj: "22.579.911/0001-58" }).tipo === "cnpj-diferente", domEmp.conferirComDominio(listaDominio, { codigo: "001", cnpj: "22579911000158" }));
+check("conferência: código que a Domínio não tem", domEmp.conferirComDominio(listaDominio, { codigo: "9999", cnpj: "" }).tipo === "codigo-inexistente", null);
+check("conferência: sem lista ainda / sem código", domEmp.conferirComDominio([], { codigo: "1", cnpj: "" }).tipo === "sem-lista" && domEmp.conferirComDominio(listaDominio, { codigo: " ", cnpj: "" }).tipo === "vazio", null);
+const jaNoPortal = [{ id: "a", codigo: "0120", cnpj: "31.923.481/0001-30" }, { id: "b", codigo: "305", cnpj: "" }];
+check("duplicado no portal: mesmo código (com zeros) ou mesmo CNPJ, fora a empresa que está sendo editada", domEmp.jaCadastradas(jaNoPortal, { codigo: "120", cnpj: "", idAtual: "x" }).length === 1 && domEmp.jaCadastradas(jaNoPortal, { codigo: "120", cnpj: "", idAtual: "a" }).length === 0 && domEmp.jaCadastradas(jaNoPortal, { codigo: "", cnpj: "31923481000130", idAtual: "x" }).length === 1, null);
 
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {

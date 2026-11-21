@@ -1,132 +1,22 @@
-import { useEffect, useState } from "react";
 import { X, Loader2, Plus, IdCard, PenTool, Target } from "lucide-react";
-import { useAppState } from "../data/useStore.js";
-import { formatCnpj, cnpjDigits, lookupCnpj } from "../lib/cnpj.js";
-import { DEFAULT_NATURE_RULES, NATURE_LABELS, NATURE_ORDER, formatPrefixList, parsePrefixList } from "../lib/accountNature.js";
-import { createPlanoPadrao } from "../lib/planosPadrao.js";
-import { listAdmins, listColaboradores, pickablePessoas } from "../lib/colaboradores.js";
+import { DEFAULT_NATURE_RULES, NATURE_LABELS, NATURE_ORDER, formatPrefixList } from "../lib/accountNature.js";
+import { pickablePessoas } from "../lib/colaboradores.js";
+import { INDICATOR_GOALS, formatGoal } from "../lib/metas.js";
+import { useCadastroDaEmpresa } from "../lib/useCadastroDaEmpresa.js";
 import SelectField from "./SelectField.jsx";
-import { INDICATOR_GOALS, cleanGoals, formatGoal } from "../lib/metas.js";
 
+// Cadastro/edição de empresa no portal (Parâmetros › Cadastros). Toda a lógica mora em lib/useCadastroDaEmpresa.js (o editor do console, equipe/EditorEmpresa.jsx, usa o
+// mesmo hook); aqui fica só o visual deste modal.
 export default function CompanyModal({ onClose, onSubmit, company = null }) {
-  const state = useAppState();
-  const isEditing = Boolean(company);
-  const [codigo, setCodigo] = useState(company?.codigo || "");
-  const [cnpj, setCnpj] = useState(company?.cnpj || "");
-  const [name, setName] = useState(company?.name || "");
-  const [atividade, setAtividade] = useState(company?.atividade || "");
-  const [municipio, setMunicipio] = useState(company?.municipio || "");
-  const [uf, setUf] = useState(company?.uf || "");
-  const [representanteIds, setRepresentanteIds] = useState(company?.representanteIds || []);
-  const [planoPadraoId, setPlanoPadraoId] = useState(company?.planoPadraoId || "");
-  // Modelo de DFC: "padrao" = Modelo 1 (recomendado); "instituto" = Modelo 2 (estrutura e contas da Domínio).
-  const [dfcModelo, setDfcModelo] = useState(company?.dfcModelo === "instituto" ? "instituto" : "padrao");
-  const [novoPlanoOpen, setNovoPlanoOpen] = useState(false);
-  const [novoPlanoNome, setNovoPlanoNome] = useState("");
-  const [lookupState, setLookupState] = useState(company?.atividade ? "done" : "idle");
-  const [error, setError] = useState("");
-  const [tab, setTab] = useState("dados");
-  // Metas dos indicadores (lib/metas.js): o texto digitado; vazio = padrão.
-  const [metas, setMetas] = useState(() =>
-    Object.fromEntries(INDICATOR_GOALS.map((goal) => [goal.id, company?.metasIndicadores?.[goal.id] != null ? String(company.metasIndicadores[goal.id]).replace(".", ",") : ""]))
-  );
-  const [natureText, setNatureText] = useState(() => {
-    const rules = company?.natureRules || DEFAULT_NATURE_RULES;
-    return Object.fromEntries(NATURE_ORDER.map((nature) => [nature, formatPrefixList(rules[nature])]));
-  });
-  // Empresa nova já vem com quem está criando pré-marcado — sem isso a
-  // pessoa ficaria trancada pra fora da própria empresa que acabou de
-  // cadastrar (RLS só deixa editar quem já está em `responsaveis`), mas
-  // dá pra desmarcar e escolher outra gente antes de salvar.
-  const [responsaveis, setResponsaveis] = useState(() => company?.responsaveis || [state.userEmail]);
-  const [pessoas, setPessoas] = useState([]); // Total + Restrito, pra escolher responsável
-
-  useEffect(() => {
-    Promise.all([listAdmins(), listColaboradores()])
-      .then(([admins, colaboradores]) => {
-        setPessoas([
-          ...admins.map((item) => ({ ...item, categoria: "Total" })),
-          ...colaboradores.map((item) => ({ ...item, categoria: "Restrito" })),
-        ]);
-      })
-      .catch((err) => console.error("Falha ao carregar colaboradores pro seletor de responsáveis:", err));
-  }, []);
-
-  async function handleCnpjChange(event) {
-    const formatted = formatCnpj(event.target.value);
-    setCnpj(formatted);
-    setError("");
-    if (cnpjDigits(formatted).length !== 14) {
-      setLookupState("idle");
-      return;
-    }
-    setLookupState("loading");
-    try {
-      const data = await lookupCnpj(formatted);
-      setName(data.name);
-      setAtividade(data.atividade);
-      setMunicipio(data.municipio);
-      setUf(data.uf);
-      setLookupState("done");
-    } catch {
-      setLookupState("error");
-      setError("Não encontrei esse CNPJ. Preencha o nome manualmente.");
-    }
-  }
-
-  function toggleRepresentante(id) {
-    setRepresentanteIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : current.concat(id)));
-  }
-
-  function toggleResponsavel(email) {
-    setResponsaveis((current) => (current.includes(email) ? current.filter((item) => item !== email) : current.concat(email)));
-  }
-
-  function handleCreatePlano() {
-    const created = createPlanoPadrao(novoPlanoNome);
-    if (!created) return;
-    setPlanoPadraoId(created.id);
-    setNovoPlanoNome("");
-    setNovoPlanoOpen(false);
-  }
-
-  function handleSubmit(event) {
-    event.preventDefault();
-    if (!name.trim()) {
-      setError("Informe o nome da empresa.");
-      setTab("dados");
-      return;
-    }
-    // Só obrigatório pra empresa NOVA — as já existentes ainda não têm
-    // plano padrão nenhum (ver lib/companies.js createCompany/updateCompany)
-    // e isso não pode travar quem só quer editar outro campo delas.
-    if (!isEditing && !planoPadraoId) {
-      setError("Escolha um plano de contas pra essa empresa.");
-      setTab("dados");
-      return;
-    }
-    // Sem pelo menos um responsável, ninguém Restrito jamais conseguiria
-    // editar essa empresa (ver is_responsavel em supabase/schema.sql) —
-    // sempre obrigatório, criando ou editando. O campo em si mora também
-    // em Parâmetros → Responsáveis (ResponsaveisAdmin.jsx), pra dar uma
-    // visão geral da carteira inteira, mas editar aqui direto no cadastro
-    // é mais rápido no dia a dia.
-    if (!responsaveis.length) {
-      setError("Marque pelo menos um responsável pela empresa.");
-      setTab("dados");
-      return;
-    }
-    const natureRules = Object.fromEntries(NATURE_ORDER.map((nature) => [nature, parsePrefixList(natureText[nature])]));
-    onSubmit({ codigo, cnpj, name, atividade, municipio, uf, representanteIds, natureRules, planoPadraoId: planoPadraoId || null, responsaveis, dfcModelo, metasIndicadores: cleanGoals(metas) });
-  }
-
-  const socios = state.representantes.filter((representante) => representante.tipo !== "contador");
-  const contadores = state.representantes.filter((representante) => representante.tipo === "contador");
-  const planoOptions = state.planosPadrao.map((plano) => ({ value: plano.id, label: plano.nome }));
+  const {
+    isEditing, codigo, setCodigo, cnpj, name, setName, atividade, municipio, uf, representanteIds, planoPadraoId, setPlanoPadraoId, dfcModelo, setDfcModelo,
+    novoPlanoOpen, setNovoPlanoOpen, novoPlanoNome, setNovoPlanoNome, lookupState, error, tab, setTab, metas, setMetas, natureText, setNatureText,
+    responsaveis, pessoas, socios, contadores, planoOptions, handleCnpjChange, toggleRepresentante, toggleResponsavel, handleCreatePlano, handleSubmit,
+  } = useCadastroDaEmpresa(company);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-[2px]">
-      <form onSubmit={handleSubmit} className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-surface-card shadow-xl">
+      <form onSubmit={handleSubmit(onSubmit)} className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-surface-card shadow-xl">
         <div className="flex items-start justify-between px-8 pt-7">
           <div>
             <span className="text-[11px] font-medium uppercase tracking-wide text-accent-600">
