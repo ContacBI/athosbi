@@ -1,22 +1,21 @@
-import { EH_TESTE } from "./ambiente.js";
 import { DONO_DA_CENTRAL } from "./uso.js";
 
 // Hub novo (o portal com cara de site: Início, Meu B.I., Tributário,
 // Serviços, Conteúdos, Ferramentas) é montado em paralelo ao portal de hoje
-// (pedido do Izaias, 28/10/2026): só aparece no site de TESTE e só para os
-// e-mails abaixo (os dois do Izaias). No oficial — e para clientes e
-// colaboradores, em qualquer site — nada muda. Quando estiver pronto, é
-// aqui que se liga para os outros.
+// (pedido do Izaias, 28/10/2026): aparece só para os e-mails abaixo (os dois
+// do Izaias) — desde 21/11/2026 também no site OFICIAL, a pedido dele. Para
+// clientes e colaboradores, em qualquer site, nada muda. Quando estiver
+// pronto para os outros, é aqui que se liga.
 export const QUEM_VE_O_HUB = [DONO_DA_CENTRAL, "izaiasspaulino@gmail.com"];
 
-export function hubLigado(st, ambienteTeste = EH_TESTE) {
-  return Boolean(ambienteTeste) && QUEM_VE_O_HUB.includes(String(st?.userEmail || "").trim().toLowerCase());
+export function hubLigado(st) {
+  return QUEM_VE_O_HUB.includes(String(st?.userEmail || "").trim().toLowerCase());
 }
 
-// A tela de login nova vale pra todo mundo no site de teste (pedido do
-// Izaias, 28/10/2026); no oficial continua a de sempre.
-export function loginNovo(ambienteTeste = EH_TESTE) {
-  return Boolean(ambienteTeste);
+// A tela de login nova vale pra todo mundo, no teste e no oficial (pedido do
+// Izaias, 28/10/2026; oficial desde 21/11/2026).
+export function loginNovo() {
+  return true;
 }
 
 // Visual novo do portal todo (src/hub/bi.css) pra quem tem o hub ligado:
