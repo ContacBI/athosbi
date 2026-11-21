@@ -8,7 +8,7 @@ import { exportCompanyBackup } from "../lib/fullBackup.js";
 import { isResponsavelForGroup } from "../lib/colaboradores.js";
 import { alinharComConfirmacao, pararComConfirmacao } from "../lib/visaoDoGrupo.js";
 import Avatar from "../components/Avatar.jsx";
-import CompanyModal from "../components/CompanyModal.jsx";
+import EditorEmpresa from "./EditorEmpresa.jsx";
 import GroupModal from "../components/GroupModal.jsx";
 import AcessoClientesModal from "../components/AcessoClientesModal.jsx";
 import { nomeDaPessoa, useNomesDaEquipe } from "./useNomes.js";
@@ -325,7 +325,7 @@ export default function ConsoleClientes() {
       </Cartao>
 
       {modalEmpresa !== undefined && (
-        <CompanyModal
+        <EditorEmpresa
           company={modalEmpresa}
           onClose={() => setModalEmpresa(undefined)}
           onSubmit={(fields) => {
