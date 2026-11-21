@@ -8,6 +8,7 @@ import { supabase } from "../lib/supabaseClient.js";
 import { setData, useAppState } from "../data/useStore.js";
 import { useTheme } from "../lib/theme.js";
 import { AREAS_DO_HUB, preferirPortalAtual } from "../lib/hub.js";
+import { areaOculta } from "../lib/visibilidade.js";
 import { entrarNoModo, realStaff, sairDosModos } from "../lib/modoEquipe.js";
 import { moduloDaRota } from "../lib/modulos.js";
 import { selectCompany } from "../lib/companies.js";
@@ -176,7 +177,7 @@ function BuscaRapida({ aberta, onFechar, itensDoHub, state, onAbrir }) {
   );
 }
 
-function Rodape({ irPara }) {
+function Rodape({ irPara, areas }) {
   const ano = new Date().getFullYear();
   return (
     <footer className="relative mt-24 border-t border-[var(--hub-borda)]">
@@ -191,7 +192,7 @@ function Rodape({ irPara }) {
         <div>
           <p className="hub-rotulo">No hub</p>
           <ul className="mt-4 space-y-2.5 text-[14px]">
-            {AREAS_DO_HUB.filter((area) => area.id !== "inicio").map((area) => (
+            {areas.filter((area) => area.id !== "inicio").map((area) => (
               <li key={area.id}>
                 <button type="button" onClick={() => irPara(area)} className="text-[var(--hub-texto-2)] transition-colors hover:text-[var(--hub-acento)]">
                   {area.nome}
@@ -423,6 +424,13 @@ export default function HubLayout() {
   const naBi = location.pathname.startsWith("/empresa");
   const modulo = moduloDaRota(location.pathname);
   const mostrarTopo = !naBi || state.topoDoHubAberto;
+  // Áreas que a equipe escondeu do cliente (Acesso dos clientes › lib/visibilidade.js): somem do menu, da busca e do rodapé, e a rota volta pro início.
+  const areas = AREAS_DO_HUB.filter((area) => !areaOculta(area.id));
+  const areaDaRota = AREAS_DO_HUB.find((area) => area.rota && area.rota !== "/hub" && location.pathname.startsWith(area.rota));
+  const rotaEscondida = Boolean((areaDaRota && areaOculta(areaDaRota.id)) || (naBi && !modulo && areaOculta("bi")) || (modulo && areaOculta("ferramentas")));
+  useEffect(() => {
+    if (rotaEscondida) navigate("/hub", { replace: true });
+  }, [rotaEscondida, navigate]);
 
   // As páginas do hub são o portal: a equipe vê cada empresa/grupo como o
   // cliente vê (lib/modoEquipe.js) — antes de pintar. No B.I. fica o modo em
@@ -542,7 +550,7 @@ export default function HubLayout() {
               <div className="mx-auto flex h-[72px] hub-largura items-center gap-4 px-5 sm:px-8">
                 <Marca onClick={() => navigate("/hub")} />
                 <nav className="ml-3 hidden items-center gap-1 xl:flex 2xl:ml-6" aria-label="Áreas do hub">
-                  {AREAS_DO_HUB.map((area) => (
+                  {areas.map((area) => (
                     <button key={area.id} type="button" onClick={() => irPara(area)} className="hub-menu-item" aria-current={ativo(area) ? "page" : undefined}>
                       {area.nome}
                       {!area.rota && !naBi && <ArrowUpRight size={13} className="ml-1 opacity-60" />}
@@ -594,7 +602,7 @@ export default function HubLayout() {
               </span>
               <ChevronDown size={15} className="shrink-0 text-[var(--hub-texto-3)]" />
             </button>
-            {AREAS_DO_HUB.map((area) => (
+            {areas.map((area) => (
               <button
                 key={area.id}
                 type="button"
@@ -632,11 +640,11 @@ export default function HubLayout() {
           </Suspense>
         </div>
       </Conteudo>
-      {!naBi && <Rodape irPara={irPara} />}
+      {!naBi && <Rodape irPara={irPara} areas={areas} />}
 
       {/* Janelas: com as cores do hub mesmo dentro do B.I. (display: contents não desenha caixa nenhuma). */}
       <div className="hub contents">
-        <BuscaRapida aberta={busca} onFechar={() => setBusca(false)} itensDoHub={AREAS_DO_HUB} state={state} onAbrir={(item) => abrir(item)} />
+        <BuscaRapida aberta={busca} onFechar={() => setBusca(false)} itensDoHub={areas} state={state} onAbrir={(item) => abrir(item)} />
       </div>
       <SeletorDeEmpresa aberto={Boolean(seletor)} onFechar={() => setSeletor(null)} onEscolher={(item) => (seletor === "trocar" ? trocar(item) : abrir(item))} />
       {pending && <WorkspaceLoading name={pending.name} isGroup={pending.isGroup} phase={pending.phase} progress={state.journalLoadProgress} onCancel={cancelar} />}

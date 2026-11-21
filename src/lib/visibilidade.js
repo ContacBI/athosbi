@@ -72,6 +72,16 @@ export function todasAsChaves(alvo) {
   return [...new Set(chaves)];
 }
 
+/**
+ * Áreas do menu do site que a equipe escondeu do cliente desta empresa/grupo (`visibilidade.areasOcultas`: "bi", "reforma", "servicos", "conteudos", "ferramentas").
+ * Aqui o padrão é VISÍVEL (só some o que foi listado), então configurações antigas não perdem nenhuma área. O Início nunca some. A equipe vê tudo.
+ */
+export const AREAS_OCULTAVEIS = ["bi", "reforma", "servicos", "conteudos", "ferramentas"];
+export function areaOculta(id) {
+  if (state.isAdmin || state.isColaborador) return false;
+  return (visibilidadeAtiva()?.areasOcultas || []).includes(id);
+}
+
 /** Módulos que a empresa/grupo aberto libera pros clientes — null = não configurado (vale a ficha da pessoa). */
 export function modulosDaEmpresa() {
   const lista = visibilidadeAtiva()?.modulos;
