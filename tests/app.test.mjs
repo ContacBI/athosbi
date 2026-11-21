@@ -1243,6 +1243,22 @@ check("equipe no portal do hub vê tudo", visib.equipeVeTudo(portalEquipe) === t
 check("equipe simulando o cliente ou vendo como uma pessoa NÃO vê tudo", visib.equipeVeTudo({ ...portalEquipe, clienteSimulado: true }) === false && visib.equipeVeTudo({ ...portalEquipe, pessoaVista: { email: "a@b" } }) === false, null);
 check("cliente de verdade nunca vê tudo; admin no console vê", visib.equipeVeTudo({ isAdmin: false, isColaborador: false, realIsAdmin: false, realIsColaborador: false, modoEquipe: null }) === false && visib.equipeVeTudo({ isAdmin: true }) === true, null);
 
+section("Buscar lançamento");
+const bl = await src("lib/buscaLancamentos.js");
+const razaoBusca = [
+  { data: "2026-01-10", historico: "Pagamento ALUGUEL janeiro", classificacao: "2.1.1", descricao_conta: "Aluguéis a pagar", debito: 1234.56, credito: 0 },
+  { data: "2026-02-05", historico: "Recebimento cliente X", classificacao: "1.1.1", descricao_conta: "Caixa", debito: 0, credito: 1234.56 },
+  { data: "2026-03-01", historico: "Compra de material", classificacao: "3.1.1", descricao_conta: "Material", debito: 15000, credito: 0 },
+];
+const indiceBusca = razaoBusca.map((entry) => ({ entry, h: bl.normalizarBusca(entry.historico), c: bl.normalizarBusca(`${entry.classificacao} ${entry.descricao_conta}`) }));
+const acha = (f) => bl.buscarLancamentos(indiceBusca, f).resultado.lista.length;
+check("valor exato com vírgula e ponto de milhar acha os dois lados (débito e crédito)", acha({ valor: "1.234,56" }) === 2 && acha({ valor: "1234.56" }) === 2, null);
+check("valor exato respeita o lado escolhido", acha({ valor: "1234,56", lado: "debito" }) === 1 && acha({ valor: "1234,56", lado: "credito" }) === 1, null);
+check("faixa de valor (a, hífen e ..)", acha({ valor: "1000 a 2000" }) === 2 && acha({ valor: "10000-20000" }) === 1 && acha({ valor: "14000..16000" }) === 1, null);
+check("histórico: várias palavras, sem acento nem caixa", acha({ historico: "aluguel JANEIRO" }) === 1 && acha({ historico: "cliente aluguel" }) === 0, null);
+check("conta (nome ou código) e período", acha({ conta: "alugueis" }) === 1 && acha({ conta: "1.1.1" }) === 1 && acha({ de: "2026-02-01", ate: "2026-02-28" }) === 1, null);
+check("sem filtro não despeja o razão; valor ilegível avisa", acha({}) === 0 && bl.buscarLancamentos(indiceBusca, { valor: "abc" }).valorInvalido === true, null);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);

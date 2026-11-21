@@ -23,6 +23,7 @@ import { useDownloadHandlers } from "../lib/pageActions.jsx";
 import { activeWorkspaceName } from "../lib/groups.js";
 import Placeholder from "../components/Placeholder.jsx";
 import LedgerModal from "../components/LedgerModal.jsx";
+import BuscaLancamentos from "../components/BuscaLancamentos.jsx";
 import Sparkline from "../components/Sparkline.jsx";
 import MiniBar from "../components/MiniBar.jsx";
 import ReportSettingsMenu from "../components/ReportSettingsMenu.jsx";
@@ -342,6 +343,7 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
   const [ledgerRow, setLedgerRow] = useState(null);
+  const [buscaLancamentoAberta, setBuscaLancamentoAberta] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [ebitdaChart, setEbitdaChart] = useState("evolucao");
 
@@ -720,6 +722,14 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
                 className="w-40 rounded-md border border-line-strong py-1.5 pl-7 pr-2 text-[12px] outline-none focus:border-accent-500"
               />
             </div>
+            <button
+              type="button"
+              onClick={() => setBuscaLancamentoAberta(true)}
+              title="Procurar um lançamento pelo valor, parte do histórico, conta ou data"
+              className="hidden h-[30px] items-center gap-1.5 rounded-md border border-line-strong px-2.5 text-[12px] font-medium text-ink-600 hover:bg-surface-muted sm:flex"
+            >
+              <ScanSearch size={13} /> Buscar lançamento
+            </button>
           </div>
           <div className="flex items-center gap-2">
             {activeCompany && (canComment || companyComments.length > 0) && (
@@ -1100,6 +1110,12 @@ export default function Demonstrativos({ lockedTab: lockedTabProp } = {}) {
       )}
       </div>
 
+      {buscaLancamentoAberta && (
+        <BuscaLancamentos
+          onClose={() => setBuscaLancamentoAberta(false)}
+          onAbrir={(entry) => setLedgerRow({ classificacao: entry.classificacao, nome_conta: entry.descricao_conta || entry.categoria_gerencial || entry.classificacao, destaque: entry })}
+        />
+      )}
       {ledgerRow && <LedgerModal row={ledgerRow} onClose={() => setLedgerRow(null)} />}
       {commentsOpen && <ComentariosPanel tab={tab} months={months} canEdit={canComment} onClose={() => setCommentsOpen(false)} />}
     </div>
