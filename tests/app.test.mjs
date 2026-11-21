@@ -1225,6 +1225,18 @@ check("em mais de um grupo configurado vale o mais recente", visib.configHerdada
 check("empresa com configuração própria não herda", visib.configHerdada({ id: "e2", visibilidade: { modo: "marcados", visiveis: [] } }, gruposVis) === null && visib.configHerdada({ id: "e2", visibilidade: { modulos: [] } }, gruposVis) === null, null);
 check("grupo sem configuração, ou empresa sem grupo, não herda nada", visib.configHerdada({ id: "e3" }, gruposVis) === null && visib.configHerdada({ id: "x" }, gruposVis) === null, null);
 
+section("Entradas x Saídas: acumuladores do consolidado");
+const nfs = await src("lib/notasFiscais.js");
+const brutosNf = {
+  a: [{ ano: 2026, dados: { linhas: [{ m: "2026-01", t: "E", a: 1040, n: "AQUI. SERV. C/ TODAS RET. A PRAZO", notas: 2, vcon: 100, vprod: 100, itens: 2 }] } }],
+  b: [{ ano: 2026, dados: { linhas: [{ m: "2026-01", t: "E", a: 2040, n: "Aqui. Serv. c/ todas ret. a prazo", notas: 3, vcon: 50, vprod: 50, itens: 3 }] } }],
+};
+const rNf = nfs.montarEntradasSaidas({ membros: [{ id: "a" }, { id: "b" }], brutos: brutosNf, ano: 2026, mesDe: 1, mesAte: 12, ehGrupo: true });
+const linhaNf = rNf.linhas.E[0];
+check("consolidado junta acumuladores de mesmo nome e lembra de qual empresa/código vem cada um", rNf.linhas.E.length === 1 && [...linhaNf.porEmpresa.a].join() === "1040" && [...linhaNf.porEmpresa.b].join() === "2040", linhaNf);
+const rNf2 = nfs.montarEntradasSaidas({ membros: [{ id: "a", notasConfig: { flags: { E: { 1040: true } } } }, { id: "b" }], brutos: brutosNf, ano: 2026, mesDe: 1, mesAte: 12, ehGrupo: true });
+check("escolha marcada só numa empresa vira 'parcial' e só ela entra na conta", rNf2.linhas.E[0].conta === "parcial" && rNf2.totais.E.v === 100, rNf2.totais.E);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);

@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, Bar, CartesianGrid, ComposedChart, LabelList, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ArrowDownRight, ArrowLeftRight, ArrowUpRight, Check, ChevronDown, ChevronRight, Lightbulb, Minus, Percent, Receipt, Scale, SlidersHorizontal, Ticket, Wallet } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
-import { saveNotasConfig } from "../lib/companies.js";
+import { saveNotasConfig, saveNotasConfigEmpresas } from "../lib/companies.js";
 import { groupCompanies, saveNotasMedidaGrupo } from "../lib/groups.js";
 import { oculto } from "../lib/visibilidade.js";
 import EntradasSaidasDetalhe from "../components/EntradasSaidasDetalhe.jsx";
 import { CARTAO, MES_CURTO, MES_LONGO, NAVY, ROSA, VERDE, brlCompacto, dec, eixo, inteiro, moneyFull, pct } from "../lib/fmtNotas.js";
-import { CONFIG_PADRAO, TIPOS, considerado, fetchNotas, montarEntradasSaidas, sugerirConsiderar } from "../lib/notasFiscais.js";
+import { CONFIG_PADRAO, TIPOS, fetchNotas, montarEntradasSaidas, sugerirConsiderar } from "../lib/notasFiscais.js";
 
 function Variacao({ atual, anterior, bomSobe = true, rotulo }) {
   if (!anterior || !Number.isFinite(atual)) return null;
@@ -121,7 +121,12 @@ export default function EntradasSaidas() {
   // grupo: a medida é do grupo (vale pra todas as empresas); empresa: a medida é dela
   const base = (grupo ? grupo.notasMedida?.base : config.base) || "nota";
   const valor = (grupo ? grupo.notasMedida?.valor : config.valor) || "nota";
-  const podeEditar = Boolean(!grupo && company && (state.isAdmin || (company.responsaveis || []).includes(state.userEmail)));
+  // A equipe também vê e edita os acumuladores quando está no portal do hub (onde isAdmin/isColaborador ficam desligados pra ela ver como o cliente), mas não na "visão de uma pessoa".
+  const equipeVe = equipe || Boolean(state.modoEquipe && !state.pessoaVista && (state.realIsAdmin || state.realIsColaborador));
+  const souAdmin = state.isAdmin || (equipeVe && state.realIsAdmin);
+  // empresas que a escolha de acumuladores atinge: a empresa aberta; num grupo, a empresa em foco ou (no consolidado) todas as do grupo
+  const alvosEdicao = grupo ? membrosUso : company ? [company] : [];
+  const podeEditar = Boolean(equipeVe && alvosEdicao.some((m) => souAdmin || (m.responsaveis || []).includes(state.userEmail)));
 
   useEffect(() => {
     if (!membros.length) return undefined;
@@ -214,15 +219,34 @@ export default function EntradasSaidas() {
       setAviso("Não consegui salvar a escolha agora. Tente de novo.");
     }
   }
+  // De quem é cada linha da tabela: no consolidado, de várias empresas (cada uma com o seu código); numa empresa só, dela.
+  const alvosDaLinha = (linha) => (ehConsolidado ? Object.entries(linha.porEmpresa || {}).map(([id, codigos]) => ({ id, codigos: [...codigos] })) : [{ id: membrosUso[0]?.id || company?.id, codigos: [String(linha.codigo)] }]).filter((alvo) => alvo.id);
+  // edicoes: [{ id, codigo, valor }] — valor true/false = escolha da equipe; undefined = volta pra sugestão
+  async function gravarEscolhas(tipo, edicoes) {
+    setAviso("");
+    const porEmpresa = new Map();
+    edicoes.forEach((e) => porEmpresa.set(e.id, [...(porEmpresa.get(e.id) || []), e]));
+    const mudancas = [...porEmpresa].map(([id, lista]) => {
+      const cfg = state.companies.find((item) => item.id === id)?.notasConfig || CONFIG_PADRAO;
+      const flagsTipo = { ...(cfg.flags?.[tipo] || {}) };
+      lista.forEach((e) => { if (e.valor === undefined) delete flagsTipo[e.codigo]; else flagsTipo[e.codigo] = e.valor; });
+      return { id, config: { ...CONFIG_PADRAO, ...cfg, flags: { ...(cfg.flags || {}), [tipo]: flagsTipo } } };
+    });
+    try {
+      const { puladas } = await saveNotasConfigEmpresas(mudancas);
+      if (puladas) setAviso(`Sem permissão para mudar ${puladas} empresa${puladas > 1 ? "s" : ""} do grupo: nelas a escolha não foi alterada.`);
+    } catch (err) {
+      console.error("Falha ao salvar a escolha dos acumuladores:", err);
+      setAviso("Não consegui salvar a escolha agora. Tente de novo.");
+    }
+  }
   const alternar = (tipo, linha) => {
-    const atual = considerado(config, tipo, linha.codigo, linha.nome);
-    gravar({ ...CONFIG_PADRAO, ...config, flags: { ...(config.flags || {}), [tipo]: { ...(config.flags?.[tipo] || {}), [String(linha.codigo)]: !atual } } });
+    const novo = linha.conta !== "sim"; // "parcial" (marcado só em parte das empresas) passa a marcado em todas
+    gravarEscolhas(tipo, alvosDaLinha(linha).flatMap((alvo) => alvo.codigos.map((codigo) => ({ id: alvo.id, codigo, valor: novo }))));
   };
   const emMassa = (tipo, modo) => {
     const lista = r?.linhas[tipo] || [];
-    const novo = {};
-    if (modo !== "sugestao") lista.forEach((linha) => { novo[String(linha.codigo)] = modo === "todos"; });
-    gravar({ ...CONFIG_PADRAO, ...config, flags: { ...(config.flags || {}), [tipo]: novo } });
+    gravarEscolhas(tipo, lista.flatMap((linha) => alvosDaLinha(linha).flatMap((alvo) => alvo.codigos.map((codigo) => ({ id: alvo.id, codigo, valor: modo === "sugestao" ? undefined : modo === "todos" })))));
   };
   const mudarMedida = (campo, id) => {
     if (grupo) {
@@ -330,7 +354,7 @@ export default function EntradasSaidas() {
                 <div className={`${CARTAO} absolute right-0 top-full z-40 mt-2 flex w-[300px] flex-col gap-4 p-4`}>
                   <Seletor rotulo="Ticket médio por" valor={base} opcoes={[["nota", "Nota"], ["item", "Item (peças)"]]} onChange={(id) => mudarMedida("base", id)} />
                   <Seletor rotulo="Valor" valor={valor} opcoes={[["nota", "Total da nota"], ["itens", "Só os itens"]]} onChange={(id) => mudarMedida("valor", id)} />
-                  <p className="text-[11.5px] leading-4 text-ink-400">{grupo ? "No grupo, esta medida vale para todas as empresas. Os acumuladores seguem a escolha de cada empresa (para mudar, abra a empresa)." : "A escolha fica salva na empresa."}</p>
+                  <p className="text-[11.5px] leading-4 text-ink-400">{grupo ? "No grupo, esta medida vale para todas as empresas. Os acumuladores seguem a escolha de cada empresa (a equipe marca na tabela de acumuladores, lá embaixo, e vale para todas as empresas do grupo que têm aquele acumulador)." : "A escolha fica salva na empresa."}</p>
                 </div>
               </>
             )}
@@ -452,7 +476,7 @@ export default function EntradasSaidas() {
       )}
 
       {/* Acumuladores: só a equipe, recolhido */}
-      {equipe && (
+      {equipeVe && (
         <div className={`${CARTAO} p-5`}>
           <button type="button" onClick={() => setVerAcumuladores((v) => !v)} className="flex w-full items-center gap-2 text-left text-[14px] font-semibold text-ink-900">
             {verAcumuladores ? <ChevronDown size={16} /> : <ChevronRight size={16} />} Acumuladores: escolher o que entra na conta
@@ -498,7 +522,7 @@ export default function EntradasSaidas() {
                               type="button"
                               disabled={!podeEditar}
                               onClick={() => alternar(aba, linha)}
-                              title={podeEditar ? (marcado ? "Tirar da conta" : "Considerar na conta") : linha.conta === "parcial" ? "Considerado só em parte das empresas" : "Escolha dentro de cada empresa"}
+                              title={podeEditar ? (marcado ? "Tirar da conta" : "Considerar na conta") : linha.conta === "parcial" ? "Considerado só em parte das empresas (clique para marcar em todas)" : "Sem permissão para editar"}
                               className={`flex h-6 w-6 items-center justify-center rounded-md border ${marcado ? "border-accent-500 bg-accent-500 text-white" : linha.conta === "parcial" ? "border-accent-500 text-accent-600" : "border-line-strong text-transparent"} ${podeEditar ? "cursor-pointer hover:opacity-80" : "cursor-default"}`}
                             >
                               {linha.conta === "parcial" ? <Minus size={13} /> : <Check size={13} />}
@@ -533,7 +557,7 @@ export default function EntradasSaidas() {
                   </tfoot>
                 </table>
               </div>
-              <p className="mt-3 text-[11.5px] text-ink-400">Acumuladores de venda e de compra de mercadoria vêm marcados por sugestão; devolução, remessa, bonificação e demonstração vêm desmarcados. Ajuste ao seu critério: a escolha fica salva na empresa.</p>
+              <p className="mt-3 text-[11.5px] text-ink-400">Acumuladores de venda e de compra de mercadoria vêm marcados por sugestão; devolução, remessa, bonificação e demonstração vêm desmarcados. Ajuste ao seu critério: a escolha fica salva na empresa. No consolidado do grupo, marcar um acumulador vale para todas as empresas que o têm (cada uma pelo seu código).</p>
             </>
           )}
         </div>
