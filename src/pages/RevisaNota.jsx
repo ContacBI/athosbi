@@ -327,7 +327,6 @@ function Produtos({ lista, companyId, pedidos, recarregarPedidos, atualizadoEm }
   const [compacta, setCompacta] = useState(() => {
     try { return localStorage.getItem("athos-revisa-densidade") === "compacta"; } catch { return false; }
   });
-  const [limite, setLimite] = useState(LIMITE);
   const [aberto, setAberto] = useState(null);
   const produtos = lista.produtos;
   const lei = useMemo(() => lista.lei || {}, [lista.lei]);
@@ -348,10 +347,10 @@ function Produtos({ lista, companyId, pedidos, recarregarPedidos, atualizadoEm }
     () => filtrarProdutos(produtos, { busca, situacao }).filter((p) => (!ncmSel || p.ncm === ncmSel) && (lcFiltro === "todos" || (lcFiltro === "anexo" ? p.lc : !p.lc)) && (cond === "todos" || p.cond === cond)),
     [produtos, busca, situacao, ncmSel, lcFiltro, cond],
   );
-  const mostrados = filtrados.slice(0, limite);
+  const mostrados = filtrados; // todos os produtos de uma vez, sem barra de rolagem própria da tabela
   const mostrarFilial = Object.keys(lista.estabs || {}).length > 1;
   const nAtivos = (ncmSel ? 1 : 0) + (lcFiltro !== "todos" ? 1 : 0) + (cond !== "todos" ? 1 : 0);
-  const limpar = () => { setNcmSel(""); setLcFiltro("todos"); setSituacao("todos"); setCond("todos"); setLimite(LIMITE); };
+  const limpar = () => { setNcmSel(""); setLcFiltro("todos"); setSituacao("todos"); setCond("todos"); };
   const chips = [
     ncmSel && [`NCM ${ncmFormatado(ncmSel)}`, () => setNcmSel("")],
     lcFiltro !== "todos" && [lcFiltro === "anexo" ? "Em anexo LC 214" : "Fora dos anexos", () => setLcFiltro("todos")],
@@ -359,7 +358,7 @@ function Produtos({ lista, companyId, pedidos, recarregarPedidos, atualizadoEm }
     cond !== "todos" && [`Condicional: ${cond.toLowerCase()}`, () => setCond("todos")],
   ].filter(Boolean);
   const total = resumo.total;
-  const escolherSituacao = (id) => { setSituacao(id); setLimite(LIMITE); };
+  const escolherSituacao = (id) => { setSituacao(id); };
   const alternarDensidade = () => setCompacta((c) => {
     const n = !c;
     try { localStorage.setItem("athos-revisa-densidade", n ? "compacta" : "confortavel"); } catch { /* sem armazenamento: só não lembra */ }
@@ -420,7 +419,7 @@ function Produtos({ lista, companyId, pedidos, recarregarPedidos, atualizadoEm }
       <div className="relative flex flex-wrap items-center gap-2">
         <div className="relative min-w-[260px] flex-1">
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-300" />
-          <input value={busca} onChange={(e) => { setBusca(e.target.value); setLimite(LIMITE); }} placeholder="Buscar por código, descrição ou NCM…" className="w-full rounded-lg border border-line bg-surface-card py-2.5 pl-8 pr-3 text-[13px] text-ink-900 outline-none placeholder:text-ink-300 focus:border-accent-400" />
+          <input value={busca} onChange={(e) => { setBusca(e.target.value); }} placeholder="Buscar por código, descrição ou NCM…" className="w-full rounded-lg border border-line bg-surface-card py-2.5 pl-8 pr-3 text-[13px] text-ink-900 outline-none placeholder:text-ink-300 focus:border-accent-400" />
         </div>
         <div className="flex overflow-hidden rounded-lg border border-line bg-surface-card" role="group" aria-label="Situação">
           {[["todos", "Todas"], ["pendente", "Pendentes"], ["duvida", "Em análise"], ["decidido", "Decididas"]].map(([k, t]) => (
@@ -444,7 +443,7 @@ function Produtos({ lista, companyId, pedidos, recarregarPedidos, atualizadoEm }
             <div className="space-y-4">
               <div>
                 <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-400">NCM</p>
-                <select value={ncmSel} onChange={(e) => { setNcmSel(e.target.value); setLimite(LIMITE); }} className="w-full rounded-lg border border-line bg-surface-card px-2.5 py-2 text-[12.5px] text-ink-800 outline-none focus:border-accent-500">
+                <select value={ncmSel} onChange={(e) => { setNcmSel(e.target.value); }} className="w-full rounded-lg border border-line bg-surface-card px-2.5 py-2 text-[12.5px] text-ink-800 outline-none focus:border-accent-500">
                   <option value="">Todos os NCMs ({ncms.length})</option>
                   {ncms.map(([n, q]) => <option key={n} value={n}>{ncmFormatado(n)} · {q} produto(s)</option>)}
                 </select>
@@ -453,7 +452,7 @@ function Produtos({ lista, companyId, pedidos, recarregarPedidos, atualizadoEm }
                 <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-400">NCM na LC 214</p>
                 <div className="flex flex-wrap gap-1.5">
                   {[["todos", "Todos", produtos.length], ["anexo", "Em anexo", emAnexo], ["fora", "Fora dos anexos", produtos.length - emAnexo]].map(([k, t, q]) => (
-                    <button key={k} type="button" onClick={() => { setLcFiltro(k); setLimite(LIMITE); }} className={botaoFiltro(lcFiltro === k)}>{t} <b className="ml-0.5 tabular-nums">{inteiro(q)}</b></button>
+                    <button key={k} type="button" onClick={() => { setLcFiltro(k); }} className={botaoFiltro(lcFiltro === k)}>{t} <b className="ml-0.5 tabular-nums">{inteiro(q)}</b></button>
                   ))}
                 </div>
               </div>
@@ -461,7 +460,7 @@ function Produtos({ lista, companyId, pedidos, recarregarPedidos, atualizadoEm }
                 <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-400" title="O código deste produto pode mudar por uma condição (em geral, quem compra)?">Código muda conforme o comprador?</p>
                 <div className="flex flex-wrap gap-1.5">
                   {CONDICIONAL_FILTRO.map(([k, t]) => (
-                    <button key={k} type="button" onClick={() => { setCond(k); setLimite(LIMITE); }} className={botaoFiltro(cond === k)}>{t} {k !== "todos" && <b className="ml-0.5 tabular-nums">{contCond[k]}</b>}</button>
+                    <button key={k} type="button" onClick={() => { setCond(k); }} className={botaoFiltro(cond === k)}>{t} {k !== "todos" && <b className="ml-0.5 tabular-nums">{contCond[k]}</b>}</button>
                   ))}
                 </div>
               </div>
@@ -485,7 +484,7 @@ function Produtos({ lista, companyId, pedidos, recarregarPedidos, atualizadoEm }
       )}
 
       <div className="overflow-hidden rounded-xl border border-line bg-surface-card">
-        <div className="max-h-[680px] overflow-auto scrollbar-thin">
+        <div className="overflow-x-auto">
           <table className="w-full min-w-[1180px] text-[13px]">
             <Cabecalho colunas={[["Código"], ["Descrição"], ["NCM"], ["LC"], ["Anexo"], ["Item"], ["%"], ["Condicional"], ["Valor vendido", true], ["Última venda"], ["Decisão"]]} />
             <tbody className="divide-y divide-line/60">
@@ -522,11 +521,6 @@ function Produtos({ lista, companyId, pedidos, recarregarPedidos, atualizadoEm }
             </tbody>
           </table>
         </div>
-        {filtrados.length > limite && (
-          <div className="border-t border-line px-4 py-3 text-center">
-            <button type="button" onClick={() => setLimite((l) => l + LIMITE)} className="rounded-lg border border-line-strong px-4 py-1.5 text-[12.5px] font-medium text-ink-600 hover:bg-surface-muted">Mostrar mais ({inteiro(filtrados.length - limite)} restantes)</button>
-          </div>
-        )}
       </div>
       {aberto && <DetalheProduto produto={aberto} lista={lista} companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} onClose={() => setAberto(null)} />}
     </>
@@ -737,7 +731,7 @@ export default function RevisaNota() {
           </div>
         ) : (
           <>
-            <div className={`${aba === "produtos" && conjuntos.length === 1 ? "hidden" : "flex"} flex-wrap items-center gap-x-3 gap-y-1.5 text-[12.5px] text-ink-500`}>
+            <div className={`${(aba === "produtos" || aba === "resumo" || aba === "lei") && conjuntos.length === 1 ? "hidden" : "flex"} flex-wrap items-center gap-x-3 gap-y-1.5 text-[12.5px] text-ink-500`}>
               <PackageCheck size={15} className="text-accent-600" />
               {conjuntos.length > 1 ? (
                 conjuntos.map((c, i) => (
