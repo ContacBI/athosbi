@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Eye, EyeOff, Plus, Trash2, UserPlus, Users, Wrench, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import PreviaCliente from "./PreviaCliente.jsx";
+import { MODELOS_TIPO, conjuntosDoModelo } from "../lib/tiposDeAcesso.js";
 import { grantAccess, inviteUser, listAccessGrants, listAccessPeople, revokeAccess } from "../lib/access.js";
 import { saveVisibilidadeEmpresa } from "../lib/companies.js";
 import { saveVisibilidadeGrupo } from "../lib/groups.js";
@@ -165,20 +166,36 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
     carregar(novoId === null ? padraoGuardado : perfis.find((p) => p.id === novoId));
     setPerfilAtivo(novoId);
   }
-  function novoPerfil() {
-    const padraoAgora = perfilAtivo === null ? vivo() : padraoGuardado;
-    // padrão ainda sem configuração (o cliente vê tudo): o perfil novo nasce com tudo marcado; senão, copia o padrão
-    const tudo = { visiveis: new Set(todasAsChaves(item)), modulos: new Set(aplicaveis.map((m) => m.id)), areasOcultas: new Set() };
-    const base = semConfigEfetiva && !mudouPadrao(padraoAgora) ? tudo : { visiveis: new Set(padraoAgora.visiveis), modulos: new Set(padraoAgora.modulos), areasOcultas: new Set(padraoAgora.areasOcultas) };
-    const novo = { id: `perfil_${Date.now().toString(36)}`, nome: `Perfil ${perfis.length + 1}`, ...base };
+  // Cria um tipo de acesso (já guardando o que estava na tela) e, se pedido, passa a editá-lo.
+  function criarTipo(novo, ativar) {
     if (perfilAtivo === null) setPadraoGuardado(vivo());
     setPerfis((atual) => [...guardarAtual(atual), novo]);
-    carregar(base);
-    setPerfilAtivo(novo.id);
+    if (ativar) {
+      carregar(novo);
+      setPerfilAtivo(novo.id);
+    }
+  }
+  // Modelo pré-preenchido (Financeiro, Comercial, Marketing): se a empresa ainda não tem, cria com o que o modelo libera nas abas dela. Devolve o id.
+  function criarDoModelo(modeloId, ativar) {
+    if (perfis.some((p) => p.id === modeloId)) {
+      if (ativar) trocarPerfil(modeloId);
+      return modeloId;
+    }
+    const modelo = MODELOS_TIPO.find((m) => m.id === modeloId);
+    const conjuntos = conjuntosDoModelo(modeloId, { abas, chaves: todasAsChaves(item), modulosAplicaveis: aplicaveis.map((m) => m.id), blocos: BLOCOS_ENTRADAS_SAIDAS.map((b) => b.id) });
+    criarTipo({ id: modeloId, nome: modelo.nome, ...conjuntos }, ativar);
+    return modeloId;
+  }
+  // Tipo em branco da equipe (nome livre): nasce como cópia do padrão (ou com tudo marcado, se o padrão ainda não foi configurado).
+  function outroTipo() {
+    const padraoAgora = perfilAtivo === null ? vivo() : padraoGuardado;
+    const tudo = { visiveis: new Set(todasAsChaves(item)), modulos: new Set(aplicaveis.map((m) => m.id)), areasOcultas: new Set() };
+    const base = semConfigEfetiva && !mudouPadrao(padraoAgora) ? tudo : { visiveis: new Set(padraoAgora.visiveis), modulos: new Set(padraoAgora.modulos), areasOcultas: new Set(padraoAgora.areasOcultas) };
+    criarTipo({ id: `perfil_${Date.now().toString(36)}`, nome: `Novo tipo ${perfis.filter((p) => p.id.startsWith("perfil_")).length + 1}`, ...base }, true);
   }
   function excluirPerfil() {
     const atual = perfis.find((p) => p.id === perfilAtivo);
-    if (!atual || !window.confirm(`Excluir o perfil “${atual.nome}”? As pessoas dele voltam ao padrão.`)) return;
+    if (!atual || !window.confirm(`Excluir o tipo de acesso “${atual.nome}”? As pessoas dele voltam ao padrão.`)) return;
     setPerfis((lista) => lista.filter((p) => p.id !== perfilAtivo));
     setPerfilPorPessoa((mapa) => Object.fromEntries(Object.entries(mapa).filter(([, id]) => id !== perfilAtivo)));
     carregar(padraoGuardado);
@@ -274,22 +291,25 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
 
             {secao !== "pessoas" && (
               <div className="mb-4 rounded-xl border border-line bg-surface-muted/40 p-3">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-ink-400">Quem você está configurando</p>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-ink-400">Tipo de acesso que você está configurando</p>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <button type="button" onClick={() => trocarPerfil(null)} className={`rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors ${perfilAtivo === null ? "border-accent-500 bg-accent-500 text-white" : "border-line text-ink-600 hover:bg-surface-card"}`}>Padrão (todos)</button>
                   {perfis.map((p) => (
                     <button key={p.id} type="button" onClick={() => trocarPerfil(p.id)} className={`rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors ${perfilAtivo === p.id ? "border-accent-500 bg-accent-500 text-white" : "border-line text-ink-600 hover:bg-surface-card"}`}>{p.nome}</button>
                   ))}
-                  <button type="button" onClick={novoPerfil} className="flex items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1 text-[12.5px] font-medium text-accent-600 hover:bg-surface-card"><Plus size={13} /> Novo perfil</button>
+                  {MODELOS_TIPO.filter((m) => !perfis.some((p) => p.id === m.id)).map((m) => (
+                    <button key={m.id} type="button" onClick={() => criarDoModelo(m.id, true)} title={`Cria o tipo ${m.nome} já pré-preenchido: ${m.texto}`} className="flex items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1 text-[12.5px] font-medium text-accent-600 hover:bg-surface-card"><Plus size={13} /> {m.nome}</button>
+                  ))}
+                  <button type="button" onClick={outroTipo} className="flex items-center gap-1 rounded-full border border-dashed border-line-strong px-3 py-1 text-[12.5px] font-medium text-accent-600 hover:bg-surface-card"><Plus size={13} /> Outro tipo</button>
                 </div>
                 {perfilAtivo !== null ? (
                   <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                    <input value={perfis.find((p) => p.id === perfilAtivo)?.nome || ""} onChange={(e) => renomearPerfil(e.target.value)} aria-label="Nome do perfil" className="w-56 rounded-lg border border-line bg-surface-card px-3 py-1.5 text-[13px] outline-none focus:border-accent-500" />
-                    <button type="button" onClick={excluirPerfil} className="flex items-center gap-1 rounded-lg border border-line-strong px-2.5 py-1.5 text-[12px] text-ink-600 hover:bg-surface-card hover:text-danger-600"><Trash2 size={13} /> Excluir perfil</button>
-                    <span className="text-[11.5px] text-ink-400">O que você marcar abaixo vale só para as pessoas deste perfil. Escolha quem é de cada perfil em “Quem tem acesso”.</span>
+                    <input value={perfis.find((p) => p.id === perfilAtivo)?.nome || ""} onChange={(e) => renomearPerfil(e.target.value)} aria-label="Nome do tipo de acesso" className="w-56 rounded-lg border border-line bg-surface-card px-3 py-1.5 text-[13px] outline-none focus:border-accent-500" />
+                    <button type="button" onClick={excluirPerfil} className="flex items-center gap-1 rounded-lg border border-line-strong px-2.5 py-1.5 text-[12px] text-ink-600 hover:bg-surface-card hover:text-danger-600"><Trash2 size={13} /> Excluir tipo</button>
+                    <span className="text-[11.5px] text-ink-400">O que você marcar abaixo vale só para quem tem este tipo de acesso. Escolha o tipo de cada pessoa em “Quem tem acesso”.</span>
                   </div>
                 ) : (
-                  <p className="mt-2 text-[11.5px] text-ink-400">{perfis.length ? "O padrão vale para quem não tem perfil." : "Para que pessoas da mesma empresa vejam telas diferentes, crie um perfil e escolha quem é de cada um em “Quem tem acesso”."}</p>
+                  <p className="mt-2 text-[11.5px] text-ink-400">O padrão vale para quem não tem tipo de acesso. Clique em Financeiro, Comercial ou Marketing para criar o tipo já pré-preenchido (você ajusta depois), ou em “Outro tipo” para criar o seu.</p>
                 )}
               </div>
             )}
@@ -297,7 +317,7 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
             {secao === "pessoas" && (
               <div>
                 <h3 className="text-[14px] font-semibold text-ink-900">Quem tem acesso</h3>
-                <p className="mt-1 text-[12.5px] text-ink-400">Pessoas que abrem {item.name}. Elas veem o que for configurado nas outras abas.</p>
+                <p className="mt-1 text-[12.5px] text-ink-400">Pessoas que abrem {item.name}. Ao lado de cada uma, escolha o tipo de acesso (Padrão, Financeiro, Comercial, Marketing ou outro que você criar): cada tipo vê o que for configurado nas outras abas.</p>
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <input value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && darAcesso()} placeholder="e-mail da pessoa" className="min-w-[240px] flex-1 rounded-lg border border-line bg-surface-card px-3 py-2 text-[13px] outline-none focus:border-accent-500" />
                   <label className="flex items-center gap-1.5 text-[12.5px] text-ink-600"><input type="checkbox" checked={convidar} onChange={(e) => setConvidar(e.target.checked)} className="accent-[#e8681f]" /> enviar convite por e-mail</label>
@@ -312,12 +332,27 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
                         <p className="truncate text-[13px] font-medium text-ink-900">{fichas.get(g.email)?.nome || "Sem nome"}</p>
                         <p className="truncate text-[12px] text-ink-400">{g.email}</p>
                       </div>
-                      {perfis.length > 0 && (
-                        <select value={perfilPorPessoa[g.email.toLowerCase()] || ""} onChange={(e) => setPerfilPorPessoa((mapa) => { const novo = { ...mapa }; if (e.target.value) novo[g.email.toLowerCase()] = e.target.value; else delete novo[g.email.toLowerCase()]; return novo; })} aria-label={`Perfil de ${g.email}`} className="rounded-lg border border-line bg-surface-card px-2.5 py-1.5 text-[12.5px] text-ink-700 outline-none focus:border-accent-500">
-                          <option value="">Padrão</option>
-                          {perfis.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                        </select>
-                      )}
+                      <select
+                        value={perfilPorPessoa[g.email.toLowerCase()] || ""}
+                        onChange={(e) => {
+                          const escolha = e.target.value;
+                          const chave = g.email.toLowerCase();
+                          // modelo que ainda não existe nesta empresa: cria já pré-preenchido e atribui
+                          const id = escolha.startsWith("modelo:") ? criarDoModelo(escolha.slice(7), false) : escolha;
+                          setPerfilPorPessoa((mapa) => { const novo = { ...mapa }; if (id) novo[chave] = id; else delete novo[chave]; return novo; });
+                        }}
+                        aria-label={`Tipo de acesso de ${g.email}`}
+                        title="Tipo de acesso: define o que esta pessoa vê"
+                        className="rounded-lg border border-line bg-surface-card px-2.5 py-1.5 text-[12.5px] text-ink-700 outline-none focus:border-accent-500"
+                      >
+                        <option value="">Padrão</option>
+                        {perfis.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                        {MODELOS_TIPO.filter((m) => !perfis.some((p) => p.id === m.id)).length > 0 && (
+                          <optgroup label="Criar e usar">
+                            {MODELOS_TIPO.filter((m) => !perfis.some((p) => p.id === m.id)).map((m) => <option key={m.id} value={`modelo:${m.id}`}>{m.nome}</option>)}
+                          </optgroup>
+                        )}
+                      </select>
                       <button type="button" onClick={() => tirarAcesso(g)} disabled={trabalhando} title="Tirar o acesso" className="flex h-7 w-7 items-center justify-center rounded-md border border-line-strong text-ink-500 hover:bg-surface-muted hover:text-danger-600 disabled:opacity-40"><Trash2 size={13} /></button>
                     </div>
                   ))}
