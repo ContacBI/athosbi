@@ -532,6 +532,8 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
   // Carga tributária também sem os botões do B.I (período, relatórios, personalizar) -- ela tem o período e a personalização dela.
   const isCarga = location.pathname.startsWith("/empresa/carga-tributaria");
   const isModulo = isCarga || location.pathname.startsWith("/empresa/orcamento") || location.pathname.startsWith("/empresa/analise-desempenho") || location.pathname.startsWith("/empresa/entradas-saidas") || location.pathname.startsWith("/empresa/dre-gerencial") || location.pathname.startsWith("/empresa/revisa-nota");
+  // Revisa Nota é só leitura de produtos e clientes: sem modo da tela, fechamento, período, relatórios, personalizar e configurações.
+  const isRevisaNota = location.pathname.startsWith("/empresa/revisa-nota");
   const showNav = !isPersonalizar && !isDataArea && !isModulo && tabs.length > 0;
   const hasData = appState.accounts.length > 0 || appState.journal.length > 0;
 
@@ -633,10 +635,10 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
             </>
           )}
           {/* longe da lua (antes ficava colado nela e se clicava errado) */}
-          {usaModos(appState) ? <ModoDaTela className="shrink-0" /> : <VisaoClienteOlho className="shrink-0" />}
+          {!isRevisaNota && (usaModos(appState) ? <ModoDaTela className="shrink-0" /> : <VisaoClienteOlho className="shrink-0" />)}
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className={`${isRevisaNota ? "hidden" : "flex"} flex-wrap items-center justify-end gap-2`}>
           {hasData && !isCarga && company && canEdit && <FechamentoMenu company={company} />}
           {hasData && !isCarga && (
             <PeriodPicker
