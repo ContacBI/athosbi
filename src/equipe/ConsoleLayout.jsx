@@ -35,6 +35,7 @@ import { EH_TESTE } from "../lib/ambiente.js";
 import { QUEM_VE_O_HUB, hubLigado, preferirPortalAtual } from "../lib/hub.js";
 import { entrarNoModo, realStaff } from "../lib/modoEquipe.js";
 import { lembrarGrupoContexto } from "../lib/unidades.js";
+import { abrirEmOutraAba, enderecoDeAbertura } from "../lib/abrirEmOutraAba.js";
 import { useAbrirWorkspace } from "../lib/useAbrirWorkspace.js";
 import { RESET_SECTION_EVENT } from "../components/ParametrosSidebar.jsx";
 import AthosMark from "../components/AthosMark.jsx";
@@ -239,10 +240,11 @@ function Lateral({ state, onBusca, onIr }) {
         <MenuDoConsole state={state} onIr={onIr} />
       </div>
       <div className="space-y-2 border-t border-[var(--hub-borda)] p-3">
-        <button type="button" onClick={() => navigate("/hub")} className="flex w-full items-center justify-between rounded-xl bg-[var(--hub-acento-suave)] px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--hub-acento)] transition-colors hover:bg-[var(--hub-acento)] hover:text-white" title="O portal: cada grupo e empresa exatamente como o cliente vê">
+        {/* O portal abre em outra aba: o console fica aqui. */}
+        <a href="/hub" target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-between rounded-xl bg-[var(--hub-acento-suave)] px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--hub-acento)] transition-colors hover:bg-[var(--hub-acento)] hover:text-white" title="O portal (em outra aba): cada grupo e empresa exatamente como o cliente vê">
           Abrir o portal
           <ArrowUpRight size={15} />
-        </button>
+        </a>
         <div className="flex items-center gap-2.5 rounded-xl px-1.5 py-1">
           <Avatar name={nome} size={32} className="rounded-full" />
           <span className="min-w-0 flex-1">
@@ -331,9 +333,12 @@ export default function ConsoleLayout() {
   if (!pode) return EH_TESTE ? <SemAcessoAoConsole state={state} /> : <Navigate to="/" replace />;
 
   // Abrir no B.I. a partir do console: editando (o modo daqui) ou vendo
-  // exatamente como o cliente vê — a troca de modo só acontece na hora de
-  // sair do console (se a pessoa desistir no carregamento, continua aqui).
+  // exatamente como o cliente vê. Abre em OUTRA ABA (lib/abrirEmOutraAba.js)
+  // — o console fica aqui. Se o navegador bloquear a aba nova, abre aqui
+  // mesmo, como antes: a troca de modo só acontece na hora de sair do
+  // console (se a pessoa desistir no carregamento, continua aqui).
   const abrir = (item, { destino = "/empresa", comoCliente = false, pessoa = null } = {}) => {
+    if (abrirEmOutraAba(enderecoDeAbertura(item, { destino, comoCliente, pessoa }))) return;
     const opcoes = comoCliente || pessoa ? { antesDeNavegar: () => entrarNoModo("portal", { pessoa }) } : {};
     if (item.tipo === "grupo") {
       lembrarGrupoContexto(item.id);

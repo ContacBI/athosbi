@@ -82,6 +82,7 @@ const ConsoleLayout = lazy(() => import("./equipe/ConsoleLayout.jsx"));
 const ConsoleVisaoGeral = lazy(() => import("./equipe/ConsoleVisaoGeral.jsx"));
 const ConsoleClientes = lazy(() => import("./equipe/ConsoleClientes.jsx"));
 const ConsoleCliente = lazy(() => import("./equipe/ConsoleCliente.jsx"));
+const AbrirNaAba = lazy(() => import("./equipe/AbrirNaAba.jsx"));
 const ReformaSimulacao = lazy(() => import("./pages/reforma/ReformaSimulacao.jsx"));
 const ReformaPainel = lazy(() => import("./pages/reforma/ReformaPainel.jsx"));
 const ReformaEmpresa = lazy(() => import("./pages/reforma/ReformaEmpresa.jsx"));
@@ -225,8 +226,8 @@ function AuthedApp() {
     bootedForUserRef.current = session.user.id;
     Promise.all([
       loadPlan(),
-      // No console da equipe não reabre a última empresa/grupo (nem baixa o razão dela) — ver loadCompanies.
-      loadCompanies({ semAbrir: window.location.pathname.startsWith("/equipe") }),
+      // No console da equipe (e na aba que ele abre, /abrir) não reabre a última empresa/grupo (nem baixa o razão dela) — ver loadCompanies.
+      loadCompanies({ semAbrir: /^\/(equipe|abrir)(\/|$)/.test(window.location.pathname) }),
       loadRepresentantes(),
       loadIndicatorOverrides(),
       isPortalAdmin(),
@@ -339,6 +340,8 @@ function AuthedApp() {
           <Route path="carteira" element={<Carteira dentroDoConsole />} />
           {rotasDeCadastro()}
         </Route>
+        {/* A aba nova que o console abre pro B.I. (lib/abrirEmOutraAba.js). */}
+        <Route path="abrir" element={<AbrirNaAba />} />
         <Route path="reforma" element={<ReformaHome />} />
         <Route path="reforma/painel" element={<ReformaPainel />} />
         <Route path="reforma/empresa/:id" element={<ReformaEmpresa />} />

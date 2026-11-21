@@ -1,11 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { ArrowRight, ArrowUpRight, Boxes, Building2, Clock, Eye, Search, ShieldCheck, Sparkles } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { primeiroNome, saudacao } from "../lib/inicio.js";
 import { recentes } from "../lib/recentes.js";
 import { haQuanto } from "../lib/uso.js";
-import { unidadesDaCarteira } from "../lib/unidades.js";
+import { empresasDoResponsavel, unidadesDaCarteira } from "../lib/unidades.js";
 import { COR_DO_STATUS, nomeCurto, problemasDaEmpresa, statusDaUnidade, useSaude } from "./useSaude.js";
 import { BarraDeStatus, Cabecalho, Cartao, IconeDaUnidade, Numero, SeloDeStatus } from "./pecas.jsx";
 
@@ -17,14 +17,51 @@ const ATALHOS = [
   { to: "/equipe/empresas", nome: "Empresas", texto: "Cadastro e Domínio", icone: Building2 },
 ];
 
+// O que o administrador escolheu ver aqui (só neste navegador): as dele ou a carteira toda.
+const CHAVE_DO_ESCOPO = "athosbi.console.visaoGeral";
+
+function escopoGuardado() {
+  try {
+    return localStorage.getItem(CHAVE_DO_ESCOPO) === "todas" ? "todas" : "minhas";
+  } catch {
+    return "minhas";
+  }
+}
+
+function guardarEscopo(escopo) {
+  try {
+    localStorage.setItem(CHAVE_DO_ESCOPO, escopo);
+  } catch {
+    // sem armazenamento: vale até recarregar
+  }
+}
+
 // Console › Visão geral: como está a carteira hoje e o que pede atenção,
-// por grupo (a unidade de trabalho — ver lib/unidades.js).
+// por grupo (a unidade de trabalho — ver lib/unidades.js). Mostra só as
+// empresas de quem está logado — onde a pessoa está como responsável
+// (pedido do Izaias, 21/11/2026); num grupo, só as empresas dela. O
+// administrador pode trocar pra carteira inteira (e, sem nenhuma empresa
+// como responsável, já vê a carteira inteira).
 export default function ConsoleVisaoGeral() {
   const state = useAppState();
   const navigate = useNavigate();
   const { abrir, abrirBusca } = useOutletContext();
-  const { healths, calculando } = useSaude(state.companies);
-  const { grupos, avulsas } = useMemo(() => unidadesDaCarteira(state.companies, state.groups), [state.companies, state.groups]);
+  const admin = Boolean(state.realIsAdmin);
+  const minhas = useMemo(() => empresasDoResponsavel(state.companies, state.userEmail), [state.companies, state.userEmail]);
+  const [escolha, setEscolha] = useState(escopoGuardado);
+  const verTodas = admin && (escolha === "todas" || minhas.length === 0);
+  const empresas = verTodas ? state.companies : minhas;
+  const { healths, calculando } = useSaude(empresas);
+  const { grupos, avulsas } = useMemo(() => {
+    const unidades = unidadesDaCarteira(empresas, state.groups);
+    // Recortado pela pessoa: grupo sem nenhuma empresa dela fica de fora.
+    return verTodas ? unidades : { grupos: unidades.grupos.filter((unidade) => unidade.membros.length), avulsas: unidades.avulsas };
+  }, [empresas, state.groups, verTodas]);
+  const visiveis = useMemo(() => new Set([...empresas.map((company) => company.id), ...grupos.map((unidade) => unidade.id)]), [empresas, grupos]);
+  const escolher = (escopo) => {
+    setEscolha(escopo);
+    guardarEscopo(escopo);
+  };
 
   const contagem = useMemo(() => {
     const c = { ok: 0, atencao: 0, critico: 0 };
@@ -49,11 +86,11 @@ export default function ConsoleVisaoGeral() {
       recentes()
         .map((item) => {
           const registro = item.tipo === "grupo" ? state.groups.find((group) => group.id === item.id) : state.companies.find((company) => company.id === item.id);
-          return registro ? { ...item, nome: registro.name } : null;
+          return registro && visiveis.has(item.id) ? { ...item, nome: registro.name } : null;
         })
         .filter(Boolean)
         .slice(0, 5),
-    [state.companies, state.groups]
+    [state.companies, state.groups, visiveis]
   );
 
   const nome = primeiroNome(state.nomeUsuario);
@@ -63,17 +100,40 @@ export default function ConsoleVisaoGeral() {
     <>
       <Cabecalho
         rotulo={`${saudacao()}${nome ? `, ${nome}` : ""}`}
-        titulo="A carteira,"
+        titulo={verTodas ? "A carteira," : "Sua carteira,"}
         italico="hoje"
-        texto="O que está em dia e o que pede atenção em cada grupo e empresa. Daqui se edita; para ver exatamente o que o cliente vê, use o portal."
+        texto={
+          verTodas
+            ? `${minhas.length === 0 ? "Você ainda não está como responsável em nenhuma empresa, então aqui vai a carteira inteira. " : ""}O que está em dia e o que pede atenção em cada grupo e empresa. Daqui se edita; para ver exatamente o que o cliente vê, use o portal.`
+            : `${minhas.length === 1 ? "A empresa" : `As ${minhas.length} empresas`} em que você é responsável: o que está em dia e o que pede atenção. Daqui se edita; para ver exatamente o que o cliente vê, use o portal.`
+        }
         acoes={
           <>
+            {admin && minhas.length > 0 && (
+              <div className="flex rounded-full border border-[var(--hub-borda)] bg-[var(--hub-cartao)] p-1" role="tablist" aria-label="O que mostrar">
+                {[
+                  { id: "minhas", nome: `Minhas (${minhas.length})` },
+                  { id: "todas", nome: "Toda a carteira" },
+                ].map((opcao) => (
+                  <button
+                    key={opcao.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={(verTodas ? "todas" : "minhas") === opcao.id}
+                    onClick={() => escolher(opcao.id)}
+                    className={`h-9 rounded-full px-4 text-[13px] font-semibold transition-colors ${(verTodas ? "todas" : "minhas") === opcao.id ? "bg-[var(--hub-texto)] text-[var(--hub-fundo)]" : "text-[var(--hub-texto-2)] hover:text-[var(--hub-texto)]"}`}
+                  >
+                    {opcao.nome}
+                  </button>
+                ))}
+              </div>
+            )}
             <button type="button" onClick={abrirBusca} className="hub-botao hub-botao-fantasma">
               <Search size={16} /> Buscar
             </button>
-            <button type="button" onClick={() => navigate("/hub")} className="hub-botao hub-botao-primario">
+            <a href="/hub" target="_blank" rel="noopener noreferrer" className="hub-botao hub-botao-primario" title="O portal abre em outra aba">
               Abrir o portal <ArrowUpRight size={16} />
-            </button>
+            </a>
           </>
         }
       />
@@ -89,8 +149,8 @@ export default function ConsoleVisaoGeral() {
         <div className="mt-7">
           <BarraDeStatus {...contagem} />
           <p className="mt-2.5 text-[12.5px] text-[var(--hub-texto-3)]">
-            {calculando ? `Conferindo ${Object.keys(healths).length} de ${state.companies.length} empresas…` : `${state.companies.length} empresas conferidas: balancete em dia, balanço fechando, De/Para e responsável.`}{" "}
-            <button type="button" onClick={() => navigate("/equipe/carteira")} className="font-semibold text-[var(--hub-acento)] hover:underline">
+            {calculando ? `Conferindo ${Object.keys(healths).length} de ${empresas.length} empresas…` : `${empresas.length} ${empresas.length === 1 ? "empresa conferida" : "empresas conferidas"}: balancete em dia, balanço fechando, De/Para e responsável.`}{" "}
+            <button type="button" onClick={() => navigate(verTodas ? "/equipe/carteira" : "/equipe/carteira?responsavel=minhas")} className="font-semibold text-[var(--hub-acento)] hover:underline">
               Ver a saúde em detalhe
             </button>
           </p>
@@ -101,7 +161,7 @@ export default function ConsoleVisaoGeral() {
         <section className="min-w-0">
           <div className="mb-4 flex items-end justify-between gap-3">
             <h2 className="hub-display text-[22px] font-bold">Precisa de atenção</h2>
-            <button type="button" onClick={() => navigate("/equipe/clientes?ver=pendencias")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--hub-acento)] hover:underline">
+            <button type="button" onClick={() => navigate(verTodas ? "/equipe/carteira" : "/equipe/carteira?responsavel=minhas")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--hub-acento)] hover:underline">
               Ver todos <ArrowRight size={14} />
             </button>
           </div>
@@ -109,7 +169,7 @@ export default function ConsoleVisaoGeral() {
             {pendentes.length === 0 && (
               <p className="flex items-center gap-2 px-6 py-10 text-[14px] text-[var(--hub-texto-2)]">
                 <Sparkles size={16} className="text-[var(--hub-acento)]" />
-                {calculando ? "Conferindo a carteira…" : "Nada pendente — tudo em dia."}
+                {empresas.length === 0 ? "Você ainda não está como responsável em nenhuma empresa — um administrador marca isso em Responsáveis." : calculando ? "Conferindo a carteira…" : "Nada pendente — tudo em dia."}
               </p>
             )}
             {pendentes.slice(0, 8).map((unidade) => (

@@ -21,14 +21,14 @@ export function useAbrirWorkspace() {
   const [pending, setPending] = useState(null); // { id, name, isGroup, phase: "loading" | "calculating" }
   const pendingRef = useRef(null);
 
-  async function handleOpen(id, select, isActive, label, destino = "/empresa", antesDeNavegar) {
+  async function handleOpen(id, select, isActive, label, destino = "/empresa", { antesDeNavegar, substituir = false } = {}) {
     if (pendingRef.current === id) return;
     pendingRef.current = id;
     setPending({ id, ...label, phase: "loading" });
     const stillWanted = () => pendingRef.current === id && isActive();
     const ir = () => {
       antesDeNavegar?.();
-      navigate(destino);
+      navigate(destino, substituir ? { replace: true } : undefined);
     };
     try {
       await select(id);
@@ -57,15 +57,17 @@ export function useAbrirWorkspace() {
   // `destino`: pra onde ir depois de carregar (padrão: o painel; o Início
   // usa pra abrir direto a última apresentação). `antesDeNavegar`: roda logo
   // antes de entrar (o console usa pra trocar pro modo "ver como cliente" só
-  // na hora de sair dele — ver lib/modoEquipe.js).
-  function abrirEmpresa(id, destino, { antesDeNavegar } = {}) {
+  // na hora de sair dele — ver lib/modoEquipe.js). `substituir`: troca o
+  // endereço atual em vez de empilhar (a aba aberta pelo console, /abrir —
+  // o "voltar" do navegador não cai de novo no carregamento).
+  function abrirEmpresa(id, destino, opcoes = {}) {
     const company = state.companies.find((item) => item.id === id);
-    handleOpen(id, selectCompany, () => state.activeCompanyId === id && !state.activeGroupId, { name: company?.name || "Empresa", isGroup: false }, destino, antesDeNavegar);
+    handleOpen(id, selectCompany, () => state.activeCompanyId === id && !state.activeGroupId, { name: company?.name || "Empresa", isGroup: false }, destino, opcoes);
   }
 
-  function abrirGrupo(id, destino, { antesDeNavegar } = {}) {
+  function abrirGrupo(id, destino, opcoes = {}) {
     const group = state.groups.find((item) => item.id === id);
-    handleOpen(id, selectGroup, () => state.activeGroupId === id, { name: group?.name || "Grupo", isGroup: true }, destino, antesDeNavegar);
+    handleOpen(id, selectGroup, () => state.activeGroupId === id, { name: group?.name || "Grupo", isGroup: true }, destino, opcoes);
   }
 
   // "Voltar" no meio do carregamento: desiste de navegar quando terminar (a
