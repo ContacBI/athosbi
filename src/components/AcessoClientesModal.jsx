@@ -3,7 +3,7 @@ import { Eye, EyeOff, Plus, Trash2, UserPlus, Users, Wrench, X } from "lucide-re
 import { useAppState } from "../data/useStore.js";
 import PreviaCliente from "./PreviaCliente.jsx";
 import { MODELOS_TIPO, conjuntosDoModelo } from "../lib/tiposDeAcesso.js";
-import { grantAccess, inviteUser, listAccessGrants, listAccessPeople, revokeAccess } from "../lib/access.js";
+import { grantAccess, listAccessGrants, listAccessPeople, revokeAccess } from "../lib/access.js";
 import { saveVisibilidadeEmpresa } from "../lib/companies.js";
 import { saveVisibilidadeGrupo } from "../lib/groups.js";
 import { WIDGET_CATALOG } from "../lib/dashboardWidgets.js";
@@ -78,8 +78,7 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
   const [grants, setGrants] = useState(null);
   const [fichas, setFichas] = useState(new Map());
   const [erro, setErro] = useState("");
-  const [email, setEmail] = useState("");
-  const [convidar, setConvidar] = useState(true);
+  const [escolhida, setEscolhida] = useState(""); // e-mail da pessoa já cadastrada que vai ganhar acesso
   const [trabalhando, setTrabalhando] = useState(false);
 
   async function recarregar() {
@@ -105,6 +104,14 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
 
   const doAlvo = useMemo(() => (grants || []).filter((x) => x.scope_type === scopeType && x.scope_id === item.id), [grants, scopeType, item.id]);
   const abas = useMemo(() => abasDoAlvo(item), [item]);
+  // Pessoas já cadastradas (ficha em Acessos, ou com acesso a qualquer empresa/grupo) que ainda NÃO têm acesso a esta empresa/grupo.
+  const disponiveis = useMemo(() => {
+    const mapa = new Map();
+    fichas.forEach((ficha, mail) => mapa.set(mail, ficha?.nome || ""));
+    (grants || []).forEach((g) => { if (!mapa.has(g.email)) mapa.set(g.email, ""); });
+    const jaTem = new Set(doAlvo.map((g) => g.email));
+    return [...mapa].filter(([mail]) => !jaTem.has(mail)).map(([mail, nome]) => ({ email: mail, nome })).sort((x, y) => (x.nome || x.email).localeCompare(y.nome || y.email, "pt-BR"));
+  }, [fichas, grants, doAlvo]);
   const nomeWidget = (id) => WIDGET_CATALOG.find((d) => d.id === id)?.label || id;
 
   const marcarVisivel = (chave, visivel) =>
@@ -122,18 +129,17 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
     });
   const chavesBi = useMemo(() => todasAsChaves(item).filter((k) => k.startsWith("bi:")), [item]);
 
-  async function darAcesso() {
-    const limpo = email.trim().toLowerCase();
-    if (!limpo || !limpo.includes("@")) { setErro("Digite um e-mail válido."); return; }
+  // O CADASTRO da pessoa (nome, e-mail, convite) é feito antes, em Parâmetros › Acessos. Aqui só se LIBERA a empresa/grupo para quem já está cadastrado.
+  async function liberar() {
+    if (!escolhida) { setErro("Escolha a pessoa."); return; }
     setTrabalhando(true);
     setErro("");
     try {
-      await grantAccess({ email: limpo, scopeType, scopeId: item.id });
-      if (convidar) await inviteUser(limpo).catch((e) => setErro(`Acesso dado, mas o convite por e-mail falhou: ${e.message || e}`));
-      setEmail("");
+      await grantAccess({ email: escolhida, scopeType, scopeId: item.id });
+      setEscolhida("");
       await recarregar();
     } catch (err) {
-      setErro(`Não consegui dar o acesso: ${err.message || err}`);
+      setErro(`Não consegui liberar o acesso: ${err.message || err}`);
     } finally {
       setTrabalhando(false);
     }
@@ -319,10 +325,13 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
                 <h3 className="text-[14px] font-semibold text-ink-900">Quem tem acesso</h3>
                 <p className="mt-1 text-[12.5px] text-ink-400">Pessoas que abrem {item.name}. Ao lado de cada uma, escolha o tipo de acesso (Padrão, Financeiro, Comercial, Marketing ou outro que você criar): cada tipo vê o que for configurado nas outras abas.</p>
                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <input value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && darAcesso()} placeholder="e-mail da pessoa" className="min-w-[240px] flex-1 rounded-lg border border-line bg-surface-card px-3 py-2 text-[13px] outline-none focus:border-accent-500" />
-                  <label className="flex items-center gap-1.5 text-[12.5px] text-ink-600"><input type="checkbox" checked={convidar} onChange={(e) => setConvidar(e.target.checked)} className="accent-[#e8681f]" /> enviar convite por e-mail</label>
-                  <button type="button" onClick={darAcesso} disabled={trabalhando} className="flex items-center gap-1.5 rounded-lg bg-accent-500 px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-accent-600 disabled:opacity-50"><UserPlus size={14} /> Dar acesso</button>
+                  <select value={escolhida} onChange={(e) => setEscolhida(e.target.value)} aria-label="Pessoa cadastrada" disabled={!disponiveis.length} className="min-w-[280px] flex-1 rounded-lg border border-line bg-surface-card px-3 py-2 text-[13px] text-ink-800 outline-none focus:border-accent-500 disabled:opacity-60">
+                    <option value="">{grants === null ? "Carregando…" : disponiveis.length ? "Escolha uma pessoa já cadastrada" : "Todas as pessoas cadastradas já têm acesso"}</option>
+                    {disponiveis.map((p) => <option key={p.email} value={p.email}>{p.nome ? `${p.nome} — ${p.email}` : p.email}</option>)}
+                  </select>
+                  <button type="button" onClick={liberar} disabled={trabalhando || !escolhida} className="flex items-center gap-1.5 rounded-lg bg-accent-500 px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-accent-600 disabled:opacity-50"><UserPlus size={14} /> Liberar acesso</button>
                 </div>
+                <p className="mt-1.5 text-[11.5px] text-ink-400">Aqui só se libera quem já está cadastrado. Para cadastrar uma pessoa nova (nome, e-mail e convite), use Parâmetros › Acessos › Novo acesso.</p>
                 <div className="mt-4 divide-y divide-line rounded-xl border border-line">
                   {grants === null && <p className="p-4 text-[12.5px] text-ink-400">Carregando…</p>}
                   {grants && !doAlvo.length && <p className="p-4 text-[12.5px] text-ink-400">Ninguém tem acesso ainda.</p>}
