@@ -857,7 +857,8 @@ check(
     modoEquipe.modoDaRota("/hub/reforma") === "portal" &&
     modoEquipe.modoDaRota("/empresa/painel/x", "console") === "console" &&
     modoEquipe.modoDaRota("/empresa", "portal") === "portal" &&
-    modoEquipe.modoDaRota("/equipes", "portal") === "portal",
+    modoEquipe.modoDaRota("/equipes", "portal") === "portal" &&
+    modoEquipe.modoDaRota("/abrir", "portal") === "console",
   null
 );
 const antesDosModos = { userEmail: state.userEmail, isAdmin: state.isAdmin, isColaborador: state.isColaborador, realIsAdmin: state.realIsAdmin, realIsColaborador: state.realIsColaborador, visaoCliente: state.visaoCliente, modoEquipe: state.modoEquipe, modulosCliente: state.modulosCliente };
@@ -1130,6 +1131,32 @@ check(
   "Downloads: nome de aba do Excel válido e sem repetir",
   exportVisual.nomeDaAba("A/B: C*D", usadas) === "A B  C D" && exportVisual.nomeDaAba("X".repeat(40), usadas).length === 31 && exportVisual.nomeDaAba("X".repeat(40), usadas).endsWith(" 2"),
   null
+);
+
+// Console: a Visão geral só com as empresas de quem está logado; o B.I. abre em outra aba (/abrir).
+check(
+  "Console: as empresas de um responsável (e-mail sem diferença de maiúsculas), nenhuma sem e-mail",
+  unidades.empresasDoResponsavel([{ id: "a", responsaveis: ["Ana@Athos.com"] }, { id: "b", responsaveis: ["bia@athos.com"] }, { id: "c" }], " ana@athos.com").map((c) => c.id).join() === "a" &&
+    unidades.empresasDoResponsavel([{ id: "a", responsaveis: ["ana@athos.com"] }], "").length === 0,
+  null
+);
+const abertura = await src("lib/abrirEmOutraAba.js");
+const urlGrupo = abertura.enderecoDeAbertura({ tipo: "grupo", id: "g1" }, { destino: "/empresa/personalizar" });
+const urlPessoa = abertura.enderecoDeAbertura({ tipo: "empresa", id: "e1" }, { pessoa: { email: "cliente@empresa.com", empresas: ["e1"], grupos: [] } });
+const pedidoGrupo = abertura.lerAbertura(urlGrupo.split("?")[1]);
+const pedidoPessoa = abertura.lerAbertura(urlPessoa.split("?")[1]);
+const pedidoRepetido = abertura.lerAbertura(urlPessoa.split("?")[1]);
+const pedidoTorto = abertura.lerAbertura("?tipo=empresa&id=e2&destino=https://fora.com&modo=x");
+check(
+  "Console › outra aba: o endereço leva grupo/empresa, destino e modo; o \"ver como\" uma pessoa vai fora do endereço e vale uma vez só; destino de fora vira o painel",
+  urlGrupo.startsWith("/abrir?") &&
+    pedidoGrupo.tipo === "grupo" && pedidoGrupo.id === "g1" && pedidoGrupo.destino === "/empresa/personalizar" && pedidoGrupo.modo === "console" && pedidoGrupo.pessoa === null &&
+    !urlPessoa.includes("cliente") && pedidoPessoa.modo === "portal" && pedidoPessoa.pessoa?.email === "cliente@empresa.com" &&
+    pedidoRepetido.pessoa === null &&
+    pedidoTorto.destino === "/empresa" && pedidoTorto.modo === "console" &&
+    abertura.lerAbertura("?tipo=grupo") === null &&
+    abertura.destinoValido("/empresa/de-para") === "/empresa/de-para" && abertura.destinoValido("/empresa/../parametros") === "/empresa",
+  { urlGrupo, urlPessoa, pedidoGrupo, pedidoPessoa, pedidoTorto }
 );
 
 // Senha nova (recuperação e convite, lib/senha.js): força, regras e as mensagens do Supabase em português.

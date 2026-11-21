@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Network, Pencil, Trash2, Building2, ArrowRight, Layers, Eye, RefreshCw } from "lucide-react";
 import AcessoClientesModal from "../../components/AcessoClientesModal.jsx";
-import { alinharVisaoDoGrupo, pararSincroniaDoGrupo } from "../../lib/companies.js";
+import { alinharComConfirmacao as alinhar, pararComConfirmacao as parar } from "../../lib/visaoDoGrupo.js";
 import { useAppState } from "../../data/useStore.js";
 import { createGroup, updateGroup, deleteGroup, groupCompanies } from "../../lib/groups.js";
 import GroupModal from "../../components/GroupModal.jsx";
@@ -11,34 +11,6 @@ import PageHeader from "../../components/PageHeader.jsx";
 export default function GruposAdmin() {
   const state = useAppState();
   const navigate = useNavigate();
-  // Alinhar a visão: copia o B.I do grupo (abas, posições, itens e visibilidade) pra todas as empresas dele e passa a manter tudo igual (lib/companies.js).
-  function baixarBackup(backup, nome) {
-    const blob = new Blob([JSON.stringify(backup, null, 1)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `backup-visao-${String(nome).replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-  function alinhar(group) {
-    const sincronizado = Boolean(group.sincronizarVisao);
-    const n = (group.companyIds || []).length;
-    const ok = window.confirm(
-      `${sincronizado ? "Realinhar" : "Alinhar"} a visão de "${group.name}"?\n\n` +
-      `O B.I do GRUPO (abas, posições, itens e o que fica oculto pro cliente) será copiado para as ${n} empresas dele, que PERDEM o que tinham no B.I.\n` +
-      `Depois, qualquer mudança no Personalizar de uma empresa ou do grupo vale para todas.\n\n` +
-      `Antes de alinhar, um arquivo de backup do que cada empresa tinha é baixado.`
-    );
-    if (!ok) return;
-    const r = alinharVisaoDoGrupo(group.id);
-    if (r.erro) { window.alert(r.erro); return; }
-    baixarBackup(r.backup, group.name);
-    window.alert(`Visão alinhada em ${r.alinhadas} empresa(s).${r.puladas.length ? `\n\nJá seguem outro grupo (não alteradas): ${r.puladas.join(", ")}.` : ""}${r.semPermissao.length ? `\n\nSem permissão para alterar: ${r.semPermissao.join(", ")}.` : ""}\n\nO backup foi baixado.`);
-  }
-  function parar(group) {
-    if (window.confirm(`Parar de sincronizar a visão de "${group.name}"? As empresas mantêm o que têm hoje e voltam a ser independentes.`)) pararSincroniaDoGrupo(group.id);
-  }
   const [acessoGrupo, setAcessoGrupo] = useState(null); // grupo cujo "Acesso dos clientes" está aberto
   const [modalGroup, setModalGroup] = useState(undefined); // undefined = fechado, null = criar, objeto = editar
 

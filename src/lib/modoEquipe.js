@@ -33,11 +33,12 @@ export function modoGuardado() {
 }
 
 // Qual modo cada endereço pede: o console e as telas de cadastro antigas
-// (que agora moram nele) são "console"; o hub e o início são "portal"; o
+// (que agora moram nele) são "console" — e a aba que o console abre pro
+// B.I. (/abrir), que carrega editando; o hub e o início são "portal"; o
 // resto (o B.I., a Reforma) segue o modo em que a pessoa já estava.
 export function modoDaRota(pathname, guardado = "portal") {
   const caminho = String(pathname || "/");
-  if (/^\/(equipe|parametros|carteira)(\/|$)/.test(caminho)) return "console";
+  if (/^\/(equipe|parametros|carteira|abrir)(\/|$)/.test(caminho)) return "console";
   if (caminho === "/" || /^\/hub(\/|$)/.test(caminho)) return "portal";
   return guardado === "console" ? "console" : "portal";
 }
