@@ -28,21 +28,26 @@ export async function isReformaEscritorio() {
 // Empresas que têm dados do Gestão Click (grupo Anjos; códigos da Domínio). O módulo "DRE Gerencial" só aparece no menu quando a empresa ou o grupo aberto
 // tem uma delas — as demais empresas não têm esses dados. Outro cliente que passe a usar o Gestão Click: é só incluir o código aqui.
 export const CODIGOS_GESTAO_CLICK = ["120", "121", "122", "165", "223"];
+// Empresas com o Revisa Nota (raiz do CNPJ): hoje só a Micromedical. Outra empresa que passe a usar: é só incluir a raiz aqui (e mandar os dados pela função revisa-nota).
+export const RAIZES_REVISA_NOTA = ["07326871"];
 const semZeros = (valor) => String(valor ?? "").trim().replace(/^0+(?=\d)/, "");
-// `soCodigos`: o módulo só vale quando a empresa ativa (ou alguma do grupo ativo) tem um desses códigos.
+// `soCodigos`: o módulo só vale quando a empresa ativa (ou alguma do grupo ativo) tem um desses códigos. `soCnpjRaiz`: o mesmo, pela raiz do CNPJ (8 primeiros dígitos).
+const digitos = (valor) => String(valor ?? "").replace(/\D/g, "");
+const empresaServe = (modulo, company) =>
+  Boolean((modulo.soCodigos && modulo.soCodigos.includes(semZeros(company.codigo))) || (modulo.soCnpjRaiz && modulo.soCnpjRaiz.some((raiz) => digitos(company.cnpj).startsWith(raiz))));
 function aplicavel(modulo, state) {
-  if (!modulo.soCodigos) return true;
+  if (!modulo.soCodigos && !modulo.soCnpjRaiz) return true;
   const grupo = state.activeGroupId ? (state.groups || []).find((g) => g.id === state.activeGroupId) : null;
   const ids = grupo ? new Set(grupo.companyIds || []) : new Set([state.activeCompanyId]);
-  return (state.companies || []).some((c) => ids.has(c.id) && modulo.soCodigos.includes(semZeros(c.codigo)));
+  return (state.companies || []).some((c) => ids.has(c.id) && empresaServe(modulo, c));
 }
 
 // Os módulos que valem pra uma empresa/grupo específico (o do "Acesso dos clientes"), sem depender de qual está aberta: o DRE Gerencial, por exemplo, só existe
 // pras empresas do Gestão Click — nas demais nem aparece pra configurar.
 export function modulosAplicaveisAoAlvo(alvo, ehGrupo, companies) {
   const ids = ehGrupo ? new Set(alvo?.companyIds || []) : new Set([alvo?.id]);
-  const codigos = (companies || []).filter((c) => ids.has(c.id)).map((c) => semZeros(c.codigo));
-  return MODULOS_COMPLEMENTARES.filter((modulo) => !modulo.soCodigos || codigos.some((codigo) => modulo.soCodigos.includes(codigo)));
+  const daqui = (companies || []).filter((c) => ids.has(c.id));
+  return MODULOS_COMPLEMENTARES.filter((modulo) => (!modulo.soCodigos && !modulo.soCnpjRaiz) || daqui.some((c) => empresaServe(modulo, c)));
 }
 
 export const MODULOS_COMPLEMENTARES = [
@@ -51,6 +56,7 @@ export const MODULOS_COMPLEMENTARES = [
   { id: "analise-desempenho", nome: "Análise de desempenho", rota: "/empresa/analise-desempenho", descricao: "O que mais pesa no faturamento", precisaDeDados: true },
   { id: "entradas-saidas", nome: "Entradas x Saídas", rota: "/empresa/entradas-saidas", descricao: "Notas fiscais por acumulador" },
   { id: "dre-gerencial", nome: "DRE Gerencial", rota: "/empresa/dre-gerencial", descricao: "Vendas e despesas do Gestão Click", soCodigos: CODIGOS_GESTAO_CLICK },
+  { id: "revisa-nota", nome: "Revisa Nota", rota: "/empresa/revisa-nota", descricao: "Produtos e clientes: classificação IBS/CBS e perfil do comprador", soCnpjRaiz: RAIZES_REVISA_NOTA },
 ];
 
 export function modulosLiberados(state) {
