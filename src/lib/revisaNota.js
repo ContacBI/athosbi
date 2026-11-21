@@ -108,9 +108,26 @@ export function rotuloDaReducao(reducao, rotulo) {
   return `${reducao}%${rotulo && !/redu/i.test(rotulo) ? ` · ${rotulo}` : ""}`;
 }
 
-/** Itens da lei que podem descrever o produto (do mais parecido para o menos), já com os dados do dicionário. */
+/** Itens da lei que podem descrever o produto (do mais parecido para o menos), já com os dados do dicionário e a parecença com a descrição. Se o escritório decidiu por um item que a lei
+ *  não casa com o NCM (decisão manual), ele entra no fim da lista para a decisão aparecer completa. */
 export function opcoesDoProduto(produto, lei) {
-  return (produto?.cand || []).map((k) => ({ k, ...(lei?.[k] || { anexo: k.split("|")[0], item: k.split("|")[1], descricao: "", rotulo: "", reducao: null, codigos: [] }) }));
+  const cp = produto?.cp || {};
+  const lista = (produto?.cand || []).map((k) => ({
+    k,
+    ...(lei?.[k] || { anexo: k.split("|")[0], item: k.split("|")[1], descricao: "", rotulo: "", reducao: null, codigos: [] }),
+    confianca: cp[k]?.c || "",
+    palavras: cp[k]?.p || [],
+  }));
+  const d = produto?.decisao;
+  const kd = d?.anexo ? `${d.anexo}|${d.item}` : "";
+  if (kd && !lista.some((o) => o.k === kd)) {
+    const base = lei?.[kd];
+    lista.push({
+      k: kd, anexo: d.anexo, item: String(d.item), descricao: base?.descricao || d.itemTexto || "", rotulo: base?.rotulo || d.tratamento || "", reducao: base?.reducao ?? null, ncmLei: base?.ncmLei || d.ncmLei || "",
+      alinea: base?.alinea || "", codigos: base?.codigos || (d.cClassTrib ? [{ cClassTrib: d.cClassTrib, cst: d.cst || "", nome: "" }] : []), confianca: "", palavras: [], decididoManual: true,
+    });
+  }
+  return lista;
 }
 
 /** O que as colunas LC / Anexo / Item / % mostram: a decisão do escritório quando há; senão, o que a lei permite para o NCM. */
@@ -150,4 +167,59 @@ export function codigosPossiveis(produto, lei) {
     }
   }
   return [...vistos.values()].map((c) => ({ ...c, anexos: [...c.anexos] }));
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------
+// Pedidos do cliente (produto novo, mudança de classificação, perfil de comprador) e a conversa de observações de cada um (etapa 2). Tabelas revisa_nota_pedidos e
+// revisa_nota_observacoes; o cliente só cria pedido/observação pelas funções revisa_nota_criar_pedido e revisa_nota_observar (checam o acesso à empresa).
+// ---------------------------------------------------------------------------------------------------------------------------------------
+export const TIPOS_DE_PEDIDO = { novo: "Produto novo", alteracao: "Mudança de classificação", perfil: "Perfil de comprador" };
+export const STATUS_DE_PEDIDO = {
+  enviado: { nome: "Novo", tom: "azul" },
+  em_analise: { nome: "Em análise", tom: "ambar" },
+  cadastrado: { nome: "Aprovado", tom: "verde" },
+  recusado: { nome: "Recusado", tom: "cinza" },
+};
+export const pedidoAberto = (pedido) => pedido?.status === "enviado" || pedido?.status === "em_analise";
+
+/** Chave do alvo de um pedido: produto = "filial|código"; comprador = a chave dele na lista. */
+export const alvoDoProduto = (produto) => `${produto.emp}|${produto.codigo}`;
+
+export async function fetchPedidos(companyId) {
+  if (!companyId) return [];
+  const [{ data: pedidos, error }, { data: obs, error: erroObs }] = await Promise.all([
+    supabase.from("revisa_nota_pedidos").select("id, tipo, alvo, descricao, ncm, unidade, proposta, status, resposta, criado_por, criado_em, atualizado_em").eq("company_id", companyId).order("criado_em", { ascending: false }).limit(500),
+    supabase.from("revisa_nota_observacoes").select("id, pedido_id, autor, autor_nome, texto, criado_em").eq("company_id", companyId).order("criado_em", { ascending: true }).limit(5000),
+  ]);
+  if (error) throw error;
+  if (erroObs) throw erroObs;
+  const porPedido = new Map();
+  for (const o of obs || []) porPedido.set(o.pedido_id, [...(porPedido.get(o.pedido_id) || []), o]);
+  return (pedidos || []).map((p) => ({ ...p, observacoes: porPedido.get(p.id) || [] }));
+}
+
+export async function criarPedido({ companyId, tipo, alvo, descricao = "", ncm = "", unidade = "UN", proposta }) {
+  const { data, error } = await supabase.rpc("revisa_nota_criar_pedido", { p_company: companyId, p_tipo: tipo, p_alvo: alvo, p_descricao: descricao, p_ncm: ncm, p_unidade: unidade, p_proposta: proposta });
+  if (error) throw new Error(error.message || "Não consegui enviar o pedido.");
+  return data;
+}
+
+export async function observarPedido(pedidoId, texto) {
+  const { data, error } = await supabase.rpc("revisa_nota_observar", { p_pedido: pedidoId, p_texto: texto });
+  if (error) throw new Error(error.message || "Não consegui enviar a observação.");
+  return data;
+}
+
+/** Pedidos de um alvo (e de um tipo, se informado), do mais novo para o mais antigo. */
+export const pedidosDoAlvo = (pedidos, alvo, tipo) => (pedidos || []).filter((p) => p.alvo === alvo && (!tipo || p.tipo === tipo));
+
+const ROTULO_PERFIL = { privado: "Privado", publico: "Órgão público", sus_cebas: "SUS com CEBAS", verificar: "A verificar" };
+/** Uma frase com o que o cliente pediu. */
+export function resumoDoPedido(pedido) {
+  const p = pedido?.proposta || {};
+  if (pedido?.tipo === "perfil") return `${ROTULO_PERFIL[p.tipo] || p.tipo || ""}${p.cebasValidade ? ` · CEBAS até ${p.cebasValidade}` : ""}`;
+  if (pedido?.tipo === "novo") return `NCM ${ncmFormatado(pedido.ncm)} · ${pedido.unidade || "UN"}`;
+  if (p.status === "duvida") return "Em dúvida";
+  if (p.anexo) return `Anexo ${p.anexo} · item ${p.item}${p.cClassTrib ? ` · ${p.cClassTrib}` : ""}`;
+  return p.cClassTrib === "000001" ? "Tributação integral" : p.cClassTrib || "";
 }
