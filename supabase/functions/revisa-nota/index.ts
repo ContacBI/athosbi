@@ -8,7 +8,7 @@
 //
 // GET  → { raizes: [{ cnpj_raiz, empresas: n, assinaturas: { produtos, clientes } }] } as raízes de CNPJ que existem no portal (com a assinatura já recebida), pra quem envia só mandar de
 //        novo o que mudou.
-// POST → { cnpj_raiz (8 dígitos), tipo: "produtos" | "clientes", assinatura, dados: { ... } }  (dados é livre, mas precisa ser objeto e ter até 3 MB)
+// POST → { cnpj_raiz (8 dígitos), tipo: "produtos" | "clientes", assinatura, dados: { ... } }  (dados é livre, mas precisa ser objeto e ter até 4 MB); tipo também pode ser "resumos" (lista em dados.produtos) ou "lei" (lista em dados.anexos)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -31,6 +31,9 @@ function sameToken(given: string, expected: string) {
   for (let i = 0; i < expected.length; i += 1) diff |= given.charCodeAt(i) ^ expected.charCodeAt(i);
   return diff === 0;
 }
+
+// tipo → campo de `dados` que tem a lista: "resumos" (somas de vendas e compras por produto) e "lei" (base da LC 214: anexos com os itens)
+const TIPOS: Record<string, string> = { produtos: "produtos", clientes: "clientes", resumos: "produtos", lei: "anexos" };
 
 const digits = (value: unknown) => String(value ?? "").replace(/\D/g, "");
 
@@ -86,11 +89,12 @@ Deno.serve(async (req) => {
   const tipo = String(body.tipo ?? "");
   const dados = body.dados as Record<string, unknown> | undefined;
   if (raiz.length !== 8 || /^0+$/.test(raiz)) return json({ error: "cnpj_raiz: 8 dígitos." }, 400);
-  if (tipo !== "produtos" && tipo !== "clientes") return json({ error: 'tipo: "produtos" ou "clientes".' }, 400);
+  const campoDaLista = TIPOS[tipo];
+  if (!campoDaLista) return json({ error: 'tipo: "produtos", "clientes", "resumos" ou "lei".' }, 400);
   if (!dados || typeof dados !== "object" || Array.isArray(dados)) return json({ error: "dados: objeto." }, 400);
-  const lista = (dados as Record<string, unknown>)[tipo];
-  if (!Array.isArray(lista)) return json({ error: `dados.${tipo}: lista.` }, 400);
-  if (JSON.stringify(dados).length > 3_000_000) return json({ error: "dados: grande demais." }, 400);
+  const lista = (dados as Record<string, unknown>)[campoDaLista];
+  if (!Array.isArray(lista)) return json({ error: `dados.${campoDaLista}: lista.` }, 400);
+  if (JSON.stringify(dados).length > 4_000_000) return json({ error: "dados: grande demais." }, 400);
 
   let empresas: Empresa[];
   try {
