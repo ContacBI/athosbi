@@ -37,15 +37,20 @@ export default function LoginHub() {
         <div className="relative flex flex-col items-center text-center">
           <span className="relative flex">
             <span className="absolute inset-[-30%] rounded-full bg-[#e8691f]/25 blur-3xl" aria-hidden="true" />
-            <AthosMark size={108} className="relative" />
+            <AthosMark size={108} className="relative" animado />
           </span>
-          <h1 className="hub-display mt-10 font-extrabold leading-none tracking-[-0.02em]" style={{ fontSize: "clamp(42px, 4.6vw, 72px)" }}>
-            Athos Consultoria
+          {/* Letra por letra, subindo e ganhando nitidez (hub.css, .login-letra). */}
+          <h1 className="hub-display mt-10 font-extrabold leading-none tracking-[-0.02em]" style={{ fontSize: "clamp(42px, 4.6vw, 72px)" }} aria-label="Athos Consultoria">
+            {[..."Athos Consultoria"].map((letra, i) => (
+              <span key={i} aria-hidden="true" className="login-letra" style={{ animationDelay: `${0.75 + i * 0.035}s` }}>
+                {letra === " " ? "\u00a0" : letra}
+              </span>
+            ))}
           </h1>
           <div className="mt-8 flex items-center gap-4" aria-label="Hub B.I.">
-            <span className="h-px w-14 bg-gradient-to-r from-transparent to-[#f28a42]" />
-            <span className="rounded-full bg-gradient-to-r from-[#e8691f] to-[#f28a42] px-8 py-3 text-[24px] font-extrabold uppercase leading-none tracking-[0.24em] text-white shadow-[0_18px_44px_-14px_rgba(232,105,31,0.9)]">Hub B.I.</span>
-            <span className="h-px w-14 bg-gradient-to-l from-transparent to-[#f28a42]" />
+            <span className="login-fio login-fio-esquerda h-px w-14 bg-gradient-to-r from-transparent to-[#f28a42]" />
+            <span className="login-selo relative overflow-hidden rounded-full bg-gradient-to-r from-[#e8691f] to-[#f28a42] px-8 py-3 text-[24px] font-extrabold uppercase leading-none tracking-[0.24em] text-white shadow-[0_18px_44px_-14px_rgba(232,105,31,0.9)]">Hub B.I.</span>
+            <span className="login-fio login-fio-direita h-px w-14 bg-gradient-to-l from-transparent to-[#f28a42]" />
           </div>
         </div>
       </aside>
