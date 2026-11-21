@@ -2,20 +2,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Check, Download, PackageCheck, Search, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { groupCompanies } from "../lib/groups.js";
-import { inteiro, moneyFull, pct } from "../lib/fmtNotas.js";
+import { inteiro, moneyFull } from "../lib/fmtNotas.js";
 import {
-  alvoDoProduto, codigosPossiveis, fetchPedidos, fetchRevisaNota, filtrarClientes, filtrarProdutos, ncmFormatado, opcoesDoProduto, pedidoAberto, pedidosDoAlvo, perfilDoCliente,
-  marcaDeLeitura, resumoDeClientes, resumoDeProdutos, rotuloDaDecisao, rotuloDaReducao, situacaoDoProduto, temNovidade, textoDaNovidade,
+  alvoDoProduto, codigosPossiveis, fetchPedidos, fetchRevisaNota, filtrarProdutos, ncmFormatado, opcoesDoProduto, pedidoAberto, pedidosDoAlvo, perfilDoCliente,
+  marcaDeLeitura, resumoDeProdutos, rotuloDaDecisao, rotuloDaReducao, situacaoDoProduto, temNovidade, textoDaNovidade,
 } from "../lib/revisaNota.js";
 import ResumoProdutos from "../components/RevisaNotaResumo.jsx";
 import ConsultaLei from "../components/RevisaNotaLei.jsx";
 import { CartaoDePedido, FormPerfil, JanelaDeAlteracao } from "../components/RevisaNotaPedidos.jsx";
 import CentralDePedidos from "../components/RevisaNotaConversas.jsx";
 import SinoDeAvisos from "../components/RevisaNotaSino.jsx";
+import JanelaDoItem from "../components/RevisaNotaItem.jsx";
+import ClientesCompradores from "../components/RevisaNotaClientes.jsx";
 
 // Revisa Nota (Ferramentas, só Micromedical por enquanto): abre como o B.I. — as abas do Revisa Nota em cima (Produtos, Resumo de produtos, Cadastro, Clientes e Consulta LC 214). A
 // classificação é decidida pelo escritório; o cliente pede cadastro, mudança de classificação e perfil de comprador aqui mesmo e conversa com o escritório em cada pedido.
-const LIMITE = 100;
 
 const dataHora = (iso) => {
   const d = new Date(iso);
@@ -24,12 +25,6 @@ const dataHora = (iso) => {
 const dia = (iso) => {
   const [a, m, d] = String(iso || "").slice(0, 10).split("-");
   return a && m && d ? `${d}/${m}/${a}` : "";
-};
-const abreviado = (valor) => {
-  const v = Number(valor) || 0;
-  if (Math.abs(v) >= 1e6) return `R$ ${(v / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mi`;
-  if (Math.abs(v) >= 1e3) return `R$ ${(v / 1e3).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} mil`;
-  return moneyFull(v);
 };
 
 function Esqueleto() {
@@ -65,40 +60,6 @@ const TEXTO_CONDICIONAL = {
   Depende: "O NCM cai em anexos diferentes: o código depende de qual item da lei descreve o produto.",
   "—": "O NCM não está em nenhum anexo da LC 214 (em regra, tributação integral).",
 };
-
-// Resumo da aba: o total e uma barra com a divisão por valor; cada pedaço é um botão que filtra a lista (clique de novo para limpar).
-function ResumoEmFaixas({ titulo, total, itens, ativo, onEscolher }) {
-  const soma = itens.reduce((s, i) => s + i.valor, 0) || 1;
-  return (
-    <section className="rounded-2xl border border-line bg-surface-card p-5 shadow-sm">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-[12px] font-medium text-ink-500">{titulo}</p>
-          <p className="mt-0.5 flex items-baseline gap-2.5">
-            <span className="text-[30px] font-bold leading-none tabular-nums text-ink-900">{inteiro(total.qtd)}</span>
-            <span className="text-[13px] text-ink-500">{abreviado(total.valor)} no período</span>
-          </p>
-        </div>
-        {ativo !== "todos" && <button type="button" onClick={() => onEscolher("todos")} className="text-[12px] font-medium text-accent-600 hover:underline">Limpar filtro</button>}
-      </div>
-      <div className="mt-4 flex h-2.5 w-full overflow-hidden rounded-full bg-surface-muted">
-        {itens.map((i) => i.valor > 0 && <span key={i.id} className={`${i.cor} transition-opacity ${ativo !== "todos" && ativo !== i.id ? "opacity-25" : ""}`} style={{ width: `${(i.valor / soma) * 100}%` }} />)}
-      </div>
-      <div className={`mt-4 grid gap-2.5 ${itens.length === 4 ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
-        {itens.map((i) => {
-          const sel = ativo === i.id;
-          return (
-            <button key={i.id} type="button" onClick={() => onEscolher(sel ? "todos" : i.id)} aria-pressed={sel} className={`rounded-xl border px-4 py-3 text-left transition-colors ${sel ? "border-accent-500/60 bg-accent-500/5" : "border-line hover:bg-surface-muted/60"}`}>
-              <p className="flex items-center gap-2 text-[12.5px] font-medium text-ink-600"><span className={`h-2.5 w-2.5 rounded-full ${i.cor}`} />{i.nome}</p>
-              <p className="mt-1.5 text-[22px] font-bold leading-none tabular-nums text-ink-900">{inteiro(i.qtd)}</p>
-              <p className="mt-1 text-[12px] text-ink-400">{pct(i.valor, total.valor)} do valor · {abreviado(i.valor)}</p>
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
 
 function Cabecalho({ colunas }) {
   return (
@@ -153,7 +114,8 @@ function Janela({ aoFechar, topo, children }) {
 }
 
 // Detalhe de um produto: a decisão do escritório, os pedidos/conversa dele, a sugestão completa da lei, os outros códigos que poderiam entrar e o que significa o "Condicional".
-function DetalheProduto({ produto, lista, companyId, pedidos, recarregarPedidos, onClose }) {
+function DetalheProduto({ produto, lista, baseLei, companyId, pedidos, recarregarPedidos, onClose }) {
+  const [itemAberto, setItemAberto] = useState(null);
   const lei = lista.lei || {};
   const d = produto.decisao;
   const sit = situacaoDoProduto(produto);
@@ -219,6 +181,7 @@ function DetalheProduto({ produto, lista, companyId, pedidos, recarregarPedidos,
                       {o.k === decididoK && <Selo tom="verde">Decidido pelo escritório</Selo>}
                     </div>
                     <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-600">{o.descricao}</p>
+                    <button type="button" onClick={() => setItemAberto({ anexo: o.anexo, item: o.item })} className="mt-1.5 text-[12px] font-medium text-accent-600 hover:underline">Ver o item completo</button>
                     {o.codigos?.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {o.codigos.map((c) => (
@@ -255,7 +218,8 @@ function DetalheProduto({ produto, lista, companyId, pedidos, recarregarPedidos,
           {produto.cond && <p className="mt-3 rounded-lg bg-surface-muted px-3 py-2 text-[12.5px] text-ink-600"><b className="text-ink-800">Condicional: {produto.cond}.</b> {TEXTO_CONDICIONAL[produto.cond] || ""}</p>}
         </Secao>
       </Janela>
-      {pedindo && <JanelaDeAlteracao produto={produto} opcoes={opcoes} lista={lista} companyId={companyId} onFechar={() => setPedindo(false)} onCriado={async () => { setPedindo(false); await recarregarPedidos(); }} />}
+      {itemAberto && <JanelaDoItem lei={baseLei} anexo={itemAberto.anexo} item={itemAberto.item} codigosPorItem={lista.lei} onClose={() => setItemAberto(null)} />}
+      {pedindo && <JanelaDeAlteracao produto={produto} opcoes={opcoes} lista={lista} baseLei={baseLei} companyId={companyId} onFechar={() => setPedindo(false)} onCriado={async () => { setPedindo(false); await recarregarPedidos(); }} />}
     </>
   );
 }
@@ -318,7 +282,7 @@ function gruposDoProduto(produto, lei) {
 
 const CONDICIONAL_FILTRO = [["todos", "Todos"], ["Sim", "Sim"], ["Não", "Não"], ["Depende", "Depende"]];
 
-function Produtos({ lista, companyId, pedidos, recarregarPedidos, atualizadoEm }) {
+function Produtos({ lista, baseLei, companyId, pedidos, recarregarPedidos, atualizadoEm }) {
   const [busca, setBusca] = useState("");
   const [situacao, setSituacao] = useState("todos");
   const [ncmSel, setNcmSel] = useState("");
@@ -524,82 +488,16 @@ function Produtos({ lista, companyId, pedidos, recarregarPedidos, atualizadoEm }
           </table>
         </div>
       </div>
-      {aberto && <DetalheProduto produto={aberto} lista={lista} companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} onClose={() => setAberto(null)} />}
+      {aberto && <DetalheProduto produto={aberto} lista={lista} baseLei={baseLei} companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} onClose={() => setAberto(null)} />}
     </>
   );
 }
 
-function Clientes({ lista, companyId, pedidos, recarregarPedidos }) {
-  const [busca, setBusca] = useState("");
-  const [perfil, setPerfil] = useState("todos");
-  const [uf, setUf] = useState("todos");
-  const [limite, setLimite] = useState(LIMITE);
+function Clientes({ lista, companyId, pedidos, recarregarPedidos, atualizadoEm }) {
   const [aberto, setAberto] = useState(null);
-  const clientes = lista.clientes;
-  const resumo = useMemo(() => resumoDeClientes(clientes), [clientes]);
-  const ufs = useMemo(() => [...new Set(clientes.map((c) => c.uf).filter(Boolean))].sort(), [clientes]);
-  const filtrados = useMemo(() => filtrarClientes(clientes, { busca, perfil, uf }), [clientes, busca, perfil, uf]);
-  const mostrados = filtrados.slice(0, limite);
-  const escolher = (id) => { setPerfil(id); setLimite(LIMITE); };
-  const semPerfil = { qtd: resumo.sem.qtd + resumo.verificar.qtd, valor: resumo.sem.valor + resumo.verificar.valor };
-
   return (
     <>
-      <ResumoEmFaixas
-        titulo="Compradores"
-        total={resumo.total}
-        ativo={perfil}
-        onEscolher={escolher}
-        itens={[
-          { id: "privado", nome: "Privados", qtd: resumo.privado.qtd, valor: resumo.privado.valor, cor: "bg-sky-500" },
-          { id: "publico", nome: "Públicos", qtd: resumo.publico.qtd, valor: resumo.publico.valor, cor: "bg-accent-500" },
-          { id: "sus_cebas", nome: "SUS / CEBAS", qtd: resumo.sus_cebas.qtd, valor: resumo.sus_cebas.valor, cor: "bg-emerald-500" },
-          { id: "sem", nome: "Sem perfil confirmado", ...semPerfil, cor: "bg-ink-300" },
-        ]}
-      />
-
-      <section className="rounded-2xl border border-line bg-surface-card shadow-sm">
-        <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
-          <div className="relative min-w-[260px] flex-1">
-            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-300" />
-            <input value={busca} onChange={(e) => { setBusca(e.target.value); setLimite(LIMITE); }} placeholder="Buscar por nome, documento ou cidade…" className="w-full rounded-lg border border-line bg-surface-page py-2 pl-8 pr-3 text-[13px] text-ink-900 outline-none placeholder:text-ink-300 focus:border-accent-400" />
-          </div>
-          {ufs.length > 1 && (
-            <select value={uf} onChange={(e) => { setUf(e.target.value); setLimite(LIMITE); }} aria-label="UF" className="rounded-lg border border-line bg-surface-card px-2.5 py-2 text-[12.5px] text-ink-700 outline-none focus:border-accent-500">
-              <option value="todos">Todas as UFs</option>
-              {ufs.map((u) => <option key={u} value={u}>{u}</option>)}
-            </select>
-          )}
-          <p className="ml-auto text-[12px] text-ink-500">{inteiro(filtrados.length)} comprador{filtrados.length === 1 ? "" : "es"} · {abreviado(filtrados.reduce((s, c) => s + (Number(c.valor) || 0), 0))}{lista.de ? ` · ${dia(lista.de)} a ${dia(lista.ate)}` : ""}</p>
-        </div>
-        <div className="max-h-[680px] overflow-auto scrollbar-thin">
-          <table className="w-full min-w-[920px] text-[13px]">
-            <Cabecalho colunas={[["Comprador"], ["Documento"], ["Cidade / UF"], ["Compras", true], ["Perfil"], ["Observação"]]} />
-            <tbody className="divide-y divide-line/60">
-              {mostrados.map((c) => {
-                const perf = perfilDoCliente(c);
-                const abertos = pedidosDoAlvo(pedidos, c.chave).filter(pedidoAberto).length;
-                return (
-                  <tr key={c.chave} onClick={() => setAberto(c)} className="cursor-pointer align-middle transition-colors hover:bg-accent-50/40">
-                    <td className="max-w-[320px] px-4 py-2.5 text-ink-900"><p className="truncate font-medium" title={c.nome}>{c.nome}</p>{abertos > 0 && <span className="mt-0.5 inline-block rounded bg-sky-500/10 px-1.5 text-[10.5px] font-semibold text-sky-600">pedido em andamento</span>}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-ink-600">{c.doc}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-ink-600">{[c.municipio, c.uf].filter(Boolean).join(" / ")}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-ink-900"><span className="font-semibold">{moneyFull(c.valor)}</span><p className="text-[11px] text-ink-400">{inteiro(c.notas)} nota{c.notas === 1 ? "" : "s"}{c.ultima ? ` · última ${dia(c.ultima)}` : ""}</p></td>
-                    <td className="whitespace-nowrap px-4 py-2.5"><Selo tom={TOM_PERFIL[perf] || "cinza"}>{NOME_PERFIL[perf] || perf}</Selo>{c.perfil?.cebasValidade && <p className="mt-0.5 text-[11px] text-ink-400">CEBAS até {dia(c.perfil.cebasValidade)}</p>}</td>
-                    <td className="max-w-[280px] px-4 py-2.5 text-[12px] text-ink-500"><p className="truncate" title={c.perfil?.observacao || c.perfil?.comprovante || ""}>{c.perfil?.observacao || c.perfil?.comprovante || ""}</p></td>
-                  </tr>
-                );
-              })}
-              {!mostrados.length && <tr><td colSpan={6} className="px-4 py-10 text-center text-ink-400">Nenhum comprador com esses filtros.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-        {filtrados.length > limite && (
-          <div className="border-t border-line px-4 py-3 text-center">
-            <button type="button" onClick={() => setLimite((l) => l + LIMITE)} className="rounded-lg border border-line-strong px-4 py-1.5 text-[12.5px] font-medium text-ink-600 hover:bg-surface-muted">Mostrar mais {Math.min(LIMITE, filtrados.length - limite)} de {inteiro(filtrados.length - limite)}</button>
-          </div>
-        )}
-      </section>
+      <ClientesCompradores lista={lista} pedidos={pedidos} aoAbrir={setAberto} atualizadoEm={atualizadoEm} />
       {aberto && <DetalheCliente cliente={aberto} companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} onClose={() => setAberto(null)} />}
     </>
   );
@@ -775,7 +673,7 @@ export default function RevisaNota() {
           </div>
         ) : (
           <>
-            <div className={`${(aba === "produtos" || aba === "resumo" || aba === "lei") && conjuntos.length === 1 ? "hidden" : "flex"} flex-wrap items-center gap-x-3 gap-y-1.5 text-[12.5px] text-ink-500`}>
+            <div className={`${(aba === "produtos" || aba === "resumo" || aba === "lei" || aba === "clientes") && conjuntos.length === 1 ? "hidden" : "flex"} flex-wrap items-center gap-x-3 gap-y-1.5 text-[12.5px] text-ink-500`}>
               <PackageCheck size={15} className="text-accent-600" />
               {conjuntos.length > 1 ? (
                 conjuntos.map((c, i) => (
@@ -787,10 +685,10 @@ export default function RevisaNota() {
               {atual.atualizadoEm && <span>· atualizado em {dataHora(atual.atualizadoEm)}</span>}
             </div>
 
-            {aba === "produtos" && (atual.produtos ? <Produtos lista={atual.produtos} companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} atualizadoEm={atual.atualizadoEm ? dataHora(atual.atualizadoEm) : ""} /> : <p className="text-[13px] text-ink-400">A lista de produtos ainda não foi enviada.</p>)}
+            {aba === "produtos" && (atual.produtos ? <Produtos lista={atual.produtos} baseLei={atual.lei} companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} atualizadoEm={atual.atualizadoEm ? dataHora(atual.atualizadoEm) : ""} /> : <p className="text-[13px] text-ink-400">A lista de produtos ainda não foi enviada.</p>)}
             {aba === "resumo" && <ResumoProdutos resumos={atual.resumos} empresa={atual.empresa} />}
             {aba === "cadastro" && <CentralDePedidos pedidos={pedidos} companyId={companyId} recarregar={recarregarPedidos} naoLidas={naoLidas} aoLer={aoLer} abrirId={abrirId} aoAbrir={() => setAbrirId(null)} />}
-            {aba === "clientes" && (atual.clientes ? <Clientes lista={atual.clientes} companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} /> : <p className="text-[13px] text-ink-400">A lista de clientes ainda não foi enviada.</p>)}
+            {aba === "clientes" && (atual.clientes ? <Clientes lista={atual.clientes} companyId={companyId} pedidos={pedidos} recarregarPedidos={recarregarPedidos} atualizadoEm={atual.atualizadoEm ? dataHora(atual.atualizadoEm) : ""} /> : <p className="text-[13px] text-ink-400">A lista de clientes ainda não foi enviada.</p>)}
             {aba === "lei" && <ConsultaLei lei={atual.lei} produtos={atual.produtos?.produtos} empresa={atual.empresa} />}
           </>
         )}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, MessageSquare, Send, X } from "lucide-react";
+import JanelaDoItem from "./RevisaNotaItem.jsx";
 import { STATUS_DE_PEDIDO, TIPOS_DE_PEDIDO, alvoDoProduto, criarPedido, etapasDoPedido, ncmFormatado, observarPedido, resumoDoPedido, rotuloDaReducao } from "../lib/revisaNota.js";
 
 // Pedidos do Revisa Nota (produto novo, mudança de classificação, perfil de comprador) e a conversa de observações de cada um. O cliente pede e conversa aqui; o escritório responde pelo
@@ -162,7 +163,8 @@ function QuadroCondicional({ cond, opcoes, complementos }) {
 
 /** Janela "Pedir alteração": a mesma tela de decisão do escritório (itens da LC 214 que casam com o NCM, código na nota, situação, observação), só que o resultado é um pedido
  *  que o escritório analisa e responde na conversa do pedido. */
-export function JanelaDeAlteracao({ produto, opcoes, lista, companyId, onFechar, onCriado }) {
+export function JanelaDeAlteracao({ produto, opcoes, lista, baseLei, companyId, onFechar, onCriado }) {
+  const [itemAberto, setItemAberto] = useState(null);
   const d = produto.decisao;
   const [escolha, setEscolha] = useState(d?.anexo ? `${d.anexo}|${d.item}` : d?.cClassTrib === "000001" ? "integral" : d?.cClassTrib ? "outro" : "");
   const [outroCst, setOutroCst] = useState(d && !d.anexo && d.cClassTrib !== "000001" ? d.cst || "" : "");
@@ -174,10 +176,11 @@ export function JanelaDeAlteracao({ produto, opcoes, lista, companyId, onFechar,
   const [erro, setErro] = useState("");
 
   useEffect(() => {
+    if (itemAberto) return undefined; // com o item aberto por cima, o Esc fecha só o item
     const tecla = (e) => { if (e.key === "Escape") { e.stopImmediatePropagation(); onFechar(); } };
     window.addEventListener("keydown", tecla, true);
     return () => window.removeEventListener("keydown", tecla, true);
-  }, [onFechar]);
+  }, [onFechar, itemAberto]);
 
   const itemEscolhido = opcoes.find((o) => o.k === escolha);
   const codigosDoAnexo = itemEscolhido?.codigos || [];
@@ -272,6 +275,7 @@ export function JanelaDeAlteracao({ produto, opcoes, lista, companyId, onFechar,
                         {o.decididoManual && <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] text-ink-500">decisão atual do escritório</span>}
                       </div>
                       <p className="mt-1 text-[12.5px] leading-relaxed text-ink-600">{o.descricao}</p>
+                      <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setItemAberto({ anexo: o.anexo, item: o.item }); }} className="mt-1 text-[12px] font-medium text-accent-600 hover:underline">Ver o item completo</button>
                       {o.palavras?.length > 0 && opcoes.length > 1 && <p className="mt-1 text-[11.5px] text-ink-400">em comum com o produto: {o.palavras.join(", ")}</p>}
                     </div>
                   </label>
@@ -340,6 +344,7 @@ export function JanelaDeAlteracao({ produto, opcoes, lista, companyId, onFechar,
           <button type="button" onClick={enviar} disabled={enviando} className="rounded-lg bg-accent-500 px-4 py-2 text-[13px] font-semibold text-white hover:bg-accent-600 disabled:opacity-50">Pedir alteração</button>
         </footer>
       </div>
+      {itemAberto && <JanelaDoItem lei={baseLei} anexo={itemAberto.anexo} item={itemAberto.item} codigosPorItem={lista.lei} onClose={() => setItemAberto(null)} />}
     </div>
   );
 }
