@@ -11,6 +11,7 @@ import ResumoProdutos from "../components/RevisaNotaResumo.jsx";
 import ConsultaLei from "../components/RevisaNotaLei.jsx";
 import { CartaoDePedido, FormPerfil, JanelaDeAlteracao } from "../components/RevisaNotaPedidos.jsx";
 import CentralDePedidos from "../components/RevisaNotaConversas.jsx";
+import SinoDeAvisos from "../components/RevisaNotaSino.jsx";
 
 // Revisa Nota (Ferramentas, só Micromedical por enquanto): abre como o B.I. — as abas do Revisa Nota em cima (Produtos, Resumo de produtos, Cadastro, Clientes e Consulta LC 214). A
 // classificação é decidida pelo escritório; o cliente pede cadastro, mudança de classificação e perfil de comprador aqui mesmo e conversa com o escritório em cada pedido.
@@ -744,7 +745,8 @@ export default function RevisaNota() {
 
   return (
     <div className="flex w-full flex-col">
-      <nav className="bi-abas flex items-center gap-4 overflow-x-auto border-b border-line bg-surface-card px-5 py-1" aria-label="Abas do Revisa Nota">
+      <div className="flex items-center gap-3 border-b border-line bg-surface-card pr-5">
+      <nav className="bi-abas flex min-w-0 flex-1 items-center gap-4 overflow-x-auto px-5 py-1" aria-label="Abas do Revisa Nota">
         {ABAS.map((a) => (
           <button key={a.id} type="button" onClick={() => setAba(a.id)} className={`bi-aba flex shrink-0 items-center gap-1.5 border-b-2 py-3 text-[13px] transition-colors ${aba === a.id ? "border-accent-500 font-medium text-ink-900" : "border-transparent text-ink-500 hover:text-ink-800"}`}>
             {a.nome}
@@ -753,6 +755,8 @@ export default function RevisaNota() {
           </button>
         ))}
       </nav>
+      <SinoDeAvisos pedidos={pedidos} naoLidas={naoLidas} aoAbrir={(id) => { setAba("cadastro"); setAbrirId(id); }} aoMarcarTodas={() => pedidos.filter((p) => naoLidas.has(p.id)).forEach(aoLer)} />
+      </div>
 
       {avisos.length > 0 && (
         <div className="fixed right-4 top-16 z-[70] flex w-[min(92vw,340px)] flex-col gap-2" role="status" aria-live="polite">

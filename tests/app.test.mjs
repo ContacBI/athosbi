@@ -1353,6 +1353,16 @@ check("resposta do escritório vira novidade e o texto diz isso", rn2.temNovidad
 check("mensagem do próprio cliente não é novidade", rn2.temNovidade({ ...pedBase, observacoes: [{ autor: "cliente", criado_em: "2026-11-21T10:05:00Z" }] }, vistoInicial) === false, null);
 check("depois de ver, deixa de ser novidade; mudar a situação volta a ser", rn2.temNovidade(comResposta, rn2.marcaDeLeitura(comResposta)) === false && rn2.temNovidade({ ...comResposta, status: "cadastrado" }, rn2.marcaDeLeitura(comResposta)) === true, null);
 
+section("Sininho: última novidade do escritório em cada pedido");
+const rn3 = await src("lib/revisaNota.js");
+const pedS = { id: "p9", status: "enviado", criado_em: "2026-11-21T10:00:00Z", atualizado_em: "2026-11-21T10:00:00Z", resposta: "", observacoes: [{ autor: "cliente", criado_em: "2026-11-21T10:05:00Z", texto: "oi" }] };
+check("sem nada do escritório não há aviso", rn3.eventoDoPedido(pedS) === null, null);
+const evResp = rn3.eventoDoPedido({ ...pedS, status: "em_analise", observacoes: [...pedS.observacoes, { autor: "escritorio", criado_em: "2026-11-21T11:00:00Z", texto: "Pode mandar o registro?" }] });
+check("resposta do escritório vira aviso com o texto", evResp.titulo === "O escritório respondeu" && evResp.texto === "Pode mandar o registro?" && evResp.quando === "2026-11-21T11:00:00Z", evResp);
+const evRec = rn3.eventoDoPedido({ ...pedS, status: "recusado", resposta: "Falta o registro", atualizado_em: "2026-11-21T12:00:00Z" });
+check("pedido recusado vira aviso com o motivo", evRec.titulo === "Pedido recusado" && evRec.texto === "Falta o registro", evRec);
+check("pedido aprovado vira aviso", rn3.eventoDoPedido({ ...pedS, status: "cadastrado", atualizado_em: "2026-11-21T12:00:00Z" }).titulo === "Pedido aprovado", null);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
