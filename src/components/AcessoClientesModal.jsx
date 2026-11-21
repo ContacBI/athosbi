@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Eye, EyeOff, Trash2, UserPlus, Users, Wrench, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
+import PreviaCliente from "./PreviaCliente.jsx";
 import { grantAccess, inviteUser, listAccessGrants, listAccessPeople, revokeAccess } from "../lib/access.js";
 import { saveVisibilidadeEmpresa } from "../lib/companies.js";
 import { saveVisibilidadeGrupo } from "../lib/groups.js";
@@ -15,9 +16,15 @@ import { BLOCOS_ENTRADAS_SAIDAS, abasDoAlvo, kAba, kItem, kSubaba, todasAsChaves
 // As seções espelham o menu do site (30/11/2026 — pedido do Izaias): "Meu B.I." (as abas e subabas do B.I da empresa) e "Ferramentas" (os módulos; os que são só de
 // algumas empresas, como o DRE Gerencial do Gestão Click, só aparecem pra elas). À direita, "Como o cliente vê" mostra o menu como o cliente vai enxergar, ao vivo.
 // A equipe sempre vê tudo — pra conferir como o cliente, use o olhinho (visão do cliente) do topo.
-const SECOES = [{ id: "pessoas", nome: "Quem tem acesso", icone: Users }, { id: "bi", nome: "Meu B.I." }, { id: "ferramentas", nome: "Ferramentas", icone: Wrench }];
-// Áreas do menu do site que não têm o que escolher aqui (aparecem na prévia só pra mostrar o menu inteiro).
-const AREAS_FIXAS = [{ id: "inicio", nome: "Início" }, { id: "reforma", nome: "Reforma Tributária", nota: "acesso próprio" }, { id: "servicos", nome: "Serviços" }, { id: "conteudos", nome: "Conteúdos" }];
+const SECOES = [
+  { id: "pessoas", nome: "Quem tem acesso", icone: Users },
+  { id: "inicio", nome: "Início", fixa: "A página inicial do site. Aparece sempre para o cliente, com os atalhos para o que ele tem liberado." },
+  { id: "bi", nome: "Meu B.I." },
+  { id: "reforma", nome: "Reforma Tributária", fixa: "Informativo sobre a Reforma Tributária. Tem acesso próprio (Reforma Tributária, no console), independente do que está marcado aqui." },
+  { id: "servicos", nome: "Serviços", fixa: "Área ainda sem conteúdo no site. Aparece no menu do cliente, mas não há nada para marcar aqui por enquanto." },
+  { id: "conteudos", nome: "Conteúdos", fixa: "Guias da DRE, do balanço, do fluxo de caixa e dos indicadores. Aparece sempre para o cliente; por enquanto não dá para esconder por empresa." },
+  { id: "ferramentas", nome: "Ferramentas", icone: Wrench },
+];
 
 function Caixa({ marcado, onChange, disabled, children, recuo = 0, forte = false }) {
   return (
@@ -161,18 +168,10 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
     subs: (aba.subTabs || []).filter((sub) => veBi(kSubaba(aba.id, sub.id))),
   }));
   const ferramentasVistas = aplicaveis.filter((m) => veModulo(m.id));
-  const menuCliente = [
-    AREAS_FIXAS[0],
-    { id: "bi", nome: "Meu B.I.", vazio: !abasVistas.length },
-    AREAS_FIXAS[1],
-    AREAS_FIXAS[2],
-    AREAS_FIXAS[3],
-    { id: "ferramentas", nome: "Ferramentas", vazio: !ferramentasVistas.length },
-  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-[2px]">
-      <div className="flex h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-surface-card shadow-xl">
+      <div className="flex h-[88vh] w-full max-w-[1360px] flex-col overflow-hidden rounded-2xl bg-surface-card shadow-xl">
         <div className="flex items-start justify-between border-b border-line px-6 py-4">
           <div className="min-w-0">
             <span className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Acesso dos clientes</span>
@@ -222,7 +221,7 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
 
             {secao === "bi" && (
               <div>
-                <h3 className="text-[14px] font-semibold text-ink-900">B.I Contábil</h3>
+                <h3 className="text-[14px] font-semibold text-ink-900">Meu B.I.</h3>
                 <p className="mt-1 text-[12.5px] text-ink-400">As abas e itens do B.I {ehGrupo ? "deste grupo" : "desta empresa"}. Marque o que o cliente deve ver: uma aba inteira, uma subaba ou só alguns itens (por exemplo, indicadores específicos).</p>
                 {naoConfigurado && <p className="mt-3 rounded-lg bg-warning-500/10 px-3 py-2 text-[12px] text-warning-800">Ainda não configurado: hoje o cliente vê tudo. Ao salvar, ele passa a ver só o que estiver marcado aqui.</p>}
                 <div className="mt-3 flex gap-2">
@@ -238,15 +237,15 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
                       <div key={aba.id} className="rounded-xl border border-line p-2">
                         <Caixa forte marcado={!abaOculta} onChange={(v) => marcarVisivel(kAba(aba.id), v)}>{aba.name}</Caixa>
                         {!subs.length && (aba.widgets || []).map((w, i) => (
-                          <Caixa key={`${w.id}-${i}`} recuo={1} marcado={visiveis.has(kItem(aba.id, null, w.id))} disabled={abaOculta} onChange={(v) => marcarVisivel(kItem(aba.id, null, w.id), v)}>{nomeWidget(w.id)}</Caixa>
+                          <Caixa key={`${w.id}-${i}`} recuo={1} marcado={!abaOculta && visiveis.has(kItem(aba.id, null, w.id))} disabled={abaOculta} onChange={(v) => marcarVisivel(kItem(aba.id, null, w.id), v)}>{nomeWidget(w.id)}</Caixa>
                         ))}
                         {subs.map((sub) => {
                           const subOculta = !visiveis.has(kSubaba(aba.id, sub.id));
                           return (
                             <div key={sub.id}>
-                              <Caixa recuo={1} marcado={!subOculta} disabled={abaOculta} onChange={(v) => marcarVisivel(kSubaba(aba.id, sub.id), v)}>{sub.name}</Caixa>
+                              <Caixa recuo={1} marcado={!abaOculta && !subOculta} disabled={abaOculta} onChange={(v) => marcarVisivel(kSubaba(aba.id, sub.id), v)}>{sub.name}</Caixa>
                               {(sub.widgets || []).map((w, i) => (
-                                <Caixa key={`${w.id}-${i}`} recuo={2} marcado={visiveis.has(kItem(aba.id, sub.id, w.id))} disabled={abaOculta || subOculta} onChange={(v) => marcarVisivel(kItem(aba.id, sub.id, w.id), v)}>{nomeWidget(w.id)}</Caixa>
+                                <Caixa key={`${w.id}-${i}`} recuo={2} marcado={!abaOculta && !subOculta && visiveis.has(kItem(aba.id, sub.id, w.id))} disabled={abaOculta || subOculta} onChange={(v) => marcarVisivel(kItem(aba.id, sub.id, w.id), v)}>{nomeWidget(w.id)}</Caixa>
                               ))}
                             </div>
                           );
@@ -255,6 +254,13 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
                     );
                   })}
                 </div>
+              </div>
+            )}
+
+            {SECOES.find((x) => x.id === secao)?.fixa && (
+              <div>
+                <h3 className="text-[14px] font-semibold text-ink-900">{SECOES.find((x) => x.id === secao).nome}</h3>
+                <p className="mt-2 max-w-xl rounded-xl border border-line bg-surface-muted/50 px-4 py-3 text-[12.5px] leading-relaxed text-ink-600">{SECOES.find((x) => x.id === secao).fixa}</p>
               </div>
             )}
 
@@ -284,38 +290,7 @@ export default function AcessoClientesModal({ tipo, item, onClose, secaoInicial 
           </div>
 
           {secao !== "pessoas" && (
-            <aside className="hidden w-[270px] shrink-0 overflow-y-auto border-l border-line bg-surface-muted/40 p-4 lg:block">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-accent-600">Como o cliente vê</p>
-              <p className="mt-1 text-[11.5px] leading-snug text-ink-400">O menu do site, com o que está marcado agora.</p>
-              <ul className="mt-3 flex flex-col gap-1.5">
-                {menuCliente.map((area) => (
-                  <li key={area.id} className="rounded-lg border border-line bg-surface-card px-3 py-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className={`text-[12.5px] font-semibold ${area.vazio ? "text-ink-400 line-through" : "text-ink-900"}`}>{area.nome}</span>
-                      {area.vazio && <span className="text-[10.5px] text-ink-400">oculto</span>}
-                      {area.nota && <span className="text-[10.5px] text-ink-400">{area.nota}</span>}
-                    </div>
-                    {area.id === "bi" && !area.vazio && (
-                      <ul className="mt-1.5 flex flex-col gap-0.5 border-l border-line pl-2.5">
-                        {abasVistas.map((aba) => (
-                          <li key={aba.id} className="text-[12px] text-ink-700">
-                            {aba.name}
-                            {aba.subs.length > 0 && <span className="text-ink-400"> · {aba.subs.map((sub) => sub.name).join(", ")}</span>}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    {area.id === "ferramentas" && !area.vazio && (
-                      <ul className="mt-1.5 flex flex-col gap-0.5 border-l border-line pl-2.5">
-                        {ferramentasVistas.map((m) => <li key={m.id} className="text-[12px] text-ink-700">{m.nome}</li>)}
-                        {modulosLivre && <li className="text-[11px] text-ink-400">(conforme a ficha de cada pessoa)</li>}
-                      </ul>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              {(biLivre || modulosLivre) && <p className="mt-3 text-[11px] leading-snug text-ink-400">Ainda sem configuração: o cliente vê tudo até você marcar e salvar.</p>}
-            </aside>
+            <PreviaCliente secao={secao} nomeAlvo={item.name} abasVistas={abasVistas} ferramentasVistas={ferramentasVistas} ferramentasPelaFicha={modulosLivre} veBi={veBi} nomeWidget={nomeWidget} semConfiguracao={biLivre || modulosLivre} textoFixa={SECOES.find((x) => x.id === secao)?.fixa || null} />
           )}
         </div>
 
