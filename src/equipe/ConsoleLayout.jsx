@@ -7,7 +7,6 @@ import {
   Activity,
   ArrowUpRight,
   BarChart3,
-  Boxes,
   Building2,
   CornerDownLeft,
   HeartPulse,
@@ -18,7 +17,6 @@ import {
   Moon,
   Network,
   Repeat,
-  Scale,
   Search,
   ShieldCheck,
   SlidersHorizontal,
@@ -75,10 +73,7 @@ const MENU = [
   {
     titulo: "Cadastros",
     itens: [
-      { to: "/equipe/empresas", nome: "Empresas", icone: Building2 },
-      { to: "/equipe/grupo", nome: "Grupos", icone: Boxes },
       { to: "/equipe/representantes", nome: "Representantes", icone: Users },
-      { to: "/equipe/reforma", nome: "Reforma Tributária", icone: Scale, so: "reforma" },
     ],
   },
   {
