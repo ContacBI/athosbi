@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, ChevronDown, Eye, Search } from "lucide-react";
-import { listAccessGrants, listAccessPeople } from "../lib/access.js";
 import { entrarNoModo, sairDaPessoa } from "../lib/modoEquipe.js";
-import { comoPessoa, filtrarPessoas, pessoasDoAlvo, pessoasParaVerComo } from "../lib/verComo.js";
+import { comoPessoa, filtrarPessoas } from "../lib/verComo.js";
+import { usePessoasDoAlvo } from "./usePessoasDoAlvo.js";
 import Avatar from "../components/Avatar.jsx";
 
 // "Ver como": troca a tela entre a visão geral (tudo) e a de UMA pessoa de um cliente — com o tipo de acesso dela (Financeiro, Comercial…). Só leitura.
@@ -11,19 +11,8 @@ export default function VerComo({ state }) {
   const navigate = useNavigate();
   const [aberto, setAberto] = useState(false);
   const [termo, setTermo] = useState("");
-  const [dados, setDados] = useState(null);
+  const { carregado, erro, doAlvo } = usePessoasDoAlvo(state, aberto);
   const vista = state.pessoaVista;
-
-  useEffect(() => {
-    if (!aberto || dados) return;
-    Promise.all([listAccessGrants(), listAccessPeople()])
-      .then(([grants, fichas]) => setDados({ grants, fichas }))
-      .catch(() => setDados({ grants: [], fichas: new Map(), erro: true }));
-  }, [aberto, dados]);
-
-  const pessoas = useMemo(() => (dados ? pessoasParaVerComo({ ...dados, companies: state.companies, groups: state.groups }) : []), [dados, state.companies, state.groups]);
-  // só quem está liberado pra empresa/grupo aberto agora
-  const doAlvo = useMemo(() => pessoasDoAlvo(pessoas, { companyId: state.activeCompanyId, groupId: state.activeGroupId, groups: state.groups }), [pessoas, state.activeCompanyId, state.activeGroupId, state.groups]);
   const lista = useMemo(() => filtrarPessoas(doAlvo, termo), [doAlvo, termo]);
 
   function escolher(pessoa) {
@@ -63,9 +52,9 @@ export default function VerComo({ state }) {
               <input autoFocus value={termo} onChange={(event) => setTermo(event.target.value)} placeholder="Nome, e-mail, empresa ou tipo de acesso" className="w-full bg-transparent text-[13px] outline-none placeholder:text-[var(--hub-texto-3)]" />
             </label>
             <div className="max-h-[340px] overflow-y-auto">
-              {!dados && <p className="px-3 py-4 text-[13px] text-[var(--hub-texto-3)]">Carregando as pessoas…</p>}
-              {dados?.erro && <p className="px-3 py-4 text-[13px] text-[var(--hub-texto-3)]">Não consegui ler a lista de pessoas.</p>}
-              {dados && !dados.erro && lista.length === 0 && <p className="px-3 py-4 text-[13px] text-[var(--hub-texto-3)]">{doAlvo.length ? "Ninguém com esse nome." : "Ninguém tem acesso liberado a esta empresa."}</p>}
+              {!carregado && !erro && <p className="px-3 py-4 text-[13px] text-[var(--hub-texto-3)]">Carregando as pessoas…</p>}
+              {erro && <p className="px-3 py-4 text-[13px] text-[var(--hub-texto-3)]">Não consegui ler a lista de pessoas.</p>}
+              {carregado && lista.length === 0 && <p className="px-3 py-4 text-[13px] text-[var(--hub-texto-3)]">{doAlvo.length ? "Ninguém com esse nome." : "Ninguém tem acesso liberado a esta empresa."}</p>}
               {lista.map((pessoa) => (
                 <button key={pessoa.email} type="button" onClick={() => escolher(pessoa)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-[var(--hub-acento-suave)]">
                   <Avatar name={pessoa.nome || pessoa.email} size={32} className="rounded-full" />

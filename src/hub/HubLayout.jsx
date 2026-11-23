@@ -22,6 +22,7 @@ import WorkspaceLoading from "../components/WorkspaceLoading.jsx";
 import Carregando from "../components/Carregando.jsx";
 import SeletorDeEmpresa from "../components/SeletorDeEmpresa.jsx";
 import VerComo from "./VerComo.jsx";
+import { usePessoasDoAlvo } from "./usePessoasDoAlvo.js";
 import { recentes } from "../lib/recentes.js";
 
 const norm = (valor) => String(valor || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -426,6 +427,9 @@ export default function HubLayout() {
   const { pending, abrirEmpresa, abrirGrupo, cancelar } = useAbrirWorkspace();
   const naBi = location.pathname.startsWith("/empresa");
   const modulo = moduloDaRota(location.pathname);
+  // Login de visualização na visão do cliente: se ninguém tem acesso à empresa/grupo aberto, a tela fica em branco (não há cliente pra ver nada).
+  const { carregado: concessoesLidas, doAlvo: pessoasDoAlvoAberto } = usePessoasDoAlvo(state, Boolean(state.realIsVisualizador));
+  const ninguemTemAcesso = Boolean(state.realIsVisualizador && !state.pessoaVista && (state.activeCompanyId || state.activeGroupId) && concessoesLidas && pessoasDoAlvoAberto.length === 0);
   const mostrarTopo = !naBi || state.topoDoHubAberto;
   // Áreas que a equipe escondeu do cliente (Acesso dos clientes › lib/visibilidade.js): somem do menu, da busca e do rodapé, e a rota volta pro início.
   const areas = AREAS_DO_HUB.filter((area) => !areaOculta(area.id));
@@ -641,9 +645,15 @@ export default function HubLayout() {
 
       <Conteudo className={naBi ? "" : "relative"}>
         <div key={naBi ? "bi" : "hub"} className="hub-surgir">
-          <Suspense fallback={<Carregando />}>
-            <Outlet context={{ abrir, irPara, trocar, abrirBusca: () => setBusca(true), escolherEmpresa: () => setSeletor("trocar") }} />
-          </Suspense>
+          {ninguemTemAcesso ? (
+            <div className="flex min-h-[50vh] items-center justify-center px-6 text-center">
+              <p className="max-w-sm text-[14px] text-[var(--hub-texto-3)]">Ninguém tem acesso liberado a esta empresa, então não há o que mostrar.</p>
+            </div>
+          ) : (
+            <Suspense fallback={<Carregando />}>
+              <Outlet context={{ abrir, irPara, trocar, abrirBusca: () => setBusca(true), escolherEmpresa: () => setSeletor("trocar") }} />
+            </Suspense>
+          )}
         </div>
       </Conteudo>
       {!naBi && <Rodape irPara={irPara} areas={areas} />}
