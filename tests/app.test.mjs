@@ -1401,10 +1401,10 @@ const modoVC = await src("lib/modoEquipe.js");
 const storeVC = await src("data/useStore.js");
 Object.assign(storeVC.state, { realIsVisualizador: true, realIsAdmin: false, realIsColaborador: true, userEmail: "testebi@gmail.com", modoEquipe: null });
 modoVC.entrarNoModo("console");
-check("login de visualização nunca entra no modo console", storeVC.state.modoEquipe === "portal" && storeVC.state.isAdmin === false && storeVC.state.isColaborador === false, storeVC.state.modoEquipe);
+check("login de visualização nunca entra no modo console e já vê como o cliente (não a visão da equipe)", storeVC.state.modoEquipe === "portal" && storeVC.state.isAdmin === false && storeVC.state.isColaborador === false && storeVC.state.clienteSimulado === true, storeVC.state.modoEquipe);
 modoVC.entrarNoModo("portal", { pessoa: { email: "ana@x.com", nome: "Ana", modulos: [], empresas: ["c4"], grupos: [] } });
 check("Ver como liga a pessoa e 'voltar' volta à visão geral", storeVC.state.pessoaVista?.email === "ana@x.com" && (modoVC.sairDaPessoa(), storeVC.state.pessoaVista === null && storeVC.state.modoEquipe === "portal"), null);
-Object.assign(storeVC.state, { realIsVisualizador: false, realIsColaborador: false, modoEquipe: null, visaoCliente: false, pessoaVista: null, userEmail: "" });
+Object.assign(storeVC.state, { realIsVisualizador: false, realIsColaborador: false, modoEquipe: null, visaoCliente: false, pessoaVista: null, clienteSimulado: false, userEmail: "" });
 
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {

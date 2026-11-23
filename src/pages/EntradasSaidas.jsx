@@ -122,7 +122,7 @@ export default function EntradasSaidas() {
   const base = (grupo ? grupo.notasMedida?.base : config.base) || "nota";
   const valor = (grupo ? grupo.notasMedida?.valor : config.valor) || "nota";
   // A equipe também vê e edita os acumuladores quando está no portal do hub (onde isAdmin/isColaborador ficam desligados pra ela ver como o cliente), mas não na "visão de uma pessoa".
-  const equipeVe = equipe || Boolean(state.modoEquipe && !state.pessoaVista && (state.realIsAdmin || state.realIsColaborador));
+  const equipeVe = equipe || Boolean(state.modoEquipe && !state.pessoaVista && !state.clienteSimulado && (state.realIsAdmin || state.realIsColaborador));
   const souAdmin = state.isAdmin || (equipeVe && state.realIsAdmin);
   // empresas que a escolha de acumuladores atinge: a empresa aberta; num grupo, a empresa em foco ou (no consolidado) todas as do grupo
   const alvosEdicao = grupo ? membrosUso : company ? [company] : [];
