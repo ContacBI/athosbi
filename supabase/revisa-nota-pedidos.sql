@@ -67,6 +67,7 @@ begin
 end;
 $$;
 
+-- O portal é o lado do CLIENTE: o que se escreve aqui entra como 'cliente' mesmo quando quem escreve é da equipe testando (o escritório responde pelo app interno, que grava como 'escritorio').
 create or replace function public.revisa_nota_observar(p_pedido uuid, p_texto text)
 returns uuid language plpgsql security definer set search_path = '' as $$
 declare
@@ -83,7 +84,7 @@ begin
   if length(texto) < 1 or length(texto) > 1000 then raise exception 'Escreva de 1 a 1000 caracteres'; end if;
   select coalesce(nullif(trim(p.nome), ''), split_part(v_email, '@', 1)) into quem from public.acesso_pessoas p where lower(p.email) = v_email;
   insert into public.revisa_nota_observacoes (pedido_id, company_id, autor, autor_nome, texto)
-  values (p_pedido, comp, case when public.is_portal_admin() or public.is_colaborador() then 'escritorio' else 'cliente' end, left(coalesce(quem, split_part(v_email, '@', 1)), 80), texto)
+  values (p_pedido, comp, 'cliente', left(coalesce(quem, split_part(v_email, '@', 1)), 80), texto)
   returning id into novo;
   update public.revisa_nota_pedidos set atualizado_em = now() where id = p_pedido;
   return novo;

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useAppState } from "../data/useStore.js";
 import { ArrowLeft, MessageSquare, Plus, Send } from "lucide-react";
 import { STATUS_DE_PEDIDO, TIPOS_DE_PEDIDO, observarPedido, pedidoAberto, resumoDoPedido } from "../lib/revisaNota.js";
 import { FormNovoProduto, LinhaDoTempo, SeloDoStatus } from "./RevisaNotaPedidos.jsx";
@@ -24,17 +25,45 @@ function mensagensDoPedido(pedido) {
   return lista.sort((a, b) => String(a.criado_em).localeCompare(String(b.criado_em)));
 }
 
-function Balao({ m }) {
+// O portal é o lado do cliente: o que a pessoa escreve aqui fica à DIREITA (laranja) e o que vem do escritório, à ESQUERDA (azul). Mesmo a equipe testando por aqui escreve como cliente.
+const diaDe = (iso) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const hoje = new Date();
+  const ontem = new Date(hoje.getTime() - 86400000);
+  if (d.toDateString() === hoje.toDateString()) return "Hoje";
+  if (d.toDateString() === ontem.toDateString()) return "Ontem";
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long" });
+};
+const horaDe = (iso) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+};
+
+function Balao({ m, meuNome }) {
   const doEscritorio = m.autor === "escritorio";
+  const nome = doEscritorio ? `Escritório${m.autor_nome && m.autor_nome !== "Escritório" ? ` · ${m.autor_nome}` : ""}` : m.autor_nome && m.autor_nome.toLowerCase() !== meuNome ? m.autor_nome : "Você";
   return (
-    <li className={`flex ${doEscritorio ? "justify-start" : "justify-end"}`}>
-      <div className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-[13px] ${doEscritorio ? "rounded-bl-md bg-accent-500/12 text-ink-900" : "rounded-br-md bg-surface-muted text-ink-900"}`}>
-        <p className="text-[11px] font-semibold text-ink-500">
-          {doEscritorio ? `Escritório${m.autor_nome ? ` · ${m.autor_nome}` : ""}` : m.autor_nome || "Você"} <span className="font-normal text-ink-400">· {quando(m.criado_em)}</span>
-        </p>
-        {m.destaque && <p className="mt-1 text-[12.5px] font-semibold text-accent-700">{m.destaque}</p>}
-        {m.texto && <p className="mt-0.5 whitespace-pre-wrap break-words">{m.texto}</p>}
+    <li className={`flex items-end gap-2 ${doEscritorio ? "justify-start" : "justify-end"}`}>
+      {doEscritorio && <span className="mb-5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-500/20 text-[11px] font-bold text-sky-500">E</span>}
+      <div className={`flex max-w-[80%] flex-col ${doEscritorio ? "items-start" : "items-end"}`}>
+        <span className="mb-1 px-1 text-[11px] font-semibold text-ink-500">{nome}</span>
+        <div className={`rounded-2xl px-3.5 py-2.5 text-[13.5px] leading-snug shadow-sm ${doEscritorio ? "rounded-bl-md border border-sky-500/25 bg-sky-500/15 text-ink-900" : "rounded-br-md bg-accent-500 text-white"}`}>
+          {m.destaque && <p className={`text-[12.5px] font-bold ${doEscritorio ? "text-sky-600" : "text-white"}`}>{m.destaque}</p>}
+          {m.texto && <p className={`whitespace-pre-wrap break-words ${m.destaque ? "mt-1" : ""}`}>{m.texto}</p>}
+        </div>
+        <span className="mt-1 px-1 text-[10.5px] text-ink-400">{horaDe(m.criado_em)}</span>
       </div>
+    </li>
+  );
+}
+
+function SeparadorDeDia({ rotulo }) {
+  return (
+    <li className="my-1 flex items-center gap-3" aria-hidden="true">
+      <span className="h-px flex-1 bg-line" />
+      <span className="rounded-full bg-surface-muted px-3 py-0.5 text-[11px] font-semibold text-ink-500">{rotulo}</span>
+      <span className="h-px flex-1 bg-line" />
     </li>
   );
 }
@@ -45,6 +74,8 @@ function Conversa({ pedido, recarregar, aoLer }) {
   const [erro, setErro] = useState("");
   const fim = useRef(null);
   const mensagens = useMemo(() => mensagensDoPedido(pedido), [pedido]);
+  const { userEmail } = useAppState();
+  const meuNome = String(userEmail || "").split("@")[0].toLowerCase();
 
   // sempre mostra o fim da conversa; ver a conversa aberta é "ler"
   useEffect(() => {
@@ -70,8 +101,13 @@ function Conversa({ pedido, recarregar, aoLer }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ul className="flex min-h-[220px] flex-1 flex-col gap-2.5 overflow-y-auto px-4 py-4">
-        {mensagens.map((m) => <Balao key={m.id} m={m} />)}
+      <ul className="flex min-h-[220px] flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+        {mensagens.map((m, i) => (
+          <Fragment key={m.id}>
+            {(i === 0 || diaDe(m.criado_em) !== diaDe(mensagens[i - 1].criado_em)) && <SeparadorDeDia rotulo={diaDe(m.criado_em)} />}
+            <Balao m={m} meuNome={meuNome} />
+          </Fragment>
+        ))}
         <li ref={fim} aria-hidden="true" />
       </ul>
       <div className="border-t border-line p-3">
