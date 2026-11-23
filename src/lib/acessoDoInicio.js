@@ -22,13 +22,9 @@ export function areasDoAcesso({ companies = [], groups = [], email = "", tudo = 
       return true;
     });
   }
-  // Sem nenhuma empresa/grupo liberado não há B.I. nem Ferramentas; a Reforma e os Conteúdos são informação geral e continuam valendo.
+  // Sem nenhuma empresa/grupo liberado não há nada além do Início (pedido do Izaias, 23/11/2026): nem B.I., nem Ferramentas, nem as áreas de informação.
   if (!temEmpresas) {
-    valem.bi = false;
-    valem.ferramentas = false;
-    valem.reforma = true;
-    valem.conteudos = true;
-    valem.servicos = true;
+    for (const area of AREAS) valem[area] = false;
   }
   return { ...valem, temAcesso: temEmpresas, qtdEmpresas: companies.length, qtdGrupos: groups.length };
 }

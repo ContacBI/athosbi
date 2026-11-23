@@ -432,9 +432,12 @@ export default function HubLayout() {
   const ninguemTemAcesso = Boolean(state.realIsVisualizador && !state.pessoaVista && (state.activeCompanyId || state.activeGroupId) && concessoesLidas && pessoasDoAlvoAberto.length === 0);
   const mostrarTopo = !naBi || state.topoDoHubAberto;
   // Áreas que a equipe escondeu do cliente (Acesso dos clientes › lib/visibilidade.js): somem do menu, da busca e do rodapé, e a rota volta pro início.
-  const areas = AREAS_DO_HUB.filter((area) => !areaOculta(area.id));
+  // Sem nenhuma empresa liberada (cliente ainda sem acesso) o menu tem só o Início.
+  const escopoDaTela = escopoDaPessoa(state.pessoaVista, state.companies, state.groups);
+  const semNada = !state.isAdmin && !state.isColaborador && !(realStaff(state) && !state.pessoaVista) && escopoDaTela.companies.length === 0;
+  const areas = AREAS_DO_HUB.filter((area) => (semNada ? area.id === "inicio" : !areaOculta(area.id)));
   const areaDaRota = AREAS_DO_HUB.find((area) => area.rota && area.rota !== "/hub" && location.pathname.startsWith(area.rota));
-  const rotaEscondida = Boolean((areaDaRota && areaOculta(areaDaRota.id)) || (naBi && !modulo && areaOculta("bi")) || (modulo && areaOculta("ferramentas")));
+  const rotaEscondida = Boolean((semNada && location.pathname !== "/hub") || (areaDaRota && areaOculta(areaDaRota.id)) || (naBi && !modulo && areaOculta("bi")) || (modulo && areaOculta("ferramentas")));
   useEffect(() => {
     if (rotaEscondida) navigate("/hub", { replace: true });
   }, [rotaEscondida, navigate]);
