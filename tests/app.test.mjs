@@ -844,6 +844,7 @@ check(
     !hubLigado({}),
   null
 );
+check("Colaboradores têm o hub; cliente e administrador sem ser colaborador, não", hubLigado({ userEmail: "leonardo@x.com", realIsColaborador: true }) === true && !hubLigado({ userEmail: "cliente@empresa.com", realIsColaborador: false, realIsAdmin: false }), null);
 check("Login de visualização (tabela visualizadores) sempre tem o hub", hubLigado({ userEmail: "testebi@gmail.com", realIsVisualizador: true }) === true, null);
 const modoEquipe = await src("lib/modoEquipe.js");
 check(
