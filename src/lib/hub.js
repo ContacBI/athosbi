@@ -11,7 +11,8 @@ export const QUEM_VE_O_HUB = [DONO_DA_CENTRAL, "izaiasspaulino@gmail.com"];
 export function hubLigado(st) {
   // o login de visualização (supabase/visualizador.sql) existe pra ver o portal como o cliente vê: sempre com o hub
   // os colaboradores (tabela `colaboradores`) também entram no hub novo desde 23/11/2026, a pedido do Izaias; os clientes seguem no portal de sempre
-  return Boolean(st?.realIsVisualizador) || Boolean(st?.realIsColaborador) || QUEM_VE_O_HUB.includes(String(st?.userEmail || "").trim().toLowerCase());
+  // desde 23/11/2026 o hub novo vale pra qualquer pessoa logada, clientes inclusive (pedido do Izaias). Quem prefere o portal antigo ainda tem "Voltar ao portal atual" no menu da conta.
+  return Boolean(st?.userEmail) || Boolean(st?.realIsVisualizador) || Boolean(st?.realIsColaborador) || QUEM_VE_O_HUB.includes(String(st?.userEmail || "").trim().toLowerCase());
 }
 
 // A tela de login nova vale pra todo mundo, no teste e no oficial (pedido do

@@ -836,15 +836,10 @@ check(
 const { hubLigado, loginNovo } = await src("lib/hub.js");
 check("Login novo: vale pra todo mundo, no teste e no oficial", loginNovo() === true, null);
 check(
-  "Hub novo: só pros e-mails do dono, em qualquer site (nem cliente, nem colaborador)",
-  hubLigado({ userEmail: "IzaiasContac@gmail.com " }) &&
-    hubLigado({ userEmail: "izaiasspaulino@gmail.com" }) &&
-    !hubLigado({ userEmail: "contac@gmail.com", isAdmin: true }) &&
-    !hubLigado({ userEmail: "cliente@empresa.com" }) &&
-    !hubLigado({}),
+  "Hub novo: vale pra qualquer pessoa logada (cliente, colaborador e dono); sem login, não",
+  hubLigado({ userEmail: "IzaiasContac@gmail.com " }) && hubLigado({ userEmail: "cliente@empresa.com" }) && hubLigado({ userEmail: "contac@gmail.com", isAdmin: true }) && !hubLigado({}) && !hubLigado({ userEmail: "" }),
   null
 );
-check("Colaboradores têm o hub; cliente e administrador sem ser colaborador, não", hubLigado({ userEmail: "leonardo@x.com", realIsColaborador: true }) === true && !hubLigado({ userEmail: "cliente@empresa.com", realIsColaborador: false, realIsAdmin: false }), null);
 check("Login de visualização (tabela visualizadores) sempre tem o hub", hubLigado({ userEmail: "testebi@gmail.com", realIsVisualizador: true }) === true, null);
 const modoEquipe = await src("lib/modoEquipe.js");
 check(
@@ -1375,7 +1370,7 @@ const empFinAc = { id: "c4", name: "Com tipos", visibilidade: { modo: "marcados"
 const tudoAcessoAc = areasDoAcesso({ companies: [], groups: [], tudo: true });
 check("a equipe (tudo) vê todas as áreas", ["bi", "reforma", "servicos", "conteudos", "ferramentas"].every((area) => tudoAcessoAc[area]), tudoAcessoAc);
 const nadaAc = areasDoAcesso({ companies: [], groups: [], email: "x@x.com" });
-check("sem empresa nem grupo: sem B.I. e sem Ferramentas, só o básico", nadaAc.bi === false && nadaAc.ferramentas === false && nadaAc.temAcesso === false && nadaAc.reforma === true, nadaAc);
+check("sem empresa nem grupo: só o Início, sem nenhuma área", nadaAc.bi === false && nadaAc.ferramentas === false && nadaAc.temAcesso === false && nadaAc.reforma === false && nadaAc.conteudos === false, nadaAc);
 const semConfigAc = areasDoAcesso({ companies: [empSemAc], groups: [], email: "x@x.com", modulosFicha: ["orcamento"] });
 check("empresa sem configuração: aparece tudo (Ferramentas pela ficha)", semConfigAc.bi && semConfigAc.reforma && semConfigAc.ferramentas && semConfigAc.temAcesso, semConfigAc);
 check("sem módulo na ficha e sem configuração, as Ferramentas somem", areasDoAcesso({ companies: [empSemAc], email: "x@x.com", modulosFicha: [] }).ferramentas === false, null);
