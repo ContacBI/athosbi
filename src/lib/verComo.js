@@ -48,3 +48,14 @@ export function filtrarPessoas(pessoas, termo) {
 
 /** A `pessoa` que o modo portal espera (lib/modoEquipe.js › entrarNoModo). */
 export const comoPessoa = (pessoa) => ({ email: pessoa.email, nome: pessoa.nome, modulos: pessoa.modulos, empresas: pessoa.empresas, grupos: pessoa.grupos });
+
+/**
+ * Só as pessoas liberadas pra empresa/grupo que está aberto: numa empresa, quem tem a empresa direto ou um grupo que a contém; num grupo, quem tem o grupo. Sem nada aberto,
+ * a lista inteira. Ninguém liberado = lista vazia.
+ */
+export function pessoasDoAlvo(pessoas, { companyId = "", groupId = "", groups = [] } = {}) {
+  if (groupId) return pessoas.filter((pessoa) => pessoa.grupos.includes(groupId));
+  if (!companyId) return pessoas;
+  const gruposDaEmpresa = groups.filter((group) => (group.companyIds || []).includes(companyId)).map((group) => group.id);
+  return pessoas.filter((pessoa) => pessoa.empresas.includes(companyId) || pessoa.grupos.some((id) => gruposDaEmpresa.includes(id)));
+}

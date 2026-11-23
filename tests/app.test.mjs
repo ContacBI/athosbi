@@ -1367,7 +1367,7 @@ check("pedido aprovado vira aviso", rn3.eventoDoPedido({ ...pedS, status: "cadas
 
 section("Início por acesso e 'Ver como' (login de visualização)");
 const { areasDoAcesso } = await src("lib/acessoDoInicio.js");
-const { pessoasParaVerComo, filtrarPessoas, comoPessoa } = await src("lib/verComo.js");
+const { pessoasParaVerComo, filtrarPessoas, comoPessoa, pessoasDoAlvo } = await src("lib/verComo.js");
 const empSemAc = { id: "c1", name: "Sem config" };
 const empSoReformaAc = { id: "c2", name: "So reforma", visibilidade: { modo: "marcados", visiveis: [], areasOcultas: ["ferramentas"], modulos: [] } };
 const empSemBiAc = { id: "c3", name: "Sem BI", visibilidade: { modo: "marcados", visiveis: ["es:kpis"], areasOcultas: ["bi"], modulos: ["orcamento"] } };
@@ -1398,6 +1398,10 @@ check("Ver como: uma linha por e-mail, só de quem tem alguma empresa que existe
 check("Ver como: traz o tipo de acesso e a ficha de cada pessoa", listaVC[0].tipos.join() === "Financeiro" && listaVC[0].nome === "Ana Souza" && listaVC[0].modulos[0] === "orcamento" && listaVC[1].tipos.join() === "Marketing", listaVC);
 check("Ver como: o filtro acha por nome, empresa e tipo de acesso", filtrarPessoas(listaVC, "souza").length === 1 && filtrarPessoas(listaVC, "marketing").length === 1 && filtrarPessoas(listaVC, "sem config").length === 1 && filtrarPessoas(listaVC, "").length === 2, null);
 check("Ver como: entrega no formato do modo portal", Object.keys(comoPessoa(listaVC[0])).sort().join() === "email,empresas,grupos,modulos,nome", null);
+const gruposVC = [{ id: "gA", companyIds: ["c4"] }];
+const pessoasAlvo = [{ email: "a", empresas: ["c4"], grupos: [] }, { email: "b", empresas: [], grupos: ["gA"] }, { email: "c", empresas: ["c1"], grupos: [] }, { email: "d", empresas: [], grupos: ["gB"] }];
+check("Ver como: na empresa aberta só quem está liberado nela ou no grupo dela", pessoasDoAlvo(pessoasAlvo, { companyId: "c4", groups: gruposVC }).map((pessoa) => pessoa.email).join() === "a,b", null);
+check("Ver como: no grupo aberto só quem tem o grupo; empresa sem ninguém = lista vazia", pessoasDoAlvo(pessoasAlvo, { groupId: "gA" }).map((pessoa) => pessoa.email).join() === "b" && pessoasDoAlvo(pessoasAlvo, { companyId: "c9", groups: gruposVC }).length === 0, null);
 const modoVC = await src("lib/modoEquipe.js");
 const storeVC = await src("data/useStore.js");
 Object.assign(storeVC.state, { realIsVisualizador: true, realIsAdmin: false, realIsColaborador: true, userEmail: "testebi@gmail.com", modoEquipe: null });

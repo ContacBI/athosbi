@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Check, ChevronDown, Eye, Search } from "lucide-react";
 import { listAccessGrants, listAccessPeople } from "../lib/access.js";
 import { entrarNoModo, sairDaPessoa } from "../lib/modoEquipe.js";
-import { comoPessoa, filtrarPessoas, pessoasParaVerComo } from "../lib/verComo.js";
+import { comoPessoa, filtrarPessoas, pessoasDoAlvo, pessoasParaVerComo } from "../lib/verComo.js";
 import Avatar from "../components/Avatar.jsx";
 
 // "Ver como": troca a tela entre a visão geral (tudo) e a de UMA pessoa de um cliente — com o tipo de acesso dela (Financeiro, Comercial…). Só leitura.
@@ -22,7 +22,9 @@ export default function VerComo({ state }) {
   }, [aberto, dados]);
 
   const pessoas = useMemo(() => (dados ? pessoasParaVerComo({ ...dados, companies: state.companies, groups: state.groups }) : []), [dados, state.companies, state.groups]);
-  const lista = useMemo(() => filtrarPessoas(pessoas, termo), [pessoas, termo]);
+  // só quem está liberado pra empresa/grupo aberto agora
+  const doAlvo = useMemo(() => pessoasDoAlvo(pessoas, { companyId: state.activeCompanyId, groupId: state.activeGroupId, groups: state.groups }), [pessoas, state.activeCompanyId, state.activeGroupId, state.groups]);
+  const lista = useMemo(() => filtrarPessoas(doAlvo, termo), [doAlvo, termo]);
 
   function escolher(pessoa) {
     setAberto(false);
@@ -50,7 +52,7 @@ export default function VerComo({ state }) {
           <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-[340px] max-w-[92vw] overflow-hidden rounded-2xl border border-[var(--hub-borda)] bg-[var(--hub-cartao-solido)] p-1.5 shadow-[var(--hub-sombra-forte)]">
             <div className="px-3 pb-2 pt-2">
               <p className="text-[13.5px] font-semibold text-[var(--hub-texto)]">Ver como</p>
-              <p className="text-[12px] text-[var(--hub-texto-3)]">A tela exata de uma pessoa do cliente, com o tipo de acesso dela. Só leitura.</p>
+              <p className="text-[12px] text-[var(--hub-texto-3)]">As pessoas liberadas para a empresa ou grupo aberto, com o tipo de acesso de cada uma. Só leitura.</p>
             </div>
             <button type="button" onClick={() => escolher(null)} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13px] font-semibold text-[var(--hub-texto-2)] hover:bg-[var(--hub-acento-suave)] hover:text-[var(--hub-texto)]">
               <Eye size={15} /> <span className="flex-1">Visão geral (todas as empresas)</span> {!vista && <Check size={15} className="text-[var(--hub-acento)]" />}
@@ -63,7 +65,7 @@ export default function VerComo({ state }) {
             <div className="max-h-[340px] overflow-y-auto">
               {!dados && <p className="px-3 py-4 text-[13px] text-[var(--hub-texto-3)]">Carregando as pessoas…</p>}
               {dados?.erro && <p className="px-3 py-4 text-[13px] text-[var(--hub-texto-3)]">Não consegui ler a lista de pessoas.</p>}
-              {dados && !dados.erro && lista.length === 0 && <p className="px-3 py-4 text-[13px] text-[var(--hub-texto-3)]">{pessoas.length ? "Ninguém com esse nome." : "Nenhum cliente com acesso liberado ainda."}</p>}
+              {dados && !dados.erro && lista.length === 0 && <p className="px-3 py-4 text-[13px] text-[var(--hub-texto-3)]">{doAlvo.length ? "Ninguém com esse nome." : "Ninguém tem acesso liberado a esta empresa."}</p>}
               {lista.map((pessoa) => (
                 <button key={pessoa.email} type="button" onClick={() => escolher(pessoa)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-[var(--hub-acento-suave)]">
                   <Avatar name={pessoa.nome || pessoa.email} size={32} className="rounded-full" />
