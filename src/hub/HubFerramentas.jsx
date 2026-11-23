@@ -99,7 +99,7 @@ export default function HubFerramentas() {
   const empresa = !grupo && state.activeCompanyId ? state.companies.find((company) => company.id === state.activeCompanyId) : null;
   const alvo = grupo ? { tipo: "grupo", id: grupo.id, nome: grupo.name } : empresa ? { tipo: "empresa", id: empresa.id, nome: empresa.name } : null;
   const ferramentas = alvo ? ferramentasDaTela(state) : [];
-  const equipe = Boolean(state.modoEquipe) && !state.pessoaVista;
+  const equipe = Boolean(state.modoEquipe) && !state.pessoaVista && !state.clienteSimulado;
   const carregado = !state.journalLoading && (state.accounts.length > 0 || state.journal.length > 0);
   const temDados = state.accounts.length > 0 || state.journal.length > 0 || state.journalLoading;
 

@@ -102,9 +102,17 @@ export default function HubInicio() {
 
   // O que o Início mostra depende do que a pessoa TEM (lib/acessoDoInicio.js). A equipe vê tudo; "vendo como" uma pessoa, só o que ela tem.
   const escopo = useMemo(() => escopoDaPessoa(state.pessoaVista, state.companies, state.groups), [state.pessoaVista, state.companies, state.groups]);
+  // Na visão do cliente sem pessoa escolhida (login de visualização), vale a empresa/grupo que está aberto: é o que o cliente dela veria.
+  const escopoDoAcesso = useMemo(() => {
+    if (!state.clienteSimulado || state.pessoaVista) return escopo;
+    const grupoAtivo = state.activeGroupId ? state.groups.find((group) => group.id === state.activeGroupId) : null;
+    if (grupoAtivo) return { companies: [], groups: [grupoAtivo] };
+    const empresaAtiva = state.activeCompanyId ? state.companies.find((company) => company.id === state.activeCompanyId) : null;
+    return empresaAtiva ? { companies: [empresaAtiva], groups: [] } : escopo;
+  }, [escopo, state.clienteSimulado, state.pessoaVista, state.activeGroupId, state.activeCompanyId, state.groups, state.companies]);
   const acesso = useMemo(
-    () => areasDoAcesso({ companies: escopo.companies, groups: escopo.groups, email: state.pessoaVista?.email || state.userEmail, tudo: realStaff(state) && !state.pessoaVista, modulosFicha: state.pessoaVista?.modulos || state.modulosCliente || [] }),
-    [escopo, state.pessoaVista, state.userEmail, state.modulosCliente, state.realIsAdmin, state.realIsColaborador] // eslint-disable-line react-hooks/exhaustive-deps
+    () => areasDoAcesso({ companies: escopoDoAcesso.companies, groups: escopoDoAcesso.groups, email: state.pessoaVista?.email || state.userEmail, tudo: realStaff(state) && !state.pessoaVista && !state.clienteSimulado, modulosFicha: state.pessoaVista?.modulos || state.modulosCliente || [] }),
+    [escopoDoAcesso, state.pessoaVista, state.clienteSimulado, state.userEmail, state.modulosCliente, state.realIsAdmin, state.realIsColaborador] // eslint-disable-line react-hooks/exhaustive-deps
   );
   const temBi = acesso.bi;
   const temReforma = acesso.reforma;

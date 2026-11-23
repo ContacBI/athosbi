@@ -62,7 +62,7 @@ export function entrarNoModo(modo, { pessoa = null } = {}) {
       return;
     }
     if (state.modoEquipe === "portal" && state.visaoCliente) return;
-    setData({ modoEquipe: "portal", visaoCliente: true, isAdmin: false, isColaborador: false, modulosCliente: MODULOS_COMPLEMENTARES.map((modulo) => modulo.id), pessoaVista: null });
+    setData({ modoEquipe: "portal", visaoCliente: true, isAdmin: false, isColaborador: false, modulosCliente: MODULOS_COMPLEMENTARES.map((modulo) => modulo.id), pessoaVista: null, clienteSimulado: Boolean(state.realIsVisualizador) });
     return;
   }
   if (state.modoEquipe === "console" && !state.visaoCliente && !state.pessoaVista) return;

@@ -39,6 +39,13 @@ export function VisaoClienteOlho({ className = "" }) {
 // mesmo; editando (vindo do console), o atalho pra ver como o cliente vê. Troca sem sair da tela.
 export function ModoDaTela({ className = "" }) {
   const state = useAppState();
+  if (state.modoEquipe === "portal" && state.realIsVisualizador) {
+    return (
+      <span title={state.pessoaVista ? `Vendo exatamente o que ${state.pessoaVista.nome || state.pessoaVista.email} vê (só leitura)` : "Vendo o que o cliente vê (só leitura)"} className={`flex h-8 items-center gap-1 rounded-md border border-accent-500/50 bg-accent-500/15 px-2.5 text-[12px] font-semibold text-accent-700 ${className}`}>
+        <Eye size={14} strokeWidth={1.8} /> {state.pessoaVista ? `Como ${String(state.pessoaVista.nome || state.pessoaVista.email).split(/[ @]/)[0]}` : "Visão do cliente"} · só leitura
+      </span>
+    );
+  }
   if (state.modoEquipe === "portal") {
     const simulando = Boolean(state.clienteSimulado) || Boolean(state.pessoaVista);
     return (

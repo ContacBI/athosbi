@@ -76,7 +76,7 @@ export function modulosLiberados(state) {
 // o resto, só as liberadas.
 export function ferramentasDaTela(state) {
   const liberados = modulosLiberados(state);
-  const equipe = Boolean(state.modoEquipe) && !state.pessoaVista;
+  const equipe = Boolean(state.modoEquipe) && !state.pessoaVista && !state.clienteSimulado;
   const config = modulosDaEmpresa();
   return MODULOS_COMPLEMENTARES.filter((modulo) => aplicavel(modulo, state) && (equipe || liberados.includes(modulo.id))).map((modulo) => ({ ...modulo, doCliente: config ? config.includes(modulo.id) : null }));
 }
