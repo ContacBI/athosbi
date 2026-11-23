@@ -9,7 +9,8 @@ import { DONO_DA_CENTRAL } from "./uso.js";
 export const QUEM_VE_O_HUB = [DONO_DA_CENTRAL, "izaiasspaulino@gmail.com"];
 
 export function hubLigado(st) {
-  return QUEM_VE_O_HUB.includes(String(st?.userEmail || "").trim().toLowerCase());
+  // o login de visualização (supabase/visualizador.sql) existe pra ver o portal como o cliente vê: sempre com o hub
+  return Boolean(st?.realIsVisualizador) || QUEM_VE_O_HUB.includes(String(st?.userEmail || "").trim().toLowerCase());
 }
 
 // A tela de login nova vale pra todo mundo, no teste e no oficial (pedido do

@@ -48,6 +48,8 @@ export function modoDaRota(pathname, guardado = "portal") {
 // empresas, grupos }). Sem `pessoa`, quem já estava "vendo como" alguém
 // continua assim até voltar pro console.
 export function entrarNoModo(modo, { pessoa = null } = {}) {
+  // quem só visualiza nunca entra no console: o portal é o único modo dele
+  if (state.realIsVisualizador) modo = "portal";
   try {
     sessionStorage.setItem(CHAVE_DO_MODO, modo);
   } catch {
@@ -65,6 +67,12 @@ export function entrarNoModo(modo, { pessoa = null } = {}) {
   }
   if (state.modoEquipe === "console" && !state.visaoCliente && !state.pessoaVista) return;
   setData({ modoEquipe: "console", visaoCliente: false, isAdmin: state.realIsAdmin, isColaborador: state.realIsColaborador, modulosCliente: null, pessoaVista: null });
+}
+
+// Volta da visão de UMA pessoa para a visão geral da equipe, ainda no portal.
+export function sairDaPessoa() {
+  if (!state.pessoaVista) return;
+  setData({ pessoaVista: null, modulosCliente: MODULOS_COMPLEMENTARES.map((modulo) => modulo.id) });
 }
 
 // "Voltar ao portal atual": desliga os modos e devolve a equipe como sempre foi.

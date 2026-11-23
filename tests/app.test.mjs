@@ -844,6 +844,7 @@ check(
     !hubLigado({}),
   null
 );
+check("Login de visualização (tabela visualizadores) sempre tem o hub", hubLigado({ userEmail: "testebi@gmail.com", realIsVisualizador: true }) === true, null);
 const modoEquipe = await src("lib/modoEquipe.js");
 check(
   "Equipe: o console e os cadastros pedem o modo de edição, o hub e o início o de ver como cliente, o B.I. segue o modo em que estava",
@@ -1362,6 +1363,48 @@ check("resposta do escritório vira aviso com o texto", evResp.titulo === "O esc
 const evRec = rn3.eventoDoPedido({ ...pedS, status: "recusado", resposta: "Falta o registro", atualizado_em: "2026-11-21T12:00:00Z" });
 check("pedido recusado vira aviso com o motivo", evRec.titulo === "Pedido recusado" && evRec.texto === "Falta o registro", evRec);
 check("pedido aprovado vira aviso", rn3.eventoDoPedido({ ...pedS, status: "cadastrado", atualizado_em: "2026-11-21T12:00:00Z" }).titulo === "Pedido aprovado", null);
+
+section("Início por acesso e 'Ver como' (login de visualização)");
+const { areasDoAcesso } = await src("lib/acessoDoInicio.js");
+const { pessoasParaVerComo, filtrarPessoas, comoPessoa } = await src("lib/verComo.js");
+const empSemAc = { id: "c1", name: "Sem config" };
+const empSoReformaAc = { id: "c2", name: "So reforma", visibilidade: { modo: "marcados", visiveis: [], areasOcultas: ["ferramentas"], modulos: [] } };
+const empSemBiAc = { id: "c3", name: "Sem BI", visibilidade: { modo: "marcados", visiveis: ["es:kpis"], areasOcultas: ["bi"], modulos: ["orcamento"] } };
+const empFinAc = { id: "c4", name: "Com tipos", visibilidade: { modo: "marcados", visiveis: ["bi:tab:t1"], modulos: ["orcamento"], areasOcultas: [], perfis: [{ id: "financeiro", nome: "Financeiro", visiveis: ["bi:tab:t1"], modulos: ["orcamento"], areasOcultas: [] }, { id: "marketing", nome: "Marketing", visiveis: [], modulos: [], areasOcultas: ["bi", "ferramentas"] }], perfilPorPessoa: { "ana@x.com": "financeiro", "leo@x.com": "marketing" } } };
+const tudoAcessoAc = areasDoAcesso({ companies: [], groups: [], tudo: true });
+check("a equipe (tudo) vê todas as áreas", ["bi", "reforma", "servicos", "conteudos", "ferramentas"].every((area) => tudoAcessoAc[area]), tudoAcessoAc);
+const nadaAc = areasDoAcesso({ companies: [], groups: [], email: "x@x.com" });
+check("sem empresa nem grupo: sem B.I. e sem Ferramentas, só o básico", nadaAc.bi === false && nadaAc.ferramentas === false && nadaAc.temAcesso === false && nadaAc.reforma === true, nadaAc);
+const semConfigAc = areasDoAcesso({ companies: [empSemAc], groups: [], email: "x@x.com", modulosFicha: ["orcamento"] });
+check("empresa sem configuração: aparece tudo (Ferramentas pela ficha)", semConfigAc.bi && semConfigAc.reforma && semConfigAc.ferramentas && semConfigAc.temAcesso, semConfigAc);
+check("sem módulo na ficha e sem configuração, as Ferramentas somem", areasDoAcesso({ companies: [empSemAc], email: "x@x.com", modulosFicha: [] }).ferramentas === false, null);
+const soRefAc = areasDoAcesso({ companies: [empSoReformaAc], email: "x@x.com" });
+check("só marcou itens fora do B.I.: o B.I. some (a Reforma fica)", soRefAc.bi === false && soRefAc.reforma === true && soRefAc.ferramentas === false, soRefAc);
+const semBiAc = areasDoAcesso({ companies: [empSemBiAc], email: "x@x.com" });
+check("área escondida pela empresa some do Início", semBiAc.bi === false && semBiAc.ferramentas === true, semBiAc);
+check("o tipo de acesso da pessoa vale: Financeiro vê o B.I., Marketing não", areasDoAcesso({ companies: [empFinAc], email: "ana@x.com" }).bi === true && areasDoAcesso({ companies: [empFinAc], email: "leo@x.com" }).bi === false && areasDoAcesso({ companies: [empFinAc], email: "leo@x.com" }).ferramentas === false, null);
+check("com duas empresas, basta uma deixar a área à mostra", areasDoAcesso({ companies: [empSemBiAc, empFinAc], email: "ana@x.com" }).bi === true, null);
+
+const grantsVC = [
+  { email: "Ana@x.com", scope_type: "company", scope_id: "c4" },
+  { email: "ana@x.com", scope_type: "company", scope_id: "c1" },
+  { email: "leo@x.com", scope_type: "company", scope_id: "c4" },
+  { email: "zeca@x.com", scope_type: "company", scope_id: "naoexiste" },
+];
+const fichasVC = new Map([["ana@x.com", { nome: "Ana Souza", modulos: ["orcamento"] }]]);
+const listaVC = pessoasParaVerComo({ grants: grantsVC, fichas: fichasVC, companies: [empSemAc, empFinAc], groups: [] });
+check("Ver como: uma linha por e-mail, só de quem tem alguma empresa que existe", listaVC.length === 2 && listaVC.map((pessoa) => pessoa.email).join() === "ana@x.com,leo@x.com", listaVC);
+check("Ver como: traz o tipo de acesso e a ficha de cada pessoa", listaVC[0].tipos.join() === "Financeiro" && listaVC[0].nome === "Ana Souza" && listaVC[0].modulos[0] === "orcamento" && listaVC[1].tipos.join() === "Marketing", listaVC);
+check("Ver como: o filtro acha por nome, empresa e tipo de acesso", filtrarPessoas(listaVC, "souza").length === 1 && filtrarPessoas(listaVC, "marketing").length === 1 && filtrarPessoas(listaVC, "sem config").length === 1 && filtrarPessoas(listaVC, "").length === 2, null);
+check("Ver como: entrega no formato do modo portal", Object.keys(comoPessoa(listaVC[0])).sort().join() === "email,empresas,grupos,modulos,nome", null);
+const modoVC = await src("lib/modoEquipe.js");
+const storeVC = await src("data/useStore.js");
+Object.assign(storeVC.state, { realIsVisualizador: true, realIsAdmin: false, realIsColaborador: true, userEmail: "testebi@gmail.com", modoEquipe: null });
+modoVC.entrarNoModo("console");
+check("login de visualização nunca entra no modo console", storeVC.state.modoEquipe === "portal" && storeVC.state.isAdmin === false && storeVC.state.isColaborador === false, storeVC.state.modoEquipe);
+modoVC.entrarNoModo("portal", { pessoa: { email: "ana@x.com", nome: "Ana", modulos: [], empresas: ["c4"], grupos: [] } });
+check("Ver como liga a pessoa e 'voltar' volta à visão geral", storeVC.state.pessoaVista?.email === "ana@x.com" && (modoVC.sairDaPessoa(), storeVC.state.pessoaVista === null && storeVC.state.modoEquipe === "portal"), null);
+Object.assign(storeVC.state, { realIsVisualizador: false, realIsColaborador: false, modoEquipe: null, visaoCliente: false, pessoaVista: null, userEmail: "" });
 
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
