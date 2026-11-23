@@ -21,7 +21,7 @@ import { selectGroup } from "./lib/groups.js";
 import { loadRepresentantes } from "./lib/representantes.js";
 import { loadIndicatorOverrides } from "./lib/indicators.js";
 import { isPortalAdmin, currentUserEmail, minhaFicha } from "./lib/access.js";
-import { isColaborador, listAdmins, listColaboradores } from "./lib/colaboradores.js";
+import { isColaborador, isVisualizador, listAdmins, listColaboradores } from "./lib/colaboradores.js";
 import { loadPlanosPadrao, refreshEffectivePlano } from "./lib/planosPadrao.js";
 import { isReformaEscritorio } from "./lib/modulos.js";
 import { listarEmpresas as listarEmpresasReforma } from "./lib/reforma/api.js";
@@ -146,6 +146,13 @@ function ParametrosOuConsole() {
   return <ParametrosLayout />;
 }
 
+// O login de visualização (supabase/visualizador.sql) não tem console nem aba de edição: qualquer endereço delas volta pro hub.
+function SoQuemEdita({ children }) {
+  const state = useAppState();
+  if (state.realIsVisualizador) return <Navigate to="/hub" replace />;
+  return children;
+}
+
 function CarteiraOuConsole() {
   const state = useAppState();
   if (usaModos(state)) return <Navigate to="/equipe/carteira" replace />;
@@ -242,9 +249,10 @@ function AuthedApp() {
         console.error("Falha ao listar as empresas da Reforma Tributária:", error);
         return [];
       }),
+      isVisualizador(),
     ])
-      .then(async ([, companiesResult, , , adminFlag, , colaboradorFlag, email, reformaFlag, reformaEmpresas]) => {
-        setData({ isAdmin: adminFlag, isColaborador: colaboradorFlag, realIsAdmin: adminFlag, realIsColaborador: colaboradorFlag, visaoCliente: false, modoEquipe: null, userEmail: email, isReformaEscritorio: reformaFlag, reformaEmpresas });
+      .then(async ([, companiesResult, , , adminFlag, , colaboradorFlag, email, reformaFlag, reformaEmpresas, visualizadorFlag]) => {
+        setData({ isAdmin: adminFlag, isColaborador: colaboradorFlag, realIsAdmin: adminFlag, realIsColaborador: colaboradorFlag, realIsVisualizador: visualizadorFlag, visaoCliente: false, modoEquipe: null, userEmail: email, isReformaEscritorio: reformaFlag, reformaEmpresas });
         // Equipe com o hub: já entra no modo do endereço (portal = vê como o
         // cliente, console = edita) — um F5 no B.I. continua no mesmo modo.
         entrarNoModo(modoDaRota(window.location.pathname, modoGuardado()));
@@ -334,7 +342,7 @@ function AuthedApp() {
           <Route index element={<Navigate to="empresas" replace />} />
           {rotasDeCadastro()}
         </Route>
-        <Route path="equipe" element={<ConsoleLayout />}>
+        <Route path="equipe" element={<SoQuemEdita><ConsoleLayout /></SoQuemEdita>}>
           <Route index element={<ConsoleVisaoGeral />} />
           <Route path="clientes" element={<ConsoleClientes />} />
           <Route path="clientes/:tipo/:id" element={<ConsoleCliente />} />
@@ -342,7 +350,7 @@ function AuthedApp() {
           {rotasDeCadastro()}
         </Route>
         {/* A aba nova que o console abre pro B.I. (lib/abrirEmOutraAba.js). */}
-        <Route path="abrir" element={<AbrirNaAba />} />
+        <Route path="abrir" element={<SoQuemEdita><AbrirNaAba /></SoQuemEdita>} />
         <Route path="reforma" element={<ReformaHome />} />
         <Route path="reforma/painel" element={<ReformaPainel />} />
         <Route path="reforma/empresa/:id" element={<ReformaEmpresa />} />

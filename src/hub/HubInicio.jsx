@@ -5,6 +5,8 @@ import { useAppState } from "../data/useStore.js";
 import { AREAS_DO_HUB, LINHA_DA_REFORMA, andamentoDaReforma } from "../lib/hub.js";
 import { realStaff } from "../lib/modoEquipe.js";
 import { primeiroNome, saudacao } from "../lib/inicio.js";
+import { areasDoAcesso } from "../lib/acessoDoInicio.js";
+import { escopoDaPessoa } from "../lib/unidades.js";
 import { resumoDasSaudes, useSaude } from "../equipe/useSaude.js";
 import { recentes } from "../lib/recentes.js";
 import { haQuanto } from "../lib/uso.js";
@@ -13,7 +15,8 @@ import Mosaico from "./Mosaico.jsx";
 import LinhaDaReforma from "./LinhaDaReforma.jsx";
 import { Revelar, Secao, moverLuz } from "./efeitos.jsx";
 
-const FAIXA = ["Resultado do mês", "Caixa", "Balanço", "DRE", "EBITDA", "Indicadores", "Fluxo de caixa", "Reforma Tributária", "IBS e CBS", "Imposto Seletivo", "Split payment", "Cashback"];
+const FAIXA_BI = ["Resultado do mês", "Caixa", "Balanço", "DRE", "EBITDA", "Indicadores", "Fluxo de caixa"];
+const FAIXA_REFORMA = ["Reforma Tributária", "IBS e CBS", "Imposto Seletivo", "Split payment", "Cashback"];
 
 // O que tem dentro do B.I. (as telas que já existem).
 const NO_BI = [
@@ -94,26 +97,36 @@ export default function HubInicio() {
   const { abrir, irPara, abrirBusca } = useOutletContext();
   // A equipe no portal está "vendo como cliente" (lib/modoEquipe.js), mas o
   // início dela continua sendo o da equipe: a carteira toda pra escolher.
-  const staff = realStaff(state);
+  const staff = realStaff(state) && !state.pessoaVista;
   const nome = primeiroNome(state.nomeUsuario);
+
+  // O que o Início mostra depende do que a pessoa TEM (lib/acessoDoInicio.js). A equipe vê tudo; "vendo como" uma pessoa, só o que ela tem.
+  const escopo = useMemo(() => escopoDaPessoa(state.pessoaVista, state.companies, state.groups), [state.pessoaVista, state.companies, state.groups]);
+  const acesso = useMemo(
+    () => areasDoAcesso({ companies: escopo.companies, groups: escopo.groups, email: state.pessoaVista?.email || state.userEmail, tudo: realStaff(state) && !state.pessoaVista, modulosFicha: state.pessoaVista?.modulos || state.modulosCliente || [] }),
+    [escopo, state.pessoaVista, state.userEmail, state.modulosCliente, state.realIsAdmin, state.realIsColaborador] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const temBi = acesso.bi;
+  const temReforma = acesso.reforma;
+  const faixa = [...(temBi ? FAIXA_BI : []), ...(temReforma ? FAIXA_REFORMA : [])];
 
   // A saúde da carteira (só o admin): a mesma conta do console, em fatias e
   // guardada por empresa — antes era a carteira inteira de uma vez, travando a tela.
-  const { healths, calculando } = useSaude(state.realIsAdmin ? state.companies : SEM_EMPRESAS);
-  const carteira = useMemo(() => (state.realIsAdmin && state.companies.length && !calculando ? resumoDasSaudes(healths) : null), [state.realIsAdmin, state.companies.length, calculando, healths]);
+  const { healths, calculando } = useSaude(state.realIsAdmin && !state.pessoaVista ? state.companies : SEM_EMPRESAS);
+  const carteira = useMemo(() => (state.realIsAdmin && !state.pessoaVista && state.companies.length && !calculando ? resumoDasSaudes(healths) : null), [state.realIsAdmin, state.pessoaVista, state.companies.length, calculando, healths]);
 
   const abertas = useMemo(
     () =>
       recentes()
         .map((item) => {
-          const registro = item.tipo === "grupo" ? state.groups.find((group) => group.id === item.id) : state.companies.find((company) => company.id === item.id);
+          const registro = item.tipo === "grupo" ? escopo.groups.find((group) => group.id === item.id) : escopo.companies.find((company) => company.id === item.id);
           return registro ? { ...item, nome: registro.name } : null;
         })
         .filter(Boolean)
         .slice(0, 6),
-    [state.companies, state.groups]
+    [escopo]
   );
-  const suasEmpresas = useMemo(() => (staff ? [] : state.companies.map((company) => ({ tipo: "empresa", id: company.id, nome: company.name }))), [staff, state.companies]);
+  const suasEmpresas = useMemo(() => (staff ? [] : escopo.companies.map((company) => ({ tipo: "empresa", id: company.id, nome: company.name }))), [staff, escopo]);
   const continuar = staff ? abertas : suasEmpresas;
   const andamento = andamentoDaReforma();
   const bi = AREAS_DO_HUB.find((area) => area.id === "bi");
@@ -122,7 +135,7 @@ export default function HubInicio() {
   return (
     <>
       {/* ── Abertura ── */}
-      <section className="mx-auto grid hub-largura items-center gap-14 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[1.08fr_1fr] lg:gap-10 lg:pb-24 lg:pt-14">
+      <section className={`mx-auto grid hub-largura items-center gap-14 px-5 pb-16 pt-10 sm:px-8 lg:gap-10 lg:pb-24 lg:pt-14 ${temBi ? "lg:grid-cols-[1.08fr_1fr]" : ""}`}>
         <div className="relative z-10">
           <Revelar className="flex flex-wrap items-center gap-3">
             <span className="hub-selo hub-selo-vivo">
@@ -138,21 +151,45 @@ export default function HubInicio() {
           </Revelar>
           <Revelar atraso={0.1}>
             <h1 className="hub-display mt-2 text-[44px] font-extrabold leading-[1.02] sm:text-[60px] xl:text-[72px] min-[1700px]:text-[84px]">
-              Os números da sua empresa, <span className="hub-italico">claros</span>
+              {temBi ? (
+                <>
+                  Os números da sua empresa, <span className="hub-italico">claros</span>
+                </>
+              ) : acesso.temAcesso && temReforma ? (
+                <>
+                  A Reforma Tributária, <span className="hub-italico">explicada</span>
+                </>
+              ) : (
+                <>
+                  Bem-vindo ao <span className="hub-italico">portal</span>
+                </>
+              )}
               <span className="hub-pontuacao">.</span>
             </h1>
           </Revelar>
           <Revelar atraso={0.16}>
-            <p className="mt-6 max-w-[540px] text-[17px] leading-relaxed text-[var(--hub-texto-2)]">Resultado, caixa, balanço e indicadores fechados pelo escritório — e o que você precisa saber sobre a Reforma Tributária.</p>
+            <p className="mt-6 max-w-[540px] text-[17px] leading-relaxed text-[var(--hub-texto-2)]">
+              {temBi
+                ? `Resultado, caixa, balanço e indicadores fechados pelo escritório${temReforma ? " — e o que você precisa saber sobre a Reforma Tributária." : "."}`
+                : acesso.temAcesso && temReforma
+                  ? "O que muda, quando muda e o que observar na sua empresa — sem juridiquês."
+                  : "Seu acesso ainda não foi liberado. Fale com o escritório para ver os números da sua empresa por aqui."}
+            </p>
           </Revelar>
-          <Revelar atraso={0.22} className="mt-8 flex flex-wrap gap-3">
-            <button type="button" onClick={() => irPara(bi)} className="hub-botao hub-botao-primario">
-              Abrir meu B.I. <ArrowRight size={17} />
-            </button>
-            <button type="button" onClick={() => navigate("/hub/reforma")} className="hub-botao hub-botao-fantasma">
-              Reforma Tributária
-            </button>
-          </Revelar>
+          {(temBi || temReforma) && (
+            <Revelar atraso={0.22} className="mt-8 flex flex-wrap gap-3">
+              {temBi && (
+                <button type="button" onClick={() => irPara(bi)} className="hub-botao hub-botao-primario">
+                  Abrir meu B.I. <ArrowRight size={17} />
+                </button>
+              )}
+              {temReforma && (
+                <button type="button" onClick={() => navigate("/hub/reforma")} className={`hub-botao ${temBi ? "hub-botao-fantasma" : "hub-botao-primario"}`}>
+                  Reforma Tributária
+                </button>
+              )}
+            </Revelar>
+          )}
           {staff && (
             <Revelar atraso={0.28}>
               <button type="button" onClick={abrirBusca} className="mt-8 flex h-14 w-full max-w-[540px] items-center gap-3 rounded-2xl border border-[var(--hub-borda-forte)] bg-[var(--hub-cartao)] px-4 text-left text-[15px] text-[var(--hub-texto-3)] shadow-[var(--hub-sombra)] backdrop-blur transition-colors hover:border-[var(--hub-acento)]">
@@ -162,6 +199,7 @@ export default function HubInicio() {
               </button>
             </Revelar>
           )}
+          {acesso.temAcesso && (
           <Revelar atraso={0.34} className="mt-10 grid max-w-[540px] grid-cols-3 gap-6">
             {staff ? (
               <>
@@ -170,11 +208,13 @@ export default function HubInicio() {
                 {carteira && <Numero valor={carteira.ok} rotulo="com tudo em dia" />}
               </>
             ) : (
-              <Numero valor={state.companies.length} rotulo={state.companies.length === 1 ? "empresa acompanhada" : "empresas acompanhadas"} />
+              <Numero valor={escopo.companies.length} rotulo={escopo.companies.length === 1 ? "empresa acompanhada" : "empresas acompanhadas"} />
             )}
           </Revelar>
+          )}
         </div>
 
+        {temBi && (
         <Revelar atraso={0.12} className="relative mx-auto w-full max-w-[560px] min-[1700px]:max-w-[640px]">
           <div className="absolute -inset-10 rounded-full opacity-70 blur-3xl" style={{ background: "radial-gradient(circle at 70% 70%, rgba(232,105,31,0.22), transparent 60%)" }} />
           <Mosaico className="relative" icones={{ "0-3": BarChart3, "1-5": Scale, "3-1": PieChart, "4-2": LineChart }} />
@@ -193,8 +233,8 @@ export default function HubInicio() {
             <Flutuante className="-left-4 top-[6%] w-[220px] sm:-left-10" atraso={0}>
               <p className="hub-rotulo !text-[10px]">{staff ? "Carteira" : "Acompanhando"}</p>
               <p className="mt-2 flex items-baseline gap-1.5">
-                <span className="hub-display text-[24px] font-bold leading-none">{state.companies.length}</span>
-                <span className="text-[13px] font-semibold text-[var(--hub-texto-3)]">{state.companies.length === 1 ? "empresa" : "empresas"}</span>
+                <span className="hub-display text-[24px] font-bold leading-none">{escopo.companies.length}</span>
+                <span className="text-[13px] font-semibold text-[var(--hub-texto-3)]">{escopo.companies.length === 1 ? "empresa" : "empresas"}</span>
               </p>
             </Flutuante>
           )}
@@ -222,12 +262,14 @@ export default function HubInicio() {
             </Flutuante>
           )}
         </Revelar>
+        )}
       </section>
 
       {/* ── Faixa que corre ── */}
+      {faixa.length > 0 && (
       <div className="hub-faixa overflow-hidden border-y border-[var(--hub-borda)] py-5">
         <div className="hub-faixa-trilho flex w-max gap-10">
-          {[...FAIXA, ...FAIXA].map((palavra, i) => (
+          {[...faixa, ...faixa].map((palavra, i) => (
             <span key={i} className="flex items-center gap-10 whitespace-nowrap text-[15px] font-semibold text-[var(--hub-texto-3)]">
               {palavra}
               <span className="h-2 w-2 rounded-[3px] bg-[var(--hub-acento)] opacity-70" />
@@ -235,10 +277,13 @@ export default function HubInicio() {
           ))}
         </div>
       </div>
+      )}
 
       {/* ── O B.I. e a Reforma ── */}
-      <Secao className="mt-24" rotulo="O que tem aqui" titulo="Os números e os impostos da sua empresa," italico="explicados" depois=".">
-        <div className="grid gap-5 lg:grid-cols-[1.55fr_1fr]">
+      {acesso.temAcesso && (temBi || temReforma) && (
+      <Secao className="mt-24" rotulo="O que tem aqui" titulo={temBi && temReforma ? "Os números e os impostos da sua empresa," : temBi ? "Os números da sua empresa," : "Os impostos que estão mudando,"} italico="explicados" depois=".">
+        <div className={`grid gap-5 ${temBi && temReforma ? "lg:grid-cols-[1.55fr_1fr]" : ""}`}>
+          {temBi && (
           <Revelar>
             <button type="button" onClick={() => irPara(bi)} onPointerMove={moverLuz} className="hub-cartao hub-cartao-vivo flex h-full w-full flex-col justify-between gap-10 p-7 text-left sm:flex-row sm:items-end sm:p-9">
               <div className="flex flex-col gap-10 self-stretch sm:justify-between">
@@ -256,6 +301,8 @@ export default function HubInicio() {
               <ColunasDeLadrilho />
             </button>
           </Revelar>
+          )}
+          {temReforma && (
           <Revelar atraso={0.08}>
             <button type="button" onClick={() => navigate(reforma.rota)} onPointerMove={moverLuz} className="hub-cartao hub-cartao-vivo flex h-full w-full flex-col gap-6 p-7 text-left sm:p-9">
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--hub-acento-suave)] text-[var(--hub-acento)]">
@@ -279,10 +326,13 @@ export default function HubInicio() {
               </span>
             </button>
           </Revelar>
+          )}
         </div>
       </Secao>
+      )}
 
       {/* ── O que tem no B.I. ── */}
+      {temBi && (
       <Secao className="mt-28" rotulo="Dentro do B.I." titulo="Tudo o que o escritório fecha," italico="num lugar só" depois=".">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {NO_BI.map(({ icone: Icone, titulo, texto }, i) => (
@@ -300,9 +350,10 @@ export default function HubInicio() {
           ))}
         </div>
       </Secao>
+      )}
 
       {/* ── Continue de onde parou ── */}
-      {continuar.length > 0 && (
+      {temBi && continuar.length > 0 && (
         <Secao className="mt-28" rotulo={staff ? "Abertas por último" : "Suas empresas"} titulo={staff ? "Continue de onde" : "O B.I. de cada"} italico={staff ? "parou" : "empresa"} depois=".">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {continuar.map((item, i) => (

@@ -21,6 +21,7 @@ import Avatar from "../components/Avatar.jsx";
 import WorkspaceLoading from "../components/WorkspaceLoading.jsx";
 import Carregando from "../components/Carregando.jsx";
 import SeletorDeEmpresa from "../components/SeletorDeEmpresa.jsx";
+import VerComo from "./VerComo.jsx";
 import { recentes } from "../lib/recentes.js";
 
 const norm = (valor) => String(valor || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -73,10 +74,12 @@ function MenuDaConta({ state, onPortalAtual }) {
               <p className="truncate text-[12px] text-[var(--hub-texto-3)]">{state.userEmail}</p>
             </div>
             <div className="my-1 h-px bg-[var(--hub-borda)]" />
-            <button type="button" onClick={onPortalAtual} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13px] font-medium text-[var(--hub-texto-2)] hover:bg-[var(--hub-acento-suave)] hover:text-[var(--hub-texto)]">
-              <LayoutGrid size={15} /> Voltar ao portal atual
-            </button>
-            {staff && (
+            {!state.realIsVisualizador && (
+              <button type="button" onClick={onPortalAtual} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13px] font-medium text-[var(--hub-texto-2)] hover:bg-[var(--hub-acento-suave)] hover:text-[var(--hub-texto)]">
+                <LayoutGrid size={15} /> Voltar ao portal atual
+              </button>
+            )}
+            {staff && !state.realIsVisualizador && (
               <button type="button" onClick={() => navigate("/equipe")} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13px] font-medium text-[var(--hub-texto-2)] hover:bg-[var(--hub-acento-suave)] hover:text-[var(--hub-texto)]">
                 <Wrench size={15} /> Console da equipe
               </button>
@@ -558,6 +561,7 @@ export default function HubLayout() {
                   ))}
                 </nav>
                 <div className="ml-auto flex items-center gap-2">
+                  {realStaff(state) && <VerComo state={state} />}
                   <div className="hidden md:block">
                     <TrocaDeEmpresa state={state} onTrocar={trocar} onOutra={() => setSeletor("trocar")} />
                   </div>
@@ -617,14 +621,16 @@ export default function HubLayout() {
                 <span className="text-[14px] font-semibold text-[var(--hub-texto-2)]">Tema</span>
                 <BotaoTema />
               </div>
-              {realStaff(state) && (
+              {realStaff(state) && !state.realIsVisualizador && (
                 <button type="button" onClick={() => navigate("/equipe")} className="flex w-full items-center gap-2.5 rounded-2xl px-4 py-3 text-left text-[14px] font-semibold text-[var(--hub-texto-2)]">
                   <Wrench size={16} /> Console da equipe
                 </button>
               )}
-              <button type="button" onClick={portalAtual} className="flex w-full items-center gap-2.5 rounded-2xl px-4 py-3 text-left text-[14px] font-semibold text-[var(--hub-texto-2)]">
-                <LayoutGrid size={16} /> Voltar ao portal atual
-              </button>
+              {!state.realIsVisualizador && (
+                <button type="button" onClick={portalAtual} className="flex w-full items-center gap-2.5 rounded-2xl px-4 py-3 text-left text-[14px] font-semibold text-[var(--hub-texto-2)]">
+                  <LayoutGrid size={16} /> Voltar ao portal atual
+                </button>
+              )}
               <button type="button" onClick={() => supabase.auth.signOut()} className="flex w-full items-center gap-2.5 rounded-2xl px-4 py-3 text-left text-[14px] font-semibold text-[var(--hub-texto-2)]">
                 <LogOut size={16} /> Sair
               </button>

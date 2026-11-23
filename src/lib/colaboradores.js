@@ -20,6 +20,16 @@ export async function isColaborador() {
   return Boolean(data);
 }
 
+// Login só de visualização (supabase/visualizador.sql): vê todas as empresas e grupos como o cliente vê, sem poder mexer em nada. Antes de o banco ter a tabela, é como se
+// ninguém fosse visualizador.
+export async function isVisualizador() {
+  const email = await currentUserEmail();
+  if (!email) return false;
+  const { data, error } = await supabase.from("visualizadores").select("email").eq("email", email).maybeSingle();
+  if (error) return false;
+  return Boolean(data);
+}
+
 export async function listAdmins() {
   const { data, error } = await supabase.from("portal_admins").select("email, nome, created_at").order("created_at", { ascending: true });
   if (error) throw error;

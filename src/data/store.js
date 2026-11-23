@@ -45,6 +45,8 @@ export const state = {
   // Valores reais de quem está logado (isAdmin/isColaborador mudam enquanto a "visão do cliente" está ligada — ver lib/visaoCliente.js).
   realIsAdmin: false,
   realIsColaborador: false,
+  // Login de visualização (tabela `visualizadores`, ver supabase/visualizador.sql): enxerga a carteira toda como o cliente vê e não grava nada — o banco recusa a escrita. Também é colaborador (é assim que lê tudo).
+  realIsVisualizador: false,
   visaoCliente: false,
   // Equipe no portal do hub: false = vê tudo (o que o cliente não vê aparece marcado); true = simulando o cliente (botão "Ver como cliente").
   clienteSimulado: false,
