@@ -630,6 +630,15 @@ check(
     JSON.stringify(fch.limitarPeriodo({ start: "2026-01-01", end: "2026-03-31" }, "2026-09")) === JSON.stringify({ start: "2026-01-01", end: "2026-03-31" }),
   null
 );
+check(
+  "Período sem fim para no mês fechado; o padrão são os últimos 6 meses até ele",
+  JSON.stringify(fch.limitarPeriodo({ start: "", end: "" }, "2026-10")) === JSON.stringify({ start: "", end: "2026-10-31" }) &&
+    JSON.stringify(fch.limitarPeriodo({ start: "2026-02-01", end: "" }, "2026-10")) === JSON.stringify({ start: "2026-02-01", end: "2026-10-31" }) &&
+    JSON.stringify(fch.periodoPadrao("2026-10")) === JSON.stringify({ start: "2026-05-01", end: "2026-10-31" }) &&
+    JSON.stringify(fch.periodoPadrao("2026-03")) === JSON.stringify({ start: "2025-10-01", end: "2026-03-31" }) &&
+    JSON.stringify(fch.limitarPeriodo({ start: "2026-01-01", end: "" }, null)) === JSON.stringify({ start: "2026-01-01", end: "" }),
+  null
+);
 setCompanyState();
 Object.assign(state, { isAdmin: false, isColaborador: false, companies: [{ ...company, fechadoAte: "2026-02" }] });
 const mesesCliente = mesesComDados();
