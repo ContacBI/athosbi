@@ -372,12 +372,19 @@ export default function DominioSyncCard({ dominio, year, onBusy, onDone, onError
         ) : (
           <p className="mt-2 text-[12.5px] text-ink-400">Nada de {year} chegou da Domínio ainda. Escolha o período abaixo e peça à Central.</p>
         )}
-        {avisoPendentes.length > 0 && !applying && !pedidoAberto && (
+        {(avisoPendentes.length > 0 || balancetePendente) && !applying && !pedidoAberto && (
           <div className="mt-2.5 flex flex-wrap items-center gap-3 rounded-lg border-l-[3px] border-accent-500 bg-accent-500/10 px-3 py-2 text-[12.5px] text-ink-800">
             <span className="min-w-0 flex-1">
-              <b>{avisoPendentes.some((month) => month.status === "pendente") ? "Lançamentos alterados na Domínio" : "Lançamentos novos na Domínio"}:</b>{" "}
-              {avisoPendentes.map((month) => monthLabel(month.competencia)).join(", ")}
-              {balancetePendente ? " e o balancete" : ""}. Atualize para trazer ao portal.
+              {avisoPendentes.length > 0 ? (
+                <>
+                  <b>{avisoPendentes.some((month) => month.status === "pendente") ? "Lançamentos alterados na Domínio" : "Lançamentos novos na Domínio"}:</b>{" "}
+                  {avisoPendentes.map((month) => monthLabel(month.competencia)).join(", ")}
+                  {balancetePendente ? " e o balancete" : ""}
+                </>
+              ) : (
+                <b>O balancete mudou na Domínio</b>
+              )}
+              . Atualize para trazer ao portal.
             </span>
             <button type="button" onClick={() => apply(avisoPendentes, balancetePendente)} className="rounded-md bg-accent-500 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm hover:bg-accent-600">
               Atualizar agora
