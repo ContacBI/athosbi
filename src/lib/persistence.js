@@ -304,6 +304,36 @@ async function writeCompanyJournalNow(companyId, journal, onProgress, seManifest
   }
 }
 
+/**
+ * Confere NO BANCO se o razão que está na tela foi mesmo gravado (pedido do Izaias, 24/11/2026: o que ele vê, o cliente tem que ver). Recalcula as partes que a gravação teria
+ * criado (mesmo corte por mês e mesmo hash), lê o manifesto que está no banco e confere que ele aponta pra elas e que cada uma existe. Não baixa o razão.
+ * Devolve { ok, motivo }.
+ */
+export async function conferirRazaoGravado(companyId, journal) {
+  const baseKey = companyJournalKey(companyId);
+  const list = Array.isArray(journal) ? journal : [];
+  try {
+    const { data, error } = await supabase.from("app_storage").select("value").eq("key", baseKey).maybeSingle();
+    if (error) return { ok: false, motivo: `não consegui ler o banco (${error.message})` };
+    const manifesto = data?.value;
+    if (list.length <= JOURNAL_CHUNK_SIZE) {
+      return Array.isArray(manifesto) && manifesto.length === list.length ? { ok: true, motivo: "" } : { ok: false, motivo: `o banco tem ${Array.isArray(manifesto) ? manifesto.length : 0} lançamentos e a tela ${list.length}` };
+    }
+    if (!isChunkedManifest(manifesto) || !Array.isArray(manifesto.keys)) return { ok: false, motivo: "o banco não tem o razão em partes" };
+    const esperadas = [];
+    for (const part of splitJournalParts(list)) esperadas.push(`${baseKey}.c${await hashPart(part)}`);
+    const noManifesto = new Set(manifesto.keys);
+    const faltamNoManifesto = esperadas.filter((key) => !noManifesto.has(key));
+    if (faltamNoManifesto.length) return { ok: false, motivo: `${faltamNoManifesto.length} parte(s) do razão novo não estão no banco` };
+    const existentes = new Set(await listJournalKeys(baseKey));
+    const faltamNoBanco = esperadas.filter((key) => !existentes.has(key));
+    if (faltamNoBanco.length) return { ok: false, motivo: `${faltamNoBanco.length} parte(s) do razão não foram gravadas` };
+    return { ok: true, motivo: "" };
+  } catch (error) {
+    return { ok: false, motivo: String(error?.message || error) };
+  }
+}
+
 // Quebra o razão em partes: uma por mês (sequências seguidas do mesmo mês), nunca passando de JOURNAL_CHUNK_SIZE. Razão fora de ordem (meses
 // pulando de um lado pro outro) viraria partes demais — nesse caso volta ao corte simples por quantidade.
 function splitJournalParts(list) {

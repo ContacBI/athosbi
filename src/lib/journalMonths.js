@@ -1,5 +1,6 @@
 import { state, setData } from "../data/useStore.js";
 import { persistActiveCompany } from "./companies.js";
+import { conferirRazaoGravado } from "./persistence.js";
 
 export function monthOf(entry) {
   return String(entry?.data || "").slice(0, 7);
@@ -7,6 +8,17 @@ export function monthOf(entry) {
 
 export function monthsPresent(entries) {
   return [...new Set((entries || []).map(monthOf).filter(Boolean))].sort();
+}
+
+// Depois de gravar, CONFERE no banco que o razão da tela é o que ficou lá (pedido do Izaias, 24/11/2026: o que a equipe vê, o cliente tem que ver). Quem não pode gravar (ex.: na
+// visão do cliente) ou uma gravação que não chegou ao banco deixam o razão só na tela — antes isso passava em silêncio e o cliente seguia com o mês antigo. Se não conferir, desfaz
+// a tela (volta ao que está no banco) e avisa.
+async function garantirGravado(previous) {
+  if (!state.activeCompanyId || state.activeGroupId) return;
+  const conferido = await conferirRazaoGravado(state.activeCompanyId, state.journal);
+  if (conferido.ok) return;
+  setData({ journal: previous });
+  throw new Error(`Os lançamentos NÃO ficaram gravados no banco (${conferido.motivo}) — o cliente não os veria. Se você está na visão do cliente, clique em "Editar" e tente de novo; senão, recarregue a página (F5) e repita.`);
 }
 
 // Every "YYYY-MM" that currently has at least one lançamento imported.
@@ -45,6 +57,7 @@ export async function attachJournalMonths(newEntries, { onProgress } = {}) {
     setData({ journal: previous });
     throw error;
   }
+  await garantirGravado(previous);
   return [...months].sort();
 }
 
@@ -72,6 +85,7 @@ export async function removeJournalMonths(monthKeys, { onProgress } = {}) {
     setData({ journal: previous });
     throw error;
   }
+  await garantirGravado(previous);
 }
 
 export async function removeJournalMonth(monthKey, options) {

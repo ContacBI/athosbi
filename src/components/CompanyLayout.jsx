@@ -8,6 +8,7 @@ import { useAppState, setData } from "../data/useStore.js";
 import { isResponsavelForGroup } from "../lib/colaboradores.js";
 import { ferramentasDaTela, moduloDaRota, modulosLiberados } from "../lib/modulos.js";
 import { biDentroDoHub } from "../lib/hub.js";
+import { entrarNoModo } from "../lib/modoEquipe.js";
 import { limiteDoCliente, limitarPeriodo, periodoPadrao } from "../lib/fechamento.js";
 import { PageActionsProvider } from "../lib/pageActions.jsx";
 import { densityColumnGap } from "../lib/density.js";
@@ -52,6 +53,13 @@ export default function CompanyLayout() {
     const cortado = limitarPeriodo(atual, limite);
     if (cortado.start !== state.periodStart || cortado.end !== state.periodEnd) setData({ periodStart: cortado.start, periodEnd: cortado.end });
   }, [limite, state.periodStart, state.periodEnd]);
+
+  // Dados, De/Para, Vínculo DFC e Conferência são telas de EDIÇÃO: na visão do cliente (portal) o app não grava nada (isAdmin/isColaborador ficam falsos), então importar da
+  // Domínio ou vincular uma conta ali "funcionava" só na tela e o cliente seguia com o dado antigo (24/11/2026). A equipe que chega nelas vai pro modo de edição.
+  const emAreaDeEdicao = EDIT_ONLY_PREFIXES.some((prefix) => location.pathname.startsWith(prefix));
+  useEffect(() => {
+    if (emAreaDeEdicao && state.modoEquipe === "portal" && (state.realIsAdmin || state.realIsColaborador) && !state.realIsVisualizador) entrarNoModo("console");
+  }, [emAreaDeEdicao, state.modoEquipe, state.realIsAdmin, state.realIsColaborador, state.realIsVisualizador]);
 
   if (!company && !state.activeGroupId) {
     return <Navigate to="/empresas" replace />;
