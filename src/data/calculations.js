@@ -151,8 +151,16 @@ function balanceteNoPeriodo(accounts, metaFor) {
     return total;
   };
   const cents = (value) => Math.round(value * 100) / 100;
+  // Contas analíticas diferentes podem ter a MESMA classificação (ex.: fornecedores 2.1.10.100.010 na Domínio) e o razão só traz a classificação: o movimento é de todas
+  // elas juntas e entra UMA vez (na primeira); repetir em cada uma inflava o saldo (Concent: passivo circulante 11.080 a maior).
+  const jaTemMovimento = new Set();
   const result = accounts.map((account) => {
     if (!moves(coverageOf(account.companyId))) return account;
+    if (account.tipo_sintetica !== "sim") {
+      const chave = String(account.classificacao || "");
+      if (jaTemMovimento.has(chave)) return { ...account, debito: 0, credito: 0 };
+      jaTemMovimento.add(chave);
+    }
     return {
       ...account,
       saldo_anterior: cents(Number(account.saldo_anterior || 0) + sumFor(opening, account)),

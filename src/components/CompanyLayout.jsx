@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Smartphone } from "lucide-react";
 import CompanyTopBar from "./CompanyTopBar.jsx";
@@ -9,7 +9,7 @@ import { isResponsavelForGroup } from "../lib/colaboradores.js";
 import { ferramentasDaTela, moduloDaRota, modulosLiberados } from "../lib/modulos.js";
 import { biDentroDoHub } from "../lib/hub.js";
 import { entrarNoModo } from "../lib/modoEquipe.js";
-import { limiteDoCliente, limitarPeriodo, periodoPadrao } from "../lib/fechamento.js";
+import { limiteDoCliente, limitarPeriodo, mesFechadoDoWorkspace, periodoPadrao } from "../lib/fechamento.js";
 import { PageActionsProvider } from "../lib/pageActions.jsx";
 import { densityColumnGap } from "../lib/density.js";
 import { useIsMobile } from "../lib/useIsMobile.js";
@@ -53,6 +53,18 @@ export default function CompanyLayout() {
     const cortado = limitarPeriodo(atual, limite);
     if (cortado.start !== state.periodStart || cortado.end !== state.periodEnd) setData({ periodStart: cortado.start, periodEnd: cortado.end });
   }, [limite, state.periodStart, state.periodEnd]);
+
+  // Ao ABRIR a empresa/grupo (equipe e cliente), o período é sempre os últimos meses até o mês fechado — não o que ficou salvo (o ano todo não cabe nas colunas).
+  // Roda uma vez por abertura, depois do carregamento; o período que a pessoa escolher em seguida vale até ela sair.
+  const abertura = state.activeGroupId ? `g:${state.activeGroupId}` : `c:${state.activeCompanyId}`;
+  const aberturaAplicada = useRef("");
+  const mesFechadoAgora = mesFechadoDoWorkspace(state);
+  useEffect(() => {
+    if (state.journalLoading || aberturaAplicada.current === abertura) return;
+    aberturaAplicada.current = abertura;
+    const padrao = periodoPadrao(mesFechadoAgora);
+    if (padrao.start !== state.periodStart || padrao.end !== state.periodEnd) setData({ periodStart: padrao.start, periodEnd: padrao.end });
+  }, [abertura, state.journalLoading]);
 
   // Dados, De/Para, Vínculo DFC e Conferência são telas de EDIÇÃO: na visão do cliente (portal) o app não grava nada (isAdmin/isColaborador ficam falsos), então importar da
   // Domínio ou vincular uma conta ali "funcionava" só na tela e o cliente seguia com o dado antigo (24/11/2026). A equipe que chega nelas vai pro modo de edição.

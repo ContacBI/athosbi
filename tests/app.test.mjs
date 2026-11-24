@@ -634,8 +634,8 @@ check(
   "Período sem fim para no mês fechado; o padrão são os últimos 6 meses até ele",
   JSON.stringify(fch.limitarPeriodo({ start: "", end: "" }, "2026-10")) === JSON.stringify({ start: "", end: "2026-10-31" }) &&
     JSON.stringify(fch.limitarPeriodo({ start: "2026-02-01", end: "" }, "2026-10")) === JSON.stringify({ start: "2026-02-01", end: "2026-10-31" }) &&
-    JSON.stringify(fch.periodoPadrao("2026-10")) === JSON.stringify({ start: "2026-05-01", end: "2026-10-31" }) &&
-    JSON.stringify(fch.periodoPadrao("2026-03")) === JSON.stringify({ start: "2025-10-01", end: "2026-03-31" }) &&
+    JSON.stringify(fch.periodoPadrao("2026-10")) === JSON.stringify({ start: "2026-06-01", end: "2026-10-31" }) &&
+    JSON.stringify(fch.periodoPadrao("2026-03")) === JSON.stringify({ start: "2025-11-01", end: "2026-03-31" }) &&
     JSON.stringify(fch.limitarPeriodo({ start: "2026-01-01", end: "" }, null)) === JSON.stringify({ start: "2026-01-01", end: "" }),
   null
 );
@@ -1441,6 +1441,21 @@ const perfH = { ...grupoH, visibilidade: { ...grupoH.visibilidade, perfis: [{ id
 const cfgPessoa = visH.configDaPessoa(visH.configHerdada(empH, [perfH]).visibilidade, "a@x.com");
 check("o tipo de acesso (perfil) do grupo também vale na empresa", !visH.ocultoNaConfiguracao(cfgPessoa, "bi:tab:e_ind") && visH.ocultoNaConfiguracao(cfgPessoa, "bi:tab:e_resumo"), cfgPessoa);
 
+// Contas analíticas com a MESMA classificação (fornecedores da Domínio): o movimento do razão entra uma vez só no saldo do período
+{
+  const { balanceteDoPeriodo } = await src("data/calculations.js");
+  const conta = (codigo, nome) => ({ codigo, classificacao: "2.1.10.100.010", nome_conta: nome, tipo_sintetica: "nao", saldo_anterior: 0, saldo_atual: -2770, debito: 0, credito: 0, companyId: "emp_dup" });
+  Object.assign(state, {
+    groups: [], activeGroupId: "", activeCompanyId: "emp_dup",
+    companies: [{ id: "emp_dup", name: "Dup", lastBalanceteMeta: { inicio: "2026-01-01", fim: "2026-10-31", origem: "dominio" } }],
+    accounts: [conta("1", "A"), conta("2", "B"), conta("3", "C")],
+    journal: [{ data: "2026-02-10", classificacao: "2.1.10.100.010", debito: 0, credito: 2770, companyId: "emp_dup" }],
+    periodStart: "2026-06-01", periodEnd: "2026-10-31",
+  });
+  const contas = balanceteDoPeriodo();
+  const abertura = contas.reduce((soma, item) => soma + Number(item.saldo_anterior || 0), 0);
+  check("Contas com a mesma classificação: o movimento anterior ao período entra uma vez", Math.abs(Math.abs(abertura) - 2770) < 0.01, abertura);
+}
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);

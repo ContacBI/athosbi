@@ -28,7 +28,7 @@ export function mesesAntes(mes, n) {
 }
 
 // Quantos meses a tela traz quando ninguém escolheu o período (o ano todo não cabe nas colunas).
-export const MESES_DO_PERIODO_PADRAO = 6;
+export const MESES_DO_PERIODO_PADRAO = 5;
 
 /** O período de partida de quem tem limite: os últimos meses, até o mês fechado. */
 export function periodoPadrao(limite) {
