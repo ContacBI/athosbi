@@ -231,7 +231,6 @@ function Rodape({ irPara, areas }) {
       <div className="border-t border-[var(--hub-borda)]">
         <div className="mx-auto flex hub-largura flex-wrap items-center justify-between gap-2 px-5 py-5 text-[12.5px] text-[var(--hub-texto-3)] sm:px-8">
           <span>© {ano} Athos Consultoria Empresarial</span>
-          <span>Prévia do novo portal · visível só para você no ambiente de teste</span>
         </div>
       </div>
     </footer>
