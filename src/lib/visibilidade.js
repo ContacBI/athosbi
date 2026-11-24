@@ -50,7 +50,46 @@ export function configHerdada(company, groups) {
   const candidatos = (groups || []).filter((g) => (g.companyIds || []).includes(company.id) && temConfiguracao(g.visibilidade));
   if (!candidatos.length) return null;
   candidatos.sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
-  return { grupo: candidatos[0], visibilidade: candidatos[0].visibilidade, varios: candidatos.length > 1 };
+  return { grupo: candidatos[0], visibilidade: visibilidadeParaEmpresa(candidatos[0], company), varios: candidatos.length > 1 };
+}
+
+const nomeNorm = (texto) => String(texto || "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+
+/**
+ * O que o grupo marcou vale pra TODAS as empresas dele (pedido do Izaias, 24/11/2026). As chaves de aba, subaba e item levam o código da aba, e cada empresa tem as abas
+ * com códigos próprios (mesmos nomes: Resumo, Demonstrativos…), então a configuração do grupo é traduzida pros códigos da empresa, casando aba e subaba pelo NOME.
+ * As chaves originais ficam (se os códigos já coincidirem nada muda); o que a empresa não tem de igual nome fica como está.
+ */
+export function visibilidadeParaEmpresa(grupo, company) {
+  const v = grupo?.visibilidade;
+  if (!v) return v;
+  const abasG = Array.isArray(grupo?.dashboardTabs) ? grupo.dashboardTabs : [];
+  const abasE = Array.isArray(company?.dashboardTabs) ? company.dashboardTabs : [];
+  if (!abasG.length || !abasE.length) return v;
+  const abaDaEmpresa = new Map(); // código da aba do grupo → { id da empresa, subabas: código do grupo → código da empresa }
+  for (const aba of abasG) {
+    const par = abasE.find((x) => nomeNorm(x.name) === nomeNorm(aba.name));
+    if (!par) continue;
+    const subs = new Map();
+    for (const sub of aba.subTabs || []) {
+      const igual = (par.subTabs || []).find((x) => nomeNorm(x.name) === nomeNorm(sub.name));
+      if (igual) subs.set(sub.id, igual.id);
+    }
+    abaDaEmpresa.set(aba.id, { id: par.id, subs });
+  }
+  const traduzir = (chave) => {
+    const partes = String(chave).split(":");
+    if (partes[0] !== "bi") return chave;
+    const [, tipo, abaId, a3, ...resto] = partes;
+    const alvo = abaDaEmpresa.get(abaId);
+    if (!alvo) return chave;
+    if (tipo === "tab") return kAba(alvo.id);
+    if (tipo === "sub") return kSubaba(alvo.id, alvo.subs.get(a3) || a3);
+    if (tipo === "w") return kItem(alvo.id, a3 === "_" ? null : alvo.subs.get(a3) || a3, resto.join(":"));
+    return chave;
+  };
+  const dobrar = (lista) => (Array.isArray(lista) ? [...new Set([...lista, ...lista.map(traduzir)])] : lista);
+  return { ...v, ...(Array.isArray(v.visiveis) ? { visiveis: dobrar(v.visiveis) } : {}), ...(Array.isArray(v.ocultos) ? { ocultos: dobrar(v.ocultos) } : {}), ...(Array.isArray(v.perfis) ? { perfis: v.perfis.map((p) => ({ ...p, visiveis: dobrar(p.visiveis) })) } : {}) };
 }
 
 /** Visibilidade configurada da empresa/grupo que está aberto agora (a empresa sem configuração própria usa a do grupo dela). */

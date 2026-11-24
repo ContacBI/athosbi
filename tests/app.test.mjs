@@ -1415,6 +1415,32 @@ modoVC.entrarNoModo("portal", { pessoa: { email: "ana@x.com", nome: "Ana", modul
 check("Ver como liga a pessoa e 'voltar' volta à visão geral", storeVC.state.pessoaVista?.email === "ana@x.com" && (modoVC.sairDaPessoa(), storeVC.state.pessoaVista === null && storeVC.state.modoEquipe === "portal"), null);
 Object.assign(storeVC.state, { realIsVisualizador: false, realIsColaborador: false, modoEquipe: null, visaoCliente: false, pessoaVista: null, clienteSimulado: false, userEmail: "" });
 
+section("Herança do grupo por NOME de aba (o grupo configurado vale pra todas as empresas dele)");
+const visH = await src("lib/visibilidade.js");
+const abasG = [
+  { id: "g_resumo", name: "Resumo", widgets: [{ id: "dre_receita_bruta" }, { id: "chart_balanco" }] },
+  { id: "g_dem", name: "Demonstrativos", subTabs: [{ id: "g_bal", name: "Balanço", widgets: [{ id: "link_balanco" }] }, { id: "g_dre", name: "DRE", widgets: [] }], widgets: [] },
+  { id: "g_ind", name: "Indicadores", widgets: [{ id: "ratio_x" }] },
+];
+const abasE = [
+  { id: "e_resumo", name: "Resumo", widgets: [{ id: "dre_receita_bruta" }, { id: "chart_balanco" }] },
+  { id: "e_dem", name: "Demonstrativos", subTabs: [{ id: "e_bal", name: "Balanço", widgets: [{ id: "link_balanco" }] }, { id: "e_dre", name: "DRE", widgets: [] }], widgets: [] },
+  { id: "e_ind", name: "Indicadores", widgets: [{ id: "ratio_x" }] },
+];
+const grupoH = { id: "gH", companyIds: ["eH"], dashboardTabs: abasG, visibilidade: { modo: "marcados", visiveis: ["bi:tab:g_resumo", "bi:w:g_resumo:_:dre_receita_bruta", "bi:tab:g_dem", "bi:sub:g_dem:g_bal", "bi:w:g_dem:g_bal:link_balanco", "es:kpis"], modulos: ["orcamento"], areasOcultas: ["reforma"] } };
+const empH = { id: "eH", dashboardTabs: abasE };
+const herdada = visH.configHerdada(empH, [grupoH]);
+const visHer = herdada.visibilidade;
+check("a empresa vê as abas liberadas no grupo, pelos códigos dela", !visH.ocultoNaConfiguracao(visHer, "bi:tab:e_resumo") && !visH.ocultoNaConfiguracao(visHer, "bi:tab:e_dem") && !visH.ocultoNaConfiguracao(visHer, "bi:sub:e_dem:e_bal") && !visH.ocultoNaConfiguracao(visHer, "bi:w:e_dem:e_bal:link_balanco") && !visH.ocultoNaConfiguracao(visHer, "bi:w:e_resumo:_:dre_receita_bruta"), visHer.visiveis);
+check("o que o grupo não liberou continua escondido na empresa", visH.ocultoNaConfiguracao(visHer, "bi:tab:e_ind") && visH.ocultoNaConfiguracao(visHer, "bi:sub:e_dem:e_dre") && visH.ocultoNaConfiguracao(visHer, "bi:w:e_resumo:_:chart_balanco"), null);
+check("módulos, áreas escondidas e blocos continuam como no grupo", visHer.modulos[0] === "orcamento" && visHer.areasOcultas[0] === "reforma" && visHer.visiveis.includes("es:kpis"), visHer);
+const empIgual = { id: "eH", dashboardTabs: abasG };
+check("se os códigos já são iguais nada muda (sem chaves repetidas)", JSON.stringify(visH.configHerdada(empIgual, [grupoH]).visibilidade.visiveis) === JSON.stringify(grupoH.visibilidade.visiveis), null);
+check("empresa sem aba de mesmo nome fica como está; empresa com configuração própria não herda", JSON.stringify(visH.configHerdada({ id: "eH", dashboardTabs: [{ id: "x", name: "Outra", widgets: [] }] }, [grupoH]).visibilidade.visiveis) === JSON.stringify(grupoH.visibilidade.visiveis) && visH.configHerdada({ ...empH, visibilidade: { modo: "marcados", visiveis: [] } }, [grupoH]) === null, null);
+const perfH = { ...grupoH, visibilidade: { ...grupoH.visibilidade, perfis: [{ id: "fin", nome: "Financeiro", visiveis: ["bi:tab:g_ind"], modulos: [], areasOcultas: [] }], perfilPorPessoa: { "a@x.com": "fin" } } };
+const cfgPessoa = visH.configDaPessoa(visH.configHerdada(empH, [perfH]).visibilidade, "a@x.com");
+check("o tipo de acesso (perfil) do grupo também vale na empresa", !visH.ocultoNaConfiguracao(cfgPessoa, "bi:tab:e_ind") && visH.ocultoNaConfiguracao(cfgPessoa, "bi:tab:e_resumo"), cfgPessoa);
+
 console.log(`\n${total - failures} de ${total} testes passaram.`);
 if (failures) {
   console.log(`${failures} FALHA(S).`);
