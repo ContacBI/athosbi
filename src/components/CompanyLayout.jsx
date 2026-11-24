@@ -8,7 +8,7 @@ import { useAppState, setData } from "../data/useStore.js";
 import { isResponsavelForGroup } from "../lib/colaboradores.js";
 import { ferramentasDaTela, moduloDaRota, modulosLiberados } from "../lib/modulos.js";
 import { biDentroDoHub } from "../lib/hub.js";
-import { limiteDoCliente, limitarPeriodo } from "../lib/fechamento.js";
+import { limiteDoCliente, limitarPeriodo, periodoPadrao } from "../lib/fechamento.js";
 import { PageActionsProvider } from "../lib/pageActions.jsx";
 import { densityColumnGap } from "../lib/density.js";
 import { useIsMobile } from "../lib/useIsMobile.js";
@@ -47,7 +47,9 @@ export default function CompanyLayout() {
   const limite = limiteDoCliente(state);
   useEffect(() => {
     if (!limite) return;
-    const cortado = limitarPeriodo({ start: state.periodStart, end: state.periodEnd }, limite);
+    // Sem período escolhido: os últimos meses até o mês fechado (o ano todo não cabe nas colunas); com período, só corta no mês fechado.
+    const atual = !state.periodStart && !state.periodEnd ? periodoPadrao(limite) : { start: state.periodStart, end: state.periodEnd };
+    const cortado = limitarPeriodo(atual, limite);
     if (cortado.start !== state.periodStart || cortado.end !== state.periodEnd) setData({ periodStart: cortado.start, periodEnd: cortado.end });
   }, [limite, state.periodStart, state.periodEnd]);
 
