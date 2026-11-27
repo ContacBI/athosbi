@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, BadgeCheck, CalendarRange, Check, ChevronRight, CircleDollarSign, GitCompareArrows, Landmark, Receipt, Search, TrendingUp, Users, Wallet, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { setData } from "../data/store.js";
@@ -203,17 +203,6 @@ function Janela({ l, contas, onClose }) {
   const Conta = ({ c, forte }) => (
     <span className={`flex min-w-0 items-baseline gap-1.5 ${forte ? "text-[13.5px] font-semibold text-ink-900" : "text-[12.5px] text-ink-700"}`}><b className="shrink-0 tabular-nums text-ink-400">{c}</b><span className="truncate">{nome(c)}</span></span>
   );
-  const Lanc = ({ y }) => (
-    <div className="flex flex-col gap-1 border-t border-dashed border-line py-2 first:border-t-0 first:pt-0">
-      <div className="flex items-baseline justify-between gap-3"><span className="text-[11.5px] font-semibold tabular-nums text-ink-400">{dataBR(y.d)}</span><span className="text-[14px] font-bold tabular-nums text-ink-900">{money(y.v)}</span></div>
-      <p className="text-[12.5px] font-medium leading-snug text-ink-800">{y.h}</p>
-      <div className="flex flex-wrap gap-1.5 text-[11px]">
-        <span className="inline-flex max-w-full items-center gap-1 truncate rounded-full bg-surface-muted px-2 py-0.5 text-ink-600"><b className="text-ink-400">D</b>{y.deb} {nome(y.deb)}</span>
-        <span className="inline-flex max-w-full items-center gap-1 truncate rounded-full bg-surface-muted px-2 py-0.5 text-ink-600"><b className="text-ink-400">C</b>{y.cre} {nome(y.cre)}</span>
-        {y.lote ? <span className="rounded-full border border-line px-2 py-0.5 text-ink-400">lote {y.lote}</span> : null}
-      </div>
-    </div>
-  );
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-3 backdrop-blur-sm" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="flex max-h-[94vh] w-full max-w-[1320px] flex-col overflow-hidden rounded-2xl border border-line bg-surface-card shadow-2xl">
@@ -293,54 +282,81 @@ function Janela({ l, contas, onClose }) {
                 <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar nome, documento ou valor" className="w-56 bg-transparent text-ink-800 outline-none placeholder:text-ink-400" />
               </label>
             </div>
-            <div className="mb-1.5 hidden grid-cols-[minmax(0,5fr)_120px_minmax(0,6fr)] px-4 text-[10.5px] font-semibold uppercase tracking-wider text-ink-400 md:grid">
-              <span>Relatório interno</span><span /><span>Lançamento na contabilidade</span>
-            </div>
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-3">
               {visiveis.map((cd, i) => {
                 const somaRd = cd.rd.reduce((s, r) => s + r.v, 0);
                 const somaD = (cd.lancs || []).reduce((s, y) => s + y.v, 0);
                 const igual = !cd.nao && Math.abs(somaRd - somaD) < 0.01;
+                const tom = cd.nao ? "rose" : igual ? "emerald" : "amber";
+                const barra = { rose: "bg-rose-500", emerald: "bg-emerald-500", amber: "bg-amber-500" }[tom];
+                const bolha = { rose: "bg-rose-500/15 text-rose-600", emerald: "bg-emerald-500/15 text-emerald-600", amber: "bg-amber-500/15 text-amber-600" }[tom];
                 return (
-                  <div key={i} className={`grid grid-cols-1 overflow-hidden rounded-xl border md:grid-cols-[minmax(0,5fr)_120px_minmax(0,6fr)] ${cd.nao ? "border-rose-500/30 bg-rose-500/5" : "border-line bg-surface-card"}`}>
-                    <div className="flex min-w-0 flex-col gap-2 p-3.5">
-                      {cd.rd.length > 1 && <span className="self-start rounded-full bg-accent-500/10 px-2 py-0.5 text-[10.5px] font-semibold text-accent-700">{cd.rd.length} linhas do relatório</span>}
-                      {cd.rd.map((r, j) => (
-                        <div key={j} className="flex items-baseline justify-between gap-3 border-t border-dashed border-line pt-2 first:border-t-0 first:pt-0">
-                          <div className="min-w-0"><p className="truncate text-[13px] font-semibold text-ink-900">{r.n || "(sem nome)"}</p><p className="truncate text-[11px] text-ink-400">{[r.doc && `Doc ${r.doc}`, r.parc && `parc. ${r.parc}`, dataBR(r.d), r.port].filter(Boolean).join(" · ")}</p></div>
-                          <span className="whitespace-nowrap text-[15px] font-bold tabular-nums text-ink-900">{money(r.v)}</span>
-                        </div>
-                      ))}
-                      {cd.rd.length > 1 && <div className="flex justify-between border-t border-line pt-2 text-[12px] font-semibold"><span className="uppercase tracking-wider text-ink-400">Soma</span><span className="tabular-nums text-accent-700">{money(somaRd)}</span></div>}
-                    </div>
-                    <div className={`flex items-center justify-center gap-2 border-line px-2 py-2 md:flex-col md:border-x ${cd.nao ? "" : "bg-surface-muted/60"}`}>
-                      {cd.nao ? (
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-500/15 text-rose-600"><X size={15} /></span>
-                      ) : (
-                        <>
-                          <span className="text-center text-[10px] font-semibold uppercase tracking-wider text-ink-400">{COMO[cd.como] || cd.como}</span>
-                          <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${igual ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/15 text-amber-600"}`}>{igual ? `= ${money(somaD)}` : `parte de ${money(somaD)}`}</span>
-                        </>
-                      )}
-                    </div>
-                    <div className="flex min-w-0 flex-col gap-2 p-3.5">
-                      {cd.nao ? (
-                        <>
-                          {cd.ref && (
-                            <div className="grid grid-cols-2 gap-2 text-[12px]">
-                              <div className="rounded-lg border border-line p-2"><p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">Na contabilidade</p><p className="text-[15px] font-bold tabular-nums">{money(cd.ref.liq)}</p></div>
-                              <div className="rounded-lg border border-line p-2"><p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">Diferença</p><p className="text-[15px] font-bold tabular-nums text-rose-600">{money(cd.ref.dif)}</p></div>
+                  <div key={i} className={`relative overflow-hidden rounded-xl border ${cd.nao ? "border-rose-500/30" : "border-line"} bg-surface-card shadow-[0_1px_2px_rgba(16,24,40,0.04)]`}>
+                    <span className={`absolute inset-y-0 left-0 w-1 ${barra}`} />
+                    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_56px_minmax(0,1.15fr)]">
+                      <div className="flex min-w-0 flex-col gap-2.5 py-3.5 pl-5 pr-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">Relatório interno{cd.rd.length > 1 ? ` · ${cd.rd.length} linhas` : ""}</p>
+                        {cd.rd.map((r, j) => (
+                          <div key={j} className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-[13px] font-semibold text-ink-900" title={r.n}>{r.n || "(sem nome)"}</p>
+                              <div className="mt-1 flex flex-wrap gap-1 text-[10.5px] text-ink-500">
+                                {r.doc && <span className="rounded bg-surface-muted px-1.5 py-0.5">Doc {r.doc}{r.parc ? `/${r.parc}` : ""}</span>}
+                                {r.d && <span className="rounded bg-surface-muted px-1.5 py-0.5 tabular-nums">{dataBR(r.d)}</span>}
+                                {r.port && <span className="truncate rounded bg-surface-muted px-1.5 py-0.5">{r.port}</span>}
+                              </div>
                             </div>
-                          )}
-                          <p className={`rounded-lg px-3 py-2 text-[12.5px] ${cd.conc?.t ? "bg-surface-muted text-ink-700" : "text-ink-400"}`}>{cd.conc?.t || "Sem lançamento correspondente na contabilidade no mês."}</p>
-                        </>
-                      ) : (
-                        <>
-                          {(cd.lancs || []).map((y, j) => <Lanc key={j} y={y} />)}
-                          {cd.outras && <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-[11.5px] leading-snug text-amber-700 dark:text-amber-300">Este lançamento também baixa {cd.outras.n} linha(s) de outros grupos ({cd.outras.grupos.join(", ")}) — {money(cd.outras.v)}. Somando tudo, fecha com o lançamento.</p>}
-                        </>
-                      )}
+                            <span className="whitespace-nowrap text-[15px] font-bold tabular-nums text-ink-900">{money(r.v)}</span>
+                          </div>
+                        ))}
+                        {cd.rd.length > 1 && <div className="flex justify-between border-t border-line pt-2 text-[12px] font-semibold"><span className="text-ink-400">Soma</span><span className="tabular-nums text-ink-900">{money(somaRd)}</span></div>}
+                      </div>
+                      <div className="relative hidden items-center justify-center md:flex">
+                        <span className="absolute inset-y-3 left-1/2 w-px -translate-x-1/2 bg-line" />
+                        <span className={`relative flex h-9 w-9 items-center justify-center rounded-full ring-4 ring-surface-card ${bolha}`}>{cd.nao ? <X size={16} /> : igual ? <Check size={16} /> : <ArrowRight size={15} />}</span>
+                      </div>
+                      <div className={`flex min-w-0 flex-col gap-2.5 py-3.5 pl-5 pr-4 md:pl-2 ${cd.nao ? "bg-rose-500/[.04]" : ""}`}>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">Contabilidade</p>
+                        {cd.nao ? (
+                          <>
+                            {cd.ref && (
+                              <div className="grid grid-cols-2 gap-2 text-[12px]">
+                                <div className="rounded-lg bg-surface-muted p-2.5"><p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">Lançado</p><p className="text-[15px] font-bold tabular-nums">{money(cd.ref.liq)}</p></div>
+                                <div className="rounded-lg bg-rose-500/10 p-2.5"><p className="text-[10px] font-semibold uppercase tracking-wider text-rose-500">Diferença</p><p className="text-[15px] font-bold tabular-nums text-rose-600">{money(cd.ref.dif)}</p></div>
+                              </div>
+                            )}
+                            <p className={`text-[12.5px] leading-snug ${cd.conc?.t ? "text-ink-700" : "text-ink-400"}`}>{cd.conc?.t || "Sem lançamento correspondente no mês."}</p>
+                          </>
+                        ) : (
+                          (cd.lancs || []).map((y, j) => (
+                            <div key={j} className="flex flex-col gap-1.5">
+                              <div className="flex items-start justify-between gap-3">
+                                <p className="line-clamp-2 text-[12.5px] leading-snug text-ink-800" title={y.h}>{y.h}</p>
+                                <span className="whitespace-nowrap text-[15px] font-bold tabular-nums text-ink-900">{money(y.v)}</span>
+                              </div>
+                              <div className="flex flex-wrap gap-1 text-[10.5px] text-ink-500">
+                                <span className="rounded bg-surface-muted px-1.5 py-0.5 tabular-nums">{dataBR(y.d)}</span>
+                                <span className="max-w-full truncate rounded bg-surface-muted px-1.5 py-0.5"><b className="mr-1 text-ink-400">D</b>{y.deb} {nome(y.deb)}</span>
+                                <span className="max-w-full truncate rounded bg-surface-muted px-1.5 py-0.5"><b className="mr-1 text-ink-400">C</b>{y.cre} {nome(y.cre)}</span>
+                                {y.lote ? <span className="rounded px-1.5 py-0.5 text-ink-400 ring-1 ring-line">lote {y.lote}</span> : null}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
                     </div>
+                    {!cd.nao && (
+                      <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-5 py-2 text-[11.5px] ${igual ? "border-line bg-surface-muted/40 text-ink-500" : "border-amber-500/20 bg-amber-500/[.06] text-amber-700 dark:text-amber-300"}`}>
+                        <span className={`rounded-full px-2 py-0.5 font-semibold ${igual ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/15"}`}>{igual ? "valor igual" : `parte de ${money(somaD)}`}</span>
+                        <span>casou {COMO[cd.como] || cd.como}</span>
+                        {cd.outras && (
+                          <details className="group w-full">
+                            <summary className="cursor-pointer list-none">o mesmo lançamento também baixa {cd.outras.n} linha(s) de outros grupos ({money(cd.outras.v)}); somando tudo, fecha · <span className="underline decoration-dotted">ver grupos</span></summary>
+                            <div className="mt-1.5 flex flex-wrap gap-1">{cd.outras.grupos.map((g) => <span key={g} className="rounded bg-surface-card px-1.5 py-0.5 text-[10.5px] text-ink-600 ring-1 ring-line">{g}</span>)}</div>
+                          </details>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -592,13 +608,26 @@ export default function InternoContabil() {
     if (regimesDoMes.length && !regimesDoMes.some((r) => r.id === regime)) setRegime(regimesDoMes[0].id);
   }, [regimesDoMes, regime]);
   const atual = linhas.find((l) => l.mes === mes && l.regime === regime);
+  // período do módulo = o mês do relatório interno; a DFC (e o resto do B.I. enquanto estiver aqui) segue esse mês. Ao sair, volta o período que estava antes.
+  const periodoAntes = useRef(null);
+  useEffect(() => {
+    periodoAntes.current = { periodStart: state.periodStart, periodEnd: state.periodEnd };
+    return () => { if (periodoAntes.current) setData(periodoAntes.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!mes) return;
+    const ini = `${mes}-01`, fim = fimDoMes(mes);
+    if (state.periodStart !== ini || state.periodEnd !== fim) setData({ periodStart: ini, periodEnd: fim });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mes]);
+  const anos = useMemo(() => [...new Set(meses.map((m) => m.slice(0, 4)))].sort().reverse(), [meses]);
+  const anoSel = mes ? mes.slice(0, 4) : anos[0];
 
   if (erro) return <div className="p-6 text-[13px] text-rose-600">{erro}</div>;
   if (!brutos) return <Esqueleto />;
 
-  const select = "rounded-lg border border-line bg-surface-card px-2.5 py-1.5 text-[12.5px] text-ink-800 outline-none focus:border-accent-500";
-  const periodoDoMes = mes ? { start: `${mes}-01`, end: fimDoMes(mes) } : null;
-  const dfcNoMes = periodoDoMes && state.periodStart === periodoDoMes.start && state.periodEnd === periodoDoMes.end;
+  const MESES_CURTOS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
   return (
     <div className="flex w-full flex-col gap-5 p-4 md:p-6">
@@ -616,12 +645,35 @@ export default function InternoContabil() {
                   Centavos
                 </button>
               )}
-              <select value={mes || ""} onChange={(e) => setMes(e.target.value)} className={select} aria-label="Mês">
-                {meses.map((m) => <option key={m} value={m}>{mesRotulo(m)}</option>)}
-              </select>
             </div>
           )}
         </div>
+        {meses.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-400"><CalendarRange size={14} className="text-accent-600" /> Período</span>
+            {anos.length > 1 ? (
+              <div className="flex items-center rounded-lg bg-surface-muted p-0.5 text-[12px]">
+                {anos.map((a) => (
+                  <button key={a} type="button" onClick={() => setMes(meses.find((m) => m.startsWith(a)))} className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${anoSel === a ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-900"}`}>{a}</button>
+                ))}
+              </div>
+            ) : (
+              <span className="rounded-lg bg-surface-muted px-2.5 py-1 text-[12px] font-semibold text-ink-700">{anoSel}</span>
+            )}
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Mês do relatório interno">
+              {MESES_CURTOS.map((rot, i) => {
+                const m = `${anoSel}-${String(i + 1).padStart(2, "0")}`;
+                const tem = meses.includes(m);
+                const sel = m === mes;
+                return (
+                  <button key={m} type="button" disabled={!tem} onClick={() => setMes(m)} title={tem ? mesRotulo(m) : "Sem relatório interno neste mês"}
+                    className={`min-w-[46px] rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${sel ? "bg-accent-500 text-white shadow-sm" : tem ? "bg-accent-500/10 text-accent-700 hover:bg-accent-500/20" : "cursor-not-allowed text-ink-300"}`}>{rot}</button>
+                );
+              })}
+            </div>
+            <span className="text-[11.5px] text-ink-400">só os meses com relatório interno conferido · a DFC segue o mesmo mês</span>
+          </div>
+        )}
         {grupo && comDados.length > 1 && (
           <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
             {comDados.map((m) => (
@@ -647,19 +699,6 @@ export default function InternoContabil() {
 
       {aba === "dfc" && (
         <div className="flex flex-col gap-3">
-          {periodoDoMes && (
-            <div className={`${CARTAO} flex flex-wrap items-center gap-3 px-4 py-3 text-[12.5px] text-ink-500`}>
-              <CalendarRange size={15} className="text-accent-600" />
-              {dfcNoMes ? (
-                <span className="flex items-center gap-1.5"><Check size={14} className="text-emerald-600" /> DFC de {mesRotulo(mes)}, o mesmo mês do demonstrativo interno.</span>
-              ) : (
-                <>
-                  <span>A DFC segue o período escolhido no topo.</span>
-                  <button type="button" onClick={() => setData({ periodStart: periodoDoMes.start, periodEnd: periodoDoMes.end })} className="rounded-full bg-accent-500 px-3 py-1 text-[12px] font-semibold text-white hover:bg-accent-600">Ver {mesRotulo(mes)}</button>
-                </>
-              )}
-            </div>
-          )}
           <Dfc lockedMode="direct" />
         </div>
       )}
