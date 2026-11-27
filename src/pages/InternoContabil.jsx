@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, BadgeCheck, Check, ChevronRight, CircleDollarSign, GitCompareArrows, Landmark, Receipt, Search, TrendingUp, Users, Wallet, X } from "lucide-react";
+import { ArrowRight, BadgeCheck, Check, ChevronRight, CircleDollarSign, Download, FileText, GitCompareArrows, Landmark, Receipt, Search, TrendingUp, Users, Wallet, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { setData } from "../data/store.js";
 import { groupCompanies } from "../lib/groups.js";
@@ -559,6 +559,44 @@ export function Demonstrativo({ dados, regime }) {
   );
 }
 
+// relatório original do cliente (a DRF do sistema deles, em PDF, mandada pela Central) numa janela sobreposta
+function JanelaOriginal({ original, onClose }) {
+  const url = useMemo(() => {
+    try {
+      const bin = atob(original.b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+      return URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+    } catch {
+      return "";
+    }
+  }, [original]);
+  useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+  useEffect(() => {
+    const fecha = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", fecha);
+    const antes = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", fecha); document.body.style.overflow = antes; };
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-3 backdrop-blur-sm" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="flex h-[94vh] w-full max-w-[1100px] flex-col overflow-hidden rounded-2xl border border-line bg-surface-card shadow-2xl">
+        <div className="flex items-center gap-3 border-b border-line px-5 py-3">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-500/10 text-accent-600"><FileText size={16} /></span>
+          <div className="min-w-0">
+            <p className="truncate text-[14px] font-semibold text-ink-900">Relatório original do sistema</p>
+            <p className="truncate text-[11.5px] text-ink-400">{original.nome}{original.alteradoEm ? ` · salvo em ${new Date(original.alteradoEm).toLocaleDateString("pt-BR")}` : ""}</p>
+          </div>
+          {url && <a href={url} download={original.nome} className="ml-auto flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-medium text-ink-700 hover:border-accent-500/50"><Download size={14} /> Baixar</a>}
+          <button type="button" onClick={onClose} aria-label="Fechar" className={`${url ? "" : "ml-auto "}flex h-9 w-9 items-center justify-center rounded-lg border border-line text-ink-500 hover:bg-surface-muted hover:text-ink-900`}><X size={16} /></button>
+        </div>
+        {url ? <iframe title="Relatório original" src={url} className="h-full w-full flex-1 bg-surface-muted" /> : <p className="p-6 text-[13px] text-rose-600">Não consegui abrir o PDF.</p>}
+      </div>
+    </div>
+  );
+}
+
 export default function InternoContabil() {
   const state = useAppState();
   const company = state.companies.find((item) => item.id === state.activeCompanyId);
@@ -573,6 +611,7 @@ export default function InternoContabil() {
   const setMes = (m) => periodoInterno.set({ mes: m });
   const [regime, setRegime] = useState("caixa");
   const [aba, setAba] = useState("interno");
+  const [verOriginal, setVerOriginal] = useState(false);
   const [centavos, setCentavos] = useState(COM_CENTAVOS);
   COM_CENTAVOS = centavos;
   const trocaCentavos = () => { const v = !centavos; try { localStorage.setItem(CHAVE_CENTAVOS, v ? "1" : "0"); } catch { /* sem armazenamento */ } setCentavos(v); };
@@ -638,6 +677,11 @@ export default function InternoContabil() {
           </div>
           {meses.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
+              {aba === "interno" && atual?.dados?.original?.b64 && (
+                <button type="button" onClick={() => setVerOriginal(true)} title={`Abrir ${atual.dados.original.nome}`} className="flex items-center gap-2 rounded-lg border border-accent-500/40 bg-accent-500/10 px-3 py-1.5 text-[12.5px] font-semibold text-accent-700 hover:bg-accent-500/20">
+                  <FileText size={14} /> Relatório original
+                </button>
+              )}
               {aba === "interno" && (
                 <button type="button" onClick={trocaCentavos} aria-pressed={centavos} title={centavos ? "Mostrar os valores sem centavos" : "Mostrar os valores com centavos"} className="flex items-center gap-2 rounded-lg border border-line bg-surface-card px-2.5 py-1.5 text-[12.5px] text-ink-700 hover:border-accent-500/50">
                   <span className={`relative h-4 w-7 rounded-full transition-colors ${centavos ? "bg-accent-500" : "bg-ink-200/70"}`}><span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-all ${centavos ? "left-3.5" : "left-0.5"}`} /></span>
@@ -675,6 +719,7 @@ export default function InternoContabil() {
           <Dfc lockedMode="direct" />
         </div>
       )}
+      {verOriginal && atual?.dados?.original?.b64 && <JanelaOriginal original={atual.dados.original} onClose={() => setVerOriginal(false)} />}
     </div>
   );
 }
