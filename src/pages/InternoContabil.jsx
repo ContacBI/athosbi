@@ -15,10 +15,13 @@ import Dfc from "./Dfc.jsx";
 
 const AZUL = "#2f6fed";
 const LARANJA = "#e8691f";
-// valores sem centavos em toda a tela (27/11/2026, Izaias); só o que fica abaixo de R$ 1 (ex.: diferença de 0,37 da prova) mostra os centavos, senão viraria "R$ 0"
+// centavos: o usuário escolhe no topo (padrão: sem; guardado no navegador). Sem centavos, o que fica abaixo de R$ 1 (ex.: diferença de 0,37 da prova)
+// continua com os centavos, senão viraria "R$ 0".
+const CHAVE_CENTAVOS = "athosbi.internoContabil.centavos";
+let COM_CENTAVOS = (() => { try { return localStorage.getItem(CHAVE_CENTAVOS) === "1"; } catch { return false; } })();
 const money = (v) => {
   const x = Number(v || 0);
-  if (x !== 0 && Math.abs(x) < 1) return moneyFull(x);
+  if (COM_CENTAVOS || (x !== 0 && Math.abs(x) < 1)) return moneyFull(x);
   return Math.round(x).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 });
 };
 const inteiro = (v) => Number(Math.round(v || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0, minimumFractionDigits: 0 });
@@ -555,6 +558,9 @@ export default function InternoContabil() {
   const [mes, setMes] = useState(null);
   const [regime, setRegime] = useState("caixa");
   const [aba, setAba] = useState("interno");
+  const [centavos, setCentavos] = useState(COM_CENTAVOS);
+  COM_CENTAVOS = centavos;
+  const trocaCentavos = () => { const v = !centavos; try { localStorage.setItem(CHAVE_CENTAVOS, v ? "1" : "0"); } catch { /* sem armazenamento */ } setCentavos(v); };
 
   useEffect(() => {
     if (!membros.length) return undefined;
@@ -604,6 +610,12 @@ export default function InternoContabil() {
           </div>
           {meses.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
+              {aba === "interno" && (
+                <button type="button" onClick={trocaCentavos} aria-pressed={centavos} title={centavos ? "Mostrar os valores sem centavos" : "Mostrar os valores com centavos"} className="flex items-center gap-2 rounded-lg border border-line bg-surface-card px-2.5 py-1.5 text-[12.5px] text-ink-700 hover:border-accent-500/50">
+                  <span className={`relative h-4 w-7 rounded-full transition-colors ${centavos ? "bg-accent-500" : "bg-ink-200/70"}`}><span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-all ${centavos ? "left-3.5" : "left-0.5"}`} /></span>
+                  Centavos
+                </button>
+              )}
               <select value={mes || ""} onChange={(e) => setMes(e.target.value)} className={select} aria-label="Mês">
                 {meses.map((m) => <option key={m} value={m}>{mesRotulo(m)}</option>)}
               </select>
