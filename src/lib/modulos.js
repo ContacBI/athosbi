@@ -30,6 +30,8 @@ export async function isReformaEscritorio() {
 export const CODIGOS_GESTAO_CLICK = ["120", "121", "122", "165", "223"];
 // Empresas com o Revisa Nota (raiz do CNPJ): hoje só a Micromedical. Outra empresa que passe a usar: é só incluir a raiz aqui (e mandar os dados pela função revisa-nota).
 export const RAIZES_REVISA_NOTA = ["07326871"];
+// Grupo Concent (Quaent 349, Concent 350, Webconcent 351): o módulo "Interno x Contábil" (relatório gerencial interno do cliente conferido contra a contabilidade; a Central manda).
+export const CODIGOS_INTERNO_CONTABIL = ["349", "350", "351"];
 const semZeros = (valor) => String(valor ?? "").trim().replace(/^0+(?=\d)/, "");
 // `soCodigos`: o módulo só vale quando a empresa ativa (ou alguma do grupo ativo) tem um desses códigos. `soCnpjRaiz`: o mesmo, pela raiz do CNPJ (8 primeiros dígitos).
 const digitos = (valor) => String(valor ?? "").replace(/\D/g, "");
@@ -56,6 +58,7 @@ export const MODULOS_COMPLEMENTARES = [
   { id: "analise-desempenho", nome: "Análise de desempenho", rota: "/empresa/analise-desempenho", descricao: "O que mais pesa no faturamento", precisaDeDados: true },
   { id: "entradas-saidas", nome: "Entradas x Saídas", rota: "/empresa/entradas-saidas", descricao: "Notas fiscais por acumulador" },
   { id: "dre-gerencial", nome: "DRE Gerencial", rota: "/empresa/dre-gerencial", descricao: "Vendas e despesas do Gestão Click", soCodigos: CODIGOS_GESTAO_CLICK },
+  { id: "interno-contabil", nome: "Interno x Contábil", rota: "/empresa/interno-contabil", descricao: "Demonstrativo interno conferido com a contabilidade e a DFC", soCodigos: CODIGOS_INTERNO_CONTABIL },
   { id: "revisa-nota", nome: "Revisa Nota", rota: "/empresa/revisa-nota", descricao: "Produtos e clientes: classificação IBS/CBS e perfil do comprador", soCnpjRaiz: RAIZES_REVISA_NOTA },
 ];
 

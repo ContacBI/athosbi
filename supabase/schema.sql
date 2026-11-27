@@ -1238,6 +1238,25 @@ drop policy if exists "revisa_nota_read_scoped" on public.revisa_nota;
 create policy "revisa_nota_read_scoped" on public.revisa_nota for select to authenticated
   using (is_portal_admin() or is_colaborador() or company_id = any (allowed_company_ids()));
 
+-- Interno x Contábil (Grupo Concent): o demonstrativo gerencial interno do cliente conferido na Central contra a contabilidade (função interno-contabil). Uma linha por
+-- empresa do portal, mês (AAAA-MM) e regime; o módulo "Interno x Contábil" (Ferramentas) só lê.
+create table if not exists public.interno_contabil (
+  company_id text not null,
+  company_codigo text not null,
+  cnpj text not null,
+  mes text not null check (mes ~ '^20[0-9]{2}-(0[1-9]|1[0-2])$'),
+  regime text not null check (regime in ('caixa', 'competencia')),
+  dados jsonb not null,
+  assinatura text,
+  synced_at timestamptz not null default now(),
+  primary key (company_id, mes, regime)
+);
+alter table public.interno_contabil enable row level security;
+drop policy if exists "interno_contabil_read_scoped" on public.interno_contabil;
+create policy "interno_contabil_read_scoped" on public.interno_contabil for select to authenticated
+  using (is_portal_admin() or is_colaborador() or company_id = any (allowed_company_ids()));
+-- (supabase/interno-contabil.sql troca esta leitura pela que também exige o módulo liberado, depois de criar public.modulo_liberado)
+
 create table if not exists public.dominio_dfc_modelo (
   company_codigo text not null,
   cnpj text not null,
@@ -1364,7 +1383,7 @@ grant execute on function public.revisa_nota_observar(uuid, text) to authenticat
 -- A ficha da pessoa aceita o módulo novo (antes a lista fixa do banco não tinha 'revisa-nota').
 alter table public.acesso_pessoas drop constraint if exists acesso_pessoas_modulos_validos;
 alter table public.acesso_pessoas add constraint acesso_pessoas_modulos_validos
-  check (modulos <@ array['orcamento', 'carga-tributaria', 'analise-desempenho', 'entradas-saidas', 'dre-gerencial', 'revisa-nota']::text[]);
+  check (modulos <@ array['orcamento', 'carga-tributaria', 'analise-desempenho', 'entradas-saidas', 'dre-gerencial', 'revisa-nota', 'interno-contabil']::text[]);
 
 create or replace function public.modulo_liberado(p_company text, p_modulo text)
 returns boolean language plpgsql stable security definer set search_path = '' as $$
@@ -1546,7 +1565,7 @@ begin
   foreach t in array array[
     'app_storage', 'app_storage_history', 'access_grants', 'acesso_pessoas', 'colaboradores', 'portal_admins', 'visualizadores',
     'dominio_sync', 'dominio_balancete', 'dominio_pedidos', 'dominio_fiscal', 'dominio_carga', 'dominio_notas', 'dominio_empresas', 'dominio_dfc_modelo',
-    'gestaoclick_dre', 'revisa_nota', 'revisa_nota_pedidos', 'revisa_nota_observacoes',
+    'gestaoclick_dre', 'interno_contabil', 'revisa_nota', 'revisa_nota_pedidos', 'revisa_nota_observacoes',
     'reforma_escritorio', 'reforma_empresas', 'reforma_acessos', 'reforma_parametros', 'reforma_simulacoes', 'shared_presentations'
   ] loop
     if to_regclass('public.' || t) is not null then
