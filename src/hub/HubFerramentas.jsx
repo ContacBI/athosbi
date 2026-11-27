@@ -63,6 +63,21 @@ function Previa({ id }) {
       </span>
     );
   }
+  if (id === "interno-contabil") {
+    // relatório interno (esquerda) ao lado da contabilidade (direita): as linhas que batem ficam iguais
+    const linhas = [88, 64, 72, 46, 58];
+    return (
+      <span className="flex h-full flex-col justify-end gap-1.5">
+        {linhas.map((largura, i) => (
+          <span key={i} className="flex items-center gap-2">
+            <span className="h-2.5 flex-1 rounded-full" style={{ maxWidth: `${largura / 2}%`, marginLeft: "auto", background: "var(--hub-borda-forte)" }} />
+            <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-[#2fbf71]/20 text-[8px] font-black text-[#2fbf71]">=</span>
+            <span className="h-2.5 flex-1 rounded-full" style={{ maxWidth: `${largura / 2}%`, background: i === 0 ? "linear-gradient(90deg,#e8691f,#f4a96f)" : "#2f6fed99" }} />
+          </span>
+        ))}
+      </span>
+    );
+  }
   // Entradas x Saídas
   const pares = [
     [55, 40],

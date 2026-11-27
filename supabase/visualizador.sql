@@ -56,7 +56,7 @@ begin
   foreach t in array array[
     'app_storage', 'app_storage_history', 'access_grants', 'acesso_pessoas', 'colaboradores', 'portal_admins', 'visualizadores',
     'dominio_sync', 'dominio_balancete', 'dominio_pedidos', 'dominio_fiscal', 'dominio_carga', 'dominio_notas', 'dominio_empresas', 'dominio_dfc_modelo',
-    'gestaoclick_dre', 'revisa_nota', 'revisa_nota_pedidos', 'revisa_nota_observacoes',
+    'gestaoclick_dre', 'interno_contabil', 'revisa_nota', 'revisa_nota_pedidos', 'revisa_nota_observacoes',
     'reforma_escritorio', 'reforma_empresas', 'reforma_acessos', 'reforma_parametros', 'reforma_simulacoes', 'shared_presentations'
   ] loop
     if to_regclass('public.' || t) is not null then

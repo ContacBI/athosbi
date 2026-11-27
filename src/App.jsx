@@ -53,6 +53,7 @@ const CargaTributaria = lazy(() => import("./pages/CargaTributaria.jsx"));
 const AnaliseDesempenho = lazy(() => import("./pages/AnaliseDesempenho.jsx"));
 const EntradasSaidas = lazy(() => import("./pages/EntradasSaidas.jsx"));
 const DreGerencial = lazy(() => import("./pages/DreGerencial.jsx"));
+const InternoContabil = lazy(() => import("./pages/InternoContabil.jsx"));
 const RevisaNota = lazy(() => import("./pages/RevisaNota.jsx"));
 const CompaniesAdmin = lazy(() => import("./pages/parametros/CompaniesAdmin.jsx"));
 const GruposAdmin = lazy(() => import("./pages/parametros/GruposAdmin.jsx"));
@@ -384,6 +385,7 @@ function AuthedApp() {
             <Route path="entradas-saidas" element={<EntradasSaidas />} />
             <Route path="dre-gerencial" element={<DreGerencial />} />
             <Route path="revisa-nota" element={<RevisaNota />} />
+            <Route path="interno-contabil" element={<InternoContabil />} />
             <Route path="apresentacoes/:deckId" element={<Apresentacoes />} />
           </Route>
         </Route>

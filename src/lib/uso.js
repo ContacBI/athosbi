@@ -46,6 +46,7 @@ const TELAS = [
   [/^\/empresa\/entradas-saidas$/, "Entradas x Saídas"],
   [/^\/empresa\/dre-gerencial$/, "DRE Gerencial"],
   [/^\/empresa\/revisa-nota$/, "Revisa Nota"],
+  [/^\/empresa\/interno-contabil$/, "Interno x Contábil"],
   [/^\/reforma(\/.*)?$/, "Reforma Tributária"],
   [/^\/parametros\/central$/, "Parâmetros · Central"],
   [/^\/parametros\/(\w[\w-]*)/, "Parâmetros"],

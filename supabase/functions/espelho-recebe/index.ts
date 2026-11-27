@@ -24,6 +24,7 @@ const CHAVES: Record<string, string> = {
   dominio_carga: "company_id,ano",
   dominio_notas: "company_id,ano",
   gestaoclick_dre: "company_id,ano",
+  interno_contabil: "company_id,mes,regime",
   revisa_nota: "company_id,tipo",
   dominio_empresas: "codigo",
   dominio_fiscal: "cnpj",

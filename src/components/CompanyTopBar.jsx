@@ -531,7 +531,7 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
   // Módulos complementares (Orçamento, Carga tributária) são coisas separadas do B.I Contábil: sem as abas do B.I (Resumo, Demonstrativos…), e a
   // Carga tributária também sem os botões do B.I (período, relatórios, personalizar) -- ela tem o período e a personalização dela.
   const isCarga = location.pathname.startsWith("/empresa/carga-tributaria");
-  const isModulo = isCarga || location.pathname.startsWith("/empresa/orcamento") || location.pathname.startsWith("/empresa/analise-desempenho") || location.pathname.startsWith("/empresa/entradas-saidas") || location.pathname.startsWith("/empresa/dre-gerencial") || location.pathname.startsWith("/empresa/revisa-nota");
+  const isModulo = isCarga || location.pathname.startsWith("/empresa/orcamento") || location.pathname.startsWith("/empresa/analise-desempenho") || location.pathname.startsWith("/empresa/entradas-saidas") || location.pathname.startsWith("/empresa/dre-gerencial") || location.pathname.startsWith("/empresa/revisa-nota") || location.pathname.startsWith("/empresa/interno-contabil");
   // Revisa Nota é só leitura de produtos e clientes: sem modo da tela, fechamento, período, relatórios, personalizar e configurações.
   const isRevisaNota = location.pathname.startsWith("/empresa/revisa-nota");
   const showNav = !isPersonalizar && !isDataArea && !isModulo && tabs.length > 0;
