@@ -3,7 +3,7 @@ import { ArrowRight, BadgeCheck, CalendarRange, Check, ChevronRight, CircleDolla
 import { useAppState } from "../data/useStore.js";
 import { setData } from "../data/store.js";
 import { groupCompanies } from "../lib/groups.js";
-import { CARTAO, MES_LONGO, NAVY, ROSA, VERDE, brlCompacto, dec, moneyFull } from "../lib/fmtNotas.js";
+import { CARTAO, MES_LONGO, NAVY, ROSA, VERDE, dec, moneyFull } from "../lib/fmtNotas.js";
 import { REGIMES, fetchInternoContabil, fimDoMes } from "../lib/internoContabil.js";
 import Dfc from "./Dfc.jsx";
 
@@ -16,6 +16,7 @@ import Dfc from "./Dfc.jsx";
 const AZUL = "#2f6fed";
 const LARANJA = "#e8691f";
 const money = (v) => moneyFull(v || 0);
+const inteiro = (v) => Number(Math.round(v || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0, minimumFractionDigits: 0 });
 const pctTxt = (a, t) => {
   if (!t) return "—";
   if (Math.abs(t - a) < 0.01) return "100%";
@@ -46,7 +47,7 @@ function Cartao({ rotulo, valor, sub, cor = VERDE, icone: Icone, negativo, desta
         <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">{rotulo}</p>
         {Icone && <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-500/10 text-accent-600"><Icone size={14} /></span>}
       </div>
-      {valor !== null && <p className={`mt-2 truncate font-bold tabular-nums tracking-tight ${destaque ? "text-[26px] leading-8" : "text-[22px] leading-7"} ${negativo ? "text-rose-600" : "text-ink-900"}`} title={money(valor)}>{brlCompacto(valor)}</p>}
+      {valor !== null && <p className={`mt-2 truncate font-bold tabular-nums tracking-tight ${destaque ? "text-[26px] leading-8" : "text-[22px] leading-7"} ${negativo ? "text-rose-600" : "text-ink-900"}`} title={money(valor)}>{inteiro(valor)}</p>}
       <div className="mt-1 flex min-h-[20px] flex-wrap items-center gap-2">
         {selo}
         {sub && <span className="truncate text-[11.5px] text-ink-400">{sub}</span>}
@@ -217,6 +218,23 @@ function Tabela({ d, regime }) {
   );
 }
 
+// tipo da conta de caixa e equivalentes pelo nome: aplicação financeira, banco (conta movimento) ou caixa (dinheiro em espécie)
+const tipoConta = (nome) => {
+  const n = String(nome || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+  if (/APLIC|\bFIC\b|\bCDB\b|INVEST|RENDA FIXA|POUPAN|\bFUNDO|\bLCI\b|\bLCA\b|TESOURO/.test(n)) return "aplicacao";
+  if (/^CAIXA\s*$|CAIXA GERAL|CAIXA PEQUENO|FUNDO FIXO/.test(n)) return "caixa";
+  return "banco";
+};
+const TIPOS_CONTA = {
+  banco: ["Banco", "bg-sky-500/10 text-sky-700 dark:text-sky-300"],
+  aplicacao: ["Aplicação", "bg-violet-500/10 text-violet-700 dark:text-violet-300"],
+  caixa: ["Caixa", "bg-amber-500/15 text-amber-700 dark:text-amber-300"],
+};
+function TipoConta({ nome }) {
+  const [rot, cls] = TIPOS_CONTA[tipoConta(nome)];
+  return <span className={`w-[74px] shrink-0 rounded-md px-1.5 py-0.5 text-center text-[10.5px] font-semibold ${cls}`}>{rot}</span>;
+}
+
 // prova do caixa: saldo inicial → movimento → saldo final (contabilidade) e o resultado líquido do relatório contra o movimento
 function Prova({ p }) {
   const [aberto, setAberto] = useState(false);
@@ -269,7 +287,7 @@ function Prova({ p }) {
                 <tbody>
                   {p.contas.map((x) => (
                     <tr key={x.c} className="border-t border-line">
-                      <td className="max-w-[240px] truncate py-1.5 text-ink-700">{x.c} {x.nome}</td>
+                      <td className="max-w-[300px] py-1.5 text-ink-700"><span className="flex min-w-0 items-center gap-2"><TipoConta nome={x.nome} /><span className="truncate">{x.nome}</span></span></td>
                       <td className="py-1.5 text-right tabular-nums">{money(x.ini)}</td>
                       <td className="py-1.5 text-right tabular-nums text-emerald-600">{money(x.ent)}</td>
                       <td className="py-1.5 text-right tabular-nums text-rose-600">{money(x.sai)}</td>
@@ -390,27 +408,12 @@ export default function InternoContabil() {
           <div className="min-w-0">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-accent-600">Relatório interno × contabilidade</span>
             <h1 className="mt-1 flex items-center gap-2 text-[22px] font-semibold tracking-tight text-ink-900"><GitCompareArrows size={20} className="text-accent-600" /> Interno x Contábil</h1>
-            <p className="mt-1 text-[12.5px] text-ink-400">
-              {mes ? mesRotulo(mes) : "sem mês"}
-              {atual?.synced_at ? ` · conferido na Central em ${new Date(atual.synced_at).toLocaleDateString("pt-BR")}` : ""}
-              {atual?.dados?.arquivo ? ` · ${atual.dados.arquivo}` : ""}
-            </p>
           </div>
           {meses.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               <select value={mes || ""} onChange={(e) => setMes(e.target.value)} className={select} aria-label="Mês">
                 {meses.map((m) => <option key={m} value={m}>{mesRotulo(m)}</option>)}
               </select>
-              {aba === "interno" && (
-                <div className="flex items-center rounded-lg bg-surface-muted p-0.5 text-[12px]" role="group" aria-label="Regime">
-                  {REGIMES.map((r) => {
-                    const tem = regimesDoMes.some((x) => x.id === r.id);
-                    return (
-                      <button key={r.id} type="button" disabled={!tem} onClick={() => setRegime(r.id)} title={tem ? "" : "A Central ainda não mandou este regime"} className={`rounded-md px-3 py-1 font-medium transition-colors ${regime === r.id ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-900"} ${tem ? "" : "cursor-not-allowed opacity-40"}`}>{r.nome}</button>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           )}
         </div>
