@@ -533,7 +533,8 @@ function Prova({ p }) {
   );
 }
 
-export function Demonstrativo({ dados, regime }) {
+// `dfc`: na aba DFC, os mesmos cartões e a prova do caixa, com a DFC da contabilidade no lugar da tabela do demonstrativo interno
+export function Demonstrativo({ dados, regime, dfc }) {
   const d = dados || {};
   const c = d.cascata || {};
   const despesas = (c.pessoal || 0) + (c.impostos || 0) + (c.gerais || 0);
@@ -554,7 +555,7 @@ export function Demonstrativo({ dados, regime }) {
         <Cartao rotulo="Conferência" texto={`${dec(Math.min(conferido, conferido > 99.995 ? 100 : 99.9))}%`} corTexto={conferido > 99.995 ? "text-emerald-600" : "text-amber-600"} cor={AZUL} icone={BadgeCheck} sub="do relatório achado na contabilidade" />
       </div>
       {d.prova && <Prova p={d.prova} />}
-      <Tabela d={d} regime={regime} />
+      {dfc ? <Dfc lockedMode="direct" /> : <Tabela d={d} regime={regime} />}
     </div>
   );
 }
@@ -677,12 +678,12 @@ export default function InternoContabil() {
           </div>
           {meses.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
-              {aba === "interno" && atual?.dados?.original?.b64 && (
+              {atual?.dados?.original?.b64 && (
                 <button type="button" onClick={() => setVerOriginal(true)} title={`Abrir ${atual.dados.original.nome}`} className="flex items-center gap-2 rounded-lg border border-accent-500/40 bg-accent-500/10 px-3 py-1.5 text-[12.5px] font-semibold text-accent-700 hover:bg-accent-500/20">
                   <FileText size={14} /> Relatório original
                 </button>
               )}
-              {aba === "interno" && (
+              {(
                 <button type="button" onClick={trocaCentavos} aria-pressed={centavos} title={centavos ? "Mostrar os valores sem centavos" : "Mostrar os valores com centavos"} className="flex items-center gap-2 rounded-lg border border-line bg-surface-card px-2.5 py-1.5 text-[12.5px] text-ink-700 hover:border-accent-500/50">
                   <span className={`relative h-4 w-7 rounded-full transition-colors ${centavos ? "bg-accent-500" : "bg-ink-200/70"}`}><span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-all ${centavos ? "left-3.5" : "left-0.5"}`} /></span>
                   Centavos
@@ -714,11 +715,7 @@ export default function InternoContabil() {
           </div>
         ))}
 
-      {aba === "dfc" && (
-        <div className="flex flex-col gap-3">
-          <Dfc lockedMode="direct" />
-        </div>
-      )}
+      {aba === "dfc" && (atual ? <Demonstrativo dados={atual.dados} regime={regime} dfc /> : <Dfc lockedMode="direct" />)}
       {verOriginal && atual?.dados?.original?.b64 && <JanelaOriginal original={atual.dados.original} onClose={() => setVerOriginal(false)} />}
     </div>
   );
