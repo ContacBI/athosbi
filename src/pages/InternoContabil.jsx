@@ -1,10 +1,10 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, BadgeCheck, CalendarRange, Check, ChevronRight, CircleDollarSign, GitCompareArrows, Landmark, Receipt, Search, TrendingUp, Users, Wallet, X } from "lucide-react";
+import { ArrowRight, BadgeCheck, Check, ChevronRight, CircleDollarSign, GitCompareArrows, Landmark, Receipt, Search, TrendingUp, Users, Wallet, X } from "lucide-react";
 import { useAppState } from "../data/useStore.js";
 import { setData } from "../data/store.js";
 import { groupCompanies } from "../lib/groups.js";
-import { CARTAO, MES_LONGO, NAVY, ROSA, VERDE, dec, moneyFull } from "../lib/fmtNotas.js";
-import { REGIMES, fetchInternoContabil, fimDoMes } from "../lib/internoContabil.js";
+import { CARTAO, NAVY, ROSA, VERDE, dec, moneyFull } from "../lib/fmtNotas.js";
+import { REGIMES, fetchInternoContabil, fimDoMes, periodoInterno, usePeriodoInterno } from "../lib/internoContabil.js";
 import Dfc from "./Dfc.jsx";
 
 // Interno x Contábil (Ferramentas, só Grupo Concent; pedido do Izaias em 27/11/2026): duas abas.
@@ -31,10 +31,6 @@ const pctTxt = (a, t) => {
   return `${dec(Math.min(99.9, Math.round((a / t) * 1000) / 10))}%`;
 };
 const bateu = (a, t) => Math.abs((t || 0) - (a || 0)) < 0.01;
-const mesRotulo = (mes) => {
-  const [a, m] = String(mes).split("-");
-  return `${MES_LONGO[Number(m) - 1] || m} de ${a}`;
-};
 
 function Esqueleto() {
   return (
@@ -47,16 +43,17 @@ function Esqueleto() {
 }
 
 // cartão de indicador (o mesmo desenho do DRE Gerencial / Entradas x Saídas)
-function Cartao({ rotulo, valor, sub, cor = VERDE, icone: Icone, negativo, destaque, selo }) {
+// cartão de indicador: rótulo e ícone em cima, valor grande no meio e o rodapé sempre na mesma altura (selo + explicação)
+function Cartao({ rotulo, valor, texto, sub, cor = VERDE, icone: Icone, negativo, destaque, selo, corTexto }) {
   return (
-    <div className={`${CARTAO} relative flex min-w-0 flex-col justify-between overflow-hidden p-4 ${destaque ? "bg-gradient-to-br from-accent-500/10 to-transparent" : ""}`}>
-      <span className="absolute inset-y-0 left-0 w-1 opacity-90" style={{ background: cor }} />
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">{rotulo}</p>
-        {Icone && <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-500/10 text-accent-600"><Icone size={14} /></span>}
+    <div className={`${CARTAO} relative flex min-h-[132px] min-w-0 flex-col overflow-hidden px-5 pb-4 pt-4 ${destaque ? "bg-gradient-to-br from-accent-500/[.09] via-transparent to-transparent" : ""}`}>
+      <span className="absolute inset-x-0 top-0 h-[3px]" style={{ background: cor }} />
+      <div className="flex items-center justify-between gap-2">
+        <p className="truncate text-[11px] font-semibold uppercase tracking-[.1em] text-ink-500">{rotulo}</p>
+        {Icone && <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl" style={{ background: `${cor}1a`, color: cor }}><Icone size={15} /></span>}
       </div>
-      {valor !== null && <p className={`mt-2 truncate font-bold tabular-nums tracking-tight ${destaque ? "text-[26px] leading-8" : "text-[22px] leading-7"} ${negativo ? "text-rose-600" : "text-ink-900"}`} title={money(valor)}>{inteiro(valor)}</p>}
-      <div className="mt-1 flex min-h-[20px] flex-wrap items-center gap-2">
+      <p className={`mt-3 truncate font-bold tabular-nums tracking-tight ${destaque ? "text-[27px] leading-8" : "text-[24px] leading-8"} ${corTexto || (negativo ? "text-rose-600" : "text-ink-900")}`} title={texto ? undefined : money(valor)}>{texto ?? inteiro(valor)}</p>
+      <div className="mt-auto flex min-h-[22px] flex-wrap items-center gap-x-2 gap-y-1 pt-2.5">
         {selo}
         {sub && <span className="truncate text-[11.5px] text-ink-400">{sub}</span>}
       </div>
@@ -147,13 +144,13 @@ function LinhaItem({ l, aberto, onToggle, onAbrir }) {
 // faixa do grupo (como a da DFC), com o total e o % achado na mesma grade
 function FaixaGrupo({ nome, total, achado, icone: Icone, qtd }) {
   return (
-    <div style={{ gridTemplateColumns: TEMPLATE }} className="grid items-center gap-x-4 border-b border-line bg-surface-muted px-4 py-2.5">
-      <span className="flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-ink-600">
+    <div style={{ gridTemplateColumns: TEMPLATE }} className="grid items-center gap-x-4 border-b border-t border-line bg-surface-muted px-4 py-3">
+      <span className="flex min-w-0 items-center gap-2 text-[12px] font-bold uppercase tracking-wide text-ink-800">
         {Icone && <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-accent-500/10 text-accent-600"><Icone size={13} /></span>}
         <span className="truncate">{nome}</span>
         {qtd != null && <span className="shrink-0 font-normal normal-case tracking-normal text-ink-400">{qtd} {qtd === 1 ? "grupo" : "grupos"}</span>}
       </span>
-      <span className="whitespace-nowrap text-right text-[13px] font-semibold tabular-nums text-ink-900">{money(total)}</span>
+      <span className="whitespace-nowrap text-right text-[15px] font-bold tabular-nums text-ink-900">{money(total)}</span>
       <span className="text-right"><SeloAchado achado={achado} total={total} /></span>
       <span />
       <span />
@@ -164,9 +161,9 @@ function FaixaGrupo({ nome, total, achado, icone: Icone, qtd }) {
 // subtotal (EBIT, resultado...) em laranja claro, como os subtotais da DFC
 function Subtotal({ nome, valor, sub, final }) {
   return (
-    <div style={{ gridTemplateColumns: TEMPLATE }} className={`grid items-center gap-x-4 border-b border-line px-4 ${final ? "bg-accent-500/15 py-3.5" : "bg-accent-50 py-2.5"}`}>
-      <span className={`truncate font-semibold text-ink-900 ${final ? "text-[14px]" : "text-[13px]"}`}>{nome}{sub && <span className="ml-2 text-[11px] font-normal text-ink-400">{sub}</span>}</span>
-      <span className={`whitespace-nowrap text-right font-semibold tabular-nums ${final ? "text-[15px]" : "text-[13px]"} ${valor < 0 ? "text-danger-600" : "text-ink-900"}`}>{money(valor)}</span>
+    <div style={{ gridTemplateColumns: TEMPLATE }} className={`grid items-center gap-x-4 border-b border-line px-4 ${final ? "border-t-2 border-t-accent-500/50 bg-accent-500/15 py-4" : "border-t border-t-accent-500/25 bg-accent-50 py-3"}`}>
+      <span className={`truncate font-bold uppercase tracking-wide text-ink-900 ${final ? "text-[14px]" : "text-[12.5px]"}`}>{nome}{sub && <span className="ml-2 text-[11px] font-normal normal-case tracking-normal text-ink-400">{sub}</span>}</span>
+      <span className={`whitespace-nowrap text-right font-bold tabular-nums ${final ? "text-[19px]" : "text-[15px]"} ${valor < 0 ? "text-danger-600" : "text-ink-900"}`}>{money(valor)}</span>
       <span />
       <span />
       <span />
@@ -552,9 +549,9 @@ export function Demonstrativo({ dados, regime }) {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <Cartao rotulo="Receitas" valor={c.receita} cor={NAVY} icone={CircleDollarSign} selo={<SeloAchado achado={c.achado?.receita} total={c.receita} />} />
         <Cartao rotulo="Despesas operacionais" valor={despesas} cor={ROSA} icone={Wallet} selo={<SeloAchado achado={achDespesas} total={despesas} />} sub="pessoal + impostos + gerais" />
-        <Cartao rotulo="EBIT(DA)" valor={c.ebit} cor={VERDE} icone={TrendingUp} negativo={c.ebit < 0} sub={margem == null ? "" : `${dec(margem)}% da receita`} />
+        <Cartao rotulo="EBIT(DA)" valor={c.ebit} cor={VERDE} icone={TrendingUp} negativo={c.ebit < 0} selo={margem == null ? null : <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-600">{dec(margem)}%</span>} sub="margem sobre a receita" />
         <Cartao rotulo="Resultado líquido" valor={c.liquido} cor={LARANJA} icone={Landmark} negativo={c.liquido < 0} destaque sub="depois de empréstimos e distribuição" />
-        <Cartao rotulo="Conferência" valor={null} cor={AZUL} icone={BadgeCheck} selo={<span className={`text-[22px] font-bold leading-7 tabular-nums ${conferido > 99.995 ? "text-emerald-600" : "text-amber-600"}`}>{dec(Math.min(conferido, conferido > 99.995 ? 100 : 99.9))}%</span>} sub="do relatório achado na contabilidade" />
+        <Cartao rotulo="Conferência" texto={`${dec(Math.min(conferido, conferido > 99.995 ? 100 : 99.9))}%`} corTexto={conferido > 99.995 ? "text-emerald-600" : "text-amber-600"} cor={AZUL} icone={BadgeCheck} sub="do relatório achado na contabilidade" />
       </div>
       {d.prova && <Prova p={d.prova} />}
       <Tabela d={d} regime={regime} />
@@ -571,7 +568,9 @@ export default function InternoContabil() {
   const [brutos, setBrutos] = useState(null);
   const [erro, setErro] = useState("");
   const [foco, setFoco] = useState(null);
-  const [mes, setMes] = useState(null);
+  // mês: compartilhado com o seletor "Período" do topo (components/PeriodoInterno.jsx), que só oferece os meses com relatório interno
+  const { mes } = usePeriodoInterno();
+  const setMes = (m) => periodoInterno.set({ mes: m });
   const [regime, setRegime] = useState("caixa");
   const [aba, setAba] = useState("interno");
   const [centavos, setCentavos] = useState(COM_CENTAVOS);
@@ -601,8 +600,11 @@ export default function InternoContabil() {
   const linhas = useMemo(() => brutos?.[foco] || [], [brutos, foco]);
   const meses = useMemo(() => [...new Set(linhas.map((l) => l.mes))].sort().reverse(), [linhas]);
   useEffect(() => {
+    periodoInterno.set({ meses });
     if (meses.length && !meses.includes(mes)) setMes(meses[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meses, mes]);
+  useEffect(() => () => periodoInterno.set({ meses: [], mes: null }), []);
   const regimesDoMes = REGIMES.filter((r) => linhas.some((l) => l.mes === mes && l.regime === r.id));
   useEffect(() => {
     if (regimesDoMes.length && !regimesDoMes.some((r) => r.id === regime)) setRegime(regimesDoMes[0].id);
@@ -621,13 +623,10 @@ export default function InternoContabil() {
     if (state.periodStart !== ini || state.periodEnd !== fim) setData({ periodStart: ini, periodEnd: fim });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mes]);
-  const anos = useMemo(() => [...new Set(meses.map((m) => m.slice(0, 4)))].sort().reverse(), [meses]);
-  const anoSel = mes ? mes.slice(0, 4) : anos[0];
 
   if (erro) return <div className="p-6 text-[13px] text-rose-600">{erro}</div>;
   if (!brutos) return <Esqueleto />;
 
-  const MESES_CURTOS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
   return (
     <div className="flex w-full flex-col gap-5 p-4 md:p-6">
@@ -648,32 +647,6 @@ export default function InternoContabil() {
             </div>
           )}
         </div>
-        {meses.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-400"><CalendarRange size={14} className="text-accent-600" /> Período</span>
-            {anos.length > 1 ? (
-              <div className="flex items-center rounded-lg bg-surface-muted p-0.5 text-[12px]">
-                {anos.map((a) => (
-                  <button key={a} type="button" onClick={() => setMes(meses.find((m) => m.startsWith(a)))} className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${anoSel === a ? "bg-surface-card text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-900"}`}>{a}</button>
-                ))}
-              </div>
-            ) : (
-              <span className="rounded-lg bg-surface-muted px-2.5 py-1 text-[12px] font-semibold text-ink-700">{anoSel}</span>
-            )}
-            <div className="flex flex-wrap gap-1" role="group" aria-label="Mês do relatório interno">
-              {MESES_CURTOS.map((rot, i) => {
-                const m = `${anoSel}-${String(i + 1).padStart(2, "0")}`;
-                const tem = meses.includes(m);
-                const sel = m === mes;
-                return (
-                  <button key={m} type="button" disabled={!tem} onClick={() => setMes(m)} title={tem ? mesRotulo(m) : "Sem relatório interno neste mês"}
-                    className={`min-w-[46px] rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${sel ? "bg-accent-500 text-white shadow-sm" : tem ? "bg-accent-500/10 text-accent-700 hover:bg-accent-500/20" : "cursor-not-allowed text-ink-300"}`}>{rot}</button>
-                );
-              })}
-            </div>
-            <span className="text-[11.5px] text-ink-400">só os meses com relatório interno conferido · a DFC segue o mesmo mês</span>
-          </div>
-        )}
         {grupo && comDados.length > 1 && (
           <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
             {comDados.map((m) => (

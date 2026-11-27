@@ -1,3 +1,4 @@
+import PeriodoInterno from "./PeriodoInterno.jsx";
 import { useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronLeft, EyeOff, FileSpreadsheet, FileStack, FileText, LayoutGrid, Network, PanelLeft, Presentation, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
@@ -535,7 +536,7 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
   // Revisa Nota é só leitura de produtos e clientes: sem modo da tela, fechamento, período, relatórios, personalizar e configurações.
   const isRevisaNota = location.pathname.startsWith("/empresa/revisa-nota");
   // Interno x Contábil tem o período dele (só os meses com relatório interno): sem fechamento, período, relatórios e configurações do B.I.
-  const semControlesDoBi = isRevisaNota || location.pathname.startsWith("/empresa/interno-contabil");
+  const isInterno = location.pathname.startsWith("/empresa/interno-contabil");
   const showNav = !isPersonalizar && !isDataArea && !isModulo && tabs.length > 0;
   const hasData = appState.accounts.length > 0 || appState.journal.length > 0;
 
@@ -637,12 +638,14 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
             </>
           )}
           {/* longe da lua (antes ficava colado nela e se clicava errado) */}
-          {!isRevisaNota && (usaModos(appState) ? <ModoDaTela className="shrink-0" /> : <VisaoClienteOlho className="shrink-0" />)}
+          {!isRevisaNota && !isInterno && (usaModos(appState) ? <ModoDaTela className="shrink-0" /> : <VisaoClienteOlho className="shrink-0" />)}
         </div>
 
-        <div className={`${semControlesDoBi ? "hidden" : "flex"} flex-wrap items-center justify-end gap-2`}>
-          {hasData && !isCarga && company && canEdit && <FechamentoMenu company={company} />}
-          {hasData && !isCarga && (
+        <div className={`${isRevisaNota ? "hidden" : "flex"} flex-wrap items-center justify-end gap-2`}>
+          {/* Interno x Contábil: o período dele (só os meses com relatório interno) e a lua; sem fechamento, relatórios e configurações do B.I. */}
+          {isInterno && <PeriodoInterno />}
+          {!isInterno && hasData && !isCarga && company && canEdit && <FechamentoMenu company={company} />}
+          {!isInterno && hasData && !isCarga && (
             <PeriodPicker
               label="Período"
               start={appState.periodStart}
@@ -651,12 +654,12 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
               onChange={(start, end) => setData({ periodStart: start, periodEnd: end })}
             />
           )}
-          {!isCarga && <ReportsMenu />}
+          {!isCarga && !isInterno && <ReportsMenu />}
           {/* Visível pra qualquer colaborador, responsável ou não — dá pra
               ENTRAR sem poder editar (útil pra usar como modelo em
               "Replicar relatórios"); quem não é responsável só não vê os
               controles de edição lá dentro (ver PersonalizarHub.jsx). */}
-          {(appState.isAdmin || appState.isColaborador) && !isCarga && (
+          {(appState.isAdmin || appState.isColaborador) && !isCarga && !isInterno && (
             <button
               type="button"
               onClick={() => navigate("/empresa/personalizar")}
@@ -669,7 +672,7 @@ export default function CompanyTopBar({ company, modulesOpen = false, onToggleMo
               Personalizar
             </button>
           )}
-          {company && canEdit && <SettingsButton />}
+          {company && canEdit && !isInterno && <SettingsButton />}
           <ThemeToggle className="h-8 w-8" />
         </div>
       </div>

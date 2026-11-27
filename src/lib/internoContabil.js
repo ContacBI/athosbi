@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { supabase } from "./supabaseClient.js";
 
 // Interno x Contábil (Grupo Concent): o demonstrativo gerencial interno do cliente (o "DRF" do sistema deles), conferido na Central contra a contabilidade
@@ -31,3 +32,19 @@ export function fimDoMes(mes) {
   const d = new Date(a, m, 0).getDate();
   return `${mes}-${String(d).padStart(2, "0")}`;
 }
+
+// Período do módulo (o mês do relatório interno), compartilhado entre a tela e o seletor do topo (CompanyTopBar): só os meses que a Central mandou.
+let periodo = { meses: [], mes: null };
+const ouvintes = new Set();
+export const periodoInterno = {
+  get: () => periodo,
+  set(parcial) {
+    periodo = { ...periodo, ...parcial };
+    ouvintes.forEach((f) => f());
+  },
+  sub(f) {
+    ouvintes.add(f);
+    return () => ouvintes.delete(f);
+  },
+};
+export const usePeriodoInterno = () => useSyncExternalStore(periodoInterno.sub, periodoInterno.get);
