@@ -15,7 +15,12 @@ import Dfc from "./Dfc.jsx";
 
 const AZUL = "#2f6fed";
 const LARANJA = "#e8691f";
-const money = (v) => moneyFull(v || 0);
+// valores sem centavos em toda a tela (27/11/2026, Izaias); só o que fica abaixo de R$ 1 (ex.: diferença de 0,37 da prova) mostra os centavos, senão viraria "R$ 0"
+const money = (v) => {
+  const x = Number(v || 0);
+  if (x !== 0 && Math.abs(x) < 1) return moneyFull(x);
+  return Math.round(x).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 });
+};
 const inteiro = (v) => Number(Math.round(v || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0, minimumFractionDigits: 0 });
 const pctTxt = (a, t) => {
   if (!t) return "—";
